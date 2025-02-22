@@ -1,5 +1,10 @@
 'use client';
 
+
+import { Button } from '@/components/ui/button';
+import { LayoutGrid } from 'lucide-react'
+import { AppsGrid } from '@/components/ui/apps-grid';
+
 interface AppsHeaderProps {
   title?: React.ReactNode;
   leftButton?: React.ReactNode;
@@ -23,12 +28,34 @@ export function AppsHeader({ title, leftButton }: AppsHeaderProps) {
               </div>
             </div>
             <div className="ml-auto">
-
+              <AppsGrid
+                trigger={
+                  <Button
+                    variant="outline"
+                    className="flex items-center px-2 h-fit"
+                  >
+                    <LayoutGrid size={14} />
+                    <span>Apps</span>
+                  </Button>
+                }
+                useHardReload={false}
+              />
             </div>
           </>
         ) : (
           <div className="ml-auto">
-
+            <AppsGrid
+              trigger={
+                <Button
+                  variant="outline"
+                  className="flex items-center px-2 h-fit"
+                >
+                  <LayoutGrid size={14} />
+                  <span>Apps</span>
+                </Button>
+              }
+              useHardReload={false}
+            />
           </div>
         )}
       </div>

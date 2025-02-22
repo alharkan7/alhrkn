@@ -117,5 +117,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    transition: background-color 1s ease, color 1s ease;
   }
 }

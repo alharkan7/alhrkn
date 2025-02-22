@@ -87,7 +87,7 @@ export default function Component() {
   const [shownIndices, setShownIndices] = useState<number[]>([]); // New state to track shown indices
 
   const handleNextCard = () => {
-    setCardPosition(-100); // Move card up
+    setCardPosition(-20); // Move card up
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * cards.length);
       setShownIndices((prev) => [...prev, randomIndex]); // Store shown index
@@ -99,7 +99,7 @@ export default function Component() {
   };
 
   const handlePreviousCard = () => {
-    setCardPosition(100); // Move card down
+    setCardPosition(20); // Move card down
     setTimeout(() => {
       const previousIndex = shownIndices.pop(); // Get the last shown index
       if (previousIndex !== undefined) {
@@ -172,8 +172,8 @@ export default function Component() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-4 bg-background">
-      <div className="w-full flex justify-center space-x-4 mb-8 mt-8">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background relative">
+      <div className="w-full flex justify-center space-x-2 mb-6">
         <Button
           variant={selectedType === "Hiragana" ? "default" : "outline"}
           onClick={() => setSelectedType("Hiragana")}
@@ -192,18 +192,10 @@ export default function Component() {
         </Button>
       </div>
       <div className="relative w-full max-w-sm">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handlePreviousCard}
-          className="absolute -top-12 left-1/2 transform -translate-x-1/2 rounded-full"
-        >
-          <ChevronUp className="h-6 w-6 text-gray-800" />
-        </Button>
         <Card
           ref={cardRef}
-          style={{ transform: `translateY(${cardPosition}%)` }} // Apply position change
-          className={`w-full aspect-square flex items-center justify-center text-8xl font-bold cursor-pointer transition-all duration-300 ${isFlipped ? "rotate-y-180" : ""
+          style={{ transform: `translateY(${cardPosition}%)` }}
+          className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer transition-all duration-300 ${isFlipped ? "rotate-y-180" : ""
             } ${cardState === "correct"
               ? "bg-green-100"
               : cardState === "incorrect"
@@ -214,21 +206,37 @@ export default function Component() {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePreviousCard();
+            }}
+            className="p-2 hover:bg-gray-100/50"
+          >
+            <ChevronUp className="h-6 w-6 text-gray-800" />
+          </Button>
+
           <div className={`${isFlipped ? "hidden" : ""}`}>
             {currentCard.japanese}
           </div>
           <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
             {currentCard.alphabet}
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextCard();
+            }}
+            className="p-2 hover:bg-gray-100/50"
+          >
+            <ChevronDown className="h-6 w-6 text-gray-800" />
+          </Button>
         </Card>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleNextCard}
-          className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 rounded-full"
-        >
-          <ChevronDown className="h-6 w-6 text-gray-800" />
-        </Button>
       </div>
       <div className="w-full max-w-sm mt-6">
         <div className="flex items-center space-x-2">
@@ -253,7 +261,7 @@ export default function Component() {
           </Button>
         </div>
       </div>
-      <div className="mb-2 text-center text-gray-600 text-xs">
+      <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
         Created by {"  "}
         <a href="https://x.com/alhrkn" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           @alhrkn
