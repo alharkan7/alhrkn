@@ -32,7 +32,7 @@ export function ImageModal({ isOpen, onClose, imageUrl, altText }: ImageModalPro
           </VisuallyHidden>
           <button
             onClick={onClose}
-            className="absolute -right-2 -top-2 z-50 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full p-1.5 flex items-center justify-center shadow-sm"
+            className="absolute right-1 top-5 z-50 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full p-1.5 flex items-center justify-center shadow-sm"
             aria-label="Close preview"
           >
             <X className="h-4 w-4" />

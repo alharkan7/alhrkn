@@ -89,7 +89,7 @@ export default function MinimalistChatbot() {
                     <AppsHeader />
                 </div>
             )}
-            <div className="flex-1 overflow-hidden flex flex-col justify-center max-w-4xl mx-auto w-full px-4 md:px-8">
+            <div className="flex-1 overflow-hidden flex flex-col justify-center max-w-4xl mx-auto w-full px-1 md:px-4">
                 <div className="flex-none">
                     <ChatTitle
                         clearMessages={handleClearChat}
@@ -106,7 +106,7 @@ export default function MinimalistChatbot() {
                             isStreaming={isStreaming}
                         />
                     </div>)}
-                <div className="flex-none p-4">
+                <div className="flex-none py-4 px-2">
                     <ChatInput
                         input={input}
                         setInput={setInput}
