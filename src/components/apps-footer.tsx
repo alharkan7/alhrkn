@@ -18,9 +18,7 @@ const AppsFooter = () => {
                         className="text-primary hover:text-primary/90"
                     >
                         alhrkn
-                    </a>.
-                    {" "}
-                    All rights reserved.
+                    </a>
                 </span>
                 <Button
                     variant="ghost"
