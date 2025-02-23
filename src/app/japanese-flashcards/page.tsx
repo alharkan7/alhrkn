@@ -181,138 +181,140 @@ export default function Component() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 bg-background relative">
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <AppsHeader />
-      </div>
-      <div className="w-full pt-16">
-        <div className="flex justify-center space-x-2 my-6">
-          <Button
-            variant={selectedType === "Hiragana" ? "default" : "outline"}
-            onClick={() => setSelectedType("Hiragana")}
-            className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
-              }`}
-          >
-            Hiragana
-          </Button>
-          <Button
-            variant={selectedType === "Katakana" ? "default" : "outline"}
-            onClick={() => setSelectedType("Katakana")}
-            className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
-              }`}
-          >
-            Katakana
-          </Button>
+    <>
+      <div className="min-h-screen flex flex-col items-center p-4 bg-background relative">
+        <div className="fixed top-0 left-0 right-0 z-50">
+          <AppsHeader />
         </div>
-      </div>
-      <div className="relative w-full max-w-sm">
-        <Card
-          ref={cardRef}
-          style={{ transform: `translateY(${cardPosition}%)` }}
-          className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer select none
+        <div className="w-full pt-16">
+          <div className="flex justify-center space-x-2 my-6">
+            <Button
+              variant={selectedType === "Hiragana" ? "default" : "outline"}
+              onClick={() => setSelectedType("Hiragana")}
+              className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
+                }`}
+            >
+              Hiragana
+            </Button>
+            <Button
+              variant={selectedType === "Katakana" ? "default" : "outline"}
+              onClick={() => setSelectedType("Katakana")}
+              className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
+                }`}
+            >
+              Katakana
+            </Button>
+          </div>
+        </div>
+        <div className="relative w-full max-w-sm">
+          <Card
+            ref={cardRef}
+            style={{ transform: `translateY(${cardPosition}%)` }}
+            className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer select none
             transition-all duration-300 shadow-xl hover:shadow-2xl 
             border border-border
             ${isFlipped ? "rotate-y-180" : ""
-            } ${cardState === "correct"
-              ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
-              : cardState === "incorrect"
-                ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100"
-                : ""
-            }`}
-          onClick={handleCardClick}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* Add Info icon */}
-          <button
-            className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(true);
-            }}
+              } ${cardState === "correct"
+                ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
+                : cardState === "incorrect"
+                  ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100"
+                  : ""
+              }`}
+            onClick={handleCardClick}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
-            <Info className="h-4 w-4" />
-          </button>
+            {/* Add Info icon */}
+            <button
+              className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(true);
+              }}
+            >
+              <Info className="h-4 w-4" />
+            </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePreviousCard();
-            }}
-            className="p-2 hover:bg-accent-foreground/50 rounded-full"
-          >
-            <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePreviousCard();
+              }}
+              className="p-2 hover:bg-accent-foreground/50 rounded-full"
+            >
+              <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
+            </Button>
 
-          <div className={`${isFlipped ? "hidden" : ""}`}>
-            {currentCard.japanese}
-          </div>
-          <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
-            {currentCard.alphabet}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNextCard();
-            }}
-            className="p-2 hover:bg-accent-foreground/50 rounded-full"
-          >
-            <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
-          </Button>
-        </Card>
-      </div>
-      <div className="w-full max-w-sm mt-6">
-        <div className="flex items-center space-x-2">
-          <Input
-            type="text"
-            placeholder="Guess the alphabet"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleCheck();
-              }
-            }}
-            className="flex-grow rounded-full focus-visible:ring-1 focus-visible:ring-primary/80 focus-visible:ring-offset-2"
-          />
-          <Button
-            onClick={handleCheck}
-            size="icon"
-            className="rounded-full"
-          >
-            <ChevronRight className="" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
-        <div className="flex-none">
-          <AppsFooter />
-          {isOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-              <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1">
-                <div className="flex justify-end">
-                  <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
-                    &times;
-                  </button>
-                </div>
-                <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
-                <p className="text-gray-600 text-s mb-2">
-                  <b>Swipe</b> up and down arrow to change card randomly.<br />
-                  <b>Tap</b> on the card to flip it over and see the alphabet.<br />
-                  <b>Write</b> in the input field guess the alphabet.<br />
-                </p>
-              </div>
+            <div className={`${isFlipped ? "hidden" : ""}`}>
+              {currentCard.japanese}
             </div>
-          )}
-        </div>
-      </div>
+            <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
+              {currentCard.alphabet}
+            </div>
 
-    </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextCard();
+              }}
+              className="p-2 hover:bg-accent-foreground/50 rounded-full"
+            >
+              <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
+            </Button>
+          </Card>
+        </div>
+        <div className="w-full max-w-sm mt-6">
+          <div className="flex items-center space-x-2">
+            <Input
+              type="text"
+              placeholder="Guess the alphabet"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleCheck();
+                }
+              }}
+              className="flex-grow rounded-full focus-visible:ring-1 focus-visible:ring-primary/80 focus-visible:ring-offset-2"
+            />
+            <Button
+              onClick={handleCheck}
+              size="icon"
+              className="rounded-full"
+            >
+              <ChevronRight className="" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
+          <div className="flex-none">
+            <AppsFooter />
+          </div>
+        </div>
+
+      </div>
+      {isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1">
+            <div className="flex justify-end">
+              <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
+                &times;
+              </button>
+            </div>
+            <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
+            <p className="text-gray-600 text-s mb-2">
+              <b>Swipe</b> up and down arrow to change card randomly.<br />
+              <b>Tap</b> on the card to flip it over and see the alphabet.<br />
+              <b>Write</b> in the input field guess the alphabet.<br />
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
