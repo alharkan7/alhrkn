@@ -299,13 +299,13 @@ export default function Component() {
 
       </div>
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-          <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1">
-            <div className="flex justify-end">
-              <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
-                &times;
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
+          <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1 text-center dark:bg-gray-800">
+          <div className="flex justify-end">
+            <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
+              &times;
+            </button>
+          </div>
             <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
             <p className="text-gray-600 text-s mb-2">
               <b>Swipe</b> up and down arrow to change card randomly.<br />
