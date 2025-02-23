@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronUp, ChevronDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import charactersList from './characters_list.json';
+import { AppsHeader } from '@/components/apps-header'
+import AppsFooter from '@/components/apps-footer'
 
 // Define the structure of our flash card data
 interface FlashCard {
@@ -150,7 +152,14 @@ export default function Component() {
     };
   }, []);
 
-  if (cards.length === 0) return <div>Loading...</div>;
+  if (cards.length === 0) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <div className="animate-pulse space-y-4 text-center">
+        <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto" />
+        <div className="text-muted-foreground font-medium">Loading Cards...</div>
+      </div>
+    </div>
+  );
 
   const currentCard = cards[currentCardIndex];
 
@@ -172,40 +181,59 @@ export default function Component() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background relative">
-      <div className="w-full flex justify-center space-x-2 mb-6">
-        <Button
-          variant={selectedType === "Hiragana" ? "default" : "outline"}
-          onClick={() => setSelectedType("Hiragana")}
-          className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-white" : "text-gray-800"
-            }`}
-        >
-          Hiragana
-        </Button>
-        <Button
-          variant={selectedType === "Katakana" ? "default" : "outline"}
-          onClick={() => setSelectedType("Katakana")}
-          className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-white" : "text-gray-800"
-            }`}
-        >
-          Katakana
-        </Button>
+    <div className="min-h-screen flex flex-col items-center p-4 bg-background relative">
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <AppsHeader />
+      </div>
+      <div className="w-full pt-16">
+        <div className="flex justify-center space-x-2 my-6">
+          <Button
+            variant={selectedType === "Hiragana" ? "default" : "outline"}
+            onClick={() => setSelectedType("Hiragana")}
+            className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
+              }`}
+          >
+            Hiragana
+          </Button>
+          <Button
+            variant={selectedType === "Katakana" ? "default" : "outline"}
+            onClick={() => setSelectedType("Katakana")}
+            className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
+              }`}
+          >
+            Katakana
+          </Button>
+        </div>
       </div>
       <div className="relative w-full max-w-sm">
         <Card
           ref={cardRef}
           style={{ transform: `translateY(${cardPosition}%)` }}
-          className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer transition-all duration-300 ${isFlipped ? "rotate-y-180" : ""
+          className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer select none
+            transition-all duration-300 shadow-xl hover:shadow-2xl 
+            border border-border
+            ${isFlipped ? "rotate-y-180" : ""
             } ${cardState === "correct"
-              ? "bg-green-100"
+              ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
               : cardState === "incorrect"
-                ? "bg-red-100"
+                ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100"
                 : ""
             }`}
           onClick={handleCardClick}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
+          {/* Add Info icon */}
+          <button
+            className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(true);
+            }}
+          >
+            <Info className="h-4 w-4" />
+          </button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -213,9 +241,9 @@ export default function Component() {
               e.stopPropagation();
               handlePreviousCard();
             }}
-            className="p-2 hover:bg-gray-100/50"
+            className="p-2 hover:bg-accent-foreground/50 rounded-full"
           >
-            <ChevronUp className="h-6 w-6 text-gray-800" />
+            <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
           </Button>
 
           <div className={`${isFlipped ? "hidden" : ""}`}>
@@ -232,9 +260,9 @@ export default function Component() {
               e.stopPropagation();
               handleNextCard();
             }}
-            className="p-2 hover:bg-gray-100/50"
+            className="p-2 hover:bg-accent-foreground/50 rounded-full"
           >
-            <ChevronDown className="h-6 w-6 text-gray-800" />
+            <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
           </Button>
         </Card>
       </div>
@@ -242,7 +270,7 @@ export default function Component() {
         <div className="flex items-center space-x-2">
           <Input
             type="text"
-            placeholder="Enter alphabet"
+            placeholder="Guess the alphabet"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={(e) => {
@@ -250,46 +278,41 @@ export default function Component() {
                 handleCheck();
               }
             }}
-            className="flex-grow text-black rounded-full"
+            className="flex-grow rounded-full focus-visible:ring-1 focus-visible:ring-primary/80 focus-visible:ring-offset-2"
           />
           <Button
             onClick={handleCheck}
             size="icon"
-            className="rounded-full w-10 h-10"
+            className="rounded-full"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="" />
           </Button>
         </div>
       </div>
+
       <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
-        Created by {"  "}
-        <a href="https://x.com/alhrkn" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-          @alhrkn
-        </a>
-        {"  |  "}
-        <button onClick={() => setIsOpen(true)} className="text-gray-500 hover:underline">
-          How to Use
-        </button>
-
-        {isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-            <div className="md:max-w-md w-10/12 bg-white rounded-lg p-4">
-              <div className="flex justify-end">
-                <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800">
-                  &times;
-                </button>
+        <div className="flex-none">
+          <AppsFooter />
+          {isOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+              <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1">
+                <div className="flex justify-end">
+                  <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
+                    &times;
+                  </button>
+                </div>
+                <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
+                <p className="text-gray-600 text-s mb-2">
+                  <b>Swipe</b> up and down arrow to change card randomly.<br />
+                  <b>Tap</b> on the card to flip it over and see the alphabet.<br />
+                  <b>Write</b> in the input field guess the alphabet.<br />
+                </p>
               </div>
-              <h2 className="text-lg font-bold mb-2">How to Use this Flashcard</h2>
-              <p className="text-gray-600 text-s mb-2">
-                <b>Swipe</b> up and down arrow to change card randomly.<br />
-                <b>Tap</b> on the card to flip it over and see the alphabet.<br />
-                <b>Write</b> in the input field guess the alphabet.<br />
-              </p>
             </div>
-          </div>
-        )}
-
+          )}
+        </div>
       </div>
+
     </div>
   );
 }

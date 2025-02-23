@@ -7,7 +7,7 @@ const AppsFooter = () => {
     const { theme, setTheme } = useTheme();
 
     return (
-        <footer className="py-3 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
+        <footer className="py-2 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
                     &copy; {currentYear}&nbsp;
