@@ -108,10 +108,11 @@ export default function Component() {
 
   return (
     <div className="h-[100vh] flex flex-col items-center justify-center">
-      <div className="w-full flex-none">
+      <div className="fixed top-0 left-0 right-0 z-50">
         <AppsHeader />
       </div>
-      <Card className="w-full max-w-sm mx-auto relative">
+      <div className="w-full max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40">
+      <Card className="max-w-sm mx-auto relative ">
         <Button
           className="absolute top-1 right-1 p-2 bg-background border rounded-full opacity-50 hover:opacity-100 transition-opacity z-10 shadow-sm text-secondary-foreground"
           onClick={(e) => {
@@ -218,7 +219,8 @@ export default function Component() {
           <div className="flex justify-between mt-4 gap-4">
             <Button
               type="button"
-              className="w-1/2 shadow-sm hover:shadow-md transition-all duration-200 border  hover:text-primary-foreground rounded-lg py-4 flex items-center justify-center gap-2 font-medium"
+              variant='ghost'
+              className="w-1/2 gap-2"
               onClick={() => window.location.href = "https://bit.ly/pocket-tracker-sheet"}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
@@ -226,7 +228,8 @@ export default function Component() {
             </Button>
             <Button
               type="button"
-              className="w-1/2 shadow-sm hover:shadow-md transition-all duration-200 border hover:text-primary-foreground rounded-lg py-4 flex items-center justify-center gap-2 font-medium"
+              variant='ghost'	
+              className="w-1/2 gap-2"
               onClick={() => window.location.href = "https://bit.ly/pocket-tracker-dashboard"}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M21 12H3" /><path d="M12 3v18" /></svg>
@@ -235,8 +238,8 @@ export default function Component() {
           </div>
         </CardContent>
       </Card>
-      <div className="w-full flex-1"></div>
-      <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-xs bg-background">
         <div className="flex-none">
           <AppsFooter />
         </div>

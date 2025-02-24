@@ -1,13 +1,12 @@
 'use client'
 
+import React from 'react';
 import { categories } from '@/lib/categories';
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/ui/date-picker"
+import { User2, Check, X, Calendar } from 'lucide-react';
 
 interface FormExpensesProps {
   date: string;
@@ -45,10 +44,31 @@ export function FormExpenses({
   handleSubmit,
 }: FormExpensesProps) {
   return (
-    <form className="space-y-3 border shadow-sm hover:shadow-md transition-shadow duration-200 p-6 rounded-lg" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="subject">Subject</Label>
+    <form className="border shadow-sm hover:shadow-md transition-shadow duration-200 p-6 rounded-lg" onSubmit={handleSubmit}>
+      <div className="space-y-2 w-full">
+        <div className="relative">
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[2rem] text-secondary-foreground/50 font-medium">Rp</span>
+          <input
+            type="text"
+            id="amount"
+            placeholder="0"
+            inputMode="numeric"
+            required
+            value={amountValue ? new Intl.NumberFormat('id-ID').format(Number(amountValue)) : ''}
+            onChange={(e) => {
+              const numericValue = e.target.value.replace(/\./g, '');
+              if (/^\d*$/.test(numericValue)) {
+                setAmountValue(numericValue);
+              }
+            }}
+            className="text-[2rem] h-[3rem] leading-[3rem] font-medium border-0 border-b rounded-none focus:placeholder:opacity-0 focus:border-opacity-0 focus:outline-none focus:ring-0 px-0 placeholder: text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full pl-[3rem] bg-transparent"
+          />
+        </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-4 gap-4">
+      <div className="space-y-2 flex flex-col items-center">
+          <Label htmlFor="subject" className='text-xs text-muted-foreground'>Subject</Label>
           <Select
             value={subjectValue}
             required
@@ -56,9 +76,13 @@ export function FormExpenses({
           >
             <SelectTrigger
               id="subject"
-              className={`border-2 ${showValidation && !subjectValue ? 'border-red-500 focus:ring-red-500' : ''}`}
+              className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${
+                showValidation && !subjectValue ? 'border-red-500 focus:ring-red-500' :
+                subjectValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
+              }`}
             >
-              <SelectValue placeholder="Select" />
+              <User2 className="h-4 w-4" />
+              <span className="sr-only"><SelectValue /></span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="Ayah">Ayah</SelectItem>
@@ -68,31 +92,11 @@ export function FormExpenses({
             </SelectContent>
           </Select>
           {showValidation && !subjectValue && (
-            <p className="text-sm text-red-500 mt-1">Please Select</p>
+            <p className="text-sm text-red-500 mt-1">Select</p>
           )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="date">Date</Label>
-          <DatePicker date={date} setDate={setDate} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="amount">Amount</Label>
-          <Input
-            type="number"
-            id="amount"
-            placeholder="0"
-            step="1"
-            min="0"
-            inputMode="decimal"
-            required
-            value={amountValue}
-            onChange={(e) => setAmountValue(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
+        <div className="space-y-2 flex flex-col items-center">
+          <Label htmlFor="category" className='text-xs text-muted-foreground'>Category</Label>
           <Select
             value={categoryValue}
             required
@@ -100,9 +104,18 @@ export function FormExpenses({
           >
             <SelectTrigger
               id="category"
-              className={`border-2 ${showValidation && !categoryValue ? 'border-red-500 focus:ring-red-500' : ''}`}
+              className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${showValidation && !categoryValue ? 'border-red-500 focus:ring-red-500' :
+                categoryValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
+                }`}
             >
-              <SelectValue placeholder="Select" />
+              {categoryValue ? (
+                React.createElement(categories.find(cat => cat.value === categoryValue)?.icon || categories[0].icon, {
+                  className: "h-4 w-4"
+                })
+              ) : (
+                React.createElement(categories[0].icon, { className: "h-4 w-4" })
+              )}
+              <span className="sr-only"><SelectValue /></span>
             </SelectTrigger>
             <SelectContent position="popper">
               {categories.map((category) => (
@@ -116,34 +129,70 @@ export function FormExpenses({
             </SelectContent>
           </Select>
           {showValidation && !categoryValue && (
-            <p className="text-sm text-red-500 mt-1">Please Select</p>
+            <p className="text-sm text-red-500 mt-1">Select</p>
           )}
         </div>
+        <div className="space-y-2 flex flex-col items-center">
+          <Label htmlFor="date" className='text-xs text-muted-foreground'>Date</Label>
+          <DatePicker
+            date={date}
+            setDate={setDate}
+            triggerClassName={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${date ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
+              }`}
+            icon={<Calendar className="h-4 w-4" />}
+          />
+        </div>
+        <div className="space-y-2 flex flex-col items-center">
+          <Label htmlFor="reimbursed" className='text-xs text-muted-foreground'>Reimbursed</Label>
+          <Select
+            value={reimburseValue}
+            onValueChange={setReimburseValue}
+          >
+            <SelectTrigger
+              id="reimbursed"
+              className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${reimburseValue === 'TRUE' ? 'border-primary text-primary' : 'border-muted-foreground/50'
+                }`}
+            >
+              {reimburseValue === 'TRUE' ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
+              <span className="sr-only"><SelectValue /></span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TRUE">
+                <div className="flex items-center">
+                  <Check className="mr-2 h-4 w-4" />
+                  <span>Yes</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="FALSE">
+                <div className="flex items-center">
+                  <X className="mr-2 h-4 w-4" />
+                  <span>No</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="description">Notes</Label>
-        <Textarea
+
+      <div className="mt-8">
+        <textarea
           id="description"
-          placeholder="Enter a brief description (optional)"
-          className=""
+          placeholder="Notes (optional)"
+          className="resize-none px-0 border-0 border-b rounded-none focus:ring-0 focus-visible:ring-0 focus:outline-none placeholder:text-muted-foreground/50 w-full align-bottom placeholder:bottom-1 placeholder:left-0 flex h-[2rem] focus:placeholder:opacity-0 max-h-none overflow-hidden bg-transparent"
           value={descriptionValue}
-          onChange={(e) => setDescriptionValue(e.target.value)}
+          onChange={(e) => {
+            e.target.style.height = '2rem';
+            e.target.style.height = e.target.scrollHeight + 'px';
+            setDescriptionValue(e.target.value);
+          }}
         />
       </div>
-      <div className="space-y-2">
-        <Label>Reimbursed</Label>
-        <RadioGroup value={reimburseValue} onValueChange={setReimburseValue} className="flex">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="TRUE" id="yes" checked={reimburseValue === 'TRUE'} />
-            <Label htmlFor="yes">Yes</Label>
-          </div>
-          <div className="flex items-center space-x-2 ml-4">
-            <RadioGroupItem value="FALSE" id="no" checked={reimburseValue === 'FALSE'} />
-            <Label htmlFor="no">No</Label>
-          </div>
-        </RadioGroup>
-      </div>
-      <Button className="w-full !mt-6" type="submit" disabled={isSubmitting}>
+
+      <Button className="w-full mt-8" variant="secondary" type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Save' : 'Save'}
       </Button>
     </form>
