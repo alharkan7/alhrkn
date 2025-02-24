@@ -307,7 +307,7 @@ export default function Component() {
             </button>
           </div>
             <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
-            <p className="text-gray-600 text-s mb-2">
+            <p className="text-primary/80 text-s mb-2">
               <b>Swipe</b> up and down arrow to change card randomly.<br />
               <b>Tap</b> on the card to flip it over and see the alphabet.<br />
               <b>Write</b> in the input field guess the alphabet.<br />

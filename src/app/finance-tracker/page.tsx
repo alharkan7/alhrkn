@@ -12,7 +12,6 @@ import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import { Info } from 'lucide-react';
 
-
 export default function Component() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [subjectValue, setSubjectValue] = useState('');
@@ -108,20 +107,20 @@ export default function Component() {
   };
 
   return (
-    <div className="h-[100vh] flex flex-col items-center">
+    <div className="h-[100vh] flex flex-col items-center justify-center">
       <div className="w-full flex-none">
         <AppsHeader />
       </div>
-      <Card className="w-full max-w-sm mx-auto relative flex-none">
-        <button
-          className="absolute top-1 right-1 p-2 bg-background border rounded-full opacity-50 hover:opacity-100 transition-opacity z-10 shadow-sm"
+      <Card className="w-full max-w-sm mx-auto relative">
+        <Button
+          className="absolute top-1 right-1 p-2 bg-background border rounded-full opacity-50 hover:opacity-100 transition-opacity z-10 shadow-sm text-secondary-foreground"
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(true);
           }}
         >
           <Info className="h-4 w-4" />
-        </button>
+        </Button>
         <CardHeader className="text-center py-6 items-center">
           {/* <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Wallet className="w-8 h-8 text-white" />
@@ -235,10 +234,12 @@ export default function Component() {
             </Button>
           </div>
         </CardContent>
-        </Card>
+      </Card>
       <div className="w-full flex-1"></div>
-      <div className="w-full flex-none mt-2">
-        <AppsFooter />
+      <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
+        <div className="flex-none">
+          <AppsFooter />
+        </div>
       </div>
 
       {isOpen && (
@@ -250,7 +251,7 @@ export default function Component() {
               </button>
             </div>
             <h2 className="text-lg font-bold mb-4">About this App</h2>
-            <p className="text-gray-600 text-s mb-2">
+            <p className="text-primary/80 text-s mb-2">
               This app saves your data directly to Google Sheets <b>so that you own your data</b> and can manage it yourself.
               <br></br><br></br>
               If you want to run your version of this app, you can{" "}
