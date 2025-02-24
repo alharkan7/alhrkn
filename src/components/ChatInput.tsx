@@ -49,7 +49,7 @@ export function ChatInput({
         <>
             <div className="relative flex flex-col gap-2">
                 {file && !isLoading && (
-                    <div className="w-full">
+                    <div className="w-full flex justify-center">
                         <FilePreview
                             file={file}
                             isUploading={true}
