@@ -1,4 +1,4 @@
-import { Sparkles, Languages, LucideIcon, Infinity } from 'lucide-react'
+import { Sparkles, Languages, LucideIcon, Infinity, Wallet } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -19,6 +19,12 @@ export const apps: AppConfig[] = [
     icon: Languages,
     slug: 'japanese-flashcards',
     description: 'Simple Japanese Hiragana and Katakana Flashcards',
+  },
+  {
+    name: 'Finance Tracker',
+    icon: Wallet,
+    slug: 'finance-tracker',
+    description: 'Simple Finance Tracker that Records Directly to Google Sheets',
   },
   {
     name: 'Enaiblr AI',

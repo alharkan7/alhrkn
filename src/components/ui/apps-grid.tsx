@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { apps } from '@/config/apps';
 import { useRouter } from 'next/navigation';
+import { Mail } from 'lucide-react';
 
 interface AppsGridProps {
   trigger: React.ReactNode;
@@ -55,7 +56,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
           {trigger}
         </PopoverTrigger>
         <PopoverContent
-          className="w-[320px] p-2"
+          className="w-[220px] p-2"
           align="end"
           onPointerDownOutside={(e: Event) => {
             if (e.target instanceof Element && e.target.closest('.apps-grid-content')) {
@@ -68,7 +69,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
             transition: 'opacity 0.15s ease-in-out'
           }}
         >
-          <div className="apps-grid-content grid grid-cols-3 max-h-[310px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="apps-grid-content grid grid-cols-2 max-h-[310px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
             {apps.map((app) => {
               const Icon = app.icon;
               return (
@@ -76,7 +77,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
                   <TooltipTrigger asChild disabled={!showTooltips}>
                     <Button
                       variant="ghost"
-                      className="relative h-[100px] w-[100px] flex flex-col items-center justify-center gap-3 hover:bg-muted rounded-2xl"
+                      className="relative h-[90px] w-[100px] flex flex-col items-center justify-center gap-3 hover:bg-muted rounded-2xl"
                       onClick={() => handleAppClick(app.slug)}
                     >
                       <Icon className="size-12 text-foreground" />
@@ -91,6 +92,16 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
                 </Tooltip>
               );
             })}
+          </div>
+          <div className="mt-2 pt-2 border-t border-border">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => window.location.href = 'mailto:alharkan7@gmail.com'}
+            >
+              <Mail className='mr-1 ml-2'/>
+              alharkan7@gmail.com
+            </Button>
           </div>
         </PopoverContent>
       </Popover>

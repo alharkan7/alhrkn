@@ -242,7 +242,7 @@ export default function Component() {
                 e.stopPropagation();
                 handlePreviousCard();
               }}
-              className="p-2 hover:bg-accent-foreground/50 rounded-full"
+              className="p-1 rounded-full"
             >
               <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
             </Button>
@@ -261,7 +261,7 @@ export default function Component() {
                 e.stopPropagation();
                 handleNextCard();
               }}
-              className="p-2 hover:bg-accent-foreground/50 rounded-full"
+              className="p-1 rounded-full"
             >
               <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
             </Button>

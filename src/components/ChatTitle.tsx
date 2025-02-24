@@ -26,14 +26,14 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
 
     return hasUserSentMessage ? (
         <AppsHeader
-            title={<><span className="text-primary">Ask</span> Anything</>}
+            title={<><span className="text-primary">Ask</span> Al</>}
             leftButton={refreshButton}
         />
     ) : (
         <div className="text-center py-4">
             <h1 className="text-4xl font-extrabold mb-2">
                 <span className="text-primary whitespace-nowrap">Ask</span>{' '}
-                <span className="whitespace-nowrap">Anything</span>
+                <span className="whitespace-nowrap">Al</span>
             </h1>
         </div>
     );
