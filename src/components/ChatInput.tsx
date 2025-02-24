@@ -57,7 +57,7 @@ export function ChatInput({
                         />
                     </div>
                 )}
-                <form onSubmit={handleSubmit} className="relative flex items-center gap-1.5 rounded-full border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-1 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
+                <form onSubmit={handleSubmit} className="relative flex items-center gap-1.5 rounded-full border outline outline-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-1 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all max-w-2xl mx-auto w-full">
                     <input
                         type="file"
                         ref={fileInputRef}
