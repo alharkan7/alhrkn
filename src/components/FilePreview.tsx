@@ -1,4 +1,4 @@
-import { FileText, File } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useState } from 'react';
 import { ImageModal } from '@/components/ui/image-modal';
@@ -69,7 +69,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
             case 'md':
                 return <FileText className="size-8 !text-secondary-foreground" />;
             default:
-                return <File className="size-8 !text-secondary-foreground" />;
+                return <FileText className="size-8 !text-secondary-foreground" />;
         }
     };
 

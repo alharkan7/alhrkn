@@ -83,7 +83,7 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
     };
 
     return (
-        <div ref={messageListRef} className="h-full overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20">
+        <div ref={messageListRef} className="h-full px-4 pb-4 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40">
             <div className="max-w-4xl mx-auto space-y-4 mt-4">
                 {messages.map((message, index) => (
                     <motion.div

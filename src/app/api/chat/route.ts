@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
+import { tools, handleCalculate } from '@/utils/tools';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
@@ -21,6 +22,7 @@ const model = genAI.getGenerativeModel({
         topK: 40,
         maxOutputTokens: 8192,
     },
+    tools: tools  // Add tools configuration
 });
 
 // Helper function to get file extension from mime type
@@ -117,6 +119,18 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
     }
 }
 
+// Add system prompt configuration
+const SYSTEM_PROMPT = `You are a helpful AI assistant. You can help with a wide range of tasks including:
+- Answering questions on any topic
+- Writing and analyzing code
+- Mathematical calculations (using the calculate function when needed)
+- Explaining complex concepts
+- Helping with analysis and problem-solving
+- Processing and analyzing images and documents
+
+For mathematical calculations, use the calculate function only when precise computation is needed.
+Otherwise, provide direct answers to questions.`;
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -129,7 +143,19 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const chat = model.startChat();
+        const chat = model.startChat({
+            history: [],
+            generationConfig: {
+                temperature: 0.7,
+                topP: 0.8,
+                topK: 40,
+                maxOutputTokens: 8192,
+            }
+        });
+        // Send system prompt first
+        await chat.sendMessage([{
+            text: SYSTEM_PROMPT
+        }]);
 
         // Process each message in the history
         for (const msg of messages) {
@@ -182,7 +208,26 @@ export async function POST(req: NextRequest) {
                     parts.push({ text: msg.content });
                 }
 
-                await chat.sendMessage(parts);
+                const response = await chat.sendMessage(parts);
+                
+                // Check if the response contains a function call
+                if (response.response.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
+                    const functionCall = response.response.candidates[0].content.parts[0].functionCall;
+                    
+                    if (functionCall.name === 'calculate') {
+                        try {
+                            const result = handleCalculate(functionCall.args);
+                            await chat.sendMessage([{
+                                text: `The result of the calculation is: ${result}`
+                            }]);
+                        } catch (error) {
+                            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                            await chat.sendMessage([{
+                                text: `Error performing calculation: ${errorMessage}`
+                            }]);
+                        }
+                    }
+                }
             }
         }
 

@@ -97,7 +97,7 @@ export default function MinimalistChatbot() {
                     />
                 </div>
                 {hasUserSentMessage && (
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-600/50 hover:scrollbar-thumb-zinc-600/70 overflow-x-hidden">
                         <MessageList
                             messages={messages}
                             messagesEndRef={messagesEndRef}
@@ -105,7 +105,8 @@ export default function MinimalistChatbot() {
                             isLoading={isLoading}
                             isStreaming={isStreaming}
                         />
-                    </div>)}
+                    </div>
+                )}
                 <div className="flex-none py-4 px-2">
                     <ChatInput
                         input={input}
