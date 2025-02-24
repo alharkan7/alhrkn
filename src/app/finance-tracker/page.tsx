@@ -108,11 +108,11 @@ export default function Component() {
   };
 
   return (
-    <div className="h-[100vh] px-4 flex flex-col items-center">
+    <div className="h-[100vh] flex flex-col items-center">
       <div className="w-full flex-none">
         <AppsHeader />
       </div>
-      <Card className="w-full max-w-sm mx-auto relative">
+      <Card className="w-full max-w-sm mx-auto relative flex-none">
         <button
           className="absolute top-1 right-1 p-2 bg-background border rounded-full opacity-50 hover:opacity-100 transition-opacity z-10 shadow-sm"
           onClick={(e) => {
@@ -235,8 +235,9 @@ export default function Component() {
             </Button>
           </div>
         </CardContent>
-      </Card>
-      <div className="w-full mt-2">
+        </Card>
+      <div className="w-full flex-1"></div>
+      <div className="w-full flex-none mt-2">
         <AppsFooter />
       </div>
 
