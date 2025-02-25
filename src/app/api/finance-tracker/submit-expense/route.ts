@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { timestamp, subject, date, amount, category, description, reimburse } = body;
+    const { timestamp, subject, date, amount, category, description, reimbursed } = body;
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       includeValuesInResponse: true,
       insertDataOption: 'INSERT_ROWS', // This should append new row
       requestBody: {
-        values: [[timestamp, subject, date, amount, category, description, reimburse]],
+        values: [[timestamp, subject, date, amount, category, description, reimbursed]],
       },
     });
 
