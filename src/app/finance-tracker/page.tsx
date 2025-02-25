@@ -111,7 +111,7 @@ export default function Component() {
       <div className="fixed top-0 left-0 right-0 z-50">
         <AppsHeader />
       </div>
-      <div className="w-full max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40">
+      <div className="w-full max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 px-2">
       <Card className="max-w-sm mx-auto relative ">
         <Button
           className="absolute top-1 right-1 p-2 bg-background border rounded-full opacity-50 hover:opacity-100 transition-opacity z-10 shadow-sm text-secondary-foreground"
