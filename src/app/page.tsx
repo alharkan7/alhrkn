@@ -89,7 +89,7 @@ export default function MinimalistChatbot() {
                     <AppsHeader />
                 </div>
             )}
-            <div className="flex-1 overflow-hidden flex flex-col justify-start max-w-4xl mx-auto w-full px-1 md:px-4 mt-[20vh]">
+            <div className={`flex-1 overflow-hidden flex flex-col justify-start max-w-4xl mx-auto w-full px-1 md:px-4 ${!hasUserSentMessage ? 'mt-[20vh]' : ''}`}>
                 <div className="flex-none">
                     <ChatTitle
                         clearMessages={handleClearChat}
