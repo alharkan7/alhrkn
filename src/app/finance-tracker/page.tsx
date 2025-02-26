@@ -12,7 +12,7 @@ import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import { Info } from 'lucide-react';
 
-export default function Component() {
+export default function FinanceTrackerPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [subjectValue, setSubjectValue] = useState('');
   const [amountValue, setAmountValue] = useState('');

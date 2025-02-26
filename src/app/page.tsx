@@ -9,7 +9,7 @@ import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import { useFileUpload } from '@/hooks/useFileUpload';
 
-export default function MinimalistChatbot() {
+export default function ChatPage() {
     const { messages, isLoading, isStreaming, sendMessage, clearMessages } = useChatMessages();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);

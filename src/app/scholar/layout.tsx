@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Finance Tracker | @alhrkn',
-  description: 'Simple Finance Tracker that Directly Saves to Google Sheets',
+  title: 'AI Writing Assistant | @alhrkn',
+  description: 'All-in-One AI Assistant for Science/Academic Writing',
 }
 
-export default function FinanceTrackerLayout({
+export default function JapaneseFlashcardsLayout({
   children,
 }: {
   children: React.ReactNode

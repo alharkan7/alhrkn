@@ -27,7 +27,7 @@ const flashCardsData: Record<string, FlashCard> = Object.fromEntries(
   ])
 );
 
-export default function Component() {
+export default function JapaneseFlashcardsPage() {
   const [cards, setCards] = useState<FlashCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
