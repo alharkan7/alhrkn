@@ -1,4 +1,4 @@
-import { pdfExtractSchema } from "@/app/(apps)/mindmap/lib/schemas";
+import { pdfExtractSchema } from "@/app/mindmap/lib/schemas";
 import { google } from "@ai-sdk/google";
 import { streamObject } from "ai";
 
