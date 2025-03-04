@@ -76,7 +76,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
                 <Tooltip key={app.slug}>
                   <TooltipTrigger asChild disabled={!showTooltips}>
                     <Button
-                      variant="default"
+                      variant="neutral"
                       className="relative h-[90px] w-[100px] flex flex-col items-center justify-center gap-3 hover:bg-muted rounded-2xl"
                       onClick={() => handleAppClick(app.slug)}
                     >
@@ -95,7 +95,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
           </div>
           <div className="mt-2 pt-2 border-t border-border">
             <Button
-              variant="default"
+              variant="neutral"
               className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
               onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
             >

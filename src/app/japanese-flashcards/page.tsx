@@ -188,8 +188,8 @@ export default function JapaneseFlashcardsPage() {
         <div className="fixed top-0 left-0 right-0 z-50">
           <AppsHeader />
         </div>
-        <div className="w-full pt-16">
-          <div className="flex justify-center space-x-2 my-6">
+        <div className="w-full pt-12">
+          <div className="flex justify-center space-x-2 mt-6 mb-10">
             <Button
               variant={selectedType === "Hiragana" ? "default" : "neutral"}
               onClick={() => setSelectedType("Hiragana")}
@@ -209,10 +209,22 @@ export default function JapaneseFlashcardsPage() {
           </div>
         </div>
         <div className="relative w-full max-w-sm">
+          <Button
+            variant="neutral"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePreviousCard();
+            }}
+            className="absolute -top-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10"
+          >
+            <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
+          </Button>
+
           <Card
             ref={cardRef}
             style={{ transform: `translateY(${cardPosition}%)` }}
-            className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer select none
+            className={`w-full aspect-square flex flex-col items-center justify-center text-8xl font-bold cursor-pointer select-none
             transition-all duration-300
             ${isFlipped ? "rotate-y-180" : ""
               } ${cardState === "correct"
@@ -225,7 +237,6 @@ export default function JapaneseFlashcardsPage() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Replace the info button and modal with Popover */}
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -247,40 +258,28 @@ export default function JapaneseFlashcardsPage() {
               </PopoverContent>
             </Popover>
 
-            <Button
-              variant="neutral"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePreviousCard();
-              }}
-              className="p-1 rounded-full"
-            >
-              <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
-            </Button>
-
             <div className={`${isFlipped ? "hidden" : ""}`}>
               {currentCard.japanese}
             </div>
             <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
               {currentCard.alphabet}
             </div>
-
-            <Button
-              variant="neutral"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNextCard();
-              }}
-              className="p-1 rounded-full"
-            >
-              <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
-            </Button>
           </Card>
+
+          <Button
+            variant="neutral"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextCard();
+            }}
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10"
+          >
+            <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
+          </Button>
         </div>
         <div className="w-full max-w-sm mt-6">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 mt-4">
             <Input
               type="text"
               placeholder="Guess the alphabet"
