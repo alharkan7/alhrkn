@@ -1,6 +1,10 @@
 import { Send, Paperclip } from 'lucide-react'
 import { useRef } from 'react'
 import { FilePreview } from './FilePreview'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
 
 interface ChatInputProps {
     input: string;
@@ -28,6 +32,7 @@ export function ChatInput({
     onFocusChange
 }: ChatInputProps) {
     const inputRef = useRef<HTMLInputElement>(null);
+    const form = useForm();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,46 +62,47 @@ export function ChatInput({
                         />
                     </div>
                 )}
-                <form onSubmit={handleSubmit} className="relative flex items-center gap-1.5 rounded-full border outline outline-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-1 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all max-w-2xl mx-auto w-full">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={onFileSelect}
-                        accept="*/*"
-                    />
-                    <button
-                        type="button"
-                        onClick={handleFileClick}
-                        className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                        disabled={isLoading}
-                        aria-label="Attach file"
-                    >
-                        <Paperclip className="size-5" />
-                    </button>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Send a message..."
-                        className="flex-1 bg-transparent focus:outline-none disabled:opacity-50"
-                        disabled={isLoading}
-                        autoFocus={autoFocus}
-                        onFocus={() => onFocusChange?.(true)}
-                        onBlur={() => onFocusChange?.(false)}
-                    />
-                    <button
-                        type="submit"
-                        className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                        disabled={isLoading || (!input.trim() && !file)}
-                        aria-label="Send message"
-                    >
-                        <Send className="size-5" />
-                    </button>
-                </form>
+                <Form {...form}>
+                    <form onSubmit={handleSubmit} className="relative flex items-center gap-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full">
+                        <Input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={onFileSelect}
+                            accept="*/*"
+                        />
+                        <Button
+                            type="button"
+                            onClick={handleFileClick}
+                            className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                            disabled={isLoading}
+                            aria-label="Attach file"
+                        >
+                            <Paperclip className="size-5" />
+                        </Button>
+                        <Input
+                            ref={inputRef}
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Send a message..."
+                            className="flex-1 bg-transparent focus:outline-none disabled:opacity-50"
+                            disabled={isLoading}
+                            autoFocus={autoFocus}
+                            onFocus={() => onFocusChange?.(true)}
+                            onBlur={() => onFocusChange?.(false)}
+                        />
+                        <Button
+                            type="submit"
+                            className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                            disabled={isLoading || (!input.trim() && !file)}
+                            aria-label="Send message"
+                        >
+                            <Send className="size-5" />
+                        </Button>
+                    </form>
+                </Form>
             </div>
-
         </>
     );
 }

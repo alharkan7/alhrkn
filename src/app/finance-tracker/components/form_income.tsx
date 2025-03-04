@@ -5,8 +5,8 @@ import { categoriesIncome } from '@/lib/categories';
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DatePicker } from "@/components/ui/date-picker"
-import { User2, Check, X, Calendar } from 'lucide-react';
+import DatePicker from "@/components/ui/date-picker"
+import { User2, Calendar } from 'lucide-react';
 
 interface FormIncomeProps {
   date: string;
@@ -152,7 +152,7 @@ export function FormIncome({
         />
       </div>
 
-      <Button className="w-full mt-8" variant="secondary" type="submit" disabled={isSubmitting}>
+      <Button className="w-full mt-8" variant="default" type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Save' : 'Save'}
       </Button>
     </form>

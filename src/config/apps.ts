@@ -29,13 +29,13 @@ export const apps: AppConfig[] = [
   {
     name: 'PDF Mindmap',
     icon: Lightbulb,
-    slug: 'pdf-mindmap',
+    slug: 'mindmap',
     description: 'Turn any PDF into Interactive Mindmap with AI',
   },
   {
     name: "Writer's Unblock",
     icon: Feather,
-    slug: 'writers-unblock',
+    slug: 'scholar',
     description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
   },
   {

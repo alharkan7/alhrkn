@@ -7,7 +7,7 @@ const AppsFooter = () => {
     const { theme, setTheme } = useTheme();
 
     return (
-        <footer className="py-2 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
+        <footer className="py-3 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
                     &copy; {currentYear}&nbsp;
@@ -21,7 +21,7 @@ const AppsFooter = () => {
                     </a> */}
                 </span>
                 <Button
-                    variant="ghost"
+                    variant="default"
                     size="icon"
                     className="size-8 absolute right-2.5 rounded-full"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

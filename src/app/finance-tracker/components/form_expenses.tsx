@@ -5,7 +5,7 @@ import { categories } from '@/lib/categories';
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DatePicker } from "@/components/ui/date-picker"
+import DatePicker from "@/components/ui/date-picker"
 import { User2, Check, X, Calendar } from 'lucide-react';
 
 interface FormExpensesProps {
@@ -137,9 +137,8 @@ export function FormExpenses({
           <DatePicker
             date={date}
             setDate={setDate}
-            triggerClassName={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${date ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
-              }`}
-            icon={<Calendar className="h-4 w-4" />}
+            triggerClassName={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${date ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'}`}
+            icon={<Calendar className="h-4 w-4 flex-shrink-0" />}
           />
         </div>
         <div className="space-y-2 flex flex-col items-center">
@@ -192,7 +191,7 @@ export function FormExpenses({
         />
       </div>
 
-      <Button className="w-full mt-8" variant="secondary" type="submit" disabled={isSubmitting}>
+      <Button className="w-full mt-8" variant="default" type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Save' : 'Save'}
       </Button>
     </form>

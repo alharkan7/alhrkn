@@ -132,7 +132,7 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                             </motion.div>
                             {message.role === 'assistant' && (
                                 <Button
-                                    variant="ghost"
+                                    variant="default"
                                     size="icon"
                                     className="self-start mr-2 h-6 w-6"
                                     onClick={() => handleCopy(message.content)}

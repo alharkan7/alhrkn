@@ -18,7 +18,7 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
             }}
             className="p-2 hover:bg-muted rounded-lg transition-colors"
             title="Clear chat history"
-            variant="outline"
+            variant="default"
         >
             <RefreshCcw size={14} />
         </Button>

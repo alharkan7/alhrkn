@@ -56,7 +56,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
           {trigger}
         </PopoverTrigger>
         <PopoverContent
-          className="w-[220px] p-2"
+          className="w-[240px] p-2"
           align="end"
           onPointerDownOutside={(e: Event) => {
             if (e.target instanceof Element && e.target.closest('.apps-grid-content')) {
@@ -69,7 +69,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
             transition: 'opacity 0.15s ease-in-out'
           }}
         >
-          <div className="apps-grid-content grid grid-cols-2 max-h-[310px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="apps-grid-content gap-3 grid grid-cols-2 max-h-[310px] pb-2 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
             {apps.map((app) => {
               const Icon = app.icon;
               return (
