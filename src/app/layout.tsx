@@ -7,8 +7,8 @@ import { Toaster } from "@/components/ui/sonner"
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Al's Experiments",
-  description: "Collection of Al's Personal Software Creations",
+  title: "Enaiblr Apps Experiments",
+  description: "Collection of Enaiblr's Free Mini Apps",
   icons: {
     icon: '/favicon.ico',
   },
