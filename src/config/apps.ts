@@ -27,7 +27,7 @@ export const apps: AppConfig[] = [
     description: 'Simple Finance Tracker that Records Directly to Google Sheets',
   },
   {
-    name: 'Enaiblr AI',
+    name: 'AI Apps',
     icon: Infinity,
     slug: 'enaiblr',
     description: 'Access Enaiblr Unlimited AI Platform',

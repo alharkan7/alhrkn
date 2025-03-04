@@ -34,7 +34,7 @@ export function AppsHeader({ title, leftButton }: AppsHeaderProps) {
                     variant="outline"
                     className="flex items-center px-2 h-fit"
                   >
-                    <LayoutGrid size={14} />
+                    <LayoutGrid size={14} /> Apps
                   </Button>
                 }
                 useHardReload={false}
@@ -49,7 +49,7 @@ export function AppsHeader({ title, leftButton }: AppsHeaderProps) {
                   variant="outline"
                   className="flex items-center px-2 h-fit"
                 >
-                  <LayoutGrid size={14} />
+                  <LayoutGrid size={14} /> Apps
                 </Button>
               }
               useHardReload={false}

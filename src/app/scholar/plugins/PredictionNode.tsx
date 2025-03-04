@@ -1,4 +1,3 @@
-//// filepath: /d:/Repositories/alhrkn/src/app/scholar/plugins/PredictionNode.tsx
 import { DecoratorNode } from 'lexical';
 
 // Define your own SerializedDecoratorNode type

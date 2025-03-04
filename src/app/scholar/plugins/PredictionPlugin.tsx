@@ -1,4 +1,3 @@
-//// filepath: /d:/Repositories/alhrkn/src/app/scholar/plugins/PredictionPlugin.tsx
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useEffect, useRef } from 'react';
 import { $getSelection, $isRangeSelection, $getRoot } from 'lexical';

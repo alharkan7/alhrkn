@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'AI Writing Assistant | @alhrkn',
+  title: 'AI Writing Assistant',
   description: 'All-in-One AI Assistant for Science/Academic Writing',
 }
 

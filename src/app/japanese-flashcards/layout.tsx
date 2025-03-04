@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Japanese Flashcards | @alhrkn',
+  title: 'Japanese Flashcards',
   description: 'Simple Japanese Hiragana & Katakana Flashcards',
 }
 

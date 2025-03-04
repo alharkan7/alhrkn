@@ -11,14 +11,14 @@ const AppsFooter = () => {
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
                     &copy; {currentYear}&nbsp;
-                    <a
+                    {/* <a
                         href="https://x.com/alhrkn"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/90"
                     >
                         alhrkn
-                    </a>
+                    </a> */}
                 </span>
                 <Button
                     variant="ghost"

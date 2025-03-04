@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Finance Tracker | @alhrkn',
+  title: 'Finance Tracker',
   description: 'Simple Finance Tracker that Directly Saves to Google Sheets',
 }
 
