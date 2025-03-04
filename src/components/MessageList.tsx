@@ -115,15 +115,16 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                     >
                         <div className={`flex flex-col gap-2 ${message.role === 'user' ? 'items-end w-full' : ''}`}>
                             <motion.div
-                                className={`rounded-2xl px-4 py-2 max-w-[85%] ${message.role === 'user'
-                                    ? 'bg-primary text-primary-foreground rounded-br-none ml-auto'
-                                    : 'bg-accent text-accent-foreground rounded-bl-none'
+                                className={`rounded-2xl px-4 py-2 max-w-[85%] border-2 border-border shadow-shadow 
+                                ${message.role === 'user'
+                                        ? 'bg-main text-mtext rounded-br-none ml-auto'
+                                        : 'bg-bw text-text rounded-bl-none'
                                     }`}
                                 style={{ pointerEvents: 'auto' }}
                             >
                                 <div className={`prose prose-sm max-w-none [&_*]:text-current [&_p]:mb-3 [&_p:last-child]:mb-0 [&_ul]:mt-2 [&_ol]:mt-2 [&_li]:text-current [&_li]:my-1 [&_ol]:pl-6 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_h1]:font-bold [&_h1]:text-lg [&_h1]:mt-4 [&_h1]:mb-2 [&_pre]:mb-4 [&_pre+p]:mt-4 ${message.role === 'user'
-                                    ? '[&_p]:text-primary-foreground [&_a]:text-primary-foreground [&_li]:text-primary-foreground [&_ul]:text-primary-foreground [&_ol]:text-primary-foreground [&_code]:text-primary-foreground [&_h1]:text-primary-foreground text-left'
-                                    : '[&_p]:text-accent-foreground [&_a]:text-accent-foreground [&_li]:text-accent-foreground [&_ul]:text-accent-foreground [&_ol]:text-accent-foreground [&_code]:text-accent-foreground [&_h1]:text-accent-foreground'
+                                    ? '[&_p]:text-mtext [&_a]:text-mtext [&_li]:text-mtext [&_ul]:text-mtext [&_ol]:text-mtext [&_code]:text-mtext [&_h1]:text-mtext text-left'
+                                    : '[&_p]:text-text [&_a]:text-text [&_li]:text-text [&_ul]:text-text [&_ol]:text-text [&_code]:text-text [&_h1]:text-text'
                                     }`}
                                     style={{ pointerEvents: 'auto' }}
                                 >

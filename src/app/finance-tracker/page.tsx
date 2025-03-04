@@ -219,7 +219,7 @@ export default function FinanceTrackerPage() {
           <div className="flex justify-between mt-4 gap-4">
             <Button
               type="button"
-              variant='ghost'
+              variant='neutral'
               className="w-1/2 gap-2"
               onClick={() => window.location.href = "https://bit.ly/pocket-tracker-sheet"}
             >
@@ -228,7 +228,7 @@ export default function FinanceTrackerPage() {
             </Button>
             <Button
               type="button"
-              variant='ghost'	
+              variant='neutral'	
               className="w-1/2 gap-2"
               onClick={() => window.location.href = "https://bit.ly/pocket-tracker-dashboard"}
             >

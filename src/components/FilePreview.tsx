@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { useState } from 'react';
 import { ImageModal } from '@/components/ui/image-modal';
 import { createPortal } from 'react-dom';
+import { Button } from '@/components/ui/button';
 
 interface FilePreviewProps {
     file: {
@@ -36,7 +37,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
             }
             const blob = new Blob([byteArray], { type: 'application/pdf' });
             const objectUrl = URL.createObjectURL(blob);
-            
+
             // Open in new tab and clean up the object URL
             const newWindow = window.open(objectUrl, '_blank');
             if (newWindow) {
@@ -86,8 +87,8 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
         return (
             <>
                 <div className="relative flex justify-center" style={{ pointerEvents: 'auto' }}>
-                    <div 
-                        className="relative cursor-pointer" 
+                    <div
+                        className="relative cursor-pointer"
                         onClick={handleFileClick}
                         style={{ pointerEvents: 'auto' }}
                     >
@@ -97,18 +98,19 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                             className={`rounded-lg object-contain ${inMessage ? 'max-h-[300px]' : 'max-h-[100px]'}`}
                         />
                         {!isSent && (
-                            <button
+                            <Button
+                                variant="neutral"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRemove();
                                 }}
-                                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90 transition-colors"
+                                className="absolute -top-4 -right-4 transition-colors"
                                 aria-label="Remove file"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                 </svg>
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </div>
@@ -126,7 +128,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
     }
 
     return (
-        <Card 
+        <Card
             className={`relative flex mb-2 !items-center gap-3 p-3 ${inMessage ? 'w-full' : 'w-fit min-w-[200px]'}`}
             onClick={handleFileClick}
             style={{ pointerEvents: 'auto', cursor: 'pointer' }}
@@ -138,18 +140,19 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                 </p>
             </div>
             {!isSent && (
-                <button
+                <Button
+                    variant="neutral"
                     onClick={(e) => {
                         e.stopPropagation();
                         onRemove();
                     }}
-                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90 transition-colors"
+                    className="absolute -top-5 -right-4 p-1"
                     aria-label="Remove file"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
-                </button>
+                </Button>
             )}
         </Card>
     );

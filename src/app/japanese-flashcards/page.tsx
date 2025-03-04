@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import charactersList from './characters_list.json';
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 // Define the structure of our flash card data
 interface FlashCard {
@@ -39,7 +40,8 @@ export default function JapaneseFlashcardsPage() {
     "Hiragana"
   );
   const cardRef = useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  // Remove isOpen state as Popover handles this internally
+  // const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     // Initialize cards with all data
@@ -189,7 +191,7 @@ export default function JapaneseFlashcardsPage() {
         <div className="w-full pt-16">
           <div className="flex justify-center space-x-2 my-6">
             <Button
-              variant={selectedType === "Hiragana" ? "default" : "outline"}
+              variant={selectedType === "Hiragana" ? "default" : "neutral"}
               onClick={() => setSelectedType("Hiragana")}
               className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
                 }`}
@@ -197,7 +199,7 @@ export default function JapaneseFlashcardsPage() {
               Hiragana
             </Button>
             <Button
-              variant={selectedType === "Katakana" ? "default" : "outline"}
+              variant={selectedType === "Katakana" ? "default" : "neutral"}
               onClick={() => setSelectedType("Katakana")}
               className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
                 }`}
@@ -211,8 +213,7 @@ export default function JapaneseFlashcardsPage() {
             ref={cardRef}
             style={{ transform: `translateY(${cardPosition}%)` }}
             className={`w-full aspect-square flex flex-col items-center justify-between text-8xl font-bold cursor-pointer select none
-            transition-all duration-300 shadow-xl hover:shadow-2xl 
-            border border-border
+            transition-all duration-300
             ${isFlipped ? "rotate-y-180" : ""
               } ${cardState === "correct"
                 ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
@@ -224,19 +225,30 @@ export default function JapaneseFlashcardsPage() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Add Info icon */}
-            <button
-              className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(true);
-              }}
-            >
-              <Info className="h-4 w-4" />
-            </button>
+            {/* Replace the info button and modal with Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent>
+                <h2 className="text-lg font-bold mb-4 text-center">How to Use this Flashcard</h2>
+                <p className="text-primary/80 text-s mb-2">
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li><b>Swipe</b> up and down arrow to change card randomly</li>
+                    <li><b>Tap</b> on the card to flip it over and see the alphabet</li>
+                    <li><b>Write</b> in the input field guess the alphabet</li>
+                  </ul>
+                </p>
+              </PopoverContent>
+            </Popover>
 
             <Button
-              variant="ghost"
+              variant="neutral"
               size="icon"
               onClick={(e) => {
                 e.stopPropagation();
@@ -255,7 +267,7 @@ export default function JapaneseFlashcardsPage() {
             </div>
 
             <Button
-              variant="ghost"
+              variant="neutral"
               size="icon"
               onClick={(e) => {
                 e.stopPropagation();
@@ -279,12 +291,12 @@ export default function JapaneseFlashcardsPage() {
                   handleCheck();
                 }
               }}
-              className="flex-grow rounded-full focus-visible:ring-1 focus-visible:ring-primary/80 focus-visible:ring-offset-2"
+              className="flex-grow"
             />
             <Button
               onClick={handleCheck}
               size="icon"
-              className="rounded-full"
+              className=""
             >
               <ChevronRight className="" />
             </Button>
@@ -298,23 +310,7 @@ export default function JapaneseFlashcardsPage() {
         </div>
 
       </div>
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[100]">
-          <div className="md:max-w-md w-10/12 bg-white rounded-lg px-4 pb-4 pt-1 text-center dark:bg-gray-800">
-          <div className="flex justify-end">
-            <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-800 text-xl">
-              &times;
-            </button>
-          </div>
-            <h2 className="text-lg font-bold mb-4">How to Use this Flashcard</h2>
-            <p className="text-primary/80 text-s mb-2">
-              <b>Swipe</b> up and down arrow to change card randomly.<br />
-              <b>Tap</b> on the card to flip it over and see the alphabet.<br />
-              <b>Write</b> in the input field guess the alphabet.<br />
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Remove the modal JSX */}
     </>
   );
 }
