@@ -217,12 +217,6 @@ export default function JapaneseFlashcardsPage() {
           </div>
         </div>
         <div className="relative w-full max-w-sm">
-          <div className="absolute top-2 left-2 text-sm font-medium z-10">
-            <div className="text-secondary-foreground grid grid-cols-[auto,auto] gap-x-1">
-              <div>Correct</div><div>: {correctCount}</div>
-              <div>Incorrect</div><div>: {incorrectCount}</div>
-            </div>
-          </div>
 
           <div className="absolute w-full -top-4 flex justify-center">
             <Button
@@ -322,6 +316,10 @@ export default function JapaneseFlashcardsPage() {
             >
               <ChevronRight className="" />
             </Button>
+          </div>
+
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-sm font-medium z-10 text-secondary-foreground">
+            Correct: {correctCount} | Incorrect: {incorrectCount}
           </div>
         </div>
 
