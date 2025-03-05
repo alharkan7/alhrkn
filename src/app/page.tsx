@@ -11,6 +11,7 @@ import { useFileUpload } from '@/hooks/useFileUpload';
 import { apps } from '@/config/apps';
 import { Button } from '@/components/ui/button';
 import { Mail } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
     const { messages, isLoading, isStreaming, sendMessage, clearMessages } = useChatMessages();
@@ -143,7 +144,8 @@ export default function ChatPage() {
                             <div className="apps-grid-content gap-3 grid grid-cols-2 sm:grid-cols-3 pb-2">
                                 {apps.map((app) => {
                                     const Icon = app.icon;
-                                    const currentPath = window.location.pathname.slice(1); // Remove leading slash
+                                    const currentPath = typeof window !== 'undefined' ? window.location.pathname.slice(1) : '';
+                                    const router = useRouter();
 
                                     // Skip rendering if current path matches the app slug
                                     if (currentPath === app.slug) return null;
@@ -153,7 +155,13 @@ export default function ChatPage() {
                                             variant="default"
                                             key={app.slug}
                                             className="relative h-[70px] flex flex-col items-center justify-center"
-                                            onClick={() => app.slug === 'enaiblr' ? window.location.href = 'https://enaiblr.org/apps' : window.location.href = `/${app.slug}`}
+                                            onClick={() => {
+                                                if (app.slug === 'enaiblr') {
+                                                    window.open('https://enaiblr.org/apps', '_blank');
+                                                } else {
+                                                    router.push(`/${app.slug}`);
+                                                }
+                                            }}
                                         >
                                             <Icon className="!size-5 text-foreground" />
                                             <div className="w-full h-8 flex items-start">
