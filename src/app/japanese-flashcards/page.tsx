@@ -218,8 +218,10 @@ export default function JapaneseFlashcardsPage() {
         </div>
         <div className="relative w-full max-w-sm">
           <div className="absolute top-2 left-2 text-sm font-medium z-10">
-            <div className="text-green-600 dark:text-green-400">Correct: {correctCount}</div>
-            <div className="text-red-600 dark:text-red-400">Incorrect: {incorrectCount}</div>
+            <div className="text-secondary-foreground grid grid-cols-[auto,auto] gap-x-1">
+              <div>Correct</div><div>: {correctCount}</div>
+              <div>Incorrect</div><div>: {incorrectCount}</div>
+            </div>
           </div>
 
           <div className="absolute w-full -top-4 flex justify-center">
