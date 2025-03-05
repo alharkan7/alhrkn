@@ -20,24 +20,24 @@ export const apps: AppConfig[] = [
     slug: 'japanese-flashcards',
     description: 'Simple Japanese Hiragana and Katakana Flashcards',
   },
-  {
-    name: 'Finance Tracker',
-    icon: Wallet,
-    slug: 'finance-tracker',
-    description: 'Simple Finance Tracker that Records Directly to Google Sheets',
-  },
-  {
-    name: 'PDF Mindmap',
-    icon: Lightbulb,
-    slug: 'mindmap',
-    description: 'Turn any PDF into Interactive Mindmap with AI',
-  },
-  {
-    name: "Writer's Unblock",
-    icon: Feather,
-    slug: 'scholar',
-    description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
-  },
+  //{
+    //name: 'Finance Tracker',
+    //icon: Wallet,
+    //slug: 'finance-tracker',
+    //description: 'Simple Finance Tracker that Records Directly to Google Sheets',
+  //},
+  //{
+    //name: 'PDF Mindmap',
+    //icon: Lightbulb,
+    //slug: 'mindmap',
+    //description: 'Turn any PDF into Interactive Mindmap with AI',
+  //},
+  //{
+    //name: "Writer's Unblock",
+    //icon: Feather,
+    //slug: 'scholar',
+    //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
+  //},
   {
     name: 'AI Apps',
     icon: Infinity,
