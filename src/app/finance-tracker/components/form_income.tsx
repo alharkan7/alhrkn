@@ -57,13 +57,13 @@ export function FormIncome({
                 setAmountValue(numericValue);
               }
             }}
-            className="text-[2rem] h-[3rem] leading-[3rem] font-medium border-0 border-b rounded-none focus:placeholder:opacity-0 focus:border-opacity-0 focus:outline-none focus:ring-0 px-0 placeholder: text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full pl-[3rem] bg-transparent"
+            className="text-[2rem] h-[3rem] leading-[3rem] font-medium border-0 border-b rounded-none focus:placeholder:opacity-0 focus:border-opacity-0 focus:outline-none focus:ring-0 px-0 placeholder:text-black/50 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full pl-[3rem] bg-transparent"
           />
         </div>
       </div>
 
       <div className="mt-8 grid grid-cols-3 gap-4">
-      <div className="space-y-2 flex flex-col items-center">
+        <div className="space-y-2 flex flex-col items-center">
           <Label htmlFor="subject" className='text-xs text-muted-foreground'>Subject</Label>
           <Select
             value={subjectValue}
@@ -72,10 +72,9 @@ export function FormIncome({
           >
             <SelectTrigger
               id="subject"
-              className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${
-                showValidation && !subjectValue ? 'border-red-500 focus:ring-red-500' :
-                subjectValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
-              }`}
+              className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${showValidation && !subjectValue ? 'border-red-500 focus:ring-red-500' :
+                subjectValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50 shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none'
+                }`}
             >
               <User2 className="h-4 w-4" />
               <span className="sr-only"><SelectValue /></span>
@@ -99,7 +98,7 @@ export function FormIncome({
             <SelectTrigger
               id="category"
               className={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${showValidation && !categoryValue ? 'border-red-500 focus:ring-red-500' :
-                categoryValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
+                categoryValue ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50 shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none'
                 }`}
             >
               {categoryValue ? (
@@ -131,9 +130,8 @@ export function FormIncome({
           <DatePicker
             date={date}
             setDate={setDate}
-            triggerClassName={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full [&>svg:last-child]:hidden ${date ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50'
-              }`}
-            icon={<Calendar className="h-4 w-4" />}
+            triggerClassName={`w-10 h-10 p-0 flex items-center justify-center border-2 rounded-full ${date ? 'border-primary text-primary' : 'border-muted-foreground/50 text-muted-foreground/50 shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none'}`}
+            icon={<Calendar className="h-4 w-4 flex-shrink-0" />}
           />
         </div>
       </div>
@@ -142,7 +140,7 @@ export function FormIncome({
         <textarea
           id="description"
           placeholder="Notes (optional)"
-          className="resize-none px-0 border-0 border-b rounded-none focus:ring-0 focus-visible:ring-0 focus:outline-none placeholder:text-muted-foreground/50 w-full align-bottom placeholder:bottom-1 placeholder:left-0 flex h-[2rem] focus:placeholder:opacity-0 max-h-none overflow-hidden bg-transparent"
+          className="resize-none px-0 border-0 border-b rounded-none focus:ring-0 focus-visible:ring-0 focus:outline-none placeholder:text-black/50 w-full align-bottom placeholder:bottom-1 placeholder:left-0 flex h-[2rem] focus:placeholder:opacity-0 max-h-none overflow-hidden bg-transparent"
           value={descriptionValue}
           onChange={(e) => {
             e.target.style.height = '2rem';

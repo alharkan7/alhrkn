@@ -98,7 +98,7 @@ export default function ChatPage() {
                                 onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
                             >
                                 <Mail className='' />
-                                Request
+                                Request Apps
                             </Button>
                         </div>
                     </div>
