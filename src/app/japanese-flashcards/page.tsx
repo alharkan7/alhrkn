@@ -216,7 +216,7 @@ export default function JapaneseFlashcardsPage() {
               e.stopPropagation();
               handlePreviousCard();
             }}
-            className="absolute -top-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10"
+            className="absolute -top-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10 hover:-translate-x-1/2"
           >
             <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
           </Button>
@@ -273,7 +273,7 @@ export default function JapaneseFlashcardsPage() {
               e.stopPropagation();
               handleNextCard();
             }}
-            className="absolute -bottom-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10"
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10 hover:-translate-x-1/2"
           >
             <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
           </Button>
@@ -302,7 +302,7 @@ export default function JapaneseFlashcardsPage() {
           </div>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-gray-600 text-xs bg-background">
+        <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center text-gray-600 text-xs bg-background">
           <div className="flex-none">
             <AppsFooter />
           </div>
