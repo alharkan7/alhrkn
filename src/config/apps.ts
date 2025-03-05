@@ -20,12 +20,12 @@ export const apps: AppConfig[] = [
     slug: 'japanese-flashcards',
     description: 'Simple Japanese Hiragana and Katakana Flashcards',
   },
-  //{
-    //name: 'Finance Tracker',
-    //icon: Wallet,
-    //slug: 'finance-tracker',
-    //description: 'Simple Finance Tracker that Records Directly to Google Sheets',
-  //},
+  {
+    name: 'Finance Tracker',
+    icon: Wallet,
+    slug: 'finance-tracker',
+    description: 'Simple Finance Tracker that Records Directly to Google Sheets',
+  },
   //{
     //name: 'PDF Mindmap',
     //icon: Lightbulb,
