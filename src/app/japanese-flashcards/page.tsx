@@ -4,13 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronRight, ChevronUp, ChevronDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import charactersList from './characters_list.json';
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+
 // Define the structure of our flash card data
 interface FlashCard {
   "type": "Hiragana" | "Katakana",
@@ -47,6 +45,7 @@ export default function JapaneseFlashcardsPage() {
   const [hasSwiped, setHasSwiped] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     // Initialize cards with all data
@@ -196,130 +195,126 @@ export default function JapaneseFlashcardsPage() {
         <div className="fixed top-0 left-0 right-0 z-50">
           <AppsHeader />
         </div>
-        <div className="w-full pt-12">
-          <div className="flex justify-center space-x-2 mt-6 mb-10">
-            <Button
-              variant={selectedType === "Hiragana" ? "default" : "neutral"}
-              onClick={() => setSelectedType("Hiragana")}
-              className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
-                }`}
-            >
-              Hiragana
-            </Button>
-            <Button
-              variant={selectedType === "Katakana" ? "default" : "neutral"}
-              onClick={() => setSelectedType("Katakana")}
-              className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
-                }`}
-            >
-              Katakana
-            </Button>
-          </div>
-        </div>
-        <div className="relative w-full max-w-sm">
 
-          <div className="absolute w-full -top-4 flex justify-center">
-            <Button
-              variant="neutral"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePreviousCard();
-              }}
-              className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
-            >
-              <ChevronUp className="h-5 w-5 text-secondary-foreground/50" />
-            </Button>
+        <div className="flex-1 w-full flex flex-col justify-center">
+          <div className="w-full">
+            <div className="flex justify-center space-x-2 mt-6 mb-10">
+              <Button
+                variant={selectedType === "Hiragana" ? "default" : "neutral"}
+                onClick={() => setSelectedType("Hiragana")}
+                className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
+                  }`}
+              >
+                Hiragana
+              </Button>
+              <Button
+                variant={selectedType === "Katakana" ? "default" : "neutral"}
+                onClick={() => setSelectedType("Katakana")}
+                className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
+                  }`}
+              >
+                Katakana
+              </Button>
+            </div>
           </div>
 
-          <Card
-            ref={cardRef}
-            style={{ transform: `translateY(${cardPosition}%)` }}
-            className={`w-full aspect-square flex flex-col items-center justify-center text-9xl font-bold cursor-pointer select-none
+          <div className="relative w-full max-w-sm mx-auto">
+
+            <div className="absolute w-full -top-4 flex justify-center">
+              <Button
+                variant="neutral"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePreviousCard();
+                }}
+                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+              >
+                <ChevronUp className="h-5 w-5 text-secondary-foreground/50" />
+              </Button>
+            </div>
+
+            <Card
+              ref={cardRef}
+              style={{ transform: `translateY(${cardPosition}%)` }}
+              className={`w-full aspect-square flex flex-col items-center justify-center text-9xl font-bold cursor-pointer select-none
             transition-all duration-300
             ${isFlipped ? "rotate-y-180" : ""
-              } ${cardState === "correct"
-                ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
-                : cardState === "incorrect"
-                  ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100"
-                  : ""
-              }`}
-            onClick={handleCardClick}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  className="absolute top-2 right-2 opacity-70 hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent>
-                <h2 className="text-lg font-bold mb-4 text-center">How to Use this Flashcard</h2>
-                <p className="text-primary/80 text-s mb-2">
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li><b>Swipe</b> up and down arrow to change card randomly</li>
-                    <li><b>Tap</b> on the card to flip it over and see the alphabet</li>
-                    <li><b>Write</b> in the input field guess the alphabet</li>
-                  </ul>
-                </p>
-              </PopoverContent>
-            </Popover>
-
-            <div className={`${isFlipped ? "hidden" : ""}`}>
-              {currentCard.japanese}
-            </div>
-            <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
-              {currentCard.alphabet}
-            </div>
-
-            <div className={`absolute bottom-0 left-0 right-0 text-center md:hidden ${(hasTapped && hasSwiped) ? 'hidden' : ''}`}>
-              <span className="text-xs text-muted-foreground">Swipe & Tap</span>
-            </div>
-          </Card>
-
-          <div className="absolute w-full -bottom-4 flex justify-center">
-            <Button
-              variant="neutral"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNextCard();
-              }}
-              className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+                } ${cardState === "correct"
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100"
+                  : cardState === "incorrect"
+                    ? "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100"
+                    : ""
+                }`}
+              onClick={handleCardClick}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
-              <ChevronDown className="h-5 w-5 text-secondary-foreground/50" />
-            </Button>
-          </div>
-        </div>
-        <div className="w-full max-w-sm mt-6">
-          <div className="flex items-center space-x-2 mt-4">
-            <Input
-              type="text"
-              placeholder="Guess the alphabet"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleCheck();
-                }
-              }}
-              className="flex-grow"
-            />
-            <Button
-              onClick={handleCheck}
-              size="icon"
-              className=""
-            >
-              <ChevronRight className="" />
-            </Button>
+
+              <button
+                className="absolute top-2 right-2 opacity-70 hover:opacity-100 transition-opacity z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowInfoModal(true);
+                }}
+              >
+                <Info className="h-4 w-4" />
+              </button>
+
+              <div className={`${isFlipped ? "hidden" : ""}`}>
+                {currentCard.japanese}
+              </div>
+              <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
+                {currentCard.alphabet}
+              </div>
+
+              <div className={`absolute bottom-0 left-0 right-0 text-center md:hidden ${(hasTapped && hasSwiped) ? 'hidden' : ''}`}>
+                <span className="text-xs text-muted-foreground">Swipe & Tap</span>
+              </div>
+            </Card>
+
+            <div className="absolute w-full -bottom-4 flex justify-center">
+              <Button
+                variant="neutral"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextCard();
+                }}
+                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+              >
+                <ChevronDown className="h-5 w-5 text-secondary-foreground/50" />
+              </Button>
+            </div>
+
           </div>
 
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-sm font-medium z-10 text-secondary-foreground">
-            Correct: {correctCount} | Incorrect: {incorrectCount}
+          <div className="w-full max-w-sm mt-6 mx-auto">
+            <div className="flex items-center space-x-2 mt-4">
+              <Input
+                type="text"
+                placeholder="Guess the alphabet"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCheck();
+                  }
+                }}
+                className="flex-grow"
+              />
+              <Button
+                onClick={handleCheck}
+                size="icon"
+                className=""
+              >
+                <ChevronRight className="" />
+              </Button>
+            </div>
+
+            <div className="text-center mt-4 text-sm font-medium text-secondary-foreground">
+              Correct: {correctCount} <span className="mx-2">|</span> Incorrect: {incorrectCount}
+            </div>
           </div>
         </div>
 
@@ -329,8 +324,30 @@ export default function JapaneseFlashcardsPage() {
           </div>
         </div>
 
+        {showInfoModal && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+            onClick={() => setShowInfoModal(false)}
+          >
+            <Card 
+              className="max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <CardTitle className="text-center">How to Use this Flashcard</CardTitle>
+                <CardDescription>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li><b>Swipe</b> up and down arrow to change card randomly</li>
+                    <li><b>Tap</b> on the card to flip it over and see the alphabet</li>
+                    <li><b>Write</b> in the input field guess the alphabet</li>
+                  </ul>
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
+
       </div>
-      {/* Remove the modal JSX */}
     </>
   );
 }
