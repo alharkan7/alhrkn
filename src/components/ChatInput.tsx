@@ -11,12 +11,11 @@ interface ChatInputProps {
     setInput: (input: string) => void;
     isLoading: boolean;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
-    autoFocus?: boolean;
     clearFile: () => void;
     sendMessage: (text: string, file: { name: string; type: string; url: string } | null) => Promise<void>;
     onFocusChange?: (focused: boolean) => void;
-    file: { name: string; type: string; url: string; uploaded?: boolean } | null;  // Add uploaded flag
-    onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;  // Make async
+    file: { name: string; type: string; url: string; uploaded?: boolean } | null;
+    onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
 }
 
 export function ChatInput({
@@ -25,7 +24,6 @@ export function ChatInput({
     isLoading,
     fileInputRef,
     onFileSelect,
-    autoFocus,
     file,
     clearFile,
     sendMessage,
@@ -88,7 +86,6 @@ export function ChatInput({
                             placeholder="Send a message..."
                             className="flex-1 bg-transparent focus:outline-none disabled:opacity-50"
                             disabled={isLoading}
-                            autoFocus={autoFocus}
                             onFocus={() => onFocusChange?.(true)}
                             onBlur={() => onFocusChange?.(false)}
                         />

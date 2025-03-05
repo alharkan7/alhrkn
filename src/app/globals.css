@@ -30,11 +30,11 @@
   --bg: #272933;
   --bw: #212121;
   --blank: #fff;
-  --border: #000;
+  --border: #4a4a4a;  /* Changed from #000 to a lighter gray */
   --text: #e6e6e6;
   --mtext: #000;
   --ring: #fff;
   --ring-offset: #000;
 
-  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) var(--border);
 }

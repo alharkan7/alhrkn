@@ -8,6 +8,9 @@ import { useChatMessages } from '@/hooks/useChatMessages'
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { apps } from '@/config/apps';
+import { Button } from '@/components/ui/button';
+import { Mail } from 'lucide-react';
 
 export default function ChatPage() {
     const { messages, isLoading, isStreaming, sendMessage, clearMessages } = useChatMessages();
@@ -85,9 +88,23 @@ export default function ChatPage() {
     return (
         <div className="flex flex-col h-[100dvh] bg-background">
             {!hasUserSentMessage && (
-                <div className="flex-none">
-                    <AppsHeader />
-                </div>
+                <>
+                    <div className="flex-none max-w-6xl mx-auto w-full hidden sm:block">
+                        <div className="flex justify-end pt-1 pr-2">
+                            <Button
+                                variant="neutral"
+                                className="flex items-center justify-start text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
+                            >
+                                <Mail className='' />
+                                Request
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="flex-none sm:hidden">
+                        <AppsHeader />
+                    </div>
+                </>
             )}
             <div className={`flex-1 overflow-hidden flex flex-col justify-start max-w-4xl mx-auto w-full px-1 md:px-4 ${!hasUserSentMessage ? 'mt-[20vh]' : ''}`}>
                 <div className="flex-none">
@@ -114,13 +131,41 @@ export default function ChatPage() {
                         isLoading={isLoading || isStreaming}
                         fileInputRef={fileInputRef}
                         onFileSelect={handleFileChange}
-                        autoFocus={true}
                         file={file}
                         clearFile={clearFile}
                         sendMessage={handleSendMessage}
                         onFocusChange={setIsInputFocused}
                     />
                 </div>
+                {!hasUserSentMessage && (
+                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-600/50 hover:scrollbar-thumb-zinc-600/70 overflow-x-hidden mt-4 hidden sm:block">
+                        <div className="max-w-[600px] mx-auto px-4">
+                            <div className="apps-grid-content gap-3 grid grid-cols-2 sm:grid-cols-3 pb-2">
+                                {apps.map((app) => {
+                                    const Icon = app.icon;
+                                    const currentPath = window.location.pathname.slice(1); // Remove leading slash
+
+                                    // Skip rendering if current path matches the app slug
+                                    if (currentPath === app.slug) return null;
+
+                                    return (
+                                        <Button
+                                            variant="default"
+                                            key={app.slug}
+                                            className="relative h-[70px] flex flex-col items-center justify-center"
+                                            onClick={() => app.slug === 'enaiblr' ? window.location.href = 'https://enaiblr.org/apps' : window.location.href = `/${app.slug}`}
+                                        >
+                                            <Icon className="!size-5 text-foreground" />
+                                            <div className="w-full h-8 flex items-start">
+                                                <span className="text-xs font-medium line-clamp-2 text-center whitespace-normal break-words w-full px-2">{app.name}</span>
+                                            </div>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
             {!hasUserSentMessage && (
                 <div className="flex-none">

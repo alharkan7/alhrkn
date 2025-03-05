@@ -1,24 +1,21 @@
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 const AppsFooter = () => {
     const currentYear = new Date().getFullYear();
     const { theme, setTheme } = useTheme();
+
+    useEffect(() => {
+        setTheme('light');
+    }, []);
 
     return (
         <footer className="py-3 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
                     &copy; {currentYear}&nbsp;
-                    {/* <a
-                        href="https://x.com/alhrkn"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/90"
-                    >
-                        alhrkn
-                    </a> */}
                 </span>
                 <Button
                     variant="default"

@@ -35,6 +35,9 @@ export default {
 				reverseBoxShadowX: '-4px',
 				reverseBoxShadowY: '-4px',
 			},
+			fontFamily: {
+				sans: ['var(--font-space-grotesk)'],
+			},
 			fontWeight: {
 				base: '500',
 				heading: '700',

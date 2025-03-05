@@ -31,7 +31,7 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
         />
     ) : (
         <div className="text-center py-4">
-            <h1 className="text-4xl font-extrabold mb-2">
+            <h1 className="text-5xl font-black mb-2">
                 <span className="text-primary whitespace-nowrap">Ask</span>{' '}
                 <span className="whitespace-nowrap">Al</span>
             </h1>
