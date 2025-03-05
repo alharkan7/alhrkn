@@ -9,7 +9,8 @@ import charactersList from './characters_list.json';
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 // Define the structure of our flash card data
 interface FlashCard {
   "type": "Hiragana" | "Katakana",
@@ -42,6 +43,10 @@ export default function JapaneseFlashcardsPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   // Remove isOpen state as Popover handles this internally
   // const [isOpen, setIsOpen] = useState(false);
+  const [hasTapped, setHasTapped] = useState(false);
+  const [hasSwiped, setHasSwiped] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [incorrectCount, setIncorrectCount] = useState(0);
 
   useEffect(() => {
     // Initialize cards with all data
@@ -60,17 +65,18 @@ export default function JapaneseFlashcardsPage() {
   }, [selectedType]);
 
   const handleCheck = () => {
-    if (
-      userInput.toLowerCase() === cards[currentCardIndex].alphabet.toLowerCase()
-    ) {
+    if (userInput.toLowerCase() === cards[currentCardIndex].alphabet.toLowerCase()) {
       setCardState("correct");
+      setCorrectCount(prev => prev + 1);
     } else {
       setCardState("incorrect");
+      setIncorrectCount(prev => prev + 1);
     }
     setIsFlipped(true);
   };
 
   const handleCardClick = () => {
+    setHasTapped(true);
     setIsFlipped(!isFlipped);
     const animationClass = isFlipped ? "flip-out" : "flip-in";
     cardRef.current?.classList.add(animationClass);
@@ -91,6 +97,7 @@ export default function JapaneseFlashcardsPage() {
   const [shownIndices, setShownIndices] = useState<number[]>([]); // New state to track shown indices
 
   const handleNextCard = () => {
+    setHasSwiped(true);
     setCardPosition(-20); // Move card up
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * cards.length);
@@ -103,6 +110,7 @@ export default function JapaneseFlashcardsPage() {
   };
 
   const handlePreviousCard = () => {
+    setHasSwiped(true);
     setCardPosition(20); // Move card down
     setTimeout(() => {
       const previousIndex = shownIndices.pop(); // Get the last shown index
@@ -209,22 +217,29 @@ export default function JapaneseFlashcardsPage() {
           </div>
         </div>
         <div className="relative w-full max-w-sm">
-          <Button
-            variant="neutral"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePreviousCard();
-            }}
-            className="absolute -top-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10 hover:-translate-x-1/2"
-          >
-            <ChevronUp className="h-6 w-6 text-secondary-foreground/50" />
-          </Button>
+          <div className="absolute top-2 left-2 text-sm font-medium z-10">
+            <div className="text-green-600 dark:text-green-400">Correct: {correctCount}</div>
+            <div className="text-red-600 dark:text-red-400">Incorrect: {incorrectCount}</div>
+          </div>
+
+          <div className="absolute w-full -top-4 flex justify-center">
+            <Button
+              variant="neutral"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePreviousCard();
+              }}
+              className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+            >
+              <ChevronUp className="h-5 w-5 text-secondary-foreground/50" />
+            </Button>
+          </div>
 
           <Card
             ref={cardRef}
             style={{ transform: `translateY(${cardPosition}%)` }}
-            className={`w-full aspect-square flex flex-col items-center justify-center text-8xl font-bold cursor-pointer select-none
+            className={`w-full aspect-square flex flex-col items-center justify-center text-9xl font-bold cursor-pointer select-none
             transition-all duration-300
             ${isFlipped ? "rotate-y-180" : ""
               } ${cardState === "correct"
@@ -240,7 +255,7 @@ export default function JapaneseFlashcardsPage() {
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
+                  className="absolute top-2 right-2 opacity-70 hover:opacity-100 transition-opacity z-10"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Info className="h-4 w-4" />
@@ -264,19 +279,25 @@ export default function JapaneseFlashcardsPage() {
             <div className={`${isFlipped ? "" : "hidden"} rotate-y-180`}>
               {currentCard.alphabet}
             </div>
+
+            <div className={`absolute bottom-0 left-0 right-0 text-center md:hidden ${(hasTapped && hasSwiped) ? 'hidden' : ''}`}>
+              <span className="text-xs text-muted-foreground">Swipe & Tap</span>
+            </div>
           </Card>
 
-          <Button
-            variant="neutral"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNextCard();
-            }}
-            className="absolute -bottom-4 left-1/2 -translate-x-1/2 p-1 rounded-full z-10 hover:-translate-x-1/2"
-          >
-            <ChevronDown className="h-6 w-6 text-secondary-foreground/50" />
-          </Button>
+          <div className="absolute w-full -bottom-4 flex justify-center">
+            <Button
+              variant="neutral"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextCard();
+              }}
+              className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+            >
+              <ChevronDown className="h-5 w-5 text-secondary-foreground/50" />
+            </Button>
+          </div>
         </div>
         <div className="w-full max-w-sm mt-6">
           <div className="flex items-center space-x-2 mt-4">
