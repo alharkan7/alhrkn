@@ -46,11 +46,17 @@ export default function JapaneseFlashcardsPage() {
   const [correctCount, setCorrectCount] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [shownIndices, setShownIndices] = useState<number[]>([]); // Track history
+  const [currentPosition, setCurrentPosition] = useState(-1); // Track position in history
+  const [hiraganaHistory, setHiraganaHistory] = useState<number[]>([0]);
+  const [katakanaHistory, setKatakanaHistory] = useState<number[]>([0]);
 
+  // Update initialization
   useEffect(() => {
-    // Initialize cards with all data
     const allCards = Object.values(flashCardsData);
     setCards(allCards);
+    setShownIndices([0]);
+    setCurrentPosition(0);
   }, []);
 
   useEffect(() => {
@@ -59,9 +65,21 @@ export default function JapaneseFlashcardsPage() {
       (card) => card.type === selectedType
     );
     setCards(filteredCards);
-    setCurrentCardIndex(0);
+
+    // Use the appropriate history based on type
+    if (selectedType === "Hiragana") {
+      setShownIndices(hiraganaHistory);
+      setCurrentPosition(hiraganaHistory.length - 1);
+      setCurrentCardIndex(hiraganaHistory[hiraganaHistory.length - 1]);
+    } else {
+      setShownIndices(katakanaHistory);
+      setCurrentPosition(katakanaHistory.length - 1);
+      setCurrentCardIndex(katakanaHistory[katakanaHistory.length - 1]);
+    }
     resetCardState();
   }, [selectedType]);
+
+  const [guessedCards, setGuessedCards] = useState<Set<number>>(new Set());
 
   const handleCheck = () => {
     if (userInput.toLowerCase() === cards[currentCardIndex].alphabet.toLowerCase()) {
@@ -72,6 +90,8 @@ export default function JapaneseFlashcardsPage() {
       setIncorrectCount(prev => prev + 1);
     }
     setIsFlipped(true);
+    setGuessedCards(prev => new Set(prev).add(currentCardIndex));
+    setUserInput(""); // Clear input after guess
   };
 
   const handleCardClick = () => {
@@ -80,47 +100,59 @@ export default function JapaneseFlashcardsPage() {
     const animationClass = isFlipped ? "flip-out" : "flip-in";
     cardRef.current?.classList.add(animationClass);
 
-    // Remove the animation class after the animation duration
     setTimeout(() => {
       cardRef.current?.classList.remove(animationClass);
-    }, 600); // Match this duration with your CSS animation duration
+    }, 600);
 
-    if (isFlipped) {
+    // Only reset card state if it hasn't been guessed
+    if (isFlipped && !guessedCards.has(currentCardIndex)) {
       setCardState("default");
       setUserInput("");
     }
   };
 
   const [cardPosition, setCardPosition] = useState(0); // New state for card position
-  const [shownIndices, setShownIndices] = useState<number[]>([]); // New state to track shown indices
 
+  // Update handleNextCard to maintain separate histories
   const handleNextCard = () => {
     setHasSwiped(true);
-    setCardPosition(-20); // Move card up
+    setCardPosition(-20);
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * cards.length);
-      setShownIndices((prev) => [...prev, randomIndex]); // Store shown index
-      setCurrentCardIndex(randomIndex);
-      setIsFlipped(false);
-      setCardState("default");
-      setCardPosition(0); // Reset position after animation
-    }, 300); // Match this duration with your CSS transition duration
-  };
-
-  const handlePreviousCard = () => {
-    setHasSwiped(true);
-    setCardPosition(20); // Move card down
-    setTimeout(() => {
-      const previousIndex = shownIndices.pop(); // Get the last shown index
-      if (previousIndex !== undefined) {
+      if (currentPosition < shownIndices.length - 1) {
+        const nextPosition = currentPosition + 1;
+        setCurrentPosition(nextPosition);
+        setCurrentCardIndex(shownIndices[nextPosition]);
+      } else {
         const randomIndex = Math.floor(Math.random() * cards.length);
+        const newIndices = [...shownIndices, randomIndex];
+        setShownIndices(newIndices);
+        if (selectedType === "Hiragana") {
+          setHiraganaHistory(newIndices);
+        } else {
+          setKatakanaHistory(newIndices);
+        }
+        setCurrentPosition(currentPosition + 1);
         setCurrentCardIndex(randomIndex);
-        setShownIndices(shownIndices); // Update shown indices
       }
       setIsFlipped(false);
       setCardState("default");
-      setCardPosition(0); // Reset position after animation
-    }, 300); // Match this duration with your CSS transition duration
+      setCardPosition(0);
+    }, 300);
+  };
+
+  const handlePreviousCard = () => {
+    if (currentPosition <= 0) return;
+
+    setHasSwiped(true);
+    setCardPosition(20);
+    setTimeout(() => {
+      const newPosition = currentPosition - 1;
+      setCurrentPosition(newPosition);
+      setCurrentCardIndex(shownIndices[newPosition]);
+      setIsFlipped(false);
+      setCardState("default");
+      setCardPosition(0);
+    }, 300);
   };
 
   const resetCardState = () => {
@@ -292,27 +324,28 @@ export default function JapaneseFlashcardsPage() {
             <div className="flex items-center space-x-2 mt-4">
               <Input
                 type="text"
-                placeholder="Guess the alphabet"
+                placeholder={guessedCards.has(currentCardIndex) ? "You've guessed this one" : "Guess the alphabet"}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && !guessedCards.has(currentCardIndex)) {
                     handleCheck();
                   }
                 }}
                 className="flex-grow"
+                disabled={guessedCards.has(currentCardIndex)}
               />
               <Button
                 onClick={handleCheck}
                 size="icon"
-                className=""
+                disabled={guessedCards.has(currentCardIndex)}
               >
                 <ChevronRight className="" />
               </Button>
             </div>
 
             <div className="text-center mt-4 text-sm font-medium text-secondary-foreground">
-              Correct: {correctCount} <span className="mx-2">|</span> Incorrect: {incorrectCount}
+              Correct: <b>{correctCount}</b> <span className="mx-2">|</span> Incorrect: <b>{incorrectCount}</b>
             </div>
           </div>
         </div>
@@ -324,11 +357,11 @@ export default function JapaneseFlashcardsPage() {
         </div>
 
         {showInfoModal && (
-          <div 
+          <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
             onClick={() => setShowInfoModal(false)}
           >
-            <Card 
+            <Card
               className="max-w-md w-full mx-4"
               onClick={(e) => e.stopPropagation()}
             >

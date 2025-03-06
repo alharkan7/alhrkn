@@ -11,8 +11,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Enaiblr Free Apps",
-  description: "Collection of Enaiblr's Mini Apps",
+  title: "Ask AI",
+  description: "Intelligent and Fun AI Chatbot",
   icons: {
     icon: '/favicon.ico',
   },
