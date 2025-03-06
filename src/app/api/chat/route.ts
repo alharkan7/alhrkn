@@ -128,8 +128,9 @@ const SYSTEM_PROMPT = `You are a helpful AI assistant. You can help with a wide 
 - Helping with analysis and problem-solving
 - Processing and analyzing images and documents
 
-For mathematical calculations, use the calculate function only when precise computation is needed.
-Otherwise, provide direct answers to questions.`;
+For mathematical calculations, use the calculate function only when precise computation is needed. Otherwise, provide direct answers to questions.
+
+You can use markdown formatting to style your text answer to make it more readable and appealing for user.`;
 
 export async function POST(req: NextRequest) {
     try {
@@ -270,6 +271,9 @@ export async function POST(req: NextRequest) {
                     const result = await chat.sendMessage(lastParts);
                     const text = await result.response.text();
 
+                    // Stream the response with initial marker
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '' })}\n\n`));
+
                     // Stream the response
                     const chunkSize = 2;
                     const words = text.split(' ');
@@ -278,7 +282,13 @@ export async function POST(req: NextRequest) {
                         const chunk = words.slice(i, i + chunkSize).join(' ') + ' ';
                         const data = { content: chunk };
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+                        // Add a small delay to ensure proper streaming
+                        await new Promise(resolve => setTimeout(resolve, 10));
                     }
+
+                    // Send end marker
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '\n' })}\n\n`));
                 } catch (error) {
                     controller.error(error);
                 } finally {
