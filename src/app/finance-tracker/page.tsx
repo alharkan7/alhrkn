@@ -250,7 +250,7 @@ export default function FinanceTrackerPage() {
           </div>
         </div>
       </div>
-      <div className="fixed bottom-0 left-0 right-0 py-2 text-center text-xs bg-background">
+      <div className="fixed bottom-0 left-0 right-0 text-center text-xs bg-background">
         <div className="flex-none">
           <AppsFooter />
         </div>
