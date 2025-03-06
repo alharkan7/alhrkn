@@ -139,7 +139,7 @@ export default function FinanceTrackerPage() {
               </div>
             )}
           </div>
-          <div className="p-2">
+          <div className="p-4">
             <Tabs
               defaultValue="expense"
               className="w-full"

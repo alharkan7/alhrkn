@@ -32,7 +32,7 @@ export function AppsHeader({ title, leftButton }: AppsHeaderProps) {
                 trigger={
                   <Button
                     variant="default"
-                    className="flex items-center px-2 h-fit"
+                    className="flex items-center px-3 h-fit"
                   >
                     <LayoutGrid size={14} /> Apps
                   </Button>
@@ -47,7 +47,7 @@ export function AppsHeader({ title, leftButton }: AppsHeaderProps) {
               trigger={
                 <Button
                   variant="default"
-                  className="flex items-center px-2 h-fit"
+                  className="flex items-center px-3 h-fit"
                 >
                   <LayoutGrid size={14} /> Apps
                 </Button>
