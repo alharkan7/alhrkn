@@ -59,13 +59,16 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
 
     const renderMessageContent = (content: Message['content']) => {
         if (typeof content === 'string') {
-            return <ReactMarkdown>{content}</ReactMarkdown>;
+            // Convert line breaks to markdown line breaks before rendering
+            const textWithBreaks = content.replace(/\n/g, '  \n');
+            return <ReactMarkdown>{textWithBreaks}</ReactMarkdown>;
         }
 
         return content.map((item, idx) => {
             switch (item.type) {
                 case 'text':
-                    return <ReactMarkdown key={idx}>{item.text}</ReactMarkdown>;
+                    const textWithBreaks = item.text.replace(/\n/g, '  \n');
+                    return <ReactMarkdown key={idx}>{textWithBreaks}</ReactMarkdown>;
                 case 'image_url':
                     return (
                         <FilePreview
