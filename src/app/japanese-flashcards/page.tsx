@@ -92,7 +92,6 @@ export default function JapaneseFlashcardsPage() {
   };
 
   const [cardPosition, setCardPosition] = useState(0); // New state for card position
-
   const [shownIndices, setShownIndices] = useState<number[]>([]); // New state to track shown indices
 
   const handleNextCard = () => {

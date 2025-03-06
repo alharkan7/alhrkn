@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { ChatTitle } from '@/components/ChatTitle'
-import { MessageList } from '@/components/MessageList'
-import { ChatInput } from '@/components/ChatInput'
+import { ChatTitle } from '@/components/chat/ChatTitle'
+import { MessageList } from '@/components/chat/MessageList'
+import { ChatInput } from '@/components/chat/ChatInput'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
@@ -176,7 +176,7 @@ export default function ChatPage() {
                 )}
             </div>
             {!hasUserSentMessage && (
-                <div className="flex-none">
+                <div className="flex-none mb-1">
                     <AppsFooter />
                 </div>
             )}

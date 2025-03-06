@@ -24,7 +24,7 @@ export default function FinanceTrackerPage() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [showValidation, setShowValidation] = useState(false);
   const [activeTab, setActiveTab] = useState('expense');
-  const [isOpen, setIsOpen] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const timestamp = (() => {
     const date = new Date();
@@ -112,36 +112,19 @@ export default function FinanceTrackerPage() {
       <div className="fixed top-0 left-0 right-0 z-50">
         <AppsHeader />
       </div>
-      <div className="w-full max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 px-2">
+      <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 p-2">
         <Card className="max-w-sm mx-auto relative ">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <h2 className="text-lg font-bold mb-4 text-center">About this App</h2>
-              <p className="text-primary/80 text-s mb-2">
-                This app saves your data directly to Google Sheets <b>so that you own your data</b> and can manage it yourself.
-                <br></br><br></br>
-                If you want to run your version of this app, you can{" "}
-                <a
-                  href="https://github.com/alharkan7/simple-expense-tracker"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/90 underline"
-                >
-                  fork the repository
-                </a> and deploy it to Vercel.
-                <br></br><br></br>
-                Use the Google Sheets API to save your data to your own Google Sheets.
-              </p>
-            </PopoverContent>
-          </Popover>
+
+          <button
+            className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowInfoModal(true);
+            }}
+          >
+            <Info className="h-4 w-4" />
+          </button>
+
           <CardHeader className="text-center py-6 items-center">
             {/* <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Wallet className="w-8 h-8 text-white" />
@@ -264,6 +247,41 @@ export default function FinanceTrackerPage() {
           <AppsFooter />
         </div>
       </div>
+
+      {showInfoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setShowInfoModal(false)}
+        >
+          <Card
+            className="max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader>
+              <CardTitle className="text-xl text-center">About this App</CardTitle>
+            </CardHeader>
+            <CardContent className="text-muted-foreground space-y-4">
+              <p>
+                This app saves your data directly to Google Sheets <b>so that you own your data</b> and can manage it yourself.
+              </p>
+              <p>
+                If you want to run your version of this app, you can{" "}
+                <a
+                  href="https://github.com/alharkan7/simple-expense-tracker"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/90 underline"
+                >
+                  fork the repository
+                </a> and deploy it to Vercel.
+              </p>
+              <p>
+                Use the Google Sheets API to save your data to your own Google Sheets.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Message } from '@/types/types';
-import { FilePreview } from '@/components/FilePreview';
+import { FilePreview } from '@/components/chat/FilePreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { TypingIndicator } from '@/components/TypingIndicator';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { Copy } from 'lucide-react';
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -117,8 +117,8 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                             <motion.div
                                 className={`rounded-2xl px-4 py-2 max-w-[85%] border-2 border-border shadow-shadow 
                                 ${message.role === 'user'
-                                        ? 'bg-main text-mtext rounded-br-none ml-auto'
-                                        : 'bg-bw text-text rounded-bl-none'
+                                        ? 'bg-bw text-text rounded-br-none ml-auto'
+                                        : 'bg-main text-mtext rounded-bl-none'
                                     }`}
                                 style={{ pointerEvents: 'auto' }}
                             >
