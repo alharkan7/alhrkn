@@ -81,7 +81,7 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
     try {
         // Remove data URL prefix if present
         const base64Data = base64String.replace(/^data:.*;base64,/, '');
-        
+
         // For images, we can return the data directly since Gemini accepts base64
         if (mimeType.startsWith('image/')) {
             return {
@@ -143,128 +143,132 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const chat = model.startChat({
-            history: [],
-            generationConfig: {
-                temperature: 0.7,
-                topP: 0.8,
-                topK: 40,
-                maxOutputTokens: 8192,
-            }
-        });
-        // Send system prompt first
-        await chat.sendMessage([{
-            text: SYSTEM_PROMPT
-        }]);
+        // Create encoder for streaming
+        const encoder = new TextEncoder();
 
-        // Process each message in the history
-        for (const msg of messages) {
-            if (msg.role === 'user') {
-                const parts: any[] = [];
-
-                // Handle file content if present
-                if (Array.isArray(msg.content)) {
-                    for (const part of msg.content) {
-                        if (part.type === 'image_url' && part.image_url?.url) {
-                            // Upload image to Gemini
-                            const fileData = await uploadBase64ToGemini(
-                                part.image_url.url,
-                                'image/jpeg',
-                                'uploaded_image.jpg'
-                            );
-                            parts.push({
-                                inlineData: {
-                                    mimeType: fileData.mimeType,
-                                    data: fileData.data!
-                                }
-                            });
-                        } else if (part.type === 'file_url' && part.file_url?.url) {
-                            // Upload file to Gemini
-                            const fileData = await uploadBase64ToGemini(
-                                part.file_url.url,
-                                part.file_url.type,
-                                part.file_url.name
-                            );
-                            if (fileData.fileUri) {
-                                parts.push({
-                                    fileData: {
-                                        mimeType: fileData.mimeType,
-                                        fileUri: fileData.fileUri,
-                                    }
-                                });
-                            } else if (fileData.data) {
-                                parts.push({
-                                    inlineData: {
-                                        mimeType: fileData.mimeType,
-                                        data: fileData.data
-                                    }
-                                });
-                            }
-                        } else if (part.type === 'text') {
-                            parts.push({ text: part.text });
-                        }
-                    }
-                } else {
-                    parts.push({ text: msg.content });
-                }
-
-                const response = await chat.sendMessage(parts);
-                
-                // Check if the response contains a function call
-                if (response.response.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
-                    const functionCall = response.response.candidates[0].content.parts[0].functionCall;
-                    
-                    if (functionCall.name === 'calculate') {
-                        try {
-                            const result = handleCalculate(functionCall.args);
-                            await chat.sendMessage([{
-                                text: `The result of the calculation is: ${result}`
-                            }]);
-                        } catch (error) {
-                            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                            await chat.sendMessage([{
-                                text: `Error performing calculation: ${errorMessage}`
-                            }]);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Get response from the model using the last message parts
-        const lastMessage = messages[messages.length - 1];
-        const lastParts: any[] = [];
-
-        if (Array.isArray(lastMessage.content)) {
-            for (const part of lastMessage.content) {
-                if (part.type === 'text') {
-                    lastParts.push({ text: part.text });
-                }
-            }
-        } else {
-            lastParts.push({ text: lastMessage.content });
-        }
-
-        const result = await chat.sendMessage(lastParts);
-
-        // Create a readable stream for the response
+        // Create the stream
         const stream = new ReadableStream({
-
             async start(controller) {
-                const response = result.response;
-                const text = await response.text();
+                try {
+                    const chat = model.startChat({
+                        history: [],
+                        generationConfig: {
+                            temperature: 0.7,
+                            topP: 0.8,
+                            topK: 40,
+                            maxOutputTokens: 8192,
+                        }
+                    });
 
-                // Send the text in chunks
-                const chunks = text.split(' ');
-                for (const chunk of chunks) {
-                    const data = {
-                        content: chunk + ' '
-                    };
-                    controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
-                    // Add a small delay between chunks for a more natural feel
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // Send system prompt first
+                    await chat.sendMessage([{ text: SYSTEM_PROMPT }]);
+
+                    // Process messages
+                    for (const msg of messages) {
+                        if (msg.role === 'user') {
+                            const parts: any[] = [];
+
+                            // Handle file content if present
+                            if (Array.isArray(msg.content)) {
+                                for (const part of msg.content) {
+                                    if (part.type === 'image_url' && part.image_url?.url) {
+                                        // Upload image to Gemini
+                                        const fileData = await uploadBase64ToGemini(
+                                            part.image_url.url,
+                                            'image/jpeg',
+                                            'uploaded_image.jpg'
+                                        );
+                                        parts.push({
+                                            inlineData: {
+                                                mimeType: fileData.mimeType,
+                                                data: fileData.data!
+                                            }
+                                        });
+                                    } else if (part.type === 'file_url' && part.file_url?.url) {
+                                        // Upload file to Gemini
+                                        const fileData = await uploadBase64ToGemini(
+                                            part.file_url.url,
+                                            part.file_url.type,
+                                            part.file_url.name
+                                        );
+                                        if (fileData.fileUri) {
+                                            parts.push({
+                                                fileData: {
+                                                    mimeType: fileData.mimeType,
+                                                    fileUri: fileData.fileUri,
+                                                }
+                                            });
+                                        } else if (fileData.data) {
+                                            parts.push({
+                                                inlineData: {
+                                                    mimeType: fileData.mimeType,
+                                                    data: fileData.data
+                                                }
+                                            });
+                                        }
+                                    } else if (part.type === 'text') {
+                                        parts.push({ text: part.text });
+                                    }
+                                }
+                            } else {
+                                parts.push({ text: msg.content });
+                            }
+
+                            const response = await chat.sendMessage(parts);
+
+                            // Check if the response contains a function call
+                            if (response.response.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
+                                const functionCall = response.response.candidates[0].content.parts[0].functionCall;
+
+                                if (functionCall.name === 'calculate') {
+                                    try {
+                                        const result = handleCalculate(functionCall.args);
+                                        await chat.sendMessage([{
+                                            text: `The result of the calculation is: ${result}`
+                                        }]);
+                                    } catch (error) {
+                                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                                        await chat.sendMessage([{
+                                            text: `Error performing calculation: ${errorMessage}`
+                                        }]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Get response from the model using the last message parts
+                    const lastMessage = messages[messages.length - 1];
+                    const lastParts: any[] = [];
+
+                    if (Array.isArray(lastMessage.content)) {
+                        for (const part of lastMessage.content) {
+                            if (part.type === 'text') {
+                                lastParts.push({ text: part.text });
+                            }
+                        }
+                    } else {
+                        lastParts.push({ text: lastMessage.content });
+                    }
+
+                    // Get final response
+                    const result = await chat.sendMessage(lastParts);
+                    const text = await result.response.text();
+
+                    // Stream the response in smaller chunks
+                    const chunkSize = 2;
+                    const words = text.split(' ');
+
+                    for (let i = 0; i < words.length; i += chunkSize) {
+                        const chunk = words.slice(i, i + chunkSize).join(' ') + ' ';
+                        const data = { content: chunk };
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                    }
+                } catch (error) {
+                    controller.error(error);
+                } finally {
+                    controller.close();
                 }
-                controller.close();
             }
         });
 
