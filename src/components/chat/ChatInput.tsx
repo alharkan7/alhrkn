@@ -29,7 +29,7 @@ export function ChatInput({
     sendMessage,
     onFocusChange
 }: ChatInputProps) {
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,17 +67,23 @@ export function ChatInput({
                     </div>
                 )}
                 <Form {...form}>
-                <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-base p-2 shadow-[var(--shadow)]">
-                        <Input
+                    <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)]">
+                        <textarea
                             ref={inputRef}
-                            type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Send a message..."
-                            className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none disabled:opacity-50"
+                            className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
                             disabled={isLoading}
                             onFocus={() => onFocusChange?.(true)}
                             onBlur={() => onFocusChange?.(false)}
+                            rows={1}
+                            style={{ height: 'auto' }}
+                            onInput={(e) => {
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = 'auto';
+                                target.style.height = `${target.scrollHeight}px`;
+                            }}
                         />
                         <Input
                             type="file"
