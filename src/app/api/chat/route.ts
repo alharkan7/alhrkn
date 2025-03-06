@@ -163,8 +163,9 @@ export async function POST(req: NextRequest) {
                     // Send system prompt first
                     await chat.sendMessage([{ text: SYSTEM_PROMPT }]);
 
-                    // Process messages
-                    for (const msg of messages) {
+                    // Process all messages except the last one
+                    for (let i = 0; i < messages.length - 1; i++) {
+                        const msg = messages[i];
                         if (msg.role === 'user') {
                             const parts: any[] = [];
 
@@ -214,36 +215,50 @@ export async function POST(req: NextRequest) {
                                 parts.push({ text: msg.content });
                             }
 
-                            const response = await chat.sendMessage(parts);
-
-                            // Check if the response contains a function call
-                            if (response.response.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
-                                const functionCall = response.response.candidates[0].content.parts[0].functionCall;
-
-                                if (functionCall.name === 'calculate') {
-                                    try {
-                                        const result = handleCalculate(functionCall.args);
-                                        await chat.sendMessage([{
-                                            text: `The result of the calculation is: ${result}`
-                                        }]);
-                                    } catch (error) {
-                                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                                        await chat.sendMessage([{
-                                            text: `Error performing calculation: ${errorMessage}`
-                                        }]);
-                                    }
-                                }
-                            }
+                            await chat.sendMessage(parts);
                         }
                     }
 
-                    // Get response from the model using the last message parts
+                    // Handle the last message separately
                     const lastMessage = messages[messages.length - 1];
                     const lastParts: any[] = [];
 
                     if (Array.isArray(lastMessage.content)) {
                         for (const part of lastMessage.content) {
-                            if (part.type === 'text') {
+                            if (part.type === 'image_url' && part.image_url?.url) {
+                                const fileData = await uploadBase64ToGemini(
+                                    part.image_url.url,
+                                    'image/jpeg',
+                                    'uploaded_image.jpg'
+                                );
+                                lastParts.push({
+                                    inlineData: {
+                                        mimeType: fileData.mimeType,
+                                        data: fileData.data!
+                                    }
+                                });
+                            } else if (part.type === 'file_url' && part.file_url?.url) {
+                                const fileData = await uploadBase64ToGemini(
+                                    part.file_url.url,
+                                    part.file_url.type,
+                                    part.file_url.name
+                                );
+                                if (fileData.fileUri) {
+                                    lastParts.push({
+                                        fileData: {
+                                            mimeType: fileData.mimeType,
+                                            fileUri: fileData.fileUri,
+                                        }
+                                    });
+                                } else if (fileData.data) {
+                                    lastParts.push({
+                                        inlineData: {
+                                            mimeType: fileData.mimeType,
+                                            data: fileData.data
+                                        }
+                                    });
+                                }
+                            } else if (part.type === 'text') {
                                 lastParts.push({ text: part.text });
                             }
                         }
@@ -255,7 +270,7 @@ export async function POST(req: NextRequest) {
                     const result = await chat.sendMessage(lastParts);
                     const text = await result.response.text();
 
-                    // Stream the response in smaller chunks
+                    // Stream the response
                     const chunkSize = 2;
                     const words = text.split(' ');
 

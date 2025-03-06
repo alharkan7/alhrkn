@@ -104,7 +104,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                                     e.stopPropagation();
                                     onRemove();
                                 }}
-                                className="absolute -top-4 -right-4 transition-colors"
+                                className="absolute -top-4 -right-4 transition-colors rounded-full"
                                 aria-label="Remove file"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 20 20" fill="currentColor">
@@ -146,7 +146,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                         e.stopPropagation();
                         onRemove();
                     }}
-                    className="absolute -top-5 -right-4 p-1"
+                    className="absolute -top-5 -right-4 rounded-full"
                     aria-label="Remove file"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 20 20" fill="currentColor">
