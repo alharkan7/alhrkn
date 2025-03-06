@@ -1,4 +1,4 @@
-'use client'
+6'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { ChatTitle } from '@/components/chat/ChatTitle'
@@ -98,6 +98,7 @@ export default function ChatPage() {
                                 onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
                             >
                                 <Mail className='' />
+                                Mail
                             </Button>
                         </div>
                     </div>
