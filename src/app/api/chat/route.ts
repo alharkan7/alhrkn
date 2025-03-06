@@ -82,8 +82,13 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
         // Remove data URL prefix if present
         const base64Data = base64String.replace(/^data:.*;base64,/, '');
 
-        // For images, we can return the data directly since Gemini accepts base64
+        // For images, handle them directly without temporary file creation
         if (mimeType.startsWith('image/')) {
+            // Validate base64 data
+            if (!base64Data) {
+                throw new Error('Invalid image data');
+            }
+
             return {
                 mimeType,
                 data: base64Data
@@ -130,7 +135,7 @@ const SYSTEM_PROMPT = `You are a helpful AI assistant. You can help with a wide 
 
 For mathematical calculations, use the calculate function only when precise computation is needed. Otherwise, provide direct answers to questions.
 
-You can use markdown formatting to style your text answer to make it more readable and appealing for user.`;
+Use markdown formatting to style your text answer to make it more readable and appealing for user.`;
 
 export async function POST(req: NextRequest) {
     try {
@@ -271,25 +276,31 @@ export async function POST(req: NextRequest) {
                     const result = await chat.sendMessage(lastParts);
                     const text = await result.response.text();
 
-                    // Stream the response with initial marker
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '' })}\n\n`));
+                    // Ensure we have a response before streaming
+                    if (!text) {
+                        throw new Error('Empty response from Gemini');
+                    }
 
-                    // Stream the response
-                    const chunkSize = 2;
+                    // Stream the response with initial marker and delay
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '' })}\n\n`));
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Initial delay
+
+                    // Stream the response in smaller chunks
+                    const chunkSize = 1; // Reduce chunk size
                     const words = text.split(' ');
 
                     for (let i = 0; i < words.length; i += chunkSize) {
                         const chunk = words.slice(i, i + chunkSize).join(' ') + ' ';
                         const data = { content: chunk };
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-
-                        // Add a small delay to ensure proper streaming
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                        await new Promise(resolve => setTimeout(resolve, 5)); // Smaller delay between chunks
                     }
 
-                    // Send end marker
+                    // Send end marker with delay
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '\n' })}\n\n`));
                 } catch (error) {
+                    console.error('Streaming error:', error);
                     controller.error(error);
                 } finally {
                     controller.close();
@@ -307,7 +318,10 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         console.error('Error:', error);
-        return new Response(JSON.stringify({ error: 'Internal server error' }), {
+        return new Response(JSON.stringify({
+            error: 'Internal server error',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
