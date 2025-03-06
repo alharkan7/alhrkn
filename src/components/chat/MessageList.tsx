@@ -27,9 +27,13 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
 
         await navigator.clipboard.writeText(text);
         toast.success("Content copied to clipboard", {
-            className: "max-w-[256px] [&>div]:px-2 [&>div]:flex [&>div]:justify-center",
+            className: "max-w-[256px]",
             position: "top-center",
-            duration: 1500
+            duration: 1500,
+            style: {
+                left: '50%',
+                transform: 'translateX(-50%)'
+            }
         });
     };
 

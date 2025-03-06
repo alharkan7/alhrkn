@@ -67,7 +67,7 @@ export function ChatInput({
                     </div>
                 )}
                 <Form {...form}>
-                    <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)]">
+                <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
                         <textarea
                             ref={inputRef}
                             value={input}

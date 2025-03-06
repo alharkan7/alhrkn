@@ -61,7 +61,7 @@ export function FormExpenses({
                 setAmountValue(numericValue);
               }
             }}
-            className="text-[2rem] h-[3rem] leading-[3rem] font-medium border-0 border-b rounded-none focus:placeholder:opacity-0 focus:border-opacity-0 focus:outline-none focus:ring-0 px-0 placeholder:text-black/50 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full pl-[3rem] bg-transparent"
+            className="text-[2rem] h-[3rem] leading-[3rem] font-medium border-0 border-b border-black/50 rounded-none focus:placeholder:opacity-0 focus:border-opacity-0 focus:outline-none focus:ring-0 px-0 placeholder:text-black/50 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full pl-[3rem] bg-transparent"
           />
         </div>
       </div>
@@ -181,7 +181,7 @@ export function FormExpenses({
         <textarea
           id="description"
           placeholder="Notes (optional)"
-          className="resize-none px-0 border-0 border-b rounded-none focus:ring-0 focus-visible:ring-0 focus:outline-none placeholder:text-black/50 w-full align-bottom placeholder:bottom-1 placeholder:left-0 flex h-[2rem] focus:placeholder:opacity-0 max-h-none overflow-hidden bg-transparent"
+          className="resize-none px-0 border-0 border-b border-black/50 rounded-none focus:ring-0 focus-visible:ring-0 focus:outline-none placeholder:text-black/50 w-full align-bottom placeholder:bottom-1 placeholder:left-0 flex h-[2rem] focus:placeholder:opacity-0 max-h-none overflow-hidden bg-transparent"
           value={descriptionValue}
           onChange={(e) => {
             e.target.style.height = '2rem';

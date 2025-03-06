@@ -113,25 +113,21 @@ export default function FinanceTrackerPage() {
         <AppsHeader />
       </div>
       <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 p-2">
-        <Card className="max-w-sm mx-auto relative ">
+        <div className="max-w-sm mx-auto relative bg-card p-6 rounded-sm">
 
-          <button
-            className="absolute top-2 right-2 opacity-30 hover:opacity-100 transition-opacity z-10"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowInfoModal(true);
-            }}
-          >
-            <Info className="h-4 w-4" />
-          </button>
-
-          <CardHeader className="text-center py-6 items-center">
-            {/* <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-8 h-8 text-white" />
-          </div> */}
-            <CardTitle className="text-2xl font-bold">
+          <div className="text-center py-6 items-center">
+            <h2 className="text-2xl font-bold inline-flex items-center gap-2">
               Finance Tracker <span className="font-thin">(Demo)</span>
-            </CardTitle>
+              <button
+                className="opacity-30 hover:opacity-100 transition-opacity align-top"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowInfoModal(true);
+                }}
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </h2>
             {feedbackMessage && (
               <div className={`mt-4 px-3 py-1 text-sm font-medium rounded-md ${feedbackMessage.toLowerCase().includes('successfully')
                 ? 'bg-green-50 text-green-800 border border-green-200'
@@ -142,8 +138,8 @@ export default function FinanceTrackerPage() {
                 {feedbackMessage}
               </div>
             )}
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-6">
             <Tabs
               defaultValue="expense"
               className="w-full"
@@ -160,9 +156,19 @@ export default function FinanceTrackerPage() {
                 setShowValidation(false);
               }}
             >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="expense">Expense</TabsTrigger>
-                <TabsTrigger value="income">Income</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 bg-bg text-text">
+                <TabsTrigger
+                  value="expense"
+                  className="data-[state=active]:bg-main data-[state=active]:text-mtext"
+                >
+                  Expense
+                </TabsTrigger>
+                <TabsTrigger
+                  value="income"
+                  className="data-[state=active]:bg-main data-[state=active]:text-mtext"
+                >
+                  Income
+                </TabsTrigger>
               </TabsList>
               <AnimatePresence initial={false}>
                 <TabsContent key="expense" value="expense">
@@ -172,6 +178,7 @@ export default function FinanceTrackerPage() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.2 }}
+                    className="rounded-base shadow-shadow border-2 border-border text-mtext p-0"
                   >
                     <FormExpenses
                       date={date}
@@ -194,11 +201,12 @@ export default function FinanceTrackerPage() {
                 </TabsContent>
                 <TabsContent key="income" value="income">
                   <motion.div
-                    key="income-motion"
+                    key="expense-motion"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.2 }}
+                    className="rounded-base shadow-shadow border-2 border-border text-mtext p-0"
                   >
                     <FormIncome
                       date={date}
@@ -239,8 +247,8 @@ export default function FinanceTrackerPage() {
                 Dashboard
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
       <div className="fixed bottom-0 left-0 right-0 p-2 text-center text-xs bg-background">
         <div className="flex-none">
