@@ -86,23 +86,15 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
             throw new Error('Invalid file data');
         }
 
-        // For all files, check size limit (5MB for images, larger for other files)
+        // For all files, check size limit (20MB)
         const fileSizeInBytes = Buffer.from(base64Data, 'base64').length;
-        const maxSize = mimeType.startsWith('image/') ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+        const maxSize = 20 * 1024 * 1024;
         
         if (fileSizeInBytes > maxSize) {
             throw new Error(`File size exceeds limit of ${maxSize / (1024 * 1024)}MB`);
         }
 
-        // Handle images directly with inline data
-        if (mimeType.startsWith('image/')) {
-            return {
-                mimeType,
-                data: base64Data
-            };
-        }
-
-        // For other files, use file manager
+        // Process all files using file manager
         const buffer = Buffer.from(base64Data, 'base64');
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
         const extension = getFileExtension(mimeType);
