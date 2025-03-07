@@ -20,23 +20,6 @@ export function useChatMessages() {
     const sendMessage = async (input: string, file: { name: string; type: string; url: string } | null) => {
         if ((!input.trim() && !file) || isLoading) return;
 
-        // Clean up previous messages first
-        const cleanedMessages = messages.map(msg => ({
-            ...msg,
-            content: Array.isArray(msg.content) 
-                ? msg.content.map(part => {
-                    if (part.type === 'image_url') {
-                        // Skip cleaning URLs for the most recent message
-                        return part;
-                    } else if (part.type === 'file_url') {
-                        // Skip cleaning URLs for the most recent message
-                        return part;
-                    }
-                    return part;
-                })
-                : msg.content
-        })) as Message[];
-
         const userMessage: Message = {
             role: 'user',
             content: file ? [
@@ -53,18 +36,29 @@ export function useChatMessages() {
             ] : [{ type: 'text' as const, text: input.trim() }]
         };
 
-        setMessages([...cleanedMessages, userMessage]);
+        setMessages(prev => [...prev, userMessage]);
         setIsLoading(true);
         setIsStreaming(false);
 
         try {
+            const apiMessages = [...messages, userMessage].map(msg => ({
+                role: msg.role,
+                content: Array.isArray(msg.content) 
+                    ? msg.content.map(part => {
+                        if (part.type === 'text') return part;
+                        if (msg === userMessage) return part;
+                        return { type: 'text', text: '[Attachment]' };
+                    })
+                    : msg.content
+            }));
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    messages: [...messages.map(toTogetherMessage), toTogetherMessage(userMessage)],
+                    messages: apiMessages,
                     file
                 })
             });
