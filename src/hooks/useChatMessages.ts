@@ -66,11 +66,36 @@ export function useChatMessages() {
             let assistantMessage = '';
             const userMessages = [...messages, userMessage];
             let firstChunkReceived = false;
+            let timeoutId: NodeJS.Timeout | null = null;
+
+            // Set a timeout to create an empty assistant message if no response is received
+            if (file?.type.startsWith('image/')) {
+                timeoutId = setTimeout(() => {
+                    if (!firstChunkReceived) {
+                        setIsLoading(false);
+                        setIsStreaming(true);
+                        setMessages([
+                            ...userMessages,
+                            {
+                                role: 'assistant',
+                                content: [{ type: 'text', text: '' }]
+                            }
+                        ]);
+                        firstChunkReceived = true;
+                    }
+                }, 1000); // 1 second timeout
+            }
 
             const textDecoder = new TextDecoder();
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+
+                // Clear timeout if we receive a chunk
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
 
                 if (!firstChunkReceived) {
                     setIsLoading(false);
@@ -100,6 +125,11 @@ export function useChatMessages() {
                         }
                     }
                 }
+            }
+
+            // Clear timeout if it's still active
+            if (timeoutId) {
+                clearTimeout(timeoutId);
             }
         } catch (error) {
             console.error('Error:', error);
