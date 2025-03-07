@@ -20,27 +20,48 @@ export function useChatMessages() {
     const sendMessage = async (input: string, file: { name: string; type: string; url: string } | null) => {
         if ((!input.trim() && !file) || isLoading) return;
 
+        // Clean up previous messages first
+        const cleanedMessages = messages.map(msg => ({
+            ...msg,
+            content: Array.isArray(msg.content) 
+                ? msg.content.map(part => {
+                    if (part.type === 'image_url') {
+                        return {
+                            type: 'image_url' as const,
+                            image_url: { url: '[URL]' }
+                        };
+                    } else if (part.type === 'file_url') {
+                        return {
+                            type: 'file_url' as const,
+                            file_url: { 
+                                url: '[URL]',
+                                name: part.file_url.name,
+                                type: part.file_url.type
+                            }
+                        };
+                    }
+                    return part;
+                })
+                : msg.content
+        })) as Message[];
+
         const userMessage: Message = {
             role: 'user',
             content: file ? [
                 file.type.startsWith('image/') 
-                    ? { 
-                        type: 'image_url',
+                    ? {
+                        type: 'image_url' as const,
                         image_url: { url: file.url }
                     }
                     : {
-                        type: 'file_url',
-                        file_url: {
-                            url: file.url,
-                            name: file.name,
-                            type: file.type
-                        }
+                        type: 'file_url' as const,
+                        file_url: { url: file.url, name: file.name, type: file.type }
                     },
-                { type: 'text', text: input.trim() || `Analyzing ${file.name}...` }
-            ] : [{ type: 'text', text: input.trim() }]
+                { type: 'text' as const, text: input.trim() || `Analyzing ${file.name}...` }
+            ] : [{ type: 'text' as const, text: input.trim() }]
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        setMessages([...cleanedMessages, userMessage]);
         setIsLoading(true);
         setIsStreaming(false);
 
