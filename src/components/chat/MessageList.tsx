@@ -69,25 +69,21 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                 case 'text':
                     const textWithBreaks = item.text.replace(/\n/g, '  \n');
                     return <ReactMarkdown key={idx}>{textWithBreaks}</ReactMarkdown>;
-                case 'image_url':
-                    // Ensure the image URL is properly formatted
-                    const imageUrl = item.image_url.url.startsWith('data:') 
-                        ? item.image_url.url 
-                        : `data:image/jpeg;base64,${item.image_url.url}`;
-                    return (
-                        <FilePreview
-                            key={idx}
-                            file={{
-                                name: 'image.jpg',
-                                type: 'image/jpeg',
-                                url: imageUrl
-                            }}
-                            isUploading={false}
-                            onRemove={() => { }}
-                            isSent={true}
-                            inMessage={true}
-                        />
-                    );
+                    case 'image_url':
+                        return (
+                            <FilePreview
+                                key={idx}
+                                file={{
+                                    name: 'image.jpg',
+                                    type: 'image/jpeg',
+                                    url: item.image_url.url
+                                }}
+                                isUploading={false}
+                                onRemove={() => { }}
+                                isSent={true}
+                                inMessage={true}
+                            />
+                        );
                 case 'file_url':
                     return (
                         <FilePreview

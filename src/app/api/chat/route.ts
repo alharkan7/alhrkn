@@ -80,7 +80,11 @@ type FileUploadResult = {
 async function uploadBase64ToGemini(base64String: string, mimeType: string, fileName: string): Promise<FileUploadResult> {
     try {
         console.log('Starting file upload to Gemini:', { mimeType, fileName });
-        const base64Data = base64String.replace(/^data:.*;base64,/, '');
+        // More flexible base64 data extraction
+        let base64Data = base64String;
+        if (base64String.includes('base64,')) {
+            base64Data = base64String.split('base64,')[1];
+        }
 
         if (!base64Data) {
             throw new Error('Invalid file data');
@@ -183,9 +187,9 @@ export async function POST(req: NextRequest) {
                                                 'uploaded_image.jpg'
                                             );
                                             parts.push({
-                                                inlineData: {
+                                                fileData: {
                                                     mimeType: fileData.mimeType,
-                                                    data: fileData.data!
+                                                    fileUri: fileData.fileUri!
                                                 }
                                             });
                                             console.log('Successfully processed image');
@@ -234,17 +238,24 @@ export async function POST(req: NextRequest) {
                     if (Array.isArray(lastMessage.content)) {
                         for (const part of lastMessage.content) {
                             if (part.type === 'image_url' && part.image_url?.url) {
-                                const fileData = await uploadBase64ToGemini(
-                                    part.image_url.url,
-                                    'image/jpeg',
-                                    'uploaded_image.jpg'
-                                );
-                                lastParts.push({
-                                    inlineData: {
-                                        mimeType: fileData.mimeType,
-                                        data: fileData.data!
-                                    }
-                                });
+                                console.log('Processing image URL in message');
+                                try {
+                                    const fileData = await uploadBase64ToGemini(
+                                        part.image_url.url,
+                                        'image/jpeg',
+                                        'uploaded_image.jpg'
+                                    );
+                                    lastParts.push({
+                                        fileData: {
+                                            mimeType: fileData.mimeType,
+                                            fileUri: fileData.fileUri!
+                                        }
+                                    });
+                                    console.log('Successfully processed image');
+                                } catch (error) {
+                                    console.error('Failed to process image:', error);
+                                    lastParts.push({ text: "⚠️ Failed to process image" });
+                                }
                             } else if (part.type === 'file_url' && part.file_url?.url) {
                                 const fileData = await uploadBase64ToGemini(
                                     part.file_url.url,
