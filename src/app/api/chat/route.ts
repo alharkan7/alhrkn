@@ -153,49 +153,36 @@ export async function POST(req: NextRequest) {
         const stream = new ReadableStream({
             async start(controller) {
                 try {
-                    const chat = model.startChat({
-                        history: [],
-                        generationConfig: {
-                            temperature: 0.7,
-                            topP: 0.8,
-                            topK: 40,
-                            maxOutputTokens: 8192,
-                        }
-                    });
-
-                    // Send system prompt first
-                    await chat.sendMessage([{ text: SYSTEM_PROMPT }]);
-
-                    // Process all messages except the last one
-                    for (let i = 0; i < messages.length - 1; i++) {
-                        const msg = messages[i];
+                    // Initialize chat without history
+                    const chat = model.startChat();
+                    
+                    // Process each message in sequence
+                    for (const msg of messages) {
                         if (msg.role === 'user') {
                             const parts: any[] = [];
 
-                            // Handle file content if present
                             if (Array.isArray(msg.content)) {
                                 for (const part of msg.content) {
                                     if (part.type === 'image_url' && part.image_url?.url) {
-                                        // console.log('Processing image URL in message');
                                         try {
                                             const fileData = await uploadBase64ToGemini(
                                                 part.image_url.url,
                                                 'image/jpeg',
                                                 'uploaded_image.jpg'
                                             );
-                                            parts.push({
-                                                fileData: {
-                                                    mimeType: fileData.mimeType,
-                                                    fileUri: fileData.fileUri!
-                                                }
-                                            });
-                                            // console.log('Successfully processed image');
+                                            if (fileData.data) {
+                                                parts.push({
+                                                    inlineData: {
+                                                        mimeType: fileData.mimeType,
+                                                        data: fileData.data
+                                                    }
+                                                });
+                                            }
                                         } catch (error) {
                                             console.error('Failed to process image:', error);
                                             parts.push({ text: "⚠️ Failed to process image" });
                                         }
                                     } else if (part.type === 'file_url' && part.file_url?.url) {
-                                        // Upload file to Gemini
                                         const fileData = await uploadBase64ToGemini(
                                             part.file_url.url,
                                             part.file_url.type,
@@ -208,13 +195,6 @@ export async function POST(req: NextRequest) {
                                                     fileUri: fileData.fileUri,
                                                 }
                                             });
-                                        } else if (fileData.data) {
-                                            parts.push({
-                                                inlineData: {
-                                                    mimeType: fileData.mimeType,
-                                                    data: fileData.data
-                                                }
-                                            });
                                         }
                                     } else if (part.type === 'text') {
                                         parts.push({ text: part.text });
@@ -224,137 +204,27 @@ export async function POST(req: NextRequest) {
                                 parts.push({ text: msg.content });
                             }
 
-                            await chat.sendMessage(parts);
-                        }
-                    }
+                            // Get response for each message
+                            const result = await chat.sendMessage(parts);
+                            const text = await result.response.text();
 
-                    // Handle the last message separately
-                    const lastMessage = messages[messages.length - 1];
-                    const lastParts: any[] = [];
-
-                    if (Array.isArray(lastMessage.content)) {
-                        for (const part of lastMessage.content) {
-                            if (part.type === 'image_url' && part.image_url?.url) {
-                                try {
-                                    const fileData = await uploadBase64ToGemini(
-                                        part.image_url.url,
-                                        'image/jpeg',
-                                        'uploaded_image.jpg'
-                                    );
-                                    if (fileData.data) {
-                                        lastParts.push({
-                                            inlineData: {
-                                                mimeType: fileData.mimeType,
-                                                data: fileData.data
-                                            }
-                                        });
-                                    } else if (fileData.fileUri) {
-                                        lastParts.push({
-                                            fileData: {
-                                                mimeType: fileData.mimeType,
-                                                fileUri: fileData.fileUri
-                                            }
-                                        });
-                                    }
-                                } catch (error) {
-                                    console.error('Failed to process image:', error);
-                                    lastParts.push({ text: "⚠️ Failed to process image" });
+                            // Only stream the response for the last message
+                            if (msg === messages[messages.length - 1]) {
+                                // Stream the response
+                                const words = text.split(' ');
+                                for (const word of words) {
+                                    const data = { content: word + ' ' };
+                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                                    await new Promise(resolve => setTimeout(resolve, 50));
                                 }
-                            } else if (part.type === 'file_url' && part.file_url?.url) {
-                                const fileData = await uploadBase64ToGemini(
-                                    part.file_url.url,
-                                    part.file_url.type,
-                                    part.file_url.name
-                                );
-                                if (fileData.fileUri) {
-                                    lastParts.push({
-                                        fileData: {
-                                            mimeType: fileData.mimeType,
-                                            fileUri: fileData.fileUri,
-                                        }
-                                    });
-                                } else if (fileData.data) {
-                                    lastParts.push({
-                                        inlineData: {
-                                            mimeType: fileData.mimeType,
-                                            data: fileData.data
-                                        }
-                                    });
-                                }
-                            } else if (part.type === 'text') {
-                                lastParts.push({ text: part.text });
-                            }
-                        }
-                    } else {
-                        lastParts.push({ text: lastMessage.content });
-                    }
-
-                    // Add debug logging for image processing
-                    if (Array.isArray(lastMessage.content)) {
-                        for (const part of lastMessage.content) {
-                            if (part.type === 'image_url' && part.image_url?.url) {
-                                // console.log('Processing image in production:', {
-                                //     timestamp: new Date().toISOString(),
-                                //     contentLength: part.image_url.url.length
-                                // });
                             }
                         }
                     }
 
-                    // Get final response with timeout
-                    const responseTimeout = 30000; // 30 seconds
-                    const responsePromise = chat.sendMessage(lastParts);
-                    const timeoutPromise = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('Response timeout')), responseTimeout);
-                    });
-
-                    const result = (await Promise.race([responsePromise, timeoutPromise])) as Awaited<typeof responsePromise>;
-                    const text = await result.response.text();
-
-                    // Ensure we have a response
-                    if (!text) {
-                        throw new Error('Empty response from Gemini');
-                    }
-
-                    // Add initial marker with metadata
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                        content: '',
-                        meta: { 
-                            type: 'start',
-                            timestamp: Date.now()
-                        }
-                    })}\n\n`));
-
-                    // Stream the response in smaller chunks
-                    const chunkSize = 1; // Reduce chunk size
-                    const words = text.split(' ');
-
-                    for (let i = 0; i < words.length; i += chunkSize) {
-                        const chunk = words.slice(i, i + chunkSize).join(' ') + ' ';
-                        const data = { content: chunk };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-                        await new Promise(resolve => setTimeout(resolve, 5)); // Smaller delay between chunks
-                    }
-
-                    // Send end marker with delay
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '\n' })}\n\n`));
-                } catch (error) {
-                    console.error('Streaming error details:', {
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                        timestamp: new Date().toISOString(),
-                        stack: error instanceof Error ? error.stack : undefined
-                    });
-                    
-                    // Send error to client
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                        error: 'Failed to process response',
-                        details: error instanceof Error ? error.message : 'Unknown error'
-                    })}\n\n`));
-                    
-                    controller.error(error);
-                } finally {
                     controller.close();
+                } catch (error) {
+                    console.error('Error:', error);
+                    controller.error(error);
                 }
             }
         });
@@ -369,10 +239,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         console.error('Error:', error);
-        return new Response(JSON.stringify({
-            error: 'Internal server error',
-            details: error instanceof Error ? error.message : 'Unknown error'
-        }), {
+        return new Response(JSON.stringify({ error: 'Internal server error' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
