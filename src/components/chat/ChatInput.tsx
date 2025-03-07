@@ -44,14 +44,11 @@ export function ChatInput({
         }
     };
 
-    const handleFileClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const imageInputRef = useRef<HTMLInputElement>(null);
-
-    const handleImageClick = () => {
-        imageInputRef.current?.click();
+    const handleFileClick = (type: 'file' | 'image') => {
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = type === 'image' ? 'image/*' : '*/*';
+            fileInputRef.current.click();
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -76,7 +73,7 @@ export function ChatInput({
                     </div>
                 )}
                 <Form {...form}>
-                    <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
+                <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
                         <textarea
                             ref={inputRef}
                             value={input}
@@ -100,20 +97,12 @@ export function ChatInput({
                             ref={fileInputRef}
                             className="hidden"
                             onChange={onFileSelect}
-                            accept="*/*"
-                        />
-                        <Input
-                            type="file"
-                            ref={imageInputRef}
-                            className="hidden"
-                            onChange={onFileSelect}
-                            accept="image/*"
                         />
                         <div className="flex justify-between items-center w-full">
                             <div className="flex gap-2">
                                 <Button
                                     type="button"
-                                    onClick={handleFileClick}
+                                    onClick={() => handleFileClick('file')}
                                     className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                                     disabled={isLoading}
                                     aria-label="Attach file"
@@ -122,7 +111,7 @@ export function ChatInput({
                                 </Button>
                                 <Button
                                     type="button"
-                                    onClick={handleImageClick}
+                                    onClick={() => handleFileClick('image')}
                                     className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                                     disabled={isLoading}
                                     aria-label="Attach image"

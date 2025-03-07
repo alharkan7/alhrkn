@@ -82,40 +82,39 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
         console.log('Starting file upload to Gemini:', { mimeType, fileName });
         const base64Data = base64String.replace(/^data:.*;base64,/, '');
 
+        if (!base64Data) {
+            throw new Error('Invalid file data');
+        }
+
+        // For all files, check size limit (5MB for images, larger for other files)
+        const fileSizeInBytes = Buffer.from(base64Data, 'base64').length;
+        const maxSize = mimeType.startsWith('image/') ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+        
+        if (fileSizeInBytes > maxSize) {
+            throw new Error(`File size exceeds limit of ${maxSize / (1024 * 1024)}MB`);
+        }
+
+        // Handle images directly with inline data
         if (mimeType.startsWith('image/')) {
-            if (!base64Data) {
-                throw new Error('Invalid image data');
-            }
-
-            console.log('Processing image data');
-            // Ensure we're not exceeding Gemini's limits
-            const imageSizeInBytes = Buffer.from(base64Data, 'base64').length;
-            if (imageSizeInBytes > 4 * 1024 * 1024) { // 4MB limit
-                throw new Error('Image size exceeds limit');
-            }
-
             return {
                 mimeType,
                 data: base64Data
             };
         }
 
-        // For other files, we need to use the file manager
+        // For other files, use file manager
         const buffer = Buffer.from(base64Data, 'base64');
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
         const extension = getFileExtension(mimeType);
         const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.${extension}`);
 
-        // Write buffer to temporary file
         await fs.writeFile(tempFilePath, buffer);
 
-        // Upload to Gemini with metadata
         const uploadResult = await fileManager.uploadFile(tempFilePath, {
             mimeType: mimeType,
             displayName: fileName
         });
 
-        // Clean up temporary file
         await fs.unlink(tempFilePath);
         await fs.rmdir(tempDir);
 
