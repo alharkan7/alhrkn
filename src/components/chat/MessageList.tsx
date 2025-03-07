@@ -58,51 +58,64 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
     }, [messages.length]);
 
     const renderMessageContent = (content: Message['content']) => {
-        if (typeof content === 'string') {
-            // Convert line breaks to markdown line breaks before rendering
-            const textWithBreaks = content.replace(/\n/g, '  \n');
-            return <ReactMarkdown>{textWithBreaks}</ReactMarkdown>;
-        }
-    
-        return content.map((item, idx) => {
-            switch (item.type) {
-                case 'text':
-                    const textWithBreaks = item.text.replace(/\n/g, '  \n');
-                    return <ReactMarkdown key={idx}>{textWithBreaks}</ReactMarkdown>;
-                    case 'image_url':
-                        return (
-                            <FilePreview
-                                key={idx}
-                                file={{
-                                    name: 'image.jpg',
-                                    type: 'image/jpeg',
-                                    url: item.image_url.url
-                                }}
-                                isUploading={false}
-                                onRemove={() => { }}
-                                isSent={true}
-                                inMessage={true}
-                            />
-                        );
-                case 'file_url':
-                    return (
-                        <FilePreview
-                            key={idx}
-                            file={{
-                                name: item.file_url.name,
-                                type: item.file_url.type,
-                                url: item.file_url.url
-                            }}
-                            isUploading={false}
-                            onRemove={() => { }}
-                            isSent={true}
-                            inMessage={true}
-                        />
-                    );
-                default:
-                    return null;
+        try {
+            if (typeof content === 'string') {
+                const textWithBreaks = content.replace(/\n/g, '  \n');
+                return <ReactMarkdown>{textWithBreaks}</ReactMarkdown>;
             }
-        });
+        
+            return content.map((item, idx) => {
+                try {
+                    switch (item.type) {
+                        case 'text':
+                            const textWithBreaks = item.text.replace(/\n/g, '  \n');
+                            return <ReactMarkdown key={idx}>{textWithBreaks}</ReactMarkdown>;
+                        case 'image_url':
+                            if (!item.image_url?.url) {
+                                console.error('Invalid image URL data');
+                                return <div key={idx} className="text-red-500">Error: Invalid image data</div>;
+                            }
+                            return (
+                                <FilePreview
+                                    key={idx}
+                                    file={{
+                                        name: 'image.jpg',
+                                        type: 'image/jpeg',
+                                        url: item.image_url.url
+                                    }}
+                                    isUploading={false}
+                                    onRemove={() => { }}
+                                    isSent={true}
+                                    inMessage={true}
+                                />
+                            );
+                        case 'file_url':
+                            return (
+                                <FilePreview
+                                    key={idx}
+                                    file={{
+                                        name: item.file_url.name,
+                                        type: item.file_url.type,
+                                        url: item.file_url.url
+                                    }}
+                                    isUploading={false}
+                                    onRemove={() => { }}
+                                    isSent={true}
+                                    inMessage={true}
+                                />
+                            );
+                        default:
+                            return null;
+                    }
+                } catch (error) {
+                    console.error('Error rendering message item:', error);
+                    return <div key={idx} className="text-red-500">Error rendering content</div>;
+                }
+            });
+        } catch (error) {
+            console.error('Error rendering message:', error);
+            return <div className="text-red-500">Error rendering message</div>;
+        }
     };
 
     return (

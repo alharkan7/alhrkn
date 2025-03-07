@@ -80,7 +80,6 @@ type FileUploadResult = {
 async function uploadBase64ToGemini(base64String: string, mimeType: string, fileName: string): Promise<FileUploadResult> {
     try {
         console.log('Starting file upload to Gemini:', { mimeType, fileName });
-        // More flexible base64 data extraction
         let base64Data = base64String;
         if (base64String.includes('base64,')) {
             base64Data = base64String.split('base64,')[1];
@@ -91,15 +90,41 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
         }
 
         // For all files, check size limit (20MB)
-        const fileSizeInBytes = Buffer.from(base64Data, 'base64').length;
+        const buffer = Buffer.from(base64Data, 'base64');
+        const fileSizeInBytes = buffer.length;
         const maxSize = 20 * 1024 * 1024;
         
         if (fileSizeInBytes > maxSize) {
             throw new Error(`File size exceeds limit of ${maxSize / (1024 * 1024)}MB`);
         }
 
-        // Process all files using file manager
-        const buffer = Buffer.from(base64Data, 'base64');
+        // For images, try direct upload without temporary files
+        if (mimeType.startsWith('image/')) {
+            try {
+                const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
+                const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.${getFileExtension(mimeType)}`);
+                await fs.writeFile(tempFilePath, buffer);
+
+                const uploadResult = await fileManager.uploadFile(tempFilePath, {
+                    mimeType: mimeType,
+                    displayName: fileName
+                });
+
+                // Cleanup temp files
+                await fs.unlink(tempFilePath);
+                await fs.rmdir(tempDir);
+
+                return {
+                    mimeType: uploadResult.file.mimeType,
+                    fileUri: uploadResult.file.uri
+                };
+            } catch (error) {
+                console.error('Direct upload failed:', error);
+                throw error;
+            }
+        }
+
+        // Fallback to temp file method for non-images or if direct upload failed
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
         const extension = getFileExtension(mimeType);
         const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.${extension}`);
@@ -111,8 +136,13 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
             displayName: fileName
         });
 
-        await fs.unlink(tempFilePath);
-        await fs.rmdir(tempDir);
+        // Cleanup
+        try {
+            await fs.unlink(tempFilePath);
+            await fs.rmdir(tempDir);
+        } catch (cleanupError) {
+            console.warn('Failed to cleanup temp files:', cleanupError);
+        }
 
         return {
             mimeType: uploadResult.file.mimeType,
@@ -285,18 +315,41 @@ export async function POST(req: NextRequest) {
                         lastParts.push({ text: lastMessage.content });
                     }
 
-                    // Get final response
-                    const result = await chat.sendMessage(lastParts);
+                    // Add debug logging for image processing
+                    if (Array.isArray(lastMessage.content)) {
+                        for (const part of lastMessage.content) {
+                            if (part.type === 'image_url' && part.image_url?.url) {
+                                console.log('Processing image in production:', {
+                                    timestamp: new Date().toISOString(),
+                                    contentLength: part.image_url.url.length
+                                });
+                            }
+                        }
+                    }
+
+                    // Get final response with timeout
+                    const responseTimeout = 30000; // 30 seconds
+                    const responsePromise = chat.sendMessage(lastParts);
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Response timeout')), responseTimeout);
+                    });
+
+                    const result = (await Promise.race([responsePromise, timeoutPromise])) as Awaited<typeof responsePromise>;
                     const text = await result.response.text();
 
-                    // Ensure we have a response before streaming
+                    // Ensure we have a response
                     if (!text) {
                         throw new Error('Empty response from Gemini');
                     }
 
-                    // Stream the response with initial marker and delay
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '' })}\n\n`));
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Initial delay
+                    // Add initial marker with metadata
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                        content: '',
+                        meta: { 
+                            type: 'start',
+                            timestamp: Date.now()
+                        }
+                    })}\n\n`));
 
                     // Stream the response in smaller chunks
                     const chunkSize = 1; // Reduce chunk size
@@ -313,7 +366,18 @@ export async function POST(req: NextRequest) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: '\n' })}\n\n`));
                 } catch (error) {
-                    console.error('Streaming error:', error);
+                    console.error('Streaming error details:', {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        timestamp: new Date().toISOString(),
+                        stack: error instanceof Error ? error.stack : undefined
+                    });
+                    
+                    // Send error to client
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                        error: 'Failed to process response',
+                        details: error instanceof Error ? error.message : 'Unknown error'
+                    })}\n\n`));
+                    
                     controller.error(error);
                 } finally {
                     controller.close();
