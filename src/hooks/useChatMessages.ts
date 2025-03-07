@@ -12,7 +12,7 @@ export function useChatMessages() {
         setIsStreaming(false);
     };
 
-    const sendMessage = async (input: string, file: { name: string; type: string; url: string } | null) => {
+    const sendMessage = async (input: string, file: { name: string; type: string; url: string; blobUrl?: string } | null) => {
         if ((!input.trim() && !file) || isLoading) return;
 
         const userMessage: Message = {
@@ -21,15 +21,30 @@ export function useChatMessages() {
                 file.type.startsWith('image/') 
                     ? {
                         type: 'image_url' as const,
-                        image_url: { url: file.url }
+                        image_url: { 
+                            url: file.url,           // Local URL for preview
+                            originalUrl: file.url,   // Keep local URL for display
+                            blobUrl: file.blobUrl    // Store blob URL for API
+                        }
                     }
                     : {
                         type: 'file_url' as const,
-                        file_url: { url: file.url, name: file.name, type: file.type }
+                        file_url: { 
+                            url: file.url,           // Local URL for preview
+                            originalUrl: file.url,   // Keep local URL for display
+                            blobUrl: file.blobUrl,   // Store blob URL for API
+                            name: file.name, 
+                            type: file.type 
+                        }
                     },
-                { type: 'text' as const, text: input.trim() || `Analyzing ${file.name}...` }
+                { type: 'text' as const, text: input.trim() || `Analyze ${file.name}...` }
             ] : [{ type: 'text' as const, text: input.trim() }]
         };
+
+        // console.log('Creating user message with file:', {
+        //     fileData: file,
+        //     messageContent: userMessage.content
+        // });
 
         setMessages(prev => [...prev, userMessage]);
         setIsLoading(true);
@@ -41,7 +56,27 @@ export function useChatMessages() {
                 content: Array.isArray(msg.content) 
                     ? msg.content.map(part => {
                         if (part.type === 'text') return part;
-                        if (msg === userMessage) return part;
+                        if (msg === userMessage) {
+                            // Use blob URL for API calls
+                            if (part.type === 'image_url') {
+                                return {
+                                    type: 'image_url',
+                                    image_url: { 
+                                        url: part.image_url.blobUrl || part.image_url.url  // Send blob URL to API
+                                    }
+                                };
+                            }
+                            if (part.type === 'file_url') {
+                                return {
+                                    type: 'file_url',
+                                    file_url: { 
+                                        url: part.file_url.blobUrl || part.file_url.url,  // Send blob URL to API
+                                        name: part.file_url.name,
+                                        type: part.file_url.type
+                                    }
+                                };
+                            }
+                        }
                         return { type: 'text', text: '[Attachment]' };
                     })
                     : msg.content

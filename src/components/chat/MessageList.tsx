@@ -75,13 +75,18 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                                 console.error('Invalid image URL data');
                                 return <div key={idx} className="text-red-500">Error: Invalid image data</div>;
                             }
+                            // console.log('Image URL data:', {
+                            //     url: item.image_url.url,
+                            //     originalUrl: item.image_url.originalUrl,
+                            //     blobUrl: item.image_url.blobUrl
+                            // });
                             return (
                                 <FilePreview
                                     key={idx}
                                     file={{
                                         name: 'image.jpg',
                                         type: 'image/jpeg',
-                                        url: item.image_url.url
+                                        url: item.image_url.url // Let's use the direct URL first for debugging
                                     }}
                                     isUploading={false}
                                     onRemove={() => { }}
@@ -90,13 +95,20 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                                 />
                             );
                         case 'file_url':
+                            // console.log('File URL data:', {
+                            //     url: item.file_url.url,
+                            //     originalUrl: item.file_url.originalUrl,
+                            //     blobUrl: item.file_url.blobUrl,
+                            //     name: item.file_url.name,
+                            //     type: item.file_url.type
+                            // });
                             return (
                                 <FilePreview
                                     key={idx}
                                     file={{
                                         name: item.file_url.name,
                                         type: item.file_url.type,
-                                        url: item.file_url.url
+                                        url: item.file_url.url // Let's use the direct URL first for debugging
                                     }}
                                     isUploading={false}
                                     onRemove={() => { }}

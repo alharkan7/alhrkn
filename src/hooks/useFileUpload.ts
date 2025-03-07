@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { put } from '@vercel/blob';
 
 interface FileData {
     name: string;
     type: string;
-    url: string;
+    url: string;          // Local URL for preview
+    blobUrl?: string;     // Blob URL for API
     uploaded?: boolean;
 }
 
@@ -26,19 +26,26 @@ export function useFileUpload() {
         
         try {
             if (selectedFile.type.startsWith('image/')) {
-                // Upload image to Vercel Blob
-                const blob = await put(selectedFile.name, selectedFile, {
-                    access: 'public',
-                    token: process.env.NEXT_PUBLIC_BLOB_READ_WRITE_TOKEN
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                // Upload to our secure API endpoint
+                const response = await fetch('/api/chat/upload', {
+                    method: 'POST',
+                    body: formData
                 });
 
-                // Clean up the preview URL
-                URL.revokeObjectURL(previewUrl);
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
 
-                // Auto-send when upload is complete
+                const blob = await response.json();
+
+                // Keep the local preview URL, just store the blob URL for API
                 setFile(prev => prev ? {
                     ...prev,
-                    url: blob.url,
+                    blobUrl: blob.url,
                     uploaded: true
                 } : null);
             } else {
@@ -52,12 +59,9 @@ export function useFileUpload() {
                     reader.readAsDataURL(selectedFile);
                 });
 
-                // Clean up the preview URL
-                URL.revokeObjectURL(previewUrl);
-
                 setFile(prev => prev ? {
                     ...prev,
-                    url: base64String,
+                    blobUrl: base64String,
                     uploaded: true
                 } : null);
             }
@@ -71,9 +75,8 @@ export function useFileUpload() {
     };
 
     const clearFile = () => {
-        if (file?.url && !file.url.startsWith('data:')) {
-            URL.revokeObjectURL(file.url);
-        }
+        // Don't revoke the URL if it's already been used in a message
+        // The browser will clean it up when the page is unloaded
         setFile(null);
         setIsUploading(false);
     };

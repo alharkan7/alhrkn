@@ -1,31 +1,28 @@
-import { handleUpload } from '@vercel/blob/client';
+import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request): Promise<NextResponse> {
-    const body = await request.json();
-
+export async function POST(request: Request) {
     try {
-        const jsonResponse = await handleUpload({
-            body,
-            request,
-            onBeforeGenerateToken: async () => {
-                // Validate user if needed
-                return {
-                    allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-                    maximumSizeInBytes: 4 * 1024 * 1024, // 5MB
-                };
-            },
-            onUploadCompleted: async ({ blob, tokenPayload }) => {
-                // Store metadata in your database here if needed
-                console.log('Upload completed:', blob);
-            },
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
+        
+        if (!file) {
+            return NextResponse.json(
+                { error: 'No file provided' },
+                { status: 400 }
+            );
+        }
+
+        const blob = await put(file.name, file, {
+            access: 'public',
+            token: process.env.BLOB_READ_WRITE_TOKEN // Use server-side env variable
         });
 
-        return NextResponse.json(jsonResponse);
+        return NextResponse.json(blob);
     } catch (error) {
-        console.error('Error handling upload:', error);
+        console.error('Error uploading to blob:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: 'Upload failed' },
             { status: 500 }
         );
     }

@@ -77,9 +77,9 @@ export function ChatInput({
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={file ? "Add a message about the file..." : "Send a message..."}
+                            placeholder={file ? "Add a message..." : "Send a message..."}
                             className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
-                            disabled={Boolean(isLoading || (file && !file.uploaded))}
+                            // disabled={Boolean(isLoading || (file && !file.uploaded))}
                             onFocus={() => onFocusChange?.(true)}
                             onBlur={() => onFocusChange?.(false)}
                             rows={1}
