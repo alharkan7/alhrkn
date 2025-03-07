@@ -36,11 +36,11 @@ export function ChatInput({
         e.preventDefault();
         inputRef.current?.blur();
 
-        // Only proceed if we have input text or an uploaded file
-        if (input.trim() || (file && file.uploaded)) {
-            await sendMessage(input, file);
+        if ((file && file.uploaded) || input.trim()) {
+            const fileToSend = file;  // Store file reference before clearing
             setInput('');
-            clearFile();
+            clearFile();  // Clear file immediately
+            await sendMessage(input, fileToSend);  // Use stored file reference
         }
     };
 
@@ -52,36 +52,34 @@ export function ChatInput({
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter') {
-            if (!e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-            }
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
         }
     };
 
     return (
         <>
             <div className="relative flex flex-col gap-2">
-                {file && !isLoading && (
+                {file && (
                     <div className="w-full flex justify-center">
                         <FilePreview
                             file={file}
-                            isUploading={true}
+                            isUploading={!file.uploaded}
                             onRemove={clearFile}
                         />
                     </div>
                 )}
                 <Form {...form}>
-                <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
+                    <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
                         <textarea
                             ref={inputRef}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Send a message..."
+                            placeholder={file ? "Add a message about the file..." : "Send a message..."}
                             className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
-                            disabled={isLoading}
+                            disabled={Boolean(isLoading || (file && !file.uploaded))}
                             onFocus={() => onFocusChange?.(true)}
                             onBlur={() => onFocusChange?.(false)}
                             rows={1}
@@ -104,7 +102,7 @@ export function ChatInput({
                                     type="button"
                                     onClick={() => handleFileClick('file')}
                                     className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!file}
                                     aria-label="Attach file"
                                 >
                                     <Paperclip className="size-5" />
@@ -113,7 +111,7 @@ export function ChatInput({
                                     type="button"
                                     onClick={() => handleFileClick('image')}
                                     className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!file}
                                     aria-label="Attach image"
                                 >
                                     <Image className="size-5" />
@@ -122,7 +120,7 @@ export function ChatInput({
                             <Button
                                 type="submit"
                                 className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                disabled={isLoading || (!input.trim() && !file)}
+                                disabled={isLoading || (!input.trim() && (!file || !file.uploaded))}
                                 aria-label="Send message"
                             >
                                 <Send className="size-5" />

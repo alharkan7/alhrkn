@@ -121,6 +121,14 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
     }
 }
 
+// Add this helper function
+async function fetchImageAsBase64(url: string): Promise<string> {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return buffer.toString('base64');
+}
+
 // Add system prompt configuration
 const SYSTEM_PROMPT = `You are a helpful AI assistant. You can help with a wide range of tasks including:
 - Answering questions on any topic
@@ -165,18 +173,30 @@ export async function POST(req: NextRequest) {
                                 for (const part of msg.content) {
                                     if (part.type === 'image_url' && part.image_url?.url) {
                                         try {
-                                            const fileData = await uploadBase64ToGemini(
-                                                part.image_url.url,
-                                                'image/jpeg',
-                                                'uploaded_image.jpg'
-                                            );
-                                            if (fileData.data) {
+                                            // If it's a Blob URL, fetch and convert to base64
+                                            if (part.image_url.url.includes('blob.vercel-storage.com')) {
+                                                const base64Data = await fetchImageAsBase64(part.image_url.url);
                                                 parts.push({
                                                     inlineData: {
-                                                        mimeType: fileData.mimeType,
-                                                        data: fileData.data
+                                                        mimeType: 'image/jpeg',
+                                                        data: base64Data
                                                     }
                                                 });
+                                            } else {
+                                                // Handle existing base64 data
+                                                const fileData = await uploadBase64ToGemini(
+                                                    part.image_url.url,
+                                                    'image/jpeg',
+                                                    'uploaded_image.jpg'
+                                                );
+                                                if (fileData.data) {
+                                                    parts.push({
+                                                        inlineData: {
+                                                            mimeType: fileData.mimeType,
+                                                            data: fileData.data
+                                                        }
+                                                    });
+                                                }
                                             }
                                         } catch (error) {
                                             console.error('Failed to process image:', error);

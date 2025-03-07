@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useState } from 'react';
 import { ImageModal } from '@/components/ui/image-modal';
@@ -92,11 +92,18 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                         onClick={handleFileClick}
                         style={{ pointerEvents: 'auto' }}
                     >
-                        <img
-                            src={file.url}
-                            alt="Preview"
-                            className={`rounded-lg object-contain ${inMessage ? 'max-h-[300px]' : 'max-h-[100px]'}`}
-                        />
+                        <div className="relative">
+                            <img
+                                src={file.url}
+                                alt="Preview"
+                                className={`rounded-lg object-contain ${inMessage ? 'max-h-[300px]' : 'max-h-[100px]'} ${isUploading ? 'opacity-50' : ''} transition-opacity duration-200`}
+                            />
+                            {isUploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/5 rounded-lg">
+                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                </div>
+                            )}
+                        </div>
                         {!isSent && (
                             <Button
                                 variant="neutral"
@@ -106,6 +113,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                                 }}
                                 className="absolute -top-4 -right-4 transition-colors rounded-full"
                                 aria-label="Remove file"
+                                disabled={isUploading}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
