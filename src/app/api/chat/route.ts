@@ -79,52 +79,19 @@ type FileUploadResult = {
 
 async function uploadBase64ToGemini(base64String: string, mimeType: string, fileName: string): Promise<FileUploadResult> {
     try {
-        console.log('Starting file upload to Gemini:', { mimeType, fileName });
-        let base64Data = base64String;
-        if (base64String.includes('base64,')) {
-            base64Data = base64String.split('base64,')[1];
-        }
-
-        if (!base64Data) {
-            throw new Error('Invalid file data');
-        }
-
-        // For all files, check size limit (20MB)
-        const buffer = Buffer.from(base64Data, 'base64');
-        const fileSizeInBytes = buffer.length;
-        const maxSize = 20 * 1024 * 1024;
+        // Remove data URL prefix if present
+        const base64Data = base64String.replace(/^data:.*;base64,/, '');
         
-        if (fileSizeInBytes > maxSize) {
-            throw new Error(`File size exceeds limit of ${maxSize / (1024 * 1024)}MB`);
-        }
-
-        // For images, try direct upload without temporary files
+        // For images, return the base64 data directly
         if (mimeType.startsWith('image/')) {
-            try {
-                const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
-                const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.${getFileExtension(mimeType)}`);
-                await fs.writeFile(tempFilePath, buffer);
-
-                const uploadResult = await fileManager.uploadFile(tempFilePath, {
-                    mimeType: mimeType,
-                    displayName: fileName
-                });
-
-                // Cleanup temp files
-                await fs.unlink(tempFilePath);
-                await fs.rmdir(tempDir);
-
-                return {
-                    mimeType: uploadResult.file.mimeType,
-                    fileUri: uploadResult.file.uri
-                };
-            } catch (error) {
-                console.error('Direct upload failed:', error);
-                throw error;
-            }
+            return {
+                mimeType,
+                data: base64Data
+            };
         }
 
-        // Fallback to temp file method for non-images or if direct upload failed
+        // For non-image files, use file manager
+        const buffer = Buffer.from(base64Data, 'base64');
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-'));
         const extension = getFileExtension(mimeType);
         const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.${extension}`);
@@ -209,7 +176,7 @@ export async function POST(req: NextRequest) {
                             if (Array.isArray(msg.content)) {
                                 for (const part of msg.content) {
                                     if (part.type === 'image_url' && part.image_url?.url) {
-                                        console.log('Processing image URL in message');
+                                        // console.log('Processing image URL in message');
                                         try {
                                             const fileData = await uploadBase64ToGemini(
                                                 part.image_url.url,
@@ -222,7 +189,7 @@ export async function POST(req: NextRequest) {
                                                     fileUri: fileData.fileUri!
                                                 }
                                             });
-                                            console.log('Successfully processed image');
+                                            // console.log('Successfully processed image');
                                         } catch (error) {
                                             console.error('Failed to process image:', error);
                                             parts.push({ text: "⚠️ Failed to process image" });
@@ -268,20 +235,27 @@ export async function POST(req: NextRequest) {
                     if (Array.isArray(lastMessage.content)) {
                         for (const part of lastMessage.content) {
                             if (part.type === 'image_url' && part.image_url?.url) {
-                                console.log('Processing image URL in message');
                                 try {
                                     const fileData = await uploadBase64ToGemini(
                                         part.image_url.url,
                                         'image/jpeg',
                                         'uploaded_image.jpg'
                                     );
-                                    lastParts.push({
-                                        fileData: {
-                                            mimeType: fileData.mimeType,
-                                            fileUri: fileData.fileUri!
-                                        }
-                                    });
-                                    console.log('Successfully processed image');
+                                    if (fileData.data) {
+                                        lastParts.push({
+                                            inlineData: {
+                                                mimeType: fileData.mimeType,
+                                                data: fileData.data
+                                            }
+                                        });
+                                    } else if (fileData.fileUri) {
+                                        lastParts.push({
+                                            fileData: {
+                                                mimeType: fileData.mimeType,
+                                                fileUri: fileData.fileUri
+                                            }
+                                        });
+                                    }
                                 } catch (error) {
                                     console.error('Failed to process image:', error);
                                     lastParts.push({ text: "⚠️ Failed to process image" });
@@ -319,10 +293,10 @@ export async function POST(req: NextRequest) {
                     if (Array.isArray(lastMessage.content)) {
                         for (const part of lastMessage.content) {
                             if (part.type === 'image_url' && part.image_url?.url) {
-                                console.log('Processing image in production:', {
-                                    timestamp: new Date().toISOString(),
-                                    contentLength: part.image_url.url.length
-                                });
+                                // console.log('Processing image in production:', {
+                                //     timestamp: new Date().toISOString(),
+                                //     contentLength: part.image_url.url.length
+                                // });
                             }
                         }
                     }

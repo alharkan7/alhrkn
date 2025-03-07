@@ -12,11 +12,6 @@ export function useChatMessages() {
         setIsStreaming(false);
     };
 
-    const toTogetherMessage = (msg: Message): any => ({
-        role: msg.role,
-        content: msg.content
-    });
-
     const sendMessage = async (input: string, file: { name: string; type: string; url: string } | null) => {
         if ((!input.trim() && !file) || isLoading) return;
 
