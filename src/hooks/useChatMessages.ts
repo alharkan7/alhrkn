@@ -26,19 +26,11 @@ export function useChatMessages() {
             content: Array.isArray(msg.content) 
                 ? msg.content.map(part => {
                     if (part.type === 'image_url') {
-                        return {
-                            type: 'image_url' as const,
-                            image_url: { url: '[URL]' }
-                        };
+                        // Skip cleaning URLs for the most recent message
+                        return part;
                     } else if (part.type === 'file_url') {
-                        return {
-                            type: 'file_url' as const,
-                            file_url: { 
-                                url: '[URL]',
-                                name: part.file_url.name,
-                                type: part.file_url.type
-                            }
-                        };
+                        // Skip cleaning URLs for the most recent message
+                        return part;
                     }
                     return part;
                 })
