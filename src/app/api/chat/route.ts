@@ -161,90 +161,117 @@ export async function POST(req: NextRequest) {
         const stream = new ReadableStream({
             async start(controller) {
                 try {
-                    // Initialize chat without history
-                    const chat = model.startChat();
-                    
-                    // Process each message in sequence
-                    for (const msg of messages) {
-                        if (msg.role === 'user') {
-                            const parts: any[] = [];
+                    // Format history for Gemini
+                    const history = messages.slice(0, -1).map(msg => ({
+                        role: msg.role === 'assistant' ? 'model' : 'user',
+                        parts: [{ text: typeof msg.content === 'string' ? msg.content : msg.content.map((p: { text: string }) => p.text).join(' ') }]
+                    }));
 
-                            if (Array.isArray(msg.content)) {
-                                for (const part of msg.content) {
-                                    if (part.type === 'image_url' && part.image_url?.url) {
-                                        try {
-                                            // If it's a Blob URL, fetch and convert to base64
-                                            if (part.image_url.url.includes('blob.vercel-storage.com')) {
-                                                const base64Data = await fetchImageAsBase64(part.image_url.url);
-                                                parts.push({
+                    // Get the last message
+                    const lastMessage = messages[messages.length - 1];
+                    if (lastMessage.role !== 'user') {
+                        throw new Error('Last message must be from user');
+                    }
+
+                    // Create chat instance
+                    const chat = model.startChat({
+                        history: history.length > 0 ? history : undefined
+                    });
+
+                    // Format last message parts
+                    let messageParts: any[] = [];
+                    
+                    if (Array.isArray(lastMessage.content)) {
+                        for (const part of lastMessage.content) {
+                            if (part.type === 'text') {
+                                messageParts.push({ text: part.text });
+                            }
+                            // Handle images and files only if text parts fail
+                            else if (messageParts.length === 0) {
+                                if (part.type === 'image_url' && part.image_url?.url) {
+                                    try {
+                                        if (part.image_url.url.includes('blob.vercel-storage.com')) {
+                                            const base64Data = await fetchImageAsBase64(part.image_url.url);
+                                            messageParts.push({
+                                                inlineData: {
+                                                    mimeType: 'image/jpeg',
+                                                    data: base64Data
+                                                }
+                                            });
+                                        } else {
+                                            const fileData = await uploadBase64ToGemini(
+                                                part.image_url.url,
+                                                'image/jpeg',
+                                                'uploaded_image.jpg'
+                                            );
+                                            if (fileData.data) {
+                                                messageParts.push({
                                                     inlineData: {
-                                                        mimeType: 'image/jpeg',
-                                                        data: base64Data
+                                                        mimeType: fileData.mimeType,
+                                                        data: fileData.data
                                                     }
                                                 });
-                                            } else {
-                                                // Handle existing base64 data
-                                                const fileData = await uploadBase64ToGemini(
-                                                    part.image_url.url,
-                                                    'image/jpeg',
-                                                    'uploaded_image.jpg'
-                                                );
-                                                if (fileData.data) {
-                                                    parts.push({
-                                                        inlineData: {
-                                                            mimeType: fileData.mimeType,
-                                                            data: fileData.data
-                                                        }
-                                                    });
-                                                }
                                             }
-                                        } catch (error) {
-                                            console.error('Failed to process image:', error);
-                                            parts.push({ text: "⚠️ Failed to process image" });
                                         }
-                                    } else if (part.type === 'file_url' && part.file_url?.url) {
+                                    } catch (error) {
+                                        console.error('Failed to process image:', error);
+                                        messageParts.push({ text: "⚠️ Failed to process image" });
+                                    }
+                                } else if (part.type === 'file_url' && part.file_url?.url) {
+                                    try {
                                         const fileData = await uploadBase64ToGemini(
                                             part.file_url.url,
                                             part.file_url.type,
                                             part.file_url.name
                                         );
                                         if (fileData.fileUri) {
-                                            parts.push({
+                                            messageParts.push({
                                                 fileData: {
                                                     mimeType: fileData.mimeType,
                                                     fileUri: fileData.fileUri,
                                                 }
                                             });
                                         }
-                                    } else if (part.type === 'text') {
-                                        parts.push({ text: part.text });
+                                    } catch (error) {
+                                        console.error('Failed to process file:', error);
+                                        messageParts.push({ text: "⚠️ Failed to process file" });
                                     }
-                                }
-                            } else {
-                                parts.push({ text: msg.content });
-                            }
-
-                            // Get response for each message
-                            const result = await chat.sendMessage(parts);
-                            const text = await result.response.text();
-
-                            // Only stream the response for the last message
-                            if (msg === messages[messages.length - 1]) {
-                                // Stream the response
-                                const words = text.split(' ');
-                                for (const word of words) {
-                                    const data = { content: word + ' ' };
-                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-                                    await new Promise(resolve => setTimeout(resolve, 50));
                                 }
                             }
                         }
+                    } else {
+                        messageParts = [{ text: lastMessage.content }];
+                    }
+
+                    // Ensure we have at least one part
+                    if (messageParts.length === 0) {
+                        messageParts = [{ text: "I couldn't process your message. Could you please rephrase it?" }];
+                    }
+
+                    try {
+                        // Get response for the last message
+                        const result = await chat.sendMessage(messageParts);
+                        const text = await result.response.text();
+
+                        // Stream the response
+                        const words = text.split(' ');
+                        for (const word of words) {
+                            const data = { content: word + ' ' };
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        }
+                    } catch (error) {
+                        console.error('Error in chat response:', error);
+                        const errorMessage = { content: "I apologize, but I encountered an error processing your request. Please try again." };
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
                     }
 
                     controller.close();
                 } catch (error) {
-                    console.error('Error:', error);
-                    controller.error(error);
+                    console.error('Error in stream:', error);
+                    const errorMessage = { content: "An error occurred. Please try again." };
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorMessage)}\n\n`));
+                    controller.close();
                 }
             }
         });
