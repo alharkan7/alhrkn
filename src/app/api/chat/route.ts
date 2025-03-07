@@ -89,9 +89,11 @@ async function uploadBase64ToGemini(base64String: string, mimeType: string, file
                 throw new Error('Invalid image data');
             }
 
+            // Ensure the base64 data is properly formatted
             return {
                 mimeType,
-                data: base64Data
+                data: base64Data,
+                fileUri: `data:${mimeType};base64,${base64Data}` // Add this line
             };
         }
 
@@ -179,7 +181,6 @@ export async function POST(req: NextRequest) {
                             if (Array.isArray(msg.content)) {
                                 for (const part of msg.content) {
                                     if (part.type === 'image_url' && part.image_url?.url) {
-                                        // Upload image to Gemini
                                         const fileData = await uploadBase64ToGemini(
                                             part.image_url.url,
                                             'image/jpeg',
@@ -190,6 +191,9 @@ export async function POST(req: NextRequest) {
                                                 mimeType: fileData.mimeType,
                                                 data: fileData.data!
                                             }
+                                        });
+                                        parts.push({
+                                            text: `![Image](${fileData.fileUri})`
                                         });
                                     } else if (part.type === 'file_url' && part.file_url?.url) {
                                         // Upload file to Gemini
