@@ -117,7 +117,7 @@ export default function FinanceTrackerPage() {
 
           <div className="text-center py-6 items-center">
             <h2 className="text-2xl font-bold inline-flex items-center gap-2">
-              Finance Tracker <span className="font-thin">(Demo)</span>
+              Finance Tracker
               <button
                 className="opacity-30 hover:opacity-100 transition-opacity align-top"
                 onClick={(e) => {
@@ -266,7 +266,7 @@ export default function FinanceTrackerPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
-              <CardTitle className="text-xl text-center">About this App</CardTitle>
+              <CardTitle className="text-xl text-center">About this (Demo) App</CardTitle>
             </CardHeader>
             <CardContent className="text-muted-foreground space-y-4">
               <p>
