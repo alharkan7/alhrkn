@@ -338,24 +338,16 @@ export default function EditorComponent() {
       return;
     }
 
+    // Only handle Tab for accepting suggestion
     if (e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();
       acceptSuggestion();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      clearSuggestion();
-    } else if (
-      // If user starts typing any printable character
-      e.key.length === 1 || 
-      e.key === 'Enter' || 
-      e.key === 'Backspace' || 
-      e.key === 'Delete'
-    ) {
-      // Clear suggestion as user is typing
-      clearSuggestion();
+      return;
     }
+
+    // For any other key press, reject the suggestion
+    clearSuggestion();
   }, [suggestion, acceptSuggestion, clearSuggestion]);
 
   // Add handler for cursor movement
@@ -376,11 +368,6 @@ export default function EditorComponent() {
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
       const suggestionSpan = contentElement?.querySelector('#current-suggestion');
       if (!contentElement || !suggestionSpan) return;
-
-      // Get the text node right before the suggestion span
-      const textNodeBeforeSuggestion = Array.from<Node>(contentElement.childNodes)
-        .find((node) => node.nodeType === Node.TEXT_NODE && 
-              node.nextSibling === suggestionSpan) as Text | undefined;
 
       const range = selection.getRangeAt(0);
       
@@ -426,9 +413,9 @@ export default function EditorComponent() {
               suggestion 
             });
 
-            // If there's an active suggestion, clear it since user is typing
+            // If there's an active suggestion, reject it since user is typing/editing
             if (activeSuggestionBlock !== null || suggestion !== '') {
-              console.log('Clearing suggestion since user is typing');
+              console.log('Rejecting suggestion since user is typing/editing');
               clearSuggestion();
               return;
             }
