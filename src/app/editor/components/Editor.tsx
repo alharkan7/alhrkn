@@ -346,8 +346,63 @@ export default function EditorComponent() {
       e.preventDefault();
       e.stopPropagation();
       clearSuggestion();
+    } else if (
+      // If user starts typing any printable character
+      e.key.length === 1 || 
+      e.key === 'Enter' || 
+      e.key === 'Backspace' || 
+      e.key === 'Delete'
+    ) {
+      // Clear suggestion as user is typing
+      clearSuggestion();
     }
   }, [suggestion, acceptSuggestion, clearSuggestion]);
+
+  // Add handler for cursor movement
+  const handleSelectionChange = useCallback(async () => {
+    if (!suggestion || !activeSuggestionBlock) return;
+
+    const editor = editorRef.current as any;
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+
+    try {
+      const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
+      const block = await editor.blocks.getBlockByIndex(currentBlockIndex);
+      if (!block) return;
+
+      const contentElement = block.holder.querySelector('[contenteditable="true"]');
+      const suggestionSpan = contentElement?.querySelector('#current-suggestion');
+      if (!contentElement || !suggestionSpan) return;
+
+      // Get the text node right before the suggestion span
+      const textNodeBeforeSuggestion = Array.from<Node>(contentElement.childNodes)
+        .find((node) => node.nodeType === Node.TEXT_NODE && 
+              node.nextSibling === suggestionSpan) as Text | undefined;
+
+      const range = selection.getRangeAt(0);
+      
+      // Check if cursor is at the end of the suggestion span
+      const isAtEnd = (
+        // Case 1: Cursor is right after the suggestion span
+        (!suggestionSpan.contains(range.startContainer) &&
+         range.startContainer === contentElement &&
+         range.startOffset === Array.from(contentElement.childNodes).indexOf(suggestionSpan) + 1) ||
+        // Case 2: Cursor is at the end of the text node after suggestion
+        (range.startContainer.nodeType === Node.TEXT_NODE &&
+         range.startContainer.nextSibling === null &&
+         range.startOffset === range.startContainer.textContent?.length)
+      );
+
+      if (isAtEnd) {
+        acceptSuggestion();
+      }
+    } catch (error) {
+      console.error('Error in handleSelectionChange:', error);
+    }
+  }, [suggestion, activeSuggestionBlock, acceptSuggestion]);
 
   // Initialize editor
   useEffect(() => {
@@ -371,11 +426,10 @@ export default function EditorComponent() {
               suggestion 
             });
 
-            // If there's an active suggestion, don't do anything
+            // If there's an active suggestion, clear it since user is typing
             if (activeSuggestionBlock !== null || suggestion !== '') {
-              console.log('Skipping onChange: active suggestion exists');
-              // Make sure to cancel any pending suggestions
-              cancelPendingSuggestion();
+              console.log('Clearing suggestion since user is typing');
+              clearSuggestion();
               return;
             }
 
@@ -519,6 +573,20 @@ export default function EditorComponent() {
       return () => editorElement.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [handleKeyDown, isEditorReady])
+
+  // Handle selection change
+  useEffect(() => {
+    if (!isEditorReady) return;
+
+    const editorElement = document.getElementById('editorjs');
+    if (editorElement) {
+      // Use selectionchange event instead of MutationObserver
+      document.addEventListener('selectionchange', handleSelectionChange);
+      return () => {
+        document.removeEventListener('selectionchange', handleSelectionChange);
+      };
+    }
+  }, [handleSelectionChange, isEditorReady]);
 
   return (
     <div className="py-8">
