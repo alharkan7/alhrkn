@@ -1,0 +1,19 @@
+.ce-block__content h1 {
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.ce-block__content h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.ce-block__content h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+}
+
+.ce-block__content h4 {
+  font-size: 1em;
+  font-weight: bold;
+} 
