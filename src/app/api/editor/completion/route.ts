@@ -13,19 +13,22 @@ const model = genAI.getGenerativeModel({
         temperature: 0.7, // Slightly higher for more creative completions
         topP: 0.9,
         topK: 40,
-        maxOutputTokens: 200, // Allow longer completions for better context
+        maxOutputTokens: 8192, // Allow longer completions for better context
     }
 });
 
 const SYSTEM_PROMPT = `You are an intelligent writing assistant. Your task is to predict and complete the text based on the given context. Follow these guidelines:
 
-1. Analyze the writing style, tone, and context of the provided text
-2. Generate a natural continuation that flows seamlessly from the existing text
-3. Keep the completion concise (2-3 sentences maximum)
-4. Maintain consistency with the original text's:
+1. You will receive multiple paragraphs of text, separated by newlines
+2. The last paragraph is the current one being edited - focus on completing this one
+3. Use the previous paragraphs to understand the context, style, and flow of the writing
+4. Generate a natural continuation that flows seamlessly from the last paragraph
+5. Keep the completion concise (2-5 sentences maximum)
+6. Maintain consistency with the text's:
    - Writing style and voice
    - Technical level and terminology
    - Formatting and structure
+   - Overall narrative flow
 
 Provide ONLY the completion text, with no additional explanations or markers.`;
 
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
 
         // Send the context and get completion
         const response = await chat.sendMessage(
-            `Complete this text naturally:\n\n"${context}"\n\nCompletion:`
+            `Here is the text with multiple paragraphs. The last paragraph needs completion:\n\n${context}\n\nProvide a natural completion for the last paragraph:`
         );
 
         const completion = await response.response.text();

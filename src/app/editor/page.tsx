@@ -6,12 +6,6 @@ import Header from '@editorjs/header'
 import List from '@editorjs/list'
 import './editor.css'
 
-type EditorBlock = {
-  id: string;
-  holder: HTMLElement;
-  save: () => Promise<{data: {text: string}}>;
-}
-
 export default function EditorPage() {
   const editorRef = useRef<EditorJS | null>(null)
   const completionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -123,6 +117,12 @@ export default function EditorPage() {
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
       if (!contentElement) return;
 
+      // Clear any suggestion from the toolbar search
+      const toolbarSearch = document.querySelector('.ce-inline-toolbar-input');
+      if (toolbarSearch instanceof HTMLInputElement) {
+        toolbarSearch.value = toolbarSearch.value.replace(/#current-suggestion.*$/, '');
+      }
+
       const suggestionSpan = contentElement.querySelector('#current-suggestion');
       if (suggestionSpan) {
         // Get the text content and remove the span
@@ -221,28 +221,34 @@ export default function EditorPage() {
     }
   }, [suggestion, activeSuggestionBlock, clearSuggestion]);
 
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!suggestion) return;
+
+    // Don't handle suggestions when toolbar search is active
+    const toolbarSearch = document.querySelector('.ce-inline-toolbar-input');
+    if (toolbarSearch instanceof HTMLInputElement && document.activeElement === toolbarSearch) {
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      acceptSuggestion();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      clearSuggestion();
+    }
+  }, [suggestion, acceptSuggestion, clearSuggestion]);
+
   // Handle keyboard events
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!suggestion) return;
-
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        e.stopPropagation();
-        acceptSuggestion();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        clearSuggestion();
-      }
-    };
-
     const editorElement = document.getElementById('editorjs');
     if (editorElement) {
       editorElement.addEventListener('keydown', handleKeyDown, true);
       return () => editorElement.removeEventListener('keydown', handleKeyDown, true);
     }
-  }, [suggestion, acceptSuggestion, clearSuggestion]);
+  }, [handleKeyDown]);
 
   // Initialize editor
   useEffect(() => {
@@ -273,15 +279,32 @@ export default function EditorPage() {
 
         // Get the current block index and then get the block
         const currentBlockIndex = api.blocks.getCurrentBlockIndex();
-        const blocks = await api.blocks.getBlockByIndex(currentBlockIndex);
-        if (!blocks) return;
-
+        
         // Set new timeout for completion
         completionTimeoutRef.current = setTimeout(async () => {
           try {
-            const blockData = await blocks.save();
-            if (blockData && blockData.data && blockData.data.text) {
-              handleCompletion(blocks.id, blockData.data.text);
+            // Get current block
+            const currentBlock = await api.blocks.getBlockByIndex(currentBlockIndex);
+            if (!currentBlock) return;
+
+            // Get up to 3 previous blocks
+            const contextBlocks = [];
+            for (let i = Math.max(0, currentBlockIndex - 3); i < currentBlockIndex; i++) {
+              const block = await api.blocks.getBlockByIndex(i);
+              if (block) {
+                const blockData = await block.save();
+                if (blockData?.data?.text) {
+                  contextBlocks.push(blockData.data.text);
+                }
+              }
+            }
+
+            // Get current block text
+            const currentBlockData = await currentBlock.save();
+            if (currentBlockData?.data?.text) {
+              // Combine previous context with current block
+              const fullContext = [...contextBlocks, currentBlockData.data.text].join('\n\n');
+              handleCompletion(currentBlock.id, fullContext);
             }
           } catch (error) {
             console.error('Error getting block data:', error);
