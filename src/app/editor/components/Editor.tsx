@@ -14,6 +14,7 @@ export default function EditorComponent() {
   const [activeSuggestionBlock, setActiveSuggestionBlock] = useState<string | null>(null)
   const originalTextRef = useRef<string>('');
   const [isEditorReady, setIsEditorReady] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   
   // Simple global lock system
   const lockRef = useRef<{
@@ -31,6 +32,17 @@ export default function EditorComponent() {
     lastSuggestionText: null,
     charactersSinceLastAction: 0
   });
+
+  // Detect if device is desktop
+  useEffect(() => {
+    const checkIfDesktop = () => {
+      setIsDesktop(window.matchMedia('(pointer: fine)').matches);
+    };
+    
+    checkIfDesktop();
+    window.addEventListener('resize', checkIfDesktop);
+    return () => window.removeEventListener('resize', checkIfDesktop);
+  }, []);
 
   // Function to clear the completion timeout
   const cancelPendingSuggestion = useCallback(() => {
@@ -181,23 +193,90 @@ export default function EditorComponent() {
         return;
       }
 
+      // Create a container for both tab indicator and suggestion
+      const container = document.createElement('span');
+      container.id = 'current-suggestion-container';
+      container.style.display = 'inline';
+      container.style.whiteSpace = 'normal';
+      container.style.wordWrap = 'break-word';
+      container.style.wordBreak = 'break-word';
+
+      // Create the tab indicator chip - only for desktop
+      let tabIndicator;
+      if (isDesktop) {
+        tabIndicator = document.createElement('span');
+        tabIndicator.textContent = 'Tab';
+        tabIndicator.style.fontSize = '11px';
+        tabIndicator.style.padding = '1px 4px';
+        tabIndicator.style.backgroundColor = '#e5e7eb';
+        tabIndicator.style.color = '#374151';
+        tabIndicator.style.borderRadius = '4px';
+        tabIndicator.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        tabIndicator.style.userSelect = 'none';
+        tabIndicator.style.cursor = 'default';
+        tabIndicator.style.marginRight = '4px';
+        tabIndicator.style.verticalAlign = 'baseline';
+        tabIndicator.style.display = 'inline';
+        tabIndicator.style.position = 'relative';
+        tabIndicator.style.top = '-1px';
+      }
+
       // Create a span for the suggestion with a specific ID for easy reference
       const suggestionSpan = document.createElement('span');
       suggestionSpan.id = 'current-suggestion';
       suggestionSpan.textContent = suggestionText;
-      suggestionSpan.style.opacity = '0.5'; // Make it visually distinct
-      suggestionSpan.style.color = '#666'; // Lighter color
-      suggestionSpan.dataset.suggestion = 'true'; // Add a data attribute for identification
+      suggestionSpan.style.opacity = '0.5';
+      suggestionSpan.style.color = '#666';
+      suggestionSpan.dataset.suggestion = 'true';
+      suggestionSpan.style.display = 'inline';
+      suggestionSpan.style.whiteSpace = 'normal';
+      suggestionSpan.style.wordWrap = 'break-word';
+      suggestionSpan.style.wordBreak = 'break-word';
 
-      // Append the suggestion to the content element
+      // Add elements to the container
+      if (isDesktop) {
+        container.appendChild(tabIndicator!);
+      }
+      container.appendChild(suggestionSpan);
+
+      // Insert at current cursor position
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
       if (contentElement) {
-        contentElement.appendChild(suggestionSpan);
+        const range = selection.getRangeAt(0);
+        
+        // Get the current cursor position
+        const cursorPosition = range.endOffset;
+        const cursorContainer = range.endContainer;
+        
+        // Normalize spaces before inserting
+        if (cursorContainer.nodeType === Node.TEXT_NODE) {
+          const text = cursorContainer.textContent || '';
+          // Remove any trailing spaces from the current text node
+          const trimmedText = text.slice(0, cursorPosition).replace(/\s+$/, '');
+          cursorContainer.textContent = trimmedText + text.slice(cursorPosition);
+          range.setStart(cursorContainer, trimmedText.length);
+          range.setEnd(cursorContainer, trimmedText.length);
+          
+          // Add a single space only if we're not at the start
+          if (trimmedText.length > 0) {
+            range.insertNode(document.createTextNode(' '));
+            range.collapse(false);
+          }
+        }
+        
+        // Insert the suggestion container
+        range.insertNode(container);
+        
+        // Move cursor before the container
+        range.setStartBefore(container);
+        range.setEndBefore(container);
+        selection.removeAllRanges();
+        selection.addRange(range);
       }
     } catch (error) {
       console.error('Error showing suggestion:', error);
     }
-  }, [activeSuggestionBlock, suggestion]);
+  }, [activeSuggestionBlock, suggestion, isDesktop]);
 
   const clearSuggestion = useCallback(() => {
     console.log('Clearing suggestion');
@@ -225,10 +304,10 @@ export default function EditorComponent() {
       // Cancel any pending suggestion
       cancelPendingSuggestion();
 
-      // Clear suggestion UI
-      const suggestionSpan = contentElement.querySelector('#current-suggestion');
-      if (suggestionSpan) {
-        suggestionSpan.remove();
+      // Clear suggestion UI - now remove the container instead of just the span
+      const suggestionContainer = contentElement.querySelector('#current-suggestion-container');
+      if (suggestionContainer) {
+        suggestionContainer.remove();
         
         // Update block content without the suggestion
         block.save({
@@ -270,30 +349,37 @@ export default function EditorComponent() {
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
       if (!contentElement) return;
 
-      const suggestionSpan = contentElement.querySelector('#current-suggestion');
+      // Now look for the container instead of just the suggestion span
+      const suggestionContainer = contentElement.querySelector('#current-suggestion-container');
+      if (!suggestionContainer) return;
+
+      const suggestionSpan = suggestionContainer.querySelector('#current-suggestion');
       if (!suggestionSpan) return;
 
-      // Get the current text without the suggestion span
+      // Get the current text without the suggestion container
       const suggestionText = suggestion;
       
       // Create a clone of the content element to work with
       const tempElement = contentElement.cloneNode(true) as HTMLElement;
-      const tempSuggestionSpan = tempElement.querySelector('#current-suggestion');
-      if (tempSuggestionSpan) {
-        tempSuggestionSpan.remove();
+      const tempSuggestionContainer = tempElement.querySelector('#current-suggestion-container');
+      if (tempSuggestionContainer) {
+        tempSuggestionContainer.remove();
       }
       
-      // Get the text without the suggestion
+      // Get the text without the suggestion and normalize spaces
       const currentText = tempElement.textContent || '';
+      const trimmedCurrentText = currentText.replace(/\s+$/, '');
       
-      // Combine the current text with the suggestion
-      const finalText = currentText + suggestionText;
+      // Combine the text with proper spacing
+      const finalText = trimmedCurrentText.length > 0 
+        ? trimmedCurrentText + ' ' + suggestionText.trimStart()
+        : suggestionText;
       
       console.log('Accepting with final text:', finalText);
 
-      // First, replace the suggestion span with normal text
-      const textNode = document.createTextNode(suggestionText);
-      suggestionSpan.parentNode?.replaceChild(textNode, suggestionSpan);
+      // First, replace the suggestion container with normal text
+      const textNode = document.createTextNode(suggestionText.trimStart());
+      suggestionContainer.parentNode?.replaceChild(textNode, suggestionContainer);
 
       // Clear the suggestion state
       setSuggestion('');
@@ -578,7 +664,7 @@ export default function EditorComponent() {
   return (
     <div className="py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">AI Writing Assistant</h1>
+        <h1 className="text-2xl font-bold mb-6">Write'rs Unblock</h1>
         <div 
           id="editorjs" 
           className="prose max-w-none border rounded-lg p-4 min-h-[500px] relative"
