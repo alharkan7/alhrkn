@@ -115,7 +115,7 @@ export default function EditorComponent() {
     return true;
   }, [activeSuggestionBlock, suggestion]);
 
-  const showSuggestionWithCitation = useCallback((suggestionText: string, citation: any) => {
+  const showSuggestionWithCitation = useCallback((inputText: string, citation: any) => {
     // First check if there's already a suggestion span
     const editor = editorRef.current as any;
     if (!editor) {
@@ -142,7 +142,7 @@ export default function EditorComponent() {
       return;
     }
 
-    console.log('Showing suggestion:', suggestionText, { isDesktop });
+    console.log('Showing suggestion:', inputText, { isDesktop });
 
     try {
       const selection = window.getSelection();
@@ -162,7 +162,11 @@ export default function EditorComponent() {
       // Create suggestion span
       const suggestionSpan = document.createElement('span');
       suggestionSpan.id = 'current-suggestion';
-      suggestionSpan.textContent = suggestionText;
+      // Ensure the suggestion text ends with a period
+      const trimmedText = inputText.trim();
+      const endsWithPeriod = trimmedText.endsWith('.');
+      // Remove period if it exists and add space
+      suggestionSpan.textContent = (endsWithPeriod ? trimmedText.slice(0, -1) : trimmedText) + ' ';
       suggestionSpan.style.opacity = '0.5';
       suggestionSpan.style.color = '#666';
       suggestionSpan.dataset.suggestion = 'true';
@@ -173,7 +177,7 @@ export default function EditorComponent() {
       citationSpan.id = 'current-citation';
       if (citation) {
         const citationLink = document.createElement('a');
-        citationLink.textContent = ` (${citation.authors[0]} et al., ${citation.year})`;
+        citationLink.textContent = `(${citation.authors[0]} et al., ${citation.year})`;
         citationLink.href = citation.doi ? `https://doi.org/${citation.doi}` : citation.url || '#';
         citationLink.target = '_blank';
         citationLink.rel = 'noopener noreferrer';
@@ -190,6 +194,12 @@ export default function EditorComponent() {
         });
         citationSpan.appendChild(citationLink);
       }
+      
+      // Add period after citation
+      const periodSpan = document.createElement('span');
+      periodSpan.textContent = '.';
+      periodSpan.style.opacity = '0.5';
+      periodSpan.style.color = '#666';
       
       // Add tab indicator for desktop
       if (window.matchMedia('(pointer: fine)').matches) {
@@ -212,11 +222,12 @@ export default function EditorComponent() {
         container.appendChild(tabIndicator);
       }
 
-      // Add suggestion and citation to container
+      // Add suggestion, citation, and period to container in correct order
       container.appendChild(suggestionSpan);
       if (citation) {
         container.appendChild(citationSpan);
       }
+      container.appendChild(periodSpan);
 
       // Insert at current cursor position
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
@@ -298,11 +309,21 @@ export default function EditorComponent() {
       });
       
       if (!response.ok) {
+        console.error('Completion API error:', response.status, response.statusText);
         throw new Error('Completion API request failed');
       }
       
       const data = await response.json();
-      console.log('Completion response:', data);
+      console.log('Raw Completion API response:', data);
+      console.log('Completion API response details:', {
+        data,
+        hasCompletion: !!data.completion,
+        hasKeywords: !!data.keywords,
+        keywords: data.keywords,
+        completionType: typeof data.completion,
+        keywordsType: typeof data.keywords,
+        keywordsIsArray: Array.isArray(data.keywords)
+      });
       
       // Check if the state is still valid
       if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
@@ -311,77 +332,83 @@ export default function EditorComponent() {
         return;
       }
       
-      if (data.completion) {
-        // Extract keywords from the completion
-        const keywords = extractKeywords(data.completion);
-        
-        try {
-          // Fetch citation
-          const citationResponse = await fetch('/api/editor/citation', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ keywords }),
-          });
-          
-          // Set states in sequence
-          setPendingSuggestion({
-            text: data.completion,
-            keywords
-          });
+      if (!data.completion || !data.keywords) {
+        console.error('Invalid completion response format:', data);
+        return;
+      }
 
-          // Show suggestion with or without citation based on response
-          if (citationResponse.status === 204) {
-            // No citation available, show suggestion without citation
+      // Ensure keywords is an array
+      const keywords = Array.isArray(data.keywords) ? data.keywords : [data.keywords];
+
+      // Set pending suggestion with keywords from API
+      setPendingSuggestion({
+        text: data.completion,
+        keywords
+      });
+      
+      try {
+        // Fetch citation using keywords from API
+        console.log('Fetching citation with keywords:', keywords);
+        const citationResponse = await fetch('/api/editor/citation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ keywords }),
+        });
+        
+        console.log('Citation API response status:', citationResponse.status);
+        
+        // Show suggestion with or without citation based on response
+        if (citationResponse.status === 204) {
+          console.log('No citation available, showing suggestion without citation');
+          setSuggestion(data.completion);
+          setActiveSuggestionBlock(blockId);
+          showSuggestionWithCitation(data.completion, null);
+        } else if (citationResponse.ok) {
+          const citationData = await citationResponse.json();
+          
+          // Final state check before showing suggestion
+          if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
+            console.log('Cancelling completion: state changed after citation fetch');
+            return;
+          }
+
+          if (citationData.citation) {
+            setPendingCitation(citationData.citation);
             setSuggestion(data.completion);
             setActiveSuggestionBlock(blockId);
-            showSuggestionWithCitation(data.completion, null);
-          } else if (citationResponse.ok) {
-            const citationData = await citationResponse.json();
             
-            // Final state check before showing suggestion
-            if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
-              console.log('Cancelling completion: state changed after citation fetch');
-              return;
-            }
-
-            if (citationData.citation) {
-              setPendingCitation(citationData.citation);
-              setSuggestion(data.completion);
-              setActiveSuggestionBlock(blockId);
-              
-              // Store the original text
-              const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
-              const currentBlock = await editor.blocks.getBlockByIndex(currentBlockIndex);
-              if (currentBlock) {
-                const contentElement = currentBlock.holder.querySelector('[contenteditable="true"]');
-                if (contentElement) {
-                  originalTextRef.current = contentElement.textContent || '';
-                }
+            // Store the original text
+            const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
+            const currentBlock = await editor.blocks.getBlockByIndex(currentBlockIndex);
+            if (currentBlock) {
+              const contentElement = currentBlock.holder.querySelector('[contenteditable="true"]');
+              if (contentElement) {
+                originalTextRef.current = contentElement.textContent || '';
               }
-
-              // Show suggestion with citation
-              showSuggestionWithCitation(data.completion, citationData.citation);
-            } else {
-              // Citation data invalid, show suggestion without citation
-              setSuggestion(data.completion);
-              setActiveSuggestionBlock(blockId);
-              showSuggestionWithCitation(data.completion, null);
             }
+
+            // Show suggestion with citation
+            showSuggestionWithCitation(data.completion, citationData.citation);
           } else {
-            // Citation API error, show suggestion without citation
+            // Citation data invalid, show suggestion without citation
             setSuggestion(data.completion);
             setActiveSuggestionBlock(blockId);
             showSuggestionWithCitation(data.completion, null);
           }
-        } catch (citationError) {
-          console.error('Citation fetch error:', citationError);
-          // Still show suggestion without citation if citation fetch fails
+        } else {
+          // Citation API error, show suggestion without citation
           setSuggestion(data.completion);
           setActiveSuggestionBlock(blockId);
           showSuggestionWithCitation(data.completion, null);
         }
+      } catch (citationError) {
+        console.error('Citation fetch error:', citationError);
+        // Still show suggestion without citation if citation fetch fails
+        setSuggestion(data.completion);
+        setActiveSuggestionBlock(blockId);
+        showSuggestionWithCitation(data.completion, null);
       }
     } catch (error) {
       console.error('Error in completion process:', error);
@@ -389,15 +416,6 @@ export default function EditorComponent() {
       lockRef.current.isLocked = false;
     }
   }, [isSuggestionAllowed, showSuggestionWithCitation, activeSuggestionBlock, suggestion]);
-
-  const extractKeywords = (text: string) => {
-    // Simple keyword extraction - remove common words and get unique terms
-    const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']);
-    const words = text.toLowerCase().match(/\b\w+\b/g) || [];
-    return [...new Set(words.filter(word => 
-      word.length > 3 && !commonWords.has(word)
-    ))].slice(0, 5); // Take top 5 keywords
-  };
 
   const clearSuggestion = useCallback(() => {
     console.log('Clearing suggestion');
@@ -479,7 +497,9 @@ export default function EditorComponent() {
       if (!suggestionSpan) return;
 
       // Get the suggestion text and citation text
-      const suggestionText = suggestion;
+      const suggestionText = suggestion.trim();
+      const endsWithPeriod = suggestionText.endsWith('.');
+      const cleanSuggestionText = (endsWithPeriod ? suggestionText.slice(0, -1) : suggestionText) + ' ';
       const citationLink = citationSpan?.querySelector('a');
       
       // Create a clone of the content element to work with
@@ -493,11 +513,11 @@ export default function EditorComponent() {
       const currentText = tempElement.textContent || '';
       const trimmedCurrentText = currentText.replace(/\s+$/, '');
       
-      // Create new text node for suggestion
-      const suggestionNode = document.createTextNode(suggestionText);
-      
       // Create container for final content
       const finalContainer = document.createElement('span');
+      
+      // Add suggestion text with space
+      const suggestionNode = document.createTextNode(cleanSuggestionText);
       finalContainer.appendChild(suggestionNode);
       
       // If there's a citation link, clone and append it
@@ -509,6 +529,10 @@ export default function EditorComponent() {
         newCitationLink.style.fontSize = '';
         finalContainer.appendChild(newCitationLink);
       }
+      
+      // Add period
+      const periodNode = document.createTextNode('.');
+      finalContainer.appendChild(periodNode);
       
       // Replace the suggestion container with our new content
       suggestionContainer.parentNode?.replaceChild(finalContainer, suggestionContainer);
