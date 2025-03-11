@@ -16,4 +16,20 @@
 .ce-block__content h4 {
   font-size: 1em;
   font-weight: bold;
+}
+
+/* Position block controls on the left */
+.ce-toolbar__plus {
+  left: -30px !important;
+  right: auto !important;
+}
+
+.ce-toolbar__actions {
+  right: auto !important;
+  left: -30px !important;
+}
+
+.ce-block:hover .ce-block__content {
+  padding-left: 40px;
+  padding-right: 0;
 } 

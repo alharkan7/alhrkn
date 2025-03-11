@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import EditorJS from '@editorjs/editorjs'
 import Header from '@editorjs/header'
 import List from '@editorjs/list'
+import Marker from '@editorjs/marker'
+import InlineCode from '@editorjs/inline-code'
+import Underline from '@editorjs/underline'
 import '../styles/editor.css'
 
 export default function EditorComponent() {
@@ -105,6 +108,29 @@ export default function EditorComponent() {
     if (!isSuggestionAllowed(blockId, text)) {
       return;
     }
+
+    // Check if we're in the editor content area and not in toolbar or other UI elements
+    const editor = editorRef.current as any;
+    if (editor) {
+      const activeElement = document.activeElement;
+      const block = editor.blocks.getById(blockId);
+      
+      // Get the content editable element of the current block
+      const contentElement = block?.holder?.querySelector('[contenteditable="true"]');
+      
+      // More specific checks for toolbar and search elements
+      const isInToolbar = activeElement?.closest('.ce-toolbar');
+      const isInInlineToolbar = activeElement?.closest('.ce-inline-toolbar');
+      const isInPopup = activeElement?.closest('.ce-popover');
+      const isInSearchInput = activeElement?.matches('input, [role="searchbox"]');
+      const isInContentArea = activeElement === contentElement;
+      const isValidTarget = contentElement?.contains(activeElement);
+      
+      if (isInToolbar || isInInlineToolbar || isInPopup || isInSearchInput || (!isInContentArea && !isValidTarget)) {
+        console.log('Suggestion blocked: not in valid content area');
+        return;
+      }
+    }
     
     // Lock immediately to prevent multiple calls
     lockRef.current.isLocked = true;
@@ -184,7 +210,7 @@ export default function EditorComponent() {
       return;
     }
 
-    console.log('Showing suggestion:', suggestionText);
+    console.log('Showing suggestion:', suggestionText, { isDesktop });
 
     try {
       const selection = window.getSelection();
@@ -201,26 +227,6 @@ export default function EditorComponent() {
       container.style.wordWrap = 'break-word';
       container.style.wordBreak = 'break-word';
 
-      // Create the tab indicator chip - only for desktop
-      let tabIndicator;
-      if (isDesktop) {
-        tabIndicator = document.createElement('span');
-        tabIndicator.textContent = 'Tab';
-        tabIndicator.style.fontSize = '11px';
-        tabIndicator.style.padding = '1px 4px';
-        tabIndicator.style.backgroundColor = '#e5e7eb';
-        tabIndicator.style.color = '#374151';
-        tabIndicator.style.borderRadius = '4px';
-        tabIndicator.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-        tabIndicator.style.userSelect = 'none';
-        tabIndicator.style.cursor = 'default';
-        tabIndicator.style.marginRight = '4px';
-        tabIndicator.style.verticalAlign = 'baseline';
-        tabIndicator.style.display = 'inline';
-        tabIndicator.style.position = 'relative';
-        tabIndicator.style.top = '-1px';
-      }
-
       // Create a span for the suggestion with a specific ID for easy reference
       const suggestionSpan = document.createElement('span');
       suggestionSpan.id = 'current-suggestion';
@@ -233,10 +239,28 @@ export default function EditorComponent() {
       suggestionSpan.style.wordWrap = 'break-word';
       suggestionSpan.style.wordBreak = 'break-word';
 
-      // Add elements to the container
-      if (isDesktop) {
-        container.appendChild(tabIndicator!);
+      // Create the tab indicator chip - only for desktop
+      if (window.matchMedia('(pointer: fine)').matches) {
+        const tabIndicator = document.createElement('span');
+        tabIndicator.id = 'suggestion-tab-indicator';
+        tabIndicator.textContent = 'Tab';
+        tabIndicator.style.fontSize = '11px';
+        tabIndicator.style.padding = '1px 4px';
+        tabIndicator.style.backgroundColor = '#e5e7eb';
+        tabIndicator.style.color = '#374151';
+        tabIndicator.style.borderRadius = '4px';
+        tabIndicator.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        tabIndicator.style.userSelect = 'none';
+        tabIndicator.style.cursor = 'default';
+        tabIndicator.style.marginRight = '4px';
+        tabIndicator.style.verticalAlign = 'baseline';
+        tabIndicator.style.display = 'inline-block';
+        tabIndicator.style.position = 'relative';
+        tabIndicator.style.top = '-1px';
+        container.appendChild(tabIndicator);
       }
+
+      // Add suggestion span to container first
       container.appendChild(suggestionSpan);
 
       // Insert at current cursor position
@@ -488,9 +512,25 @@ export default function EditorComponent() {
         const editor = new EditorJS({
           holder: 'editorjs',
           placeholder: 'Let\'s write something...',
+          inlineToolbar: true, // Enable all inline tools
+          data: {
+            blocks: []
+          },
           tools: {
             header: Header as any,
             list: List as any,
+            marker: {
+              class: Marker,
+              shortcut: 'CMD+SHIFT+M'
+            } as const,
+            inlineCode: {
+              class: InlineCode,
+              shortcut: 'CMD+SHIFT+C'
+            } as const,
+            underline: {
+              class: Underline,
+              shortcut: 'CMD+U'
+            } as const
           },
           onChange: async (api: any) => {
             console.log('onChange triggered', { 
@@ -664,7 +704,7 @@ export default function EditorComponent() {
   return (
     <div className="py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Write'rs Unblock</h1>
+        <h1 className="text-2xl font-bold mb-6">Writer's Unblock</h1>
         <div 
           id="editorjs" 
           className="prose max-w-none border rounded-lg p-4 min-h-[500px] relative"

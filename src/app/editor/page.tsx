@@ -7,7 +7,7 @@ function LoadingEditor() {
   return (
     <div className="py-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">AI Writing Assistant</h1>
+        <h1 className="text-2xl font-bold mb-6">Writer's Unblock</h1>
         <div className="prose max-w-none border rounded-lg p-4 min-h-[500px] relative flex items-center justify-center text-gray-500">
           Loading editor...
         </div>

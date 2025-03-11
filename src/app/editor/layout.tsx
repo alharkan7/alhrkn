@@ -12,7 +12,7 @@ export default function JapaneseFlashcardsLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <main className="container">
+      <main className="container px-3">
         {children}
       </main>
     </div>

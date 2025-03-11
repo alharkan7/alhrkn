@@ -17,9 +17,21 @@ importers:
       '@editorjs/header':
         specifier: ^2.8.8
         version: 2.8.8
+      '@editorjs/inline-code':
+        specifier: ^1.5.1
+        version: 1.5.1
       '@editorjs/list':
         specifier: ^2.0.6
         version: 2.0.6
+      '@editorjs/marker':
+        specifier: ^1.4.0
+        version: 1.4.0
+      '@editorjs/text-variant-tune':
+        specifier: ^1.0.3
+        version: 1.0.3
+      '@editorjs/underline':
+        specifier: ^1.2.1
+        version: 1.2.1
       '@google/generative-ai':
         specifier: ^0.22.0
         version: 0.22.0
@@ -244,8 +256,20 @@ packages:
   '@editorjs/header@2.8.8':
     resolution: {integrity: sha512-bsMSs34u2hoi0UBuRoc5EGWXIFzJiwYgkFUYQGVm63y5FU+s8zPBmVx5Ip2sw1xgs0fqfDROqmteMvvmbCy62w==}
 
+  '@editorjs/inline-code@1.5.1':
+    resolution: {integrity: sha512-XvKpqw9y1bOYgyuVUHGDuu7KlNWCYIXD5uU1Lpc4s4LJ8VN4TjWFGKJ3sS+LR7zzasWe8hu2ffR1JC6MHIS0EQ==}
+
   '@editorjs/list@2.0.6':
     resolution: {integrity: sha512-QmmRAMtIBlO9k8LxfiqhWM+CjrA9r1F5th3cI9UFhDMC78YqFdFNg+dWrH57bAW4063HJfS1ygbGoH/LfHBkww==}
+
+  '@editorjs/marker@1.4.0':
+    resolution: {integrity: sha512-5ipEXfL44jTTRzgNp/p/YjMO7jT08S5z4V8qA3FFJTfdhKgQyM3mvP1zpdYKw47ZZpVWMCncvk5Nto3BxihEtg==}
+
+  '@editorjs/text-variant-tune@1.0.3':
+    resolution: {integrity: sha512-zET/uTEnyY0wPYkFI41M6PhtBNqp5DHiUf/sbig4xpq1uwF9xgoJBZh92VultEJSjvLHFAQtD/dP8x7NJ7rouQ==}
+
+  '@editorjs/underline@1.2.1':
+    resolution: {integrity: sha512-LjJ01ia6Pj0Z/elifycp9+T1bQs0eXNnIcEYKOlk0sGHLy88DPcBOh9oz1i+uWarZ4AjGsvSMaptpWe+yQNsjQ==}
 
   '@emnapi/runtime@1.3.1':
     resolution: {integrity: sha512-kEBmG8KyqtxJZv+ygbEim+KCGtIq1fC22Ms3S4ziXmYKm8uyoLX0MHONVKwp+9opg390VaKRNt4a7A9NwmpNhw==}
@@ -2632,7 +2656,21 @@ snapshots:
       '@codexteam/icons': 0.0.5
       '@editorjs/editorjs': 2.30.8
 
+  '@editorjs/inline-code@1.5.1':
+    dependencies:
+      '@codexteam/icons': 0.3.3
+
   '@editorjs/list@2.0.6':
+    dependencies:
+      '@codexteam/icons': 0.3.3
+
+  '@editorjs/marker@1.4.0':
+    dependencies:
+      '@codexteam/icons': 0.0.5
+
+  '@editorjs/text-variant-tune@1.0.3': {}
+
+  '@editorjs/underline@1.2.1':
     dependencies:
       '@codexteam/icons': 0.3.3
 
