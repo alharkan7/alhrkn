@@ -75,6 +75,36 @@ export default function EditorComponent() {
     return temp.textContent || temp.innerText || '';
   };
 
+  // Function to check if cursor is at the end of text
+  const isCursorAtEnd = useCallback((blockId: string) => {
+    const editor = editorRef.current as any;
+    if (!editor) return false;
+
+    const block = editor.blocks.getById(blockId);
+    if (!block) return false;
+
+    const contentElement = block.holder.querySelector('[contenteditable="true"]');
+    if (!contentElement) return false;
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return false;
+
+    const range = selection.getRangeAt(0);
+    
+    // Get the text content without HTML
+    const text = stripHtmlAndNormalize(contentElement.innerHTML);
+    
+    // Check if we're at the end of the text
+    const isAtEnd = range.endOffset === text.length && 
+                   range.endContainer === contentElement.firstChild;
+
+    // Also check if we're at a natural break point (end of sentence or paragraph)
+    const textUpToCursor = text.slice(0, range.endOffset);
+    const isAtBreakPoint = /[.!?]\s*$/.test(textUpToCursor) || textUpToCursor.trim() === '';
+
+    return isAtEnd || isAtBreakPoint;
+  }, []);
+
   // Check if suggestion is allowed for this block and text
   const isSuggestionAllowed = useCallback((blockId: string, text: string) => {
     console.log('Checking if suggestion is allowed:', {
@@ -93,6 +123,12 @@ export default function EditorComponent() {
         console.log('Suggestion blocked: existing suggestion span found');
         return false;
       }
+    }
+
+    // Check if cursor is in middle of text
+    if (!isCursorAtEnd(blockId)) {
+      console.log('Suggestion blocked: cursor not at end of text');
+      return false;
     }
 
     // No suggestions if locked
@@ -130,7 +166,7 @@ export default function EditorComponent() {
 
     console.log('Suggestion allowed');
     return true;
-  }, [activeSuggestionBlock, suggestion]);
+  }, [activeSuggestionBlock, suggestion, isCursorAtEnd]);
 
   const showSuggestionWithCitation = useCallback((inputText: string, citation: any) => {
     // First check if there's already a suggestion span
