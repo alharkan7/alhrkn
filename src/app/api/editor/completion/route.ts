@@ -19,9 +19,10 @@ const SYSTEM_PROMPT = `You are an intelligent writing assistant. Your task is to
    - Technical level and terminology
    - Formatting and structure
    - Overall narrative flow
-7. If the text needs a citation, you need to provide the completion and keywords for that completion (with initial text). The keywords are used to search for academic citations (via OpenAlex API) to support the arguments or data in the text, so make sure the keywords or phrase is good to find the relevant reference
+7. If the text needs a citation, you need to provide the completion and keywords for that completion. The keywords is a phrase used to search for academic citations (via OpenAlex API) to support the arguments or data in the text, so make sure the keywords or phrase is really effective to find the best relevant reference
 8. For the completion, provide ONLY the completion text, with no additional explanations or markers, or initial text
-9. Format your response as a JSON object with 'completion' and 'keywords' fields`;
+9. Format your response as a JSON object with 'completion' and 'keywords' fields
+10. Do not add a citation on your own, it will be added by other function`;
 
 const generationConfig = {
     temperature: 1,

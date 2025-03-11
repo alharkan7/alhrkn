@@ -22,6 +22,16 @@ export default function EditorComponent() {
   const [pendingSuggestion, setPendingSuggestion] = useState<{text: string, keywords: string[]}>()
   const [pendingCitation, setPendingCitation] = useState<any>()
   
+  // Helper function to extract last name
+  const extractLastName = (fullName: string): string => {
+    // If name contains comma, take the part before the comma
+    if (fullName.includes(',')) {
+      return fullName.split(',')[0].trim();
+    }
+    // Otherwise take the last word as last name
+    return fullName.split(' ').pop() || fullName;
+  };
+
   // Simple global lock system
   const lockRef = useRef<{
     isLocked: boolean;
@@ -57,6 +67,13 @@ export default function EditorComponent() {
       completionTimeoutRef.current = null;
     }
   }, []);
+
+  // Function to strip HTML tags and normalize text
+  const stripHtmlAndNormalize = (html: string) => {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+  };
 
   // Check if suggestion is allowed for this block and text
   const isSuggestionAllowed = useCallback((blockId: string, text: string) => {
@@ -177,7 +194,20 @@ export default function EditorComponent() {
       citationSpan.id = 'current-citation';
       if (citation) {
         const citationLink = document.createElement('a');
-        citationLink.textContent = `(${citation.authors[0]} et al., ${citation.year})`;
+        
+        // Format citation based on number of authors
+        if (citation.authors.length === 1) {
+          citationLink.textContent = `(${extractLastName(citation.authors[0])}, ${citation.year})`;
+        } else if (citation.authors.length === 2) {
+          citationLink.textContent = `(${extractLastName(citation.authors[0])} & ${extractLastName(citation.authors[1])}, ${citation.year})`;
+        } else {
+          const etAlSpan = document.createElement('em');
+          etAlSpan.textContent = 'et al.';
+          citationLink.textContent = `(${extractLastName(citation.authors[0])} `;
+          citationLink.appendChild(etAlSpan);
+          citationLink.appendChild(document.createTextNode(`, ${citation.year})`));
+        }
+        
         citationLink.href = citation.doi ? `https://doi.org/${citation.doi}` : citation.url || '#';
         citationLink.target = '_blank';
         citationLink.rel = 'noopener noreferrer';
@@ -737,6 +767,12 @@ export default function EditorComponent() {
               // Cancel any existing timeout before setting a new one
               cancelPendingSuggestion();
               
+              // Don't schedule new suggestion if user hasn't typed since rejection
+              if (!lockRef.current.hasChangedSinceRejection) {
+                console.log('Skipping suggestion: no changes since last rejection');
+                return;
+              }
+              
               // Set timeout for suggestion
               completionTimeoutRef.current = setTimeout(async () => {
                 try {
@@ -770,12 +806,35 @@ export default function EditorComponent() {
                     return;
                   }
                   
-                  // Call handleCompletion with the current block's text
-                  await handleCompletion(block.id, text);
+                  // Get the previous two blocks' content for context
+                  let context = stripHtmlAndNormalize(text);
+                  try {
+                    // Get up to 2 previous blocks
+                    const currentIndex = api.blocks.getCurrentBlockIndex();
+                    for (let i = 1; i <= 2; i++) {
+                      if (currentIndex - i >= 0) {
+                        const prevBlock = await api.blocks.getBlockByIndex(currentIndex - i);
+                        if (prevBlock) {
+                          const prevData = await prevBlock.save();
+                          const prevText = prevData?.data?.text;
+                          if (prevText) {
+                            // Strip HTML from previous blocks too
+                            const cleanPrevText = stripHtmlAndNormalize(prevText);
+                            context = cleanPrevText + '\n\n' + context;
+                          }
+                        }
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error getting previous blocks:', error);
+                  }
+                  
+                  // Call handleCompletion with the current block's text and context
+                  await handleCompletion(block.id, context);
                 } catch (error) {
                   console.error('Error in suggestion timeout:', error);
                 }
-              }, 1000); // Reduced timeout to 1 second for better responsiveness
+              }, 5000); // Changed to 5 seconds
             } catch (error) {
               console.error('Error in onChange handler:', error);
             }

@@ -15,6 +15,16 @@ export default class CitationTool implements BlockTool {
   private data: CitationData;
   private wrapper: HTMLElement;
 
+  // Helper function to extract last name
+  private extractLastName(fullName: string): string {
+    // If name contains comma, take the part before the comma
+    if (fullName.includes(',')) {
+      return fullName.split(',')[0].trim();
+    }
+    // Otherwise take the last word as last name
+    return fullName.split(' ').pop() || fullName;
+  }
+
   static get toolbox() {
     return {
       title: 'Citation',
@@ -44,7 +54,20 @@ export default class CitationTool implements BlockTool {
     if (this.data.citation) {
       const { title, authors, year, url, doi } = this.data.citation;
       const citationLink = document.createElement('a');
-      citationLink.textContent = `(${authors[0]} et al., ${year})`;
+      
+      // Format citation based on number of authors
+      if (authors.length === 1) {
+        citationLink.textContent = `(${this.extractLastName(authors[0])}, ${year})`;
+      } else if (authors.length === 2) {
+        citationLink.textContent = `(${this.extractLastName(authors[0])} & ${this.extractLastName(authors[1])}, ${year})`;
+      } else {
+        const etAlSpan = document.createElement('em');
+        etAlSpan.textContent = 'et al.';
+        citationLink.textContent = `(${this.extractLastName(authors[0])} `;
+        citationLink.appendChild(etAlSpan);
+        citationLink.appendChild(document.createTextNode(`, ${year})`));
+      }
+      
       citationLink.title = title;
       citationLink.href = doi ? `https://doi.org/${doi}` : url || '#';
       citationLink.target = '_blank';
