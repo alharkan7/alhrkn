@@ -7,6 +7,7 @@ import List from '@editorjs/list'
 import Marker from '@editorjs/marker'
 import InlineCode from '@editorjs/inline-code'
 import Underline from '@editorjs/underline'
+import CitationTool from './tools/CitationTool'
 import '../styles/editor.css'
 
 export default function EditorComponent() {
@@ -18,6 +19,8 @@ export default function EditorComponent() {
   const originalTextRef = useRef<string>('');
   const [isEditorReady, setIsEditorReady] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [pendingSuggestion, setPendingSuggestion] = useState<{text: string, keywords: string[]}>()
+  const [pendingCitation, setPendingCitation] = useState<any>()
   
   // Simple global lock system
   const lockRef = useRef<{
@@ -57,6 +60,14 @@ export default function EditorComponent() {
 
   // Check if suggestion is allowed for this block and text
   const isSuggestionAllowed = useCallback((blockId: string, text: string) => {
+    console.log('Checking if suggestion is allowed:', {
+      blockId,
+      textLength: text.length,
+      isLocked: lockRef.current.isLocked,
+      hasActiveSuggestion: activeSuggestionBlock !== null || suggestion !== '',
+      charactersSinceLastAction: lockRef.current.charactersSinceLastAction
+    });
+
     // First, check if there's an existing suggestion span in the DOM
     const editor = editorRef.current as any;
     if (editor) {
@@ -79,111 +90,32 @@ export default function EditorComponent() {
       return false;
     }
     
-    // No suggestions if this block hasn't changed since rejection
-    if (blockId === lockRef.current.blockId && 
-        !lockRef.current.hasChangedSinceRejection) {
-      console.log('Suggestion blocked: no changes since rejection');
-      return false;
-    }
-
-    // No suggestions if not enough new characters typed (minimum 3 characters)
-    if (lockRef.current.charactersSinceLastAction < 3) {
-      console.log('Suggestion blocked: not enough new characters', lockRef.current.charactersSinceLastAction);
-      return false;
-    }
-    
     // No suggestions if text is too short
     if (text.trim().length < 10) {
       console.log('Suggestion blocked: text too short');
       return false;
     }
 
+    // Reset character count if switching blocks
+    if (blockId !== lockRef.current.blockId) {
+      console.log('New block detected, resetting character count');
+      lockRef.current.charactersSinceLastAction = text.length;
+      lockRef.current.hasChangedSinceRejection = true;
+      return text.length >= 10;
+    }
+
+    // Allow suggestions if enough new characters have been typed
+    const hasEnoughNewChars = lockRef.current.charactersSinceLastAction >= 3;
+    if (!hasEnoughNewChars) {
+      console.log('Suggestion blocked: not enough new characters', lockRef.current.charactersSinceLastAction);
+      return false;
+    }
+
+    console.log('Suggestion allowed');
     return true;
   }, [activeSuggestionBlock, suggestion]);
 
-  const handleCompletion = useCallback(async (blockId: string, text: string) => {
-    console.log('handleCompletion called', { blockId, hasActiveSuggestion: activeSuggestionBlock !== null || suggestion !== '' });
-    
-    // Check if suggestions are allowed
-    if (!isSuggestionAllowed(blockId, text)) {
-      return;
-    }
-
-    // Check if we're in the editor content area and not in toolbar or other UI elements
-    const editor = editorRef.current as any;
-    if (editor) {
-      const activeElement = document.activeElement;
-      const block = editor.blocks.getById(blockId);
-      
-      // Get the content editable element of the current block
-      const contentElement = block?.holder?.querySelector('[contenteditable="true"]');
-      
-      // More specific checks for toolbar and search elements
-      const isInToolbar = activeElement?.closest('.ce-toolbar');
-      const isInInlineToolbar = activeElement?.closest('.ce-inline-toolbar');
-      const isInPopup = activeElement?.closest('.ce-popover');
-      const isInSearchInput = activeElement?.matches('input, [role="searchbox"]');
-      const isInContentArea = activeElement === contentElement;
-      const isValidTarget = contentElement?.contains(activeElement);
-      
-      if (isInToolbar || isInInlineToolbar || isInPopup || isInSearchInput || (!isInContentArea && !isValidTarget)) {
-        console.log('Suggestion blocked: not in valid content area');
-        return;
-      }
-    }
-    
-    // Lock immediately to prevent multiple calls
-    lockRef.current.isLocked = true;
-    
-    try {
-      console.log('Fetching completion for text:', text);
-      const response = await fetch('/api/editor/completion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ context: text }),
-      });
-      
-      // Unlock if no longer in the correct state
-      if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
-        console.log('Cancelling completion: state changed', { blockId, activeSuggestionBlock, suggestion });
-        lockRef.current.isLocked = false;
-        return;
-      }
-      
-      const data = await response.json();
-      console.log('Completion response:', data);
-      
-      if (data.completion) {
-        // Set active suggestion
-        setSuggestion(data.completion);
-        setActiveSuggestionBlock(blockId);
-        
-        // Store the original text
-        const editor = editorRef.current as any;
-        const block = await editor.blocks.getBlockByIndex(editor.blocks.getCurrentBlockIndex());
-        if (block) {
-          const contentElement = block.holder.querySelector('[contenteditable="true"]');
-          if (contentElement) {
-            originalTextRef.current = contentElement.textContent || '';
-          }
-        }
-
-        // Show suggestion inline
-        showSuggestion(data.completion);
-      }
-      
-      // Unlock after processing
-      lockRef.current.isLocked = false;
-    } catch (error) {
-      console.error('Error fetching completion:', error);
-      // Always unlock on error
-      lockRef.current.isLocked = false;
-    }
-  }, [activeSuggestionBlock, suggestion, isSuggestionAllowed]);
-
-  const showSuggestion = useCallback((suggestionText: string) => {
+  const showSuggestionWithCitation = useCallback((suggestionText: string, citation: any) => {
     // First check if there's already a suggestion span
     const editor = editorRef.current as any;
     if (!editor) {
@@ -219,7 +151,7 @@ export default function EditorComponent() {
         return;
       }
 
-      // Create a container for both tab indicator and suggestion
+      // Create container for suggestion and citation
       const container = document.createElement('span');
       container.id = 'current-suggestion-container';
       container.style.display = 'inline';
@@ -227,7 +159,7 @@ export default function EditorComponent() {
       container.style.wordWrap = 'break-word';
       container.style.wordBreak = 'break-word';
 
-      // Create a span for the suggestion with a specific ID for easy reference
+      // Create suggestion span
       const suggestionSpan = document.createElement('span');
       suggestionSpan.id = 'current-suggestion';
       suggestionSpan.textContent = suggestionText;
@@ -235,11 +167,31 @@ export default function EditorComponent() {
       suggestionSpan.style.color = '#666';
       suggestionSpan.dataset.suggestion = 'true';
       suggestionSpan.style.display = 'inline';
-      suggestionSpan.style.whiteSpace = 'normal';
-      suggestionSpan.style.wordWrap = 'break-word';
-      suggestionSpan.style.wordBreak = 'break-word';
-
-      // Create the tab indicator chip - only for desktop
+      
+      // Create citation span
+      const citationSpan = document.createElement('span');
+      citationSpan.id = 'current-citation';
+      if (citation) {
+        const citationLink = document.createElement('a');
+        citationLink.textContent = ` (${citation.authors[0]} et al., ${citation.year})`;
+        citationLink.href = citation.doi ? `https://doi.org/${citation.doi}` : citation.url || '#';
+        citationLink.target = '_blank';
+        citationLink.rel = 'noopener noreferrer';
+        citationLink.style.opacity = '0.5';
+        citationLink.style.color = '#666';
+        citationLink.style.fontSize = '0.9em';
+        citationLink.style.textDecoration = 'none';
+        citationLink.title = citation.title;
+        citationLink.addEventListener('mouseover', () => {
+          citationLink.style.textDecoration = 'underline';
+        });
+        citationLink.addEventListener('mouseout', () => {
+          citationLink.style.textDecoration = 'none';
+        });
+        citationSpan.appendChild(citationLink);
+      }
+      
+      // Add tab indicator for desktop
       if (window.matchMedia('(pointer: fine)').matches) {
         const tabIndicator = document.createElement('span');
         tabIndicator.id = 'suggestion-tab-indicator';
@@ -260,8 +212,11 @@ export default function EditorComponent() {
         container.appendChild(tabIndicator);
       }
 
-      // Add suggestion span to container first
+      // Add suggestion and citation to container
       container.appendChild(suggestionSpan);
+      if (citation) {
+        container.appendChild(citationSpan);
+      }
 
       // Insert at current cursor position
       const contentElement = block.holder.querySelector('[contenteditable="true"]');
@@ -275,32 +230,174 @@ export default function EditorComponent() {
         // Normalize spaces before inserting
         if (cursorContainer.nodeType === Node.TEXT_NODE) {
           const text = cursorContainer.textContent || '';
-          // Remove any trailing spaces from the current text node
           const trimmedText = text.slice(0, cursorPosition).replace(/\s+$/, '');
           cursorContainer.textContent = trimmedText + text.slice(cursorPosition);
           range.setStart(cursorContainer, trimmedText.length);
           range.setEnd(cursorContainer, trimmedText.length);
           
-          // Add a single space only if we're not at the start
           if (trimmedText.length > 0) {
             range.insertNode(document.createTextNode(' '));
             range.collapse(false);
           }
         }
         
-        // Insert the suggestion container
         range.insertNode(container);
-        
-        // Move cursor before the container
         range.setStartBefore(container);
         range.setEndBefore(container);
         selection.removeAllRanges();
         selection.addRange(range);
       }
     } catch (error) {
-      console.error('Error showing suggestion:', error);
+      console.error('Error showing suggestion with citation:', error);
     }
   }, [activeSuggestionBlock, suggestion, isDesktop]);
+
+  const handleCompletion = useCallback(async (blockId: string, text: string) => {
+    console.log('handleCompletion called', { blockId, hasActiveSuggestion: activeSuggestionBlock !== null || suggestion !== '' });
+    
+    // Check if suggestions are allowed
+    if (!isSuggestionAllowed(blockId, text)) {
+      return;
+    }
+
+    // Check if we're in the editor content area and not in toolbar or other UI elements
+    const editor = editorRef.current as any;
+    if (!editor) return;
+
+    const block = editor.blocks.getById(blockId);
+    if (!block) return;
+    
+    // Get the content editable element of the current block
+    const contentElement = block?.holder?.querySelector('[contenteditable="true"]');
+    
+    // More specific checks for toolbar and search elements
+    const activeElement = document.activeElement;
+    const isInToolbar = activeElement?.closest('.ce-toolbar');
+    const isInInlineToolbar = activeElement?.closest('.ce-inline-toolbar');
+    const isInPopup = activeElement?.closest('.ce-popover');
+    const isInSearchInput = activeElement?.matches('input, [role="searchbox"]');
+    const isInContentArea = activeElement === contentElement;
+    const isValidTarget = contentElement?.contains(activeElement);
+    
+    if (isInToolbar || isInInlineToolbar || isInPopup || isInSearchInput || (!isInContentArea && !isValidTarget)) {
+      console.log('Suggestion blocked: not in valid content area');
+      return;
+    }
+    
+    // Lock immediately to prevent multiple calls
+    lockRef.current.isLocked = true;
+    
+    try {
+      console.log('Fetching completion for text:', text);
+      const response = await fetch('/api/editor/completion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ context: text }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Completion API request failed');
+      }
+      
+      const data = await response.json();
+      console.log('Completion response:', data);
+      
+      // Check if the state is still valid
+      if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
+        console.log('Cancelling completion: state changed', { blockId, activeSuggestionBlock, suggestion });
+        lockRef.current.isLocked = false;
+        return;
+      }
+      
+      if (data.completion) {
+        // Extract keywords from the completion
+        const keywords = extractKeywords(data.completion);
+        
+        try {
+          // Fetch citation
+          const citationResponse = await fetch('/api/editor/citation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ keywords }),
+          });
+          
+          // Set states in sequence
+          setPendingSuggestion({
+            text: data.completion,
+            keywords
+          });
+
+          // Show suggestion with or without citation based on response
+          if (citationResponse.status === 204) {
+            // No citation available, show suggestion without citation
+            setSuggestion(data.completion);
+            setActiveSuggestionBlock(blockId);
+            showSuggestionWithCitation(data.completion, null);
+          } else if (citationResponse.ok) {
+            const citationData = await citationResponse.json();
+            
+            // Final state check before showing suggestion
+            if (blockId !== lockRef.current.blockId || activeSuggestionBlock !== null || suggestion !== '') {
+              console.log('Cancelling completion: state changed after citation fetch');
+              return;
+            }
+
+            if (citationData.citation) {
+              setPendingCitation(citationData.citation);
+              setSuggestion(data.completion);
+              setActiveSuggestionBlock(blockId);
+              
+              // Store the original text
+              const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
+              const currentBlock = await editor.blocks.getBlockByIndex(currentBlockIndex);
+              if (currentBlock) {
+                const contentElement = currentBlock.holder.querySelector('[contenteditable="true"]');
+                if (contentElement) {
+                  originalTextRef.current = contentElement.textContent || '';
+                }
+              }
+
+              // Show suggestion with citation
+              showSuggestionWithCitation(data.completion, citationData.citation);
+            } else {
+              // Citation data invalid, show suggestion without citation
+              setSuggestion(data.completion);
+              setActiveSuggestionBlock(blockId);
+              showSuggestionWithCitation(data.completion, null);
+            }
+          } else {
+            // Citation API error, show suggestion without citation
+            setSuggestion(data.completion);
+            setActiveSuggestionBlock(blockId);
+            showSuggestionWithCitation(data.completion, null);
+          }
+        } catch (citationError) {
+          console.error('Citation fetch error:', citationError);
+          // Still show suggestion without citation if citation fetch fails
+          setSuggestion(data.completion);
+          setActiveSuggestionBlock(blockId);
+          showSuggestionWithCitation(data.completion, null);
+        }
+      }
+    } catch (error) {
+      console.error('Error in completion process:', error);
+    } finally {
+      lockRef.current.isLocked = false;
+    }
+  }, [isSuggestionAllowed, showSuggestionWithCitation, activeSuggestionBlock, suggestion]);
+
+  const extractKeywords = (text: string) => {
+    // Simple keyword extraction - remove common words and get unique terms
+    const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']);
+    const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+    return [...new Set(words.filter(word => 
+      word.length > 3 && !commonWords.has(word)
+    ))].slice(0, 5); // Take top 5 keywords
+  };
 
   const clearSuggestion = useCallback(() => {
     console.log('Clearing suggestion');
@@ -378,10 +475,12 @@ export default function EditorComponent() {
       if (!suggestionContainer) return;
 
       const suggestionSpan = suggestionContainer.querySelector('#current-suggestion');
+      const citationSpan = suggestionContainer.querySelector('#current-citation');
       if (!suggestionSpan) return;
 
-      // Get the current text without the suggestion container
+      // Get the suggestion text and citation text
       const suggestionText = suggestion;
+      const citationLink = citationSpan?.querySelector('a');
       
       // Create a clone of the content element to work with
       const tempElement = contentElement.cloneNode(true) as HTMLElement;
@@ -394,20 +493,34 @@ export default function EditorComponent() {
       const currentText = tempElement.textContent || '';
       const trimmedCurrentText = currentText.replace(/\s+$/, '');
       
-      // Combine the text with proper spacing
-      const finalText = trimmedCurrentText.length > 0 
-        ? trimmedCurrentText + ' ' + suggestionText.trimStart()
-        : suggestionText;
+      // Create new text node for suggestion
+      const suggestionNode = document.createTextNode(suggestionText);
       
-      console.log('Accepting with final text:', finalText);
-
-      // First, replace the suggestion container with normal text
-      const textNode = document.createTextNode(suggestionText.trimStart());
-      suggestionContainer.parentNode?.replaceChild(textNode, suggestionContainer);
+      // Create container for final content
+      const finalContainer = document.createElement('span');
+      finalContainer.appendChild(suggestionNode);
+      
+      // If there's a citation link, clone and append it
+      if (citationLink) {
+        const newCitationLink = citationLink.cloneNode(true) as HTMLAnchorElement;
+        // Reset any temporary styles that might have been applied
+        newCitationLink.style.opacity = '';
+        newCitationLink.style.color = '';
+        newCitationLink.style.fontSize = '';
+        finalContainer.appendChild(newCitationLink);
+      }
+      
+      // Replace the suggestion container with our new content
+      suggestionContainer.parentNode?.replaceChild(finalContainer, suggestionContainer);
 
       // Clear the suggestion state
       setSuggestion('');
       setActiveSuggestionBlock(null);
+
+      // Combine the text with proper spacing and get the final text content
+      const finalText = trimmedCurrentText.length > 0 
+        ? trimmedCurrentText + ' ' + finalContainer.textContent
+        : finalContainer.textContent;
 
       // Update the block content using Editor.js API
       await block.save({
@@ -530,13 +643,15 @@ export default function EditorComponent() {
             underline: {
               class: Underline,
               shortcut: 'CMD+U'
-            } as const
+            } as const,
+            citation: CitationTool,
           },
           onChange: async (api: any) => {
             console.log('onChange triggered', { 
               hasActiveSuggestion: activeSuggestionBlock !== null || suggestion !== '',
               activeSuggestionBlock,
-              suggestion 
+              suggestion,
+              lockState: lockRef.current
             });
 
             // If there's an active suggestion, reject it since user is typing/editing
@@ -554,6 +669,14 @@ export default function EditorComponent() {
               
               const blockData = await currentBlock.save();
               const currentText = blockData?.data?.text || '';
+              
+              console.log('Current block state:', {
+                blockId: currentBlock.id,
+                currentText,
+                prevText: lockRef.current.text,
+                isLocked: lockRef.current.isLocked,
+                charactersSinceLastAction: lockRef.current.charactersSinceLastAction
+              });
               
               // Calculate characters added since last action
               if (currentBlock.id === lockRef.current.blockId) {
@@ -592,13 +715,13 @@ export default function EditorComponent() {
               
               // Set timeout for suggestion
               completionTimeoutRef.current = setTimeout(async () => {
-                // Double-check if there's an active suggestion before proceeding
-                if (activeSuggestionBlock !== null || suggestion !== '') {
-                  console.log('Cancelling timeout: active suggestion exists');
-                  return;
-                }
-
                 try {
+                  // Double-check if there's an active suggestion before proceeding
+                  if (activeSuggestionBlock !== null || suggestion !== '') {
+                    console.log('Cancelling timeout: active suggestion exists');
+                    return;
+                  }
+
                   // Get fresh state
                   const blockIndex = api.blocks.getCurrentBlockIndex();
                   const block = await api.blocks.getBlockByIndex(blockIndex);
@@ -606,6 +729,12 @@ export default function EditorComponent() {
                   
                   const data = await block.save();
                   const text = data?.data?.text || '';
+                  
+                  console.log('Attempting suggestion for:', {
+                    blockId: block.id,
+                    text,
+                    isAllowed: isSuggestionAllowed(block.id, text)
+                  });
                   
                   // Skip if suggestion not allowed
                   if (!isSuggestionAllowed(block.id, text)) {
@@ -617,30 +746,12 @@ export default function EditorComponent() {
                     return;
                   }
                   
-                  // Record block ID and text in lock
-                  lockRef.current.blockId = block.id;
-                  lockRef.current.text = text;
-                  lockRef.current.lastSuggestionText = text;
-                  
-                  // Get context from previous blocks
-                  const contextBlocks = [];
-                  for (let i = Math.max(0, blockIndex - 3); i < blockIndex; i++) {
-                    const prevBlock = await api.blocks.getBlockByIndex(i);
-                    if (prevBlock) {
-                      const prevData = await prevBlock.save();
-                      if (prevData?.data?.text) {
-                        contextBlocks.push(prevData.data.text);
-                      }
-                    }
-                  }
-                  
-                  // Generate full context and request completion
-                  const fullContext = [...contextBlocks, text].join('\n\n');
-                  handleCompletion(block.id, fullContext);
+                  // Call handleCompletion with the current block's text
+                  await handleCompletion(block.id, text);
                 } catch (error) {
                   console.error('Error in suggestion timeout:', error);
                 }
-              }, 2000); // Reduced timeout to 2 seconds for better responsiveness
+              }, 1000); // Reduced timeout to 1 second for better responsiveness
             } catch (error) {
               console.error('Error in onChange handler:', error);
             }

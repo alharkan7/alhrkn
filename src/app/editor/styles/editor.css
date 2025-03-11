@@ -32,4 +32,40 @@
 .ce-block:hover .ce-block__content {
   padding-left: 40px;
   padding-right: 0;
+}
+
+.citation-block {
+  position: relative;
+  margin: 1em 0;
+  padding: 0.5em;
+  border-left: 3px solid #e5e7eb;
+}
+
+.citation-text {
+  margin-bottom: 0.25em;
+}
+
+.citation-reference {
+  font-size: 0.9em;
+  color: #666;
+  cursor: help;
+}
+
+#current-suggestion-container {
+  position: relative;
+  display: inline;
+}
+
+#current-citation {
+  display: inline;
+  margin-left: 0.25em;
+  font-style: italic;
+}
+
+/* Hover effect for citation references */
+.citation-reference:hover,
+#current-citation:hover {
+  color: #1a73e8;
+  text-decoration: underline;
+  cursor: help;
 } 
