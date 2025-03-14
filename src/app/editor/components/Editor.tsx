@@ -8,7 +8,23 @@ import Marker from '@editorjs/marker'
 import InlineCode from '@editorjs/inline-code'
 import Underline from '@editorjs/underline'
 import CitationTool from './tools/CitationTool'
+import ReferenceTool from './tools/ReferenceTool'
 import '../styles/editor.css'
+
+interface Citation {
+  title: string;
+  authors: string[];
+  year: number;
+  doi?: string;
+  url?: string;
+}
+
+interface ReferenceBlock {
+  type: string;
+  data: {
+    citations: Citation[];
+  };
+}
 
 export default function EditorComponent() {
   const editorRef = useRef<EditorJS | null>(null)
@@ -537,9 +553,21 @@ export default function EditorComponent() {
 
     try {
       const editor = editorRef.current as any;
-      const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
-      const block = await editor.blocks.getBlockByIndex(currentBlockIndex);
-      if (!block) return;
+      
+      // Get current block safely
+      let currentBlock;
+      try {
+        const currentBlockIndex = editor.blocks.getCurrentBlockIndex();
+        currentBlock = await editor.blocks.getBlockByIndex(currentBlockIndex);
+        
+        if (!currentBlock) {
+          console.error('No current block found');
+          return;
+        }
+      } catch (error) {
+        console.error('Error getting current block:', error);
+        return;
+      }
 
       // Reset lock state
       lockRef.current = {
@@ -551,7 +579,7 @@ export default function EditorComponent() {
         charactersSinceLastAction: 0
       };
 
-      const contentElement = block.holder.querySelector('[contenteditable="true"]');
+      const contentElement = currentBlock.holder.querySelector('[contenteditable="true"]');
       if (!contentElement) return;
 
       // Now look for the container instead of just the suggestion span
@@ -567,75 +595,158 @@ export default function EditorComponent() {
       const endsWithPeriod = suggestionText.endsWith('.');
       const cleanSuggestionText = (endsWithPeriod ? suggestionText.slice(0, -1) : suggestionText) + ' ';
       const citationLink = citationSpan?.querySelector('a');
-      
-      // Create a clone of the content element to work with
-      const tempElement = contentElement.cloneNode(true) as HTMLElement;
-      const tempSuggestionContainer = tempElement.querySelector('#current-suggestion-container');
-      if (tempSuggestionContainer) {
-        tempSuggestionContainer.remove();
-      }
-      
-      // Get the text without the suggestion and normalize spaces
-      const currentText = tempElement.textContent || '';
-      const trimmedCurrentText = currentText.replace(/\s+$/, '');
-      
-      // Create container for final content
-      const finalContainer = document.createElement('span');
-      
-      // Add suggestion text with space
-      const suggestionNode = document.createTextNode(cleanSuggestionText);
-      finalContainer.appendChild(suggestionNode);
-      
-      // If there's a citation link, clone and append it
-      if (citationLink) {
-        const newCitationLink = citationLink.cloneNode(true) as HTMLAnchorElement;
-        // Reset any temporary styles that might have been applied
-        newCitationLink.style.opacity = '';
-        newCitationLink.style.color = '';
-        newCitationLink.style.fontSize = '';
-        finalContainer.appendChild(newCitationLink);
-      }
-      
-      // Add period
-      const periodNode = document.createTextNode('.');
-      finalContainer.appendChild(periodNode);
-      
-      // Replace the suggestion container with our new content
-      suggestionContainer.parentNode?.replaceChild(finalContainer, suggestionContainer);
 
-      // Clear the suggestion state
-      setSuggestion('');
-      setActiveSuggestionBlock(null);
+      // Build the final text content
+      let finalText = '';
+      let citationData: Citation | null = null;
 
-      // Combine the text with proper spacing and get the final text content
-      const finalText = trimmedCurrentText.length > 0 
-        ? trimmedCurrentText + ' ' + finalContainer.textContent
-        : finalContainer.textContent;
-
-      // Update the block content using Editor.js API
-      await block.save({
-        type: 'paragraph',
-        data: {
-          text: finalText
-        }
-      });
-
-      // Position cursor at the end of the text
       try {
-        const selection = window.getSelection();
-        if (!selection) return;
+        // Get the text before the suggestion
+        const tempElement = contentElement.cloneNode(true) as HTMLElement;
+        const tempSuggestionContainer = tempElement.querySelector('#current-suggestion-container');
+        if (tempSuggestionContainer) {
+          tempSuggestionContainer.remove();
+        }
+        const currentText = tempElement.textContent || '';
+        const trimmedCurrentText = currentText.replace(/\s+$/, '');
 
-        // Create a range at the end of the content
-        const range = document.createRange();
-        range.selectNodeContents(contentElement);
-        range.collapse(false); // collapse to end
+        // Start building the final text
+        finalText = trimmedCurrentText;
 
-        // Apply the selection
-        selection.removeAllRanges();
-        selection.addRange(range);
-        contentElement.focus();
+        // Add space if there's existing text
+        if (finalText.length > 0) {
+          finalText += ' ';
+        }
+
+        // Add the suggestion text
+        finalText += cleanSuggestionText.trim();
+
+        // Process citation if exists
+        if (citationLink) {
+          // Extract citation data
+          citationData = {
+            title: citationLink.title,
+            authors: [],
+            year: parseInt(citationLink.textContent?.match(/\d{4}/)?.[0] || '0'),
+            doi: citationLink.href.includes('doi.org/') ? citationLink.href.split('doi.org/')[1] : undefined,
+            url: !citationLink.href.includes('doi.org/') ? citationLink.href : undefined
+          };
+
+          // Extract authors from citation text
+          const citationText = citationLink.textContent || '';
+          const authorMatch = citationText.match(/\((.*?)(?:,|\s+&\s+|et al\.)/);
+          if (authorMatch) {
+            const authorPart = authorMatch[1];
+            if (citationText.includes('et al.')) {
+              citationData.authors = [authorPart.trim()];
+            } else if (citationText.includes('&')) {
+              const authors = citationText.split('&')[0].replace(/[()]/g, '').split(',');
+              citationData.authors = authors.map((author: string) => author.trim());
+            } else {
+              citationData.authors = [authorPart.trim()];
+            }
+          }
+
+          // Add citation text to final content
+          finalText += ` ${citationText}`;
+        }
+
+        // Add final period
+        if (!finalText.endsWith('.')) {
+          finalText += '.';
+        }
+
+        // Clear suggestion state before updating content
+        setSuggestion('');
+        setActiveSuggestionBlock(null);
+
+        // Remove the suggestion container first
+        suggestionContainer.remove();
+
+        // Update the block content using the block's save method first
+        await currentBlock.save({
+          type: 'paragraph',
+          data: {
+            text: finalText
+          }
+        });
+
+        // Wait for the content to update
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        // Get the updated content element and set cursor position
+        const updatedContentElement = currentBlock.holder.querySelector('[contenteditable="true"]');
+        if (updatedContentElement) {
+          // Create a text node with the final content
+          const textNode = document.createTextNode(finalText);
+          updatedContentElement.innerHTML = ''; // Clear existing content
+          updatedContentElement.appendChild(textNode);
+
+          // Set cursor at the end of the text
+          const selection = window.getSelection();
+          if (selection) {
+            const range = document.createRange();
+            range.setStart(textNode, textNode.length);
+            range.setEnd(textNode, textNode.length);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            updatedContentElement.focus();
+          }
+        }
+
+        // Update references if we have citation data
+        if (citationData) {
+          // Get fresh block data
+          const savedData = await editor.save();
+          const blocks = savedData.blocks;
+          
+          // Find or create references block
+          let referenceBlock = blocks.find((b: any) => b.type === 'references');
+          let referenceBlockIndex = blocks.findIndex((b: any) => b.type === 'references');
+          
+          if (referenceBlock) {
+            // Update existing block
+            const existingCitations = referenceBlock.data?.citations || [];
+            
+            // Check for duplicates
+            const isDuplicate = existingCitations.some((cite: Citation) => 
+              cite.title === citationData?.title && 
+              cite.year === citationData?.year
+            );
+            
+            if (!isDuplicate && citationData) {
+              // Add new citation and sort
+              existingCitations.push(citationData);
+              existingCitations.sort((a: Citation, b: Citation) => {
+                const aName = a.authors[0]?.split(' ').pop() || '';
+                const bName = b.authors[0]?.split(' ').pop() || '';
+                return aName.localeCompare(bName);
+              });
+              
+              // Update block using the block's save method
+              const refBlock = await editor.blocks.getBlockByIndex(referenceBlockIndex);
+              if (refBlock) {
+                await refBlock.save({
+                  type: 'references',
+                  data: {
+                    text: 'References',
+                    level: 2,
+                    citations: existingCitations
+                  }
+                });
+              }
+            }
+          } else {
+            // Create new block at the end
+            await editor.blocks.insert('references', {
+              text: 'References',
+              level: 2,
+              citations: [citationData]
+            }, {}, blocks.length);
+          }
+        }
       } catch (error) {
-        console.error('Error positioning cursor:', error);
+        console.error('Error processing text:', error);
       }
     } catch (error) {
       console.error('Error accepting suggestion:', error);
@@ -715,7 +826,7 @@ export default function EditorComponent() {
         const editor = new EditorJS({
           holder: 'editorjs',
           placeholder: 'Let\'s write something...',
-          inlineToolbar: true, // Enable all inline tools
+          inlineToolbar: true,
           data: {
             blocks: []
           },
@@ -735,6 +846,12 @@ export default function EditorComponent() {
               shortcut: 'CMD+U'
             } as const,
             citation: CitationTool,
+            references: {
+              class: ReferenceTool,
+              config: {
+                defaultLevel: 2
+              }
+            }
           },
           onChange: async (api: any) => {
             console.log('onChange triggered', { 

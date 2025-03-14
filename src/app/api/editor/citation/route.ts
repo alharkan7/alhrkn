@@ -38,7 +38,6 @@ export async function POST(request: Request) {
     
     // Add search parameters
     searchUrl.searchParams.append('search', query);
-    searchUrl.searchParams.append('sort', 'cited_by_count:desc'); // Sort by citation count
     searchUrl.searchParams.append('per_page', '5'); // Get more results to find a valid one
     searchUrl.searchParams.append('filter', 'is_paratext:false'); // Exclude paratext
     searchUrl.searchParams.append('filter', 'publication_year:>2010'); // Recent papers only
