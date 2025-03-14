@@ -1,297 +1,430 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import * as d3 from 'd3';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Draggable from 'react-draggable';
 
-interface Node {
-    id: string;
-    title: string;
-    description: string;
-    parentId: string | null;
-    level: number;
-    children?: Node[];
-    _children?: Node[]; // Store collapsed nodes
+// Define proper interface for DraggableWrapper props
+interface DraggableWrapperProps {
+  children: React.ReactNode;
+  position: { x: number; y: number };
+  onDrag: (e: any, data: { x: number; y: number }) => void;
+  bounds: object;
+  key?: string | number;
 }
 
-interface HierarchyNode extends d3.HierarchyNode<Node> {
-    x0?: number;
-    y0?: number;
-    _children?: d3.HierarchyNode<Node>[];
+// Custom wrapper for Draggable component to avoid findDOMNode errors
+const DraggableWrapper = ({ children, position, onDrag, bounds, ...rest }: DraggableWrapperProps) => {
+  // Use a ref to a HTMLDivElement
+  const nodeRef = useRef<HTMLDivElement>(null);
+  
+  return (
+    <Draggable 
+      // Cast the ref as any to bypass the type checking
+      nodeRef={nodeRef as any}
+      position={position} 
+      onDrag={onDrag} 
+      bounds={bounds}
+      {...rest}
+    >
+      <div ref={nodeRef}>
+        {children}
+      </div>
+    </Draggable>
+  );
+};
+
+interface MindMapNode {
+  id: string;
+  title: string;
+  description: string;
+  parentId: string | null;
+  level: number;
 }
+
+interface MindMapData {
+  nodes: MindMapNode[];
+}
+
+interface NodePosition {
+  x: number;
+  y: number;
+}
+
+// Node positions for connections
+const COLUMN_WIDTH = 400;
+const NODE_VERTICAL_SPACING = 200;
+
+// Sample data for testing
+const sampleData: MindMapData = {
+  nodes: [
+    { id: 'node1', title: 'Paper Title', description: 'This is the main topic of the research paper.', parentId: null, level: 0 },
+    { id: 'node2', title: 'Introduction', description: 'Provides background and context for the research.', parentId: 'node1', level: 1 },
+    { id: 'node3', title: 'Methods', description: 'Details the approach used in the research.', parentId: 'node1', level: 1 },
+    { id: 'node4', title: 'Results', description: 'Presents the findings of the research.', parentId: 'node1', level: 1 },
+    { id: 'node5', title: 'Key Finding 1', description: 'The first major discovery from the research.', parentId: 'node4', level: 2 },
+  ]
+};
 
 export default function PaperMap() {
-    const [isLoading, setIsLoading] = useState(false);
-    const [nodes, setNodes] = useState<Node[]>([]);
-    const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<MindMapData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nodeExpanded, setNodeExpanded] = useState<Record<string, boolean>>({});
+  const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
+  const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files?.[0]) return;
+  // Calculate initial positions
+  useEffect(() => {
+    if (data) {
+      const initialPositions: Record<string, NodePosition> = {};
+      
+      // Group nodes by level
+      const nodesByLevel = data.nodes.reduce((acc, node) => {
+        acc[node.level] = acc[node.level] || [];
+        acc[node.level].push(node);
+        return acc;
+      }, {} as Record<number, MindMapNode[]>);
+      
+      // Calculate positions for each node
+      data.nodes.forEach(node => {
+        const levelNodes = nodesByLevel[node.level];
+        const nodeIndex = levelNodes.indexOf(node);
+        initialPositions[node.id] = {
+          x: node.level * COLUMN_WIDTH,
+          y: nodeIndex * NODE_VERTICAL_SPACING + 50
+        };
+      });
+      
+      setNodePositions(initialPositions);
+    }
+  }, [data]);
 
-        setIsLoading(true);
-        const formData = new FormData();
-        formData.append('file', e.target.files[0]);
+  // Load sample data initially
+  useEffect(() => {
+    setData(sampleData);
+  }, []);
 
-        try {
-            const response = await fetch('/api/papermap', {
-                method: 'POST',
-                body: formData,
-            });
+  // Center view when data or container changes
+  useEffect(() => {
+    if (data && containerRef.current) {
+      const container = containerRef.current;
+      
+      // Timeout to ensure the container has been measured
+      setTimeout(() => {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // Calculate mindmap bounds
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        
+        Object.values(nodePositions).forEach(pos => {
+          minX = Math.min(minX, pos.x);
+          maxX = Math.max(maxX, pos.x + 300); // 300px is card width
+          minY = Math.min(minY, pos.y);
+          maxY = Math.max(maxY, pos.y + 100); // Approx card height
+        });
+        
+        // Calculate center position
+        const mindmapWidth = maxX - minX;
+        const mindmapHeight = maxY - minY;
+        
+        // Calculate the pan needed to center
+        const newPanX = (containerWidth - mindmapWidth) / 2 - minX;
+        const newPanY = (containerHeight - mindmapHeight) / 2 - minY;
+        
+        // Apply centering
+        setPan({ x: newPanX, y: newPanY });
+      }, 100);
+    }
+  }, [data, nodePositions, containerRef]);
 
-            const data = await response.json();
-            if (data.nodes) {
-                setNodes(data.nodes);
-            }
-        } catch (error) {
-            console.error('Error processing PDF:', error);
-        } finally {
-            setIsLoading(false);
-        }
+  // Toggle node expansion
+  const toggleNode = (id: string) => {
+    setNodeExpanded(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Get final node position (base + dragged delta)
+  const getNodePosition = (nodeId: string) => {
+    const basePos = nodePositions[nodeId] || { x: 0, y: 0 };
+    const draggedPos = draggedPositions[nodeId] || { x: 0, y: 0 };
+    
+    return {
+      x: basePos.x + draggedPos.x,
+      y: basePos.y + draggedPos.y
     };
+  };
 
-    useEffect(() => {
-        if (!nodes.length || !svgRef.current) return;
+  // Handle card drag
+  const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
+    setDraggedPositions(prev => ({
+      ...prev,
+      [nodeId]: { x: data.x, y: data.y }
+    }));
+  };
 
-        // Clear previous visualization
-        d3.select(svgRef.current).selectAll("*").remove();
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-        const margin = { top: 50, right: 120, bottom: 50, left: 120 };
-        const width = 1200 - margin.left - margin.right;
-        const height = 800 - margin.top - margin.bottom;
+    setLoading(true);
+    setError(null);
 
-        const svg = d3.select(svgRef.current)
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom);
+    const formData = new FormData();
+    formData.append('file', file);
 
-        // Create a container group for all elements
-        const container = svg.append("g")
-            .attr("class", "container")
-            .attr("transform", `translate(${margin.left},${margin.top})`);
+    try {
+      const response = await fetch('/api/papermap', {
+        method: 'POST',
+        body: formData,
+      });
 
-        // Create hierarchical layout
-        const root = d3.stratify<Node>()
-            .id(d => d.id)
-            .parentId(d => d.parentId)
-            (nodes);
+      if (!response.ok) {
+        throw new Error('Failed to analyze paper');
+      }
 
-        // Apply the tree layout
-        const treeLayout = d3.tree<Node>()
-            .nodeSize([100, 200])  // Set consistent node spacing [vertical, horizontal]
-            .separation((a, b) => {
-                return a.parent === b.parent ? 1.5 : 2;  // Increase separation between different branches
-            });
+      const responseData: MindMapData = await response.json();
+      setData(responseData);
+      // Reset positions when loading new data
+      setDraggedPositions({});
+      setZoom(1);
+    } catch (err) {
+      console.error('Error details:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Initial layout computation
-        treeLayout(root);
+  // Handle zoom controls
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  const handleResetZoom = () => {
+    setZoom(1);
+    // Reset any custom pan or dragged positions to re-center
+    if (containerRef.current && data) {
+      // Recenter (calling useEffect's logic again)
+      const container = containerRef.current;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Recalculate mindmap bounds
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      
+      Object.values(nodePositions).forEach(pos => {
+        minX = Math.min(minX, pos.x);
+        maxX = Math.max(maxX, pos.x + 300);
+        minY = Math.min(minY, pos.y);
+        maxY = Math.max(maxY, pos.y + 100);
+      });
+      
+      const mindmapWidth = maxX - minX;
+      const mindmapHeight = maxY - minY;
+      
+      const newPanX = (containerWidth - mindmapWidth) / 2 - minX;
+      const newPanY = (containerHeight - mindmapHeight) / 2 - minY;
+      
+      setPan({ x: newPanX, y: newPanY });
+    }
+  };
 
-        // Function to toggle children
-        function toggleChildren(d: HierarchyNode) {
-            if (d.children) {
-                d._children = d.children;
-                d.children = undefined;
-            } else {
-                d.children = d._children;
-                d._children = undefined;
-            }
-            update(d);
-        }
+  // Handle canvas drag (for panning)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) { // Left button only
+      setIsDragging(true);
+      setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
 
-        // Function to update the visualization
-        function update(source: HierarchyNode) {
-            const duration = 750;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setPan({
+        x: e.clientX - startPan.x,
+        y: e.clientY - startPan.y
+      });
+    }
+  };
 
-            // Compute the new tree layout
-            treeLayout(root);
-            const nodes = root.descendants() as HierarchyNode[];
-            const links = root.links();
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
-            // Normalize for fixed-depth and center the tree
-            nodes.forEach(d => {
-                // Swap x and y for horizontal layout
-                const oldX = d.x;
-                d.x = d.y;
-                d.y = oldX;
-            });
+  // Handle wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    const newZoom = Math.max(0.5, Math.min(2, zoom + delta));
+    setZoom(newZoom);
+  };
 
-            // Update nodes
-            const node = container.selectAll("g.node")
-                .data(nodes, d => (d as any).id);
-
-            // Enter new nodes
-            const nodeEnter = node.enter().append("g")
-                .attr("class", "node")
-                .attr("transform", d => `translate(${source.y0 || source.y},${source.x0 || source.x})`)
-                .on("click", (event, d) => {
-                    if (d.children || d._children) {
-                        toggleChildren(d);
-                    }
-                });
-
-            // Add circles for nodes
-            nodeEnter.append("circle")
-                .attr("r", 6)
-                .attr("fill", d => d._children ? "#4CAF50" : "#fff")
-                .attr("stroke", "#2E7D32")
-                .attr("stroke-width", 2)
-                .style("cursor", d => d.children || d._children ? "pointer" : "default");
-
-            // Add title text
-            nodeEnter.append("text")
-                .attr("dy", d => d.children || d._children ? "-1.5em" : "0.35em")
-                .attr("x", d => d.children || d._children ? 0 : 12)
-                .attr("text-anchor", d => d.children || d._children ? "middle" : "start")
-                .attr("font-weight", "bold")
-                .text(d => d.data.title)
-                .attr("fill", "#333")
-                .each(function(d) {
-                    // Add background rectangle for better readability
-                    const bbox = (this as SVGTextElement).getBBox();
-                    const padding = 2;
-                    d3.select(this.parentNode as Element)
-                        .insert("rect", "text")
-                        .attr("x", bbox.x - padding)
-                        .attr("y", bbox.y - padding)
-                        .attr("width", bbox.width + (padding * 2))
-                        .attr("height", bbox.height + (padding * 2))
-                        .attr("fill", "white")
-                        .attr("fill-opacity", 0.9);
-                });
-
-            // Add description text
-            nodeEnter.append("foreignObject")
-                .attr("x", -60)
-                .attr("y", d => d.children || d._children ? "1em" : "-0.5em")
-                .attr("width", 120)
-                .attr("height", 80)
-                .append("xhtml:div")
-                .style("font-size", "0.8em")
-                .style("color", "#666")
-                .style("text-align", "center")
-                .style("overflow", "hidden")
-                .text(d => d.data.description);
-
-            // Update existing nodes
-            const nodeUpdate = nodeEnter.merge(node as any)
-                .transition()
-                .duration(duration)
-                .attr("transform", d => `translate(${d.y},${d.x})`);
-
-            nodeUpdate.select("circle")
-                .attr("fill", d => d._children ? "#4CAF50" : "#fff");
-
-            // Remove old nodes
-            const nodeExit = node.exit()
-                .transition()
-                .duration(duration)
-                .attr("transform", d => `translate(${source.y},${source.x})`)
-                .remove();
-
-            // Update links
-            const link = container.selectAll<SVGPathElement, d3.HierarchyLink<Node>>("path.link")
-                .data(links, (d: d3.HierarchyLink<Node>) => (d.target as unknown as HierarchyNode).id ?? '');
-
-            // Enter new links
-            const linkEnter = link.enter().insert("path", "g")
-                .attr("class", "link")
-                .attr("d", d => {
-                    const o = { x: source.x0 ?? source.x, y: source.y0 ?? source.y };
-                    return diagonal({ source: o, target: o });
-                })
-                .attr("fill", "none")
-                .attr("stroke", "#888")
-                .attr("stroke-width", 2);
-
-            // Update existing links
-            linkEnter.merge(link as any)
-                .transition()
-                .duration(duration)
-                .attr("d", diagonal);
-
-            // Remove old links
-            link.exit()
-                .transition()
-                .duration(duration)
-                .attr("d", d => {
-                    const o = { x: source.x, y: source.y };
-                    return diagonal({ source: o, target: o });
-                })
-                .remove();
-
-            // Store old positions for transition
-            nodes.forEach(d => {
-                d.x0 = d.x;
-                d.y0 = d.y;
-            });
-
-            // Add tooltip behavior
-            nodeEnter.on("mouseover", function(event, d) {
-                const [x, y] = d3.pointer(event, svg.node() as Element);
-                const tooltip = container.append("g")
-                    .attr("class", "tooltip")
-                    .attr("transform", `translate(${x + 20},${y + 20})`);
-
-            });
-        }
-
-        // Creates a curved path from parent to child nodes
-        function diagonal(d: any) {
-            return `M ${d.source.y} ${d.source.x}
-                    C ${(d.source.y + d.target.y) / 2} ${d.source.x},
-                      ${(d.source.y + d.target.y) / 2} ${d.target.x},
-                      ${d.target.y} ${d.target.x}`;
-        }
-
-        // Initialize the display
-        (root as HierarchyNode).x0 = height / 2;
-        (root as HierarchyNode).y0 = 0;
-        update(root);
-
-        // Add zoom behavior
-        const zoom = d3.zoom<SVGSVGElement, unknown>()
-            .scaleExtent([0.1, 3])
-            .on("zoom", (event) => {
-                container.attr("transform", event.transform);
-            });
-
-        // Calculate the initial transform to center the tree
-        const rootNode = nodes[0];
-        const initialTransform = d3.zoomIdentity
-            .translate(width / 2, height / 2)
-            .scale(0.8);
-
-        svg.call(zoom)
-           .call(zoom.transform, initialTransform);
-
-    }, [nodes]);
-
-    return (
-        <div className="container mx-auto p-8">
-            <Card className="p-6">
-                <h1 className="text-2xl font-bold mb-6">Papermap</h1>
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <Input
-                            type="file"
-                            accept=".pdf"
-                            onChange={handleFileUpload}
-                            disabled={isLoading}
-                            className="max-w-md"
-                        />
-                        {isLoading && (
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-                        )}
-                    </div>
-                    
-                    <div className="relative mt-8 border rounded-lg overflow-hidden bg-white">
-                        <svg 
-                            ref={svgRef}
-                            className="w-full h-[800px]"
-                        />
-                    </div>
-                </div>
-            </Card>
+  return (
+    <div className="w-screen h-screen flex flex-col">
+      <div className="p-4 border-b flex items-center justify-between">
+        <div className="flex-1">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileUpload}
+            className="block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-full file:border-0
+              file:text-sm file:font-semibold
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"
+          />
+          {loading && <p className="mt-2 text-blue-600">Analyzing paper...</p>}
+          {error && <p className="mt-2 text-red-600">{error}</p>}
         </div>
-    );
+        
+        {/* Zoom controls */}
+        <div className="flex space-x-2">
+          <button 
+            onClick={handleZoomOut}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold"
+            title="Zoom Out"
+          >
+            -
+          </button>
+          <button 
+            onClick={handleResetZoom}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+            title="Reset View"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button 
+            onClick={handleZoomIn}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold"
+            title="Zoom In"
+          >
+            +
+          </button>
+        </div>
+      </div>
+      
+      <div 
+        ref={containerRef}
+        className="flex-1 bg-gray-50 relative overflow-hidden cursor-grab"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
+        <div 
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            width: '5000px',
+            height: '3000px',
+            position: 'relative',
+          }}
+        >
+          {/* SVG for connections */}
+          <svg
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 1,
+              pointerEvents: 'none', // Allows clicking through to the containers
+            }}
+          >
+            {/* Create connections */}
+            {data?.nodes
+              .filter(node => node.parentId)
+              .map(node => {
+                const parent = data.nodes.find(n => n.id === node.parentId);
+                if (!parent) return null;
+                
+                const parentPos = getNodePosition(parent.id);
+                const nodePos = getNodePosition(node.id);
+                
+                // Connection points (from right of parent to left of child)
+                const startX = parentPos.x + 300; // 300px is card width
+                const startY = parentPos.y + 40; // Middle of card height
+                const endX = nodePos.x;
+                const endY = nodePos.y + 40;
+                
+                // Curved path
+                const path = `M${startX},${startY} C${(startX + endX) / 2},${startY} ${(startX + endX) / 2},${endY} ${endX},${endY}`;
+                
+                return (
+                  <path
+                    key={`${parent.id}-${node.id}`}
+                    d={path}
+                    style={{
+                      stroke: '#6366f1',
+                      strokeWidth: 3,
+                      fill: 'none',
+                    }}
+                  />
+                );
+              })}
+          </svg>
+          
+          {/* Render nodes */}
+          {data?.nodes.map(node => {
+            const { x, y } = nodePositions[node.id] || { x: 0, y: 0 };
+            const isExpanded = nodeExpanded[node.id] || false;
+            
+            return (
+              <DraggableWrapper
+                key={node.id}
+                position={draggedPositions[node.id] || { x: 0, y: 0 }}
+                onDrag={(e: any, data: { x: number, y: number }) => handleDrag(node.id, e, data)}
+                bounds={{ top: -1000, left: -1000, right: 1000, bottom: 1000 }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${x}px`,
+                    top: `${y}px`,
+                    width: '300px',
+                    zIndex: 10,
+                    cursor: 'move',
+                  }}
+                >
+                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+                    <div 
+                      className="flex justify-between items-center cursor-pointer" 
+                      onClick={() => toggleNode(node.id)}
+                    >
+                      <h3 className="font-bold text-lg">{node.title}</h3>
+                      <button className="text-gray-500 hover:text-gray-700">
+                        {isExpanded ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {isExpanded && (
+                      <p className="text-sm text-gray-600 mt-2 border-t pt-2">{node.description}</p>
+                    )}
+                  </div>
+                </div>
+              </DraggableWrapper>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
+
