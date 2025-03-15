@@ -1,84 +1,15 @@
-import React, { useRef, MouseEvent, TouchEvent, useState } from 'react';
+import React, { useRef } from 'react';
 import Draggable from 'react-draggable';
-
-// Define interface for MindMapNode
-export interface MindMapNode {
-  id: string;
-  title: string;
-  description: string;
-  parentId: string | null;
-  level: number;
-}
-
-// Interface for node position
-export interface NodePosition {
-  x: number;
-  y: number;
-}
-
-// Define proper interface for DraggableWrapper props
-interface DraggableWrapperProps {
-  children: React.ReactNode;
-  position: NodePosition;
-  onDrag: (e: any, data: { x: number; y: number }) => void;
-  onStart: (e: any, data: any) => void | false;
-  onStop: (e: any, data: any) => void;
-  bounds: object;
-  key?: string | number;
-  defaultClassName?: string;
-  defaultClassNameDragging?: string;
-  cancel?: string;
-  handle?: string;
-}
-
-// Custom wrapper for Draggable component to avoid findDOMNode errors
-const DraggableWrapper = ({ 
-  children, 
-  position, 
-  onDrag, 
-  onStart, 
-  onStop, 
-  bounds, 
-  defaultClassName,
-  defaultClassNameDragging,
-  cancel,
-  handle,
-  ...rest 
-}: DraggableWrapperProps) => {
-  // Use a ref to a HTMLDivElement
-  const nodeRef = useRef<HTMLDivElement>(null);
-  
-  return (
-    <Draggable 
-      nodeRef={nodeRef as any}
-      position={position} 
-      onDrag={onDrag}
-      onStart={onStart}
-      onStop={onStop}
-      bounds={bounds}
-      defaultClassName={defaultClassName}
-      defaultClassNameDragging={defaultClassNameDragging}
-      // Important: These settings help with dragging behavior
-      defaultPosition={{x: 0, y: 0}}
-      scale={1}
-      cancel={cancel}
-      handle={handle}
-      {...rest}
-    >
-      <div ref={nodeRef}>
-        {children}
-      </div>
-    </Draggable>
-  );
-};
+import { MindMapNode, NodePosition } from './MindMapTypes';
 
 interface NodeCardProps {
   node: MindMapNode;
   basePosition: NodePosition;
   draggedPosition: NodePosition;
   isExpanded: boolean;
-  onDrag: (nodeId: string, e: any, data: { x: number; y: number }) => void;
+  onDrag: (nodeId: string, e: any, data: { x: number, y: number }) => void;
   onToggleExpand: (nodeId: string) => void;
+  onDragStop?: () => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -87,122 +18,50 @@ const NodeCard: React.FC<NodeCardProps> = ({
   draggedPosition,
   isExpanded,
   onDrag,
-  onToggleExpand
+  onToggleExpand,
+  onDragStop
 }) => {
-  const { x, y } = basePosition;
-  const isDragging = useRef(false);
-  const touchStartTime = useRef(0);
-  const touchStartPos = useRef({ x: 0, y: 0 });
-  const [dragHandleClass] = useState('drag-handle');
-  
-  // Handle drag start
-  const handleStart = (e: any, data: any): void => {
-    isDragging.current = true;
-    // We still want to stop propagation, but we need to make sure the drag works
-    e.stopPropagation();
-  };
-  
-  // Handle drag
-  const handleDrag = (e: any, data: { x: number, y: number }) => {
-    // Stop propagation to prevent the canvas drag from being triggered
-    e.stopPropagation();
-    onDrag(node.id, e, data);
-  };
-  
-  // Handle drag stop
-  const handleStop = (e: any, data: any) => {
-    setTimeout(() => {
-      isDragging.current = false;
-    }, 10); // Small delay to prevent toggle from firing immediately after drag
-    e.stopPropagation();
-  };
-  
-  // Handle click on the header to toggle expansion
-  const handleToggle = (e: MouseEvent) => {
-    // Only toggle if we're not dragging
-    if (!isDragging.current) {
-      onToggleExpand(node.id);
-    }
-    e.stopPropagation();
-  };
-  
-  // Handle touch start for mobile
-  const handleTouchStart = (e: TouchEvent) => {
-    touchStartTime.current = Date.now();
-    if (e.touches.length > 0) {
-      touchStartPos.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY
-      };
-    }
-  };
-  
-  // Handle touch end for mobile
-  const handleTouchEnd = (e: TouchEvent) => {
-    const touchDuration = Date.now() - touchStartTime.current;
-    
-    // If touch was short and didn't move much, consider it a tap
-    if (touchDuration < 300 && e.changedTouches.length > 0) {
-      const touch = e.changedTouches[0];
-      const dx = touch.clientX - touchStartPos.current.x;
-      const dy = touch.clientY - touchStartPos.current.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // If the touch didn't move much, consider it a tap
-      if (distance < 10) {
-        onToggleExpand(node.id);
-        e.stopPropagation();
-        e.preventDefault();
-      }
-    }
-  };
-  
+  const nodeRef = useRef<HTMLDivElement>(null);
+
   return (
-    <DraggableWrapper
-      key={node.id}
+    <Draggable
+      nodeRef={nodeRef as any}
       position={draggedPosition}
-      onDrag={handleDrag}
-      onStart={handleStart}
-      onStop={handleStop}
-      bounds={{ top: -1000, left: -1000, right: 1000, bottom: 1000 }}
-      defaultClassName="react-draggable"
-      defaultClassNameDragging="react-draggable-dragging"
-      cancel=".no-drag" // Elements with this class won't trigger dragging
-      handle=".drag-handle" // Only elements with this class can start dragging
+      onDrag={(e, data) => onDrag(node.id, e, data)}
+      onStop={onDragStop}
+      bounds="parent"
+      handle=".drag-handle" // Only the element with this class will trigger dragging
     >
       <div
+        ref={nodeRef}
+        className="node-card"
         style={{
           position: 'absolute',
-          left: `${x}px`,
-          top: `${y}px`,
+          left: `${basePosition.x}px`,
+          top: `${basePosition.y}px`,
           width: '300px',
           zIndex: 10,
+          touchAction: 'none', // Important for touch devices
         }}
-        onMouseDown={(e) => {
-          // Only stop propagation, don't prevent default
-          e.stopPropagation();
-        }}
-        className={dragHandleClass}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         <div 
-          className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 drag-handle"
-          style={{ cursor: 'grab' }}
+          className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative"
+          onClick={() => onToggleExpand(node.id)} // Entire card toggles expansion
         >
+          {/* Drag handle indicator */}
           <div 
-            className="flex justify-between items-center no-drag" 
-            onClick={handleToggle}
-            style={{ cursor: 'pointer' }}
+            className="drag-handle absolute top-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-100 rounded-bl-lg rounded-tr-lg cursor-move border-l border-b border-gray-200 hover:bg-gray-200"
+            onClick={(e) => e.stopPropagation()} // Prevent toggle when clicking the handle
+            title="Drag to move"
           >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+            </svg>
+          </div>
+
+          <div className="flex items-center gap-2"> {/* Changed to use gap instead of justify-between */}
             <h3 className="font-bold text-lg">{node.title}</h3>
-            <button 
-              className="text-gray-500 hover:text-gray-700 no-drag"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleExpand(node.id);
-              }}
-            >
+            <button className="text-gray-500 hover:text-gray-700"> {/* Added ml-2 for a bit of spacing */}
               {isExpanded ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -214,12 +73,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
               )}
             </button>
           </div>
+          
           {isExpanded && (
-            <p className="text-sm text-gray-600 mt-2 border-t pt-2 no-drag">{node.description}</p>
+            <p className="text-sm text-gray-600 mt-2 border-t pt-2">{node.description}</p>
           )}
         </div>
       </div>
-    </DraggableWrapper>
+    </Draggable>
   );
 };
 

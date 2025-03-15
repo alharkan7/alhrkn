@@ -1,4 +1,17 @@
-import { MindMapNode, NodePosition } from './NodeCard';
+// Define MindMapNode directly here to avoid circular dependencies
+export interface MindMapNode {
+  id: string;
+  title: string;
+  description: string;
+  parentId: string | null;
+  level: number;
+}
+
+// Interface for NodePosition
+export interface NodePosition {
+  x: number;
+  y: number;
+}
 
 // Interface for MindMapData
 export interface MindMapData {

@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 // Interface for the FileUploader props
 interface UploaderProps {
-  onFileUpload: (file: File) => Promise<void>;
+  onFileUpload: (file: File) => void;
   loading: boolean;
   error: string | null;
 }
 
 const Uploader: React.FC<UploaderProps> = ({ onFileUpload, loading, error }) => {
-  // Handle file upload
-  const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    
-    await onFileUpload(file);
+    if (file) {
+      onFileUpload(file);
+    }
   };
 
   return (
@@ -21,7 +20,7 @@ const Uploader: React.FC<UploaderProps> = ({ onFileUpload, loading, error }) => 
       <input
         type="file"
         accept=".pdf"
-        onChange={handleChange}
+        onChange={handleFileChange}
         className="block w-full text-sm text-gray-500
           file:mr-4 file:py-2 file:px-4
           file:rounded-full file:border-0

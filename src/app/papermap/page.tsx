@@ -4,8 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'rea
 import NodeCard from './components/NodeCard';
 import Uploader from './components/Uploader';
 import Line from './components/Line';
-import { MindMapData, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData } from './components/MindMapTypes';
-import { NodePosition } from './components/NodeCard';
+import { MindMapData, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +21,8 @@ export default function PaperMap() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const isTouchDragging = useRef(false);
   const isCardBeingDragged = useRef(false);
+  const [touchDistance, setTouchDistance] = useState<number | null>(null);
+  const [touchCenter, setTouchCenter] = useState<{ x: number, y: number } | null>(null);
 
   // Calculate initial positions
   useEffect(() => {
@@ -189,52 +190,108 @@ export default function PaperMap() {
 
   // Handle canvas drag (for panning)
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start dragging if it's a left-click directly on the container
-    // and not on any of its children (like the nodes)
+    // Allow panning when clicking on the container or canvas, but not on cards
     if (e.button === 0) {
       const target = e.target as HTMLElement;
-      const container = containerRef.current;
       
-      // Check if the click is directly on the container or the canvas
-      // and not on a node or other element
-      if (container && (target === container || target === canvasRef.current)) {
+      // Check if we're clicking on a card or its children
+      const isCard = target.closest('.node-card');
+      
+      if (!isCard) {
         setIsDragging(true);
         setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        e.preventDefault(); // Prevent text selection during drag
       }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && !isCardBeingDragged.current) {
+    if (isDragging) {
       setPan({
         x: e.clientX - startPan.x,
         y: e.clientY - startPan.y
       });
+      e.preventDefault();
     }
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    if (isDragging) {
+      setIsDragging(false);
+    }
+  };
+
+  // Calculate distance between two touch points
+  const getDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Calculate center point between two touches
+  const getCenter = (touch1: React.Touch, touch2: React.Touch): { x: number, y: number } => {
+    return {
+      x: (touch1.clientX + touch2.clientX) / 2,
+      y: (touch1.clientY + touch2.clientY) / 2
+    };
   };
 
   // Touch event handlers for mobile
   const handleTouchStart = (e: TouchEvent) => {
-    // Check if the touch is directly on the container or canvas
-    // and not on a node
-    const target = e.target as HTMLElement;
-    const container = containerRef.current;
+    // Handle pinch gesture (two fingers)
+    if (e.touches.length === 2) {
+      // Calculate initial distance between touches
+      const distance = getDistance(e.touches[0], e.touches[1]);
+      setTouchDistance(distance);
+      
+      // Calculate center point between touches
+      const center = getCenter(e.touches[0], e.touches[1]);
+      setTouchCenter(center);
+      
+      e.preventDefault();
+      return;
+    }
     
-    if (container && (target === container || target === canvasRef.current)) {
+    // Handle pan gesture (one finger)
+    const target = e.target as HTMLElement;
+    
+    // Check if we're touching a card or its children
+    const isCard = target.closest('.node-card');
+    
+    if (!isCard) {
       isTouchDragging.current = true;
       
       // Get the first touch point
       const touch = e.touches[0];
       setStartPan({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+      e.preventDefault(); // Prevent scrolling
     }
   };
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (isTouchDragging.current && !isCardBeingDragged.current) {
+    // Handle pinch gesture (two fingers)
+    if (e.touches.length === 2 && touchDistance !== null && touchCenter !== null) {
+      // Calculate new distance between touches
+      const newDistance = getDistance(e.touches[0], e.touches[1]);
+      
+      // Calculate zoom factor based on the change in distance
+      const factor = newDistance / touchDistance;
+      
+      // Calculate new zoom level
+      const newZoom = Math.max(0.5, Math.min(2, zoom * factor));
+      
+      // Update zoom if it changed significantly
+      if (Math.abs(newZoom - zoom) > 0.01) {
+        setZoom(newZoom);
+        setTouchDistance(newDistance);
+      }
+      
+      e.preventDefault();
+      return;
+    }
+    
+    // Handle pan gesture (one finger)
+    if (isTouchDragging.current) {
       // Prevent default to stop scrolling
       e.preventDefault();
       
@@ -249,6 +306,8 @@ export default function PaperMap() {
 
   const handleTouchEnd = () => {
     isTouchDragging.current = false;
+    setTouchDistance(null);
+    setTouchCenter(null);
   };
 
   // Handle wheel zoom
@@ -297,7 +356,12 @@ export default function PaperMap() {
       <div 
         ref={containerRef}
         className="flex-1 bg-gray-50 relative overflow-hidden"
-        style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ 
+          cursor: isDragging ? 'grabbing' : 'grab', 
+          touchAction: 'none',
+          width: '100%',
+          height: '100%'
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -307,6 +371,16 @@ export default function PaperMap() {
         onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
       >
+        {/* Edge indicators */}
+        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-gray-300 to-transparent opacity-50 pointer-events-none" 
+             style={{ display: pan.y < 0 ? 'block' : 'none' }} />
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-300 to-transparent opacity-50 pointer-events-none" 
+             style={{ display: pan.y > 0 ? 'block' : 'none' }} />
+        <div className="absolute top-0 left-0 bottom-0 w-8 bg-gradient-to-r from-gray-300 to-transparent opacity-50 pointer-events-none" 
+             style={{ display: pan.x < 0 ? 'block' : 'none' }} />
+        <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-gray-300 to-transparent opacity-50 pointer-events-none" 
+             style={{ display: pan.x > 0 ? 'block' : 'none' }} />
+        
         <div 
           ref={canvasRef}
           style={{
