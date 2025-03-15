@@ -38,3 +38,21 @@
 
   --shadow: var(--box-shadow-x) var(--box-shadow-y) var(--border);
 }
+
+/* Draggable elements */
+.react-draggable {
+  user-select: none;
+}
+
+.react-draggable-dragging {
+  z-index: 100 !important;
+  cursor: grabbing !important;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+.no-drag {
+  cursor: pointer;
+}

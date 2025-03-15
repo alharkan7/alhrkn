@@ -1,69 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Draggable from 'react-draggable';
-
-// Define proper interface for DraggableWrapper props
-interface DraggableWrapperProps {
-  children: React.ReactNode;
-  position: { x: number; y: number };
-  onDrag: (e: any, data: { x: number; y: number }) => void;
-  bounds: object;
-  key?: string | number;
-}
-
-// Custom wrapper for Draggable component to avoid findDOMNode errors
-const DraggableWrapper = ({ children, position, onDrag, bounds, ...rest }: DraggableWrapperProps) => {
-  // Use a ref to a HTMLDivElement
-  const nodeRef = useRef<HTMLDivElement>(null);
-  
-  return (
-    <Draggable 
-      // Cast the ref as any to bypass the type checking
-      nodeRef={nodeRef as any}
-      position={position} 
-      onDrag={onDrag} 
-      bounds={bounds}
-      {...rest}
-    >
-      <div ref={nodeRef}>
-        {children}
-      </div>
-    </Draggable>
-  );
-};
-
-interface MindMapNode {
-  id: string;
-  title: string;
-  description: string;
-  parentId: string | null;
-  level: number;
-}
-
-interface MindMapData {
-  nodes: MindMapNode[];
-}
-
-interface NodePosition {
-  x: number;
-  y: number;
-}
-
-// Node positions for connections
-const COLUMN_WIDTH = 400;
-const NODE_VERTICAL_SPACING = 200;
-
-// Sample data for testing
-const sampleData: MindMapData = {
-  nodes: [
-    { id: 'node1', title: 'Paper Title', description: 'This is the main topic of the research paper.', parentId: null, level: 0 },
-    { id: 'node2', title: 'Introduction', description: 'Provides background and context for the research.', parentId: 'node1', level: 1 },
-    { id: 'node3', title: 'Methods', description: 'Details the approach used in the research.', parentId: 'node1', level: 1 },
-    { id: 'node4', title: 'Results', description: 'Presents the findings of the research.', parentId: 'node1', level: 1 },
-    { id: 'node5', title: 'Key Finding 1', description: 'The first major discovery from the research.', parentId: 'node4', level: 2 },
-  ]
-};
+import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'react';
+import NodeCard from './components/NodeCard';
+import Uploader from './components/Uploader';
+import Line from './components/Line';
+import { MindMapData, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData } from './components/MindMapTypes';
+import { NodePosition } from './components/NodeCard';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +19,9 @@ export default function PaperMap() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const isTouchDragging = useRef(false);
+  const isCardBeingDragged = useRef(false);
 
   // Calculate initial positions
   useEffect(() => {
@@ -88,7 +33,7 @@ export default function PaperMap() {
         acc[node.level] = acc[node.level] || [];
         acc[node.level].push(node);
         return acc;
-      }, {} as Record<number, MindMapNode[]>);
+      }, {} as Record<number, typeof data.nodes>);
       
       // Calculate positions for each node
       data.nodes.forEach(node => {
@@ -164,17 +109,23 @@ export default function PaperMap() {
 
   // Handle card drag
   const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
+    isCardBeingDragged.current = true;
     setDraggedPositions(prev => ({
       ...prev,
       [nodeId]: { x: data.x, y: data.y }
     }));
   };
 
-  // Handle file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Handle card drag stop
+  const handleCardDragStop = () => {
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      isCardBeingDragged.current = false;
+    }, 50);
+  };
 
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
     setLoading(true);
     setError(null);
 
@@ -238,14 +189,23 @@ export default function PaperMap() {
 
   // Handle canvas drag (for panning)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left button only
-      setIsDragging(true);
-      setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    // Only start dragging if it's a left-click directly on the container
+    // and not on any of its children (like the nodes)
+    if (e.button === 0) {
+      const target = e.target as HTMLElement;
+      const container = containerRef.current;
+      
+      // Check if the click is directly on the container or the canvas
+      // and not on a node or other element
+      if (container && (target === container || target === canvasRef.current)) {
+        setIsDragging(true);
+        setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
+    if (isDragging && !isCardBeingDragged.current) {
       setPan({
         x: e.clientX - startPan.x,
         y: e.clientY - startPan.y
@@ -255,6 +215,40 @@ export default function PaperMap() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: TouchEvent) => {
+    // Check if the touch is directly on the container or canvas
+    // and not on a node
+    const target = e.target as HTMLElement;
+    const container = containerRef.current;
+    
+    if (container && (target === container || target === canvasRef.current)) {
+      isTouchDragging.current = true;
+      
+      // Get the first touch point
+      const touch = e.touches[0];
+      setStartPan({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (isTouchDragging.current && !isCardBeingDragged.current) {
+      // Prevent default to stop scrolling
+      e.preventDefault();
+      
+      // Get the first touch point
+      const touch = e.touches[0];
+      setPan({
+        x: touch.clientX - startPan.x,
+        y: touch.clientY - startPan.y
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isTouchDragging.current = false;
   };
 
   // Handle wheel zoom
@@ -268,21 +262,11 @@ export default function PaperMap() {
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
-        <div className="flex-1">
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileUpload}
-            className="block w-full text-sm text-gray-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded-full file:border-0
-              file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
-          />
-          {loading && <p className="mt-2 text-blue-600">Analyzing paper...</p>}
-          {error && <p className="mt-2 text-red-600">{error}</p>}
-        </div>
+        <Uploader 
+          onFileUpload={handleFileUpload}
+          loading={loading}
+          error={error}
+        />
         
         {/* Zoom controls */}
         <div className="flex space-x-2">
@@ -312,15 +296,19 @@ export default function PaperMap() {
       
       <div 
         ref={containerRef}
-        className="flex-1 bg-gray-50 relative overflow-hidden cursor-grab"
+        className="flex-1 bg-gray-50 relative overflow-hidden"
+        style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
       >
         <div 
+          ref={canvasRef}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
@@ -351,24 +339,11 @@ export default function PaperMap() {
                 const parentPos = getNodePosition(parent.id);
                 const nodePos = getNodePosition(node.id);
                 
-                // Connection points (from right of parent to left of child)
-                const startX = parentPos.x + 300; // 300px is card width
-                const startY = parentPos.y + 40; // Middle of card height
-                const endX = nodePos.x;
-                const endY = nodePos.y + 40;
-                
-                // Curved path
-                const path = `M${startX},${startY} C${(startX + endX) / 2},${startY} ${(startX + endX) / 2},${endY} ${endX},${endY}`;
-                
                 return (
-                  <path
+                  <Line
                     key={`${parent.id}-${node.id}`}
-                    d={path}
-                    style={{
-                      stroke: '#6366f1',
-                      strokeWidth: 3,
-                      fill: 'none',
-                    }}
+                    startPosition={parentPos}
+                    endPosition={nodePos}
                   />
                 );
               })}
@@ -376,50 +351,20 @@ export default function PaperMap() {
           
           {/* Render nodes */}
           {data?.nodes.map(node => {
-            const { x, y } = nodePositions[node.id] || { x: 0, y: 0 };
+            const basePosition = nodePositions[node.id] || { x: 0, y: 0 };
+            const draggedPosition = draggedPositions[node.id] || { x: 0, y: 0 };
             const isExpanded = nodeExpanded[node.id] || false;
             
             return (
-              <DraggableWrapper
+              <NodeCard
                 key={node.id}
-                position={draggedPositions[node.id] || { x: 0, y: 0 }}
-                onDrag={(e: any, data: { x: number, y: number }) => handleDrag(node.id, e, data)}
-                bounds={{ top: -1000, left: -1000, right: 1000, bottom: 1000 }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${x}px`,
-                    top: `${y}px`,
-                    width: '300px',
-                    zIndex: 10,
-                    cursor: 'move',
-                  }}
-                >
-                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-                    <div 
-                      className="flex justify-between items-center cursor-pointer" 
-                      onClick={() => toggleNode(node.id)}
-                    >
-                      <h3 className="font-bold text-lg">{node.title}</h3>
-                      <button className="text-gray-500 hover:text-gray-700">
-                        {isExpanded ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    {isExpanded && (
-                      <p className="text-sm text-gray-600 mt-2 border-t pt-2">{node.description}</p>
-                    )}
-                  </div>
-                </div>
-              </DraggableWrapper>
+                node={node}
+                basePosition={basePosition}
+                draggedPosition={draggedPosition}
+                isExpanded={isExpanded}
+                onDrag={handleDrag}
+                onToggleExpand={toggleNode}
+              />
             );
           })}
         </div>
