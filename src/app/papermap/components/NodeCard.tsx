@@ -14,6 +14,7 @@ interface NodeCardProps {
   onToggleChildren?: (nodeId: string) => void;
   onDragStop?: () => void;
   onUpdateNode?: (nodeId: string, updates: Partial<MindMapNode>) => void;
+  registerToggleButtonRef?: (nodeId: string, ref: HTMLDivElement | null) => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -27,13 +28,28 @@ const NodeCard: React.FC<NodeCardProps> = ({
   onToggleExpand,
   onToggleChildren,
   onDragStop,
-  onUpdateNode
+  onUpdateNode,
+  registerToggleButtonRef
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartTimeRef = useRef<number>(0);
   const touchMoveCountRef = useRef<number>(0);
+  
+  // Register the toggle button ref with the parent component
+  useEffect(() => {
+    if (hasChildren && toggleButtonRef.current && registerToggleButtonRef) {
+      registerToggleButtonRef(node.id, toggleButtonRef.current);
+    }
+    
+    return () => {
+      if (registerToggleButtonRef) {
+        registerToggleButtonRef(node.id, null);
+      }
+    };
+  }, [node.id, hasChildren, registerToggleButtonRef, isExpanded]);
   
   // Editing states
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -284,11 +300,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
           {/* Children toggle indicator on the right side */}
           {hasChildren && onToggleChildren && (
             <div 
-              className="absolute right-0 transform translate-x-1/2 no-drag"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleChildren(node.id);
-              }}
+              ref={toggleButtonRef}
+              className="absolute right-0 no-drag"
               style={{
                 width: '24px',
                 height: '24px',
@@ -301,9 +314,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 color: 'white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                 zIndex: 20,
-                top: '20px', // Fixed position from the top of the card
+                top: '20px',
+                transform: 'translateX(50%)'
               }}
               title={areChildrenHidden ? "Show children" : "Hide children"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleChildren(node.id);
+              }}
             >
               {areChildrenHidden ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

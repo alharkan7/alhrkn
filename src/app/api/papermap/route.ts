@@ -32,7 +32,7 @@ const SYSTEM_PROMPT = `You are a scientific paper explainer. Your task is to cre
    - Root node: Paper's main title/topic
    - Level 1: Major sections (Introduction, Methods, Results, etc.)
    - Level 2: Key concepts/findings within each section
-   - Level 3: Detailed points/sub-concepts
+   - Level 3+: Detailed points/sub-concepts
 
 4. Example Structure:
    {
@@ -40,12 +40,13 @@ const SYSTEM_PROMPT = `You are a scientific paper explainer. Your task is to cre
        {"id": "node1", "title": "Paper Title", "description": "Main topic", "parentId": null, "level": 0},
        {"id": "node2", "title": "Methods", "description": "Method details", "parentId": "node1", "level": 1},
        {"id": "node3", "title": "Results", "description": "Key findings", "parentId": "node1", "level": 1},
-       {"id": "node4", "title": "Method Detail", "description": "Specific method", "parentId": "node2", "level": 2}
+       {"id": "node4", "title": "Method Detail", "description": "Specific method", "parentId": "node2", "level": 2},
+       {"id": "node5", "title": "Sub-detail", "description": "More specific information", "parentId": "node4", "level": 3}
      ]
    }
 
 5. Keep descriptions concise but informative
-6. Maximum 3 levels of depth (0, 1, 2) for better visualization
+6. You can create as many levels as needed to represent the paper's structure
 7. Ensure each parent-child relationship is meaningful and logical`;
 
 const generationConfig = {
@@ -56,7 +57,7 @@ const generationConfig = {
 };
 
 const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     systemInstruction: SYSTEM_PROMPT,
 });
 
@@ -85,8 +86,8 @@ function validateMindmapStructure(data: any) {
             throw new Error(`Invalid parent ID: ${node.parentId} does not exist`);
         }
 
-        if (node.level < 0 || node.level > 2) {
-            throw new Error(`Invalid level: ${node.level} must be between 0 and 2`);
+        if (node.level < 0) {
+            throw new Error(`Invalid level: ${node.level} must be 0 or greater`);
         }
     });
 

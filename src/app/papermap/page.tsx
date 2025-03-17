@@ -24,28 +24,90 @@ export default function PaperMap() {
   const isCardBeingDragged = useRef(false);
   const [touchDistance, setTouchDistance] = useState<number | null>(null);
   const [touchCenter, setTouchCenter] = useState<{ x: number, y: number } | null>(null);
+  const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
+
+  // Register toggle button refs from NodeCard components
+  const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
+    setToggleButtonRefs(prev => {
+      if (ref === null) {
+        const newRefs = { ...prev };
+        delete newRefs[nodeId];
+        return newRefs;
+      } else {
+        return { ...prev, [nodeId]: ref };
+      }
+    });
+  }, []);
 
   // Calculate initial positions
   useEffect(() => {
     if (data) {
       const initialPositions: Record<string, NodePosition> = {};
+      const usedPositions: Record<string, boolean> = {}; // Track used positions to avoid conflicts
       
-      // Group nodes by level
-      const nodesByLevel = data.nodes.reduce((acc, node) => {
-        acc[node.level] = acc[node.level] || [];
-        acc[node.level].push(node);
-        return acc;
-      }, {} as Record<number, typeof data.nodes>);
-      
-      // Calculate positions for each node
-      data.nodes.forEach(node => {
-        const levelNodes = nodesByLevel[node.level];
-        const nodeIndex = levelNodes.indexOf(node);
+      // First, position the root nodes
+      const rootNodes = data.nodes.filter(node => node.parentId === null);
+      rootNodes.forEach((node, index) => {
         initialPositions[node.id] = {
-          x: node.level * COLUMN_WIDTH,
-          y: nodeIndex * NODE_VERTICAL_SPACING + 50
+          x: 0, // Root nodes are at level 0
+          y: index * NODE_VERTICAL_SPACING + 50
         };
+        // Mark this position as used
+        usedPositions[`0_${index}`] = true;
       });
+      
+      // Helper function to get all children of a node
+      const getChildren = (nodeId: string) => {
+        return data.nodes.filter(n => n.parentId === nodeId);
+      };
+      
+      // Helper function to position a node and its children recursively
+      const positionNodeAndChildren = (node: MindMapNode, level: number) => {
+        // Skip if this node already has a position (e.g., root nodes)
+        if (initialPositions[node.id]) return;
+        
+        const parentPos = initialPositions[node.parentId!];
+        const children = getChildren(node.id);
+        
+        // Find the first available vertical position at this level, starting from parent's y
+        let yPos = parentPos.y;
+        let yIndex = Math.floor(yPos / NODE_VERTICAL_SPACING);
+        
+        // Check if position is already taken, if so, move down
+        while (usedPositions[`${level}_${yIndex}`]) {
+          yIndex++;
+          yPos = yIndex * NODE_VERTICAL_SPACING + 50;
+        }
+        
+        // Set position for this node
+        initialPositions[node.id] = {
+          x: level * COLUMN_WIDTH,
+          y: yPos
+        };
+        
+        // Mark this position as used
+        usedPositions[`${level}_${yIndex}`] = true;
+        
+        // Position children recursively
+        children.forEach(child => {
+          positionNodeAndChildren(child, level + 1);
+        });
+      };
+      
+      // Process nodes level by level to ensure parent nodes are positioned before their children
+      const maxLevel = Math.max(...data.nodes.map(n => n.level));
+      
+      for (let level = 1; level <= maxLevel; level++) {
+        // Get all nodes at this level
+        const nodesAtLevel = data.nodes.filter(n => n.level === level);
+        
+        // For each node at this level, position it and its descendants
+        nodesAtLevel.forEach(node => {
+          if (!initialPositions[node.id]) {
+            positionNodeAndChildren(node, level);
+          }
+        });
+      }
       
       setNodePositions(initialPositions);
     }
@@ -468,6 +530,10 @@ export default function PaperMap() {
                     key={`${parent.id}-${node.id}`}
                     startPosition={parentPos}
                     endPosition={nodePos}
+                    isParentExpanded={nodeExpanded[parent.id] || false}
+                    isChildExpanded={nodeExpanded[node.id] || false}
+                    parentToggleButtonRef={toggleButtonRefs[parent.id]}
+                    childToggleButtonRef={toggleButtonRefs[node.id]}
                   />
                 );
               })}
@@ -521,6 +587,7 @@ export default function PaperMap() {
                   onToggleChildren={toggleChildrenVisibility}
                   onDragStop={handleCardDragStop}
                   onUpdateNode={handleNodeUpdate}
+                  registerToggleButtonRef={registerToggleButtonRef}
                 />
               );
             })}
