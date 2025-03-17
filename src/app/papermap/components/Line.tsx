@@ -7,11 +7,14 @@ interface LineProps {
 }
 
 const Line: React.FC<LineProps> = ({ startPosition, endPosition }) => {
+  // Fixed height for the toggle button position (matches the card header height)
+  const TOGGLE_BUTTON_OFFSET = 32; // This is the vertical position of the toggle button from the top of the card
+  
   // Connection points (from right of parent to left of child)
   const startX = startPosition.x + 300; // 300px is card width
-  const startY = startPosition.y + 40; // Middle of card height
+  const startY = startPosition.y + TOGGLE_BUTTON_OFFSET; // Fixed position aligned with the toggle button
   const endX = endPosition.x;
-  const endY = endPosition.y + 40;
+  const endY = endPosition.y + TOGGLE_BUTTON_OFFSET; // Same fixed position on child node
   
   // Curved path with no constraints
   const path = `M${startX},${startY} C${(startX + endX) / 2},${startY} ${(startX + endX) / 2},${endY} ${endX},${endY}`;

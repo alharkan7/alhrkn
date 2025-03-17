@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { MindMapNode, NodePosition } from './MindMapTypes';
 
@@ -13,6 +13,7 @@ interface NodeCardProps {
   onToggleExpand: (nodeId: string) => void;
   onToggleChildren?: (nodeId: string) => void;
   onDragStop?: () => void;
+  onUpdateNode?: (nodeId: string, updates: Partial<MindMapNode>) => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -25,13 +26,22 @@ const NodeCard: React.FC<NodeCardProps> = ({
   onDrag,
   onToggleExpand,
   onToggleChildren,
-  onDragStop
+  onDragStop,
+  onUpdateNode
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartTimeRef = useRef<number>(0);
   const touchMoveCountRef = useRef<number>(0);
+  
+  // Editing states
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [titleValue, setTitleValue] = useState(node.title);
+  const [descriptionValue, setDescriptionValue] = useState(node.description);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Handle mouse down to detect potential drag start
   const handleMouseDown = () => {
@@ -93,6 +103,87 @@ const NodeCard: React.FC<NodeCardProps> = ({
     touchMoveCountRef.current = 0;
   };
 
+  // Handle double click on title to edit
+  const handleTitleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingTitle(true);
+    // Focus the input after rendering
+    setTimeout(() => {
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+        titleInputRef.current.select();
+      }
+    }, 10);
+  };
+
+  // Handle double click on description to edit
+  const handleDescriptionDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingDescription(true);
+    // Focus the textarea after rendering
+    setTimeout(() => {
+      if (descriptionInputRef.current) {
+        descriptionInputRef.current.focus();
+        descriptionInputRef.current.select();
+      }
+    }, 10);
+  };
+
+  // Save title changes
+  const handleTitleSave = () => {
+    if (onUpdateNode && titleValue.trim() !== '') {
+      onUpdateNode(node.id, { title: titleValue });
+    } else {
+      // Reset to original if empty
+      setTitleValue(node.title);
+    }
+    setIsEditingTitle(false);
+  };
+
+  // Save description changes
+  const handleDescriptionSave = () => {
+    if (onUpdateNode) {
+      onUpdateNode(node.id, { description: descriptionValue });
+    }
+    setIsEditingDescription(false);
+  };
+
+  // Handle key press in inputs
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setTitleValue(node.title);
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      handleDescriptionSave();
+    } else if (e.key === 'Escape') {
+      setDescriptionValue(node.description);
+      setIsEditingDescription(false);
+    }
+  };
+
+  // Handle clicks outside the editing fields
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isEditingTitle && titleInputRef.current && !titleInputRef.current.contains(e.target as Node)) {
+        handleTitleSave();
+      }
+      if (isEditingDescription && descriptionInputRef.current && !descriptionInputRef.current.contains(e.target as Node)) {
+        handleDescriptionSave();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditingTitle, isEditingDescription, titleValue, descriptionValue]);
+
   return (
     <Draggable
       nodeRef={nodeRef as any}
@@ -127,7 +218,26 @@ const NodeCard: React.FC<NodeCardProps> = ({
           className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative"
         >
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-lg">{node.title}</h3>
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                className="font-bold text-lg border rounded px-1 py-0.5 no-drag flex-1"
+                style={{ outline: 'none' }}
+                value={titleValue}
+                onChange={(e) => setTitleValue(e.target.value)}
+                onKeyDown={handleTitleKeyDown}
+                onBlur={handleTitleSave}
+              />
+            ) : (
+              <h3 
+                className="font-bold text-lg cursor-text flex-1" 
+                onDoubleClick={handleTitleDoubleClick}
+                title="Double-click to edit"
+              >
+                {node.title}
+              </h3>
+            )}
             <button 
               className="text-gray-500 hover:text-gray-700 no-drag" 
               onClick={(e) => {
@@ -148,13 +258,33 @@ const NodeCard: React.FC<NodeCardProps> = ({
           </div>
           
           {isExpanded && (
-            <p className="text-sm text-gray-600 mt-2 border-t pt-2">{node.description}</p>
+            isEditingDescription ? (
+              <textarea
+                ref={descriptionInputRef}
+                className="text-sm text-gray-600 mt-2 border-t pt-2 w-full border rounded px-2 py-1 no-drag"
+                style={{ outline: 'none' }}
+                value={descriptionValue}
+                onChange={(e) => setDescriptionValue(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+                onBlur={handleDescriptionSave}
+                rows={3}
+                placeholder="Enter description..."
+              />
+            ) : (
+              <p 
+                className="text-sm text-gray-600 mt-2 border-t pt-2 cursor-text" 
+                onDoubleClick={handleDescriptionDoubleClick}
+                title="Double-click to edit"
+              >
+                {node.description || "Double-click to add description"}
+              </p>
+            )
           )}
 
           {/* Children toggle indicator on the right side */}
           {hasChildren && onToggleChildren && (
             <div 
-              className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 no-drag"
+              className="absolute right-0 transform translate-x-1/2 no-drag"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleChildren(node.id);
@@ -170,7 +300,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 cursor: 'pointer',
                 color: 'white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                zIndex: 20
+                zIndex: 20,
+                top: '20px', // Fixed position from the top of the card
               }}
               title={areChildrenHidden ? "Show children" : "Hide children"}
             >

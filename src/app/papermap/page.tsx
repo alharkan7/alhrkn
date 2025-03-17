@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'rea
 import NodeCard from './components/NodeCard';
 import Uploader from './components/Uploader';
 import Line from './components/Line';
-import { MindMapData, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
+import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +132,22 @@ export default function PaperMap() {
     setTimeout(() => {
       isCardBeingDragged.current = false;
     }, 50);
+  };
+
+  // Handle node updates (title, description)
+  const handleNodeUpdate = (nodeId: string, updates: Partial<MindMapNode>) => {
+    if (!data) return;
+    
+    // Create a new nodes array with the updated node
+    const updatedNodes = data.nodes.map(node => 
+      node.id === nodeId ? { ...node, ...updates } : node
+    );
+    
+    // Update the data state with the new nodes
+    setData({
+      ...data,
+      nodes: updatedNodes
+    });
   };
 
   // Handle file upload
@@ -504,6 +520,7 @@ export default function PaperMap() {
                   onToggleExpand={toggleNode}
                   onToggleChildren={toggleChildrenVisibility}
                   onDragStop={handleCardDragStop}
+                  onUpdateNode={handleNodeUpdate}
                 />
               );
             })}
