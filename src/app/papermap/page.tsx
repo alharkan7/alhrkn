@@ -27,6 +27,12 @@ export default function PaperMap() {
   const [touchCenter, setTouchCenter] = useState<{ x: number, y: number } | null>(null);
   const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
 
+  // New state for animation
+  const [visibilityState, setVisibilityState] = useState<Record<string, boolean>>({});
+  const [animatingNodes, setAnimatingNodes] = useState<Record<string, boolean>>({});
+  // New state to track animation direction (true = showing, false = hiding)
+  const [showingAnimation, setShowingAnimation] = useState<Record<string, boolean>>({});
+
   // Register toggle button refs from NodeCard components
   const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
     setToggleButtonRefs(prev => {
@@ -167,12 +173,97 @@ export default function PaperMap() {
     }));
   };
 
-  // Toggle children visibility
+  // Toggle children visibility with animation
   const toggleChildrenVisibility = (id: string) => {
-    setHiddenChildren(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+    if (!data) return;
+    
+    // First, get all descendants that will be affected
+    const findAllDescendants = (nodeId: string): string[] => {
+      const children = data.nodes.filter(n => n.parentId === nodeId).map(n => n.id);
+      const descendants = [...children];
+      
+      children.forEach(childId => {
+        descendants.push(...findAllDescendants(childId));
+      });
+      
+      return descendants;
+    };
+    
+    const descendants = findAllDescendants(id);
+    
+    // If we're about to hide nodes, start animation to fade them out
+    if (!hiddenChildren[id]) {
+      // Mark these nodes as animating and set direction to hiding
+      const newAnimatingNodes = { ...animatingNodes };
+      const newShowingAnimation = { ...showingAnimation };
+      
+      descendants.forEach(nodeId => {
+        newAnimatingNodes[nodeId] = true;
+        newShowingAnimation[nodeId] = false; // Hiding animation
+      });
+      
+      setAnimatingNodes(newAnimatingNodes);
+      setShowingAnimation(newShowingAnimation);
+      
+      // Set visibility state to false to trigger fade out animation
+      const newVisibilityState = { ...visibilityState };
+      descendants.forEach(nodeId => {
+        newVisibilityState[nodeId] = false;
+      });
+      setVisibilityState(newVisibilityState);
+      
+      // After animation completes, update actual hidden state
+      setTimeout(() => {
+        setHiddenChildren(prev => ({
+          ...prev,
+          [id]: true
+        }));
+        
+        // Clear animating state
+        const updatedAnimatingNodes = { ...animatingNodes };
+        descendants.forEach(nodeId => {
+          delete updatedAnimatingNodes[nodeId];
+        });
+        setAnimatingNodes(updatedAnimatingNodes);
+      }, 250); // Match the animation duration
+    } else {
+      // If we're showing nodes, update hidden state first
+      setHiddenChildren(prev => ({
+        ...prev,
+        [id]: false
+      }));
+      
+      // Then mark nodes as animating and set direction to showing
+      const newAnimatingNodes = { ...animatingNodes };
+      const newShowingAnimation = { ...showingAnimation };
+      
+      descendants.forEach(nodeId => {
+        newAnimatingNodes[nodeId] = true;
+        newShowingAnimation[nodeId] = true; // Showing animation
+      });
+      
+      setAnimatingNodes(newAnimatingNodes);
+      setShowingAnimation(newShowingAnimation);
+      
+      // Set a timeout to allow the DOM to update with the newly visible nodes
+      setTimeout(() => {
+        // Then trigger the animation in
+        const newVisibilityState = { ...visibilityState };
+        descendants.forEach(nodeId => {
+          newVisibilityState[nodeId] = true;
+        });
+        setVisibilityState(newVisibilityState);
+        
+        // After animation completes, clear animating state
+        setTimeout(() => {
+          const updatedAnimatingNodes = { ...animatingNodes };
+          descendants.forEach(nodeId => {
+            delete updatedAnimatingNodes[nodeId];
+          });
+          setAnimatingNodes(updatedAnimatingNodes);
+        }, 250); // Match the animation duration
+      }, 50); // Small delay to ensure DOM updates
+    }
   };
 
   // Get final node position (base + dragged delta)
@@ -418,6 +509,62 @@ export default function PaperMap() {
     setZoom(newZoom);
   };
 
+  // Create connections
+  const renderConnections = () => {
+    if (!data) return null;
+    
+    return data.nodes
+      .filter(node => {
+        // Only include nodes with a parent
+        if (!node.parentId) return false;
+        
+        // Check if this node is a descendant of any hidden node
+        let currentNode = node;
+        let isDescendantOfHiddenNode = false;
+        
+        // Traverse up the tree to check all ancestors
+        while (currentNode.parentId) {
+          const parent = data.nodes.find(n => n.id === currentNode.parentId);
+          if (!parent) break;
+          
+          // If any ancestor has hidden children, don't show this connection
+          if (hiddenChildren[parent.id]) {
+            isDescendantOfHiddenNode = true;
+            break;
+          }
+          
+          // Move up to the parent
+          currentNode = parent;
+        }
+        
+        return !isDescendantOfHiddenNode;
+      })
+      .map(node => {
+        const parent = data.nodes.find(n => n.id === node.parentId);
+        if (!parent) return null;
+        
+        const parentPos = getNodePosition(parent.id);
+        const nodePos = getNodePosition(node.id);
+        
+        // Determine if this line should be animating
+        const isAnimating = animatingNodes[node.id];
+        const isVisible = visibilityState[node.id] !== false;
+        
+        return (
+          <Line
+            key={`${parent.id}-${node.id}`}
+            startPosition={parentPos}
+            endPosition={nodePos}
+            isParentExpanded={nodeExpanded[parent.id] || false}
+            isChildExpanded={nodeExpanded[node.id] || false}
+            parentToggleButtonRef={toggleButtonRefs[parent.id]}
+            childToggleButtonRef={toggleButtonRefs[node.id]}
+            isVisible={!isAnimating || isVisible}
+          />
+        );
+      });
+  };
+
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
@@ -504,52 +651,7 @@ export default function PaperMap() {
               overflow: 'visible', // Allow lines to extend beyond SVG boundaries
             }}
           >
-            {/* Create connections */}
-            {data?.nodes
-              .filter(node => {
-                // Only include nodes with a parent
-                if (!node.parentId) return false;
-                
-                // Check if this node is a descendant of any hidden node
-                let currentNode = node;
-                let isDescendantOfHiddenNode = false;
-                
-                // Traverse up the tree to check all ancestors
-                while (currentNode.parentId) {
-                  const parent = data.nodes.find(n => n.id === currentNode.parentId);
-                  if (!parent) break;
-                  
-                  // If any ancestor has hidden children, don't show this connection
-                  if (hiddenChildren[parent.id]) {
-                    isDescendantOfHiddenNode = true;
-                    break;
-                  }
-                  
-                  // Move up to the parent
-                  currentNode = parent;
-                }
-                
-                return !isDescendantOfHiddenNode;
-              })
-              .map(node => {
-                const parent = data.nodes.find(n => n.id === node.parentId);
-                if (!parent) return null;
-                
-                const parentPos = getNodePosition(parent.id);
-                const nodePos = getNodePosition(node.id);
-                
-                return (
-                  <Line
-                    key={`${parent.id}-${node.id}`}
-                    startPosition={parentPos}
-                    endPosition={nodePos}
-                    isParentExpanded={nodeExpanded[parent.id] || false}
-                    isChildExpanded={nodeExpanded[node.id] || false}
-                    parentToggleButtonRef={toggleButtonRefs[parent.id]}
-                    childToggleButtonRef={toggleButtonRefs[node.id]}
-                  />
-                );
-              })}
+            {renderConnections()}
           </svg>
           
           {/* Render nodes */}
@@ -586,6 +688,19 @@ export default function PaperMap() {
               const areChildrenHidden = hiddenChildren[node.id] || false;
               const hasChildren = data.nodes.some(n => n.parentId === node.id);
               
+              // Determine if this node should be animating
+              const isAnimating = animatingNodes[node.id];
+              const isVisible = visibilityState[node.id] !== false;
+              
+              // Custom node styles to override the default ones in NodeCard
+              const customStyles = isAnimating ? {
+                transform: isVisible 
+                  ? 'translateX(0) scale(1)' 
+                  : showingAnimation[node.id] 
+                    ? 'translateX(-30px) scale(0.98)' // Coming in from left (will animate to translateX(0))
+                    : 'translateX(30px) scale(0.98)'  // Going out to right
+              } : undefined;
+              
               return (
                 <NodeCard
                   key={node.id}
@@ -601,6 +716,8 @@ export default function PaperMap() {
                   onDragStop={handleCardDragStop}
                   onUpdateNode={handleNodeUpdate}
                   registerToggleButtonRef={registerToggleButtonRef}
+                  isVisible={!isAnimating || isVisible}
+                  style={customStyles}
                 />
               );
             })}

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, CSSProperties } from 'react';
 import Draggable from 'react-draggable';
 import { MindMapNode, NodePosition } from './MindMapTypes';
 import { ChevronDownIcon, ChevronUpIcon, ChevronRightIcon, ChevronLeftIcon } from './Icons';
@@ -16,6 +16,8 @@ interface NodeCardProps {
   onDragStop?: () => void;
   onUpdateNode?: (nodeId: string, updates: Partial<MindMapNode>) => void;
   registerToggleButtonRef?: (nodeId: string, ref: HTMLDivElement | null) => void;
+  isVisible?: boolean; // New prop to control animation
+  style?: React.CSSProperties; // Allow custom style overrides
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -30,7 +32,9 @@ const NodeCard: React.FC<NodeCardProps> = ({
   onToggleChildren,
   onDragStop,
   onUpdateNode,
-  registerToggleButtonRef
+  registerToggleButtonRef,
+  isVisible = true, // Default to visible
+  style = {} // Default to empty style object
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLDivElement>(null);
@@ -201,6 +205,24 @@ const NodeCard: React.FC<NodeCardProps> = ({
     };
   }, [isEditingTitle, isEditingDescription, titleValue, descriptionValue]);
 
+  // Basic styles without the transform animation (which comes from the parent)
+  const baseStyles: CSSProperties = {
+    position: 'absolute',
+    left: `${basePosition.x}px`,
+    top: `${basePosition.y}px`,
+    width: '300px',
+    zIndex: 10,
+    touchAction: 'none',
+    cursor: isDragging ? 'grabbing' : 'grab',
+    opacity: isVisible ? 1 : 0
+  };
+
+  // Combine base styles with custom styles from parent
+  const combinedStyles: CSSProperties = {
+    ...baseStyles,
+    ...style
+  };
+
   return (
     <Draggable
       nodeRef={nodeRef as any}
@@ -215,16 +237,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
     >
       <div
         ref={nodeRef}
-        className="node-card"
-        style={{
-          position: 'absolute',
-          left: `${basePosition.x}px`,
-          top: `${basePosition.y}px`,
-          width: '300px',
-          zIndex: 10,
-          touchAction: 'none', // Important for touch devices
-          cursor: isDragging ? 'grabbing' : 'grab',
-        }}
+        className="node-card transition-all duration-250 ease-out"
+        style={combinedStyles}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onTouchStart={handleTouchStart}
@@ -298,7 +312,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
           {hasChildren && onToggleChildren && (
             <div 
               ref={toggleButtonRef}
-              className="absolute right-0 no-drag"
+              className="absolute right-0 no-drag transition-all duration-250 ease-out"
               style={{
                 width: '24px',
                 height: '24px',

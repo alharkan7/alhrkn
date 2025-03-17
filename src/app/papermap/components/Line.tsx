@@ -8,6 +8,7 @@ interface LineProps {
   isChildExpanded: boolean;
   parentToggleButtonRef?: HTMLDivElement;
   childToggleButtonRef?: HTMLDivElement;
+  isVisible?: boolean; // Add visibility prop for animation
 }
 
 const Line: React.FC<LineProps> = ({ 
@@ -16,7 +17,8 @@ const Line: React.FC<LineProps> = ({
   isParentExpanded,
   isChildExpanded,
   parentToggleButtonRef,
-  childToggleButtonRef
+  childToggleButtonRef,
+  isVisible = true // Default to visible
 }) => {
   // Card dimensions
   const CARD_WIDTH = 300;
@@ -48,6 +50,15 @@ const Line: React.FC<LineProps> = ({
   // Generate a unique ID for this line's marker
   const markerId = `marker-${startX}-${startY}-${endX}-${endY}`;
   
+  // Animation shift values based on animation direction
+  // When disappearing, move to the right; when appearing, come from the left
+  const animationOffsetX = 30; // Horizontal shift amount
+  
+  // Create a path for the animated entry/exit
+  const animatedPath = isVisible
+    ? path // Original path when visible
+    : `M${startX + animationOffsetX/2},${startY} C${startX + controlPointDistance + animationOffsetX},${startY} ${endX - controlPointDistance + animationOffsetX},${endY} ${endX + animationOffsetX},${endY}`; // Shifted path for animation
+  
   return (
     <>
       <defs>
@@ -60,16 +71,25 @@ const Line: React.FC<LineProps> = ({
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <circle cx="5" cy="5" r="4" fill="#6366f1" />
+          <circle 
+            cx="5" 
+            cy="5" 
+            r="4" 
+            fill="#6366f1" 
+            className="transition-opacity duration-250 ease-out" 
+            style={{ opacity: isVisible ? 1 : 0 }} 
+          />
         </marker>
       </defs>
       <path
-        d={path}
+        d={animatedPath}
+        className="transition-all duration-250 ease-out"
         style={{
           stroke: '#6366f1',
           strokeWidth: 2,
           fill: 'none',
           pointerEvents: 'none',
+          opacity: isVisible ? 1 : 0,
         }}
         markerEnd={`url(#${markerId})`}
       />
