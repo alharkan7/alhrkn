@@ -7,8 +7,11 @@ interface NodeCardProps {
   basePosition: NodePosition;
   draggedPosition: NodePosition;
   isExpanded: boolean;
+  hasChildren: boolean;
+  areChildrenHidden: boolean;
   onDrag: (nodeId: string, e: any, data: { x: number, y: number }) => void;
   onToggleExpand: (nodeId: string) => void;
+  onToggleChildren?: (nodeId: string) => void;
   onDragStop?: () => void;
 }
 
@@ -17,8 +20,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
   basePosition,
   draggedPosition,
   isExpanded,
+  hasChildren,
+  areChildrenHidden,
   onDrag,
   onToggleExpand,
+  onToggleChildren,
   onDragStop
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -143,6 +149,41 @@ const NodeCard: React.FC<NodeCardProps> = ({
           
           {isExpanded && (
             <p className="text-sm text-gray-600 mt-2 border-t pt-2">{node.description}</p>
+          )}
+
+          {/* Children toggle indicator on the right side */}
+          {hasChildren && onToggleChildren && (
+            <div 
+              className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 no-drag"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleChildren(node.id);
+              }}
+              style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#6366f1',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                zIndex: 20
+              }}
+              title={areChildrenHidden ? "Show children" : "Hide children"}
+            >
+              {areChildrenHidden ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
           )}
         </div>
       </div>

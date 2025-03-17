@@ -14,6 +14,7 @@ export default function PaperMap() {
   const [nodeExpanded, setNodeExpanded] = useState<Record<string, boolean>>({});
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
+  const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -92,6 +93,14 @@ export default function PaperMap() {
   // Toggle node expansion
   const toggleNode = (id: string) => {
     setNodeExpanded(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Toggle children visibility
+  const toggleChildrenVisibility = (id: string) => {
+    setHiddenChildren(prev => ({
       ...prev,
       [id]: !prev[id]
     }));
@@ -406,7 +415,31 @@ export default function PaperMap() {
           >
             {/* Create connections */}
             {data?.nodes
-              .filter(node => node.parentId)
+              .filter(node => {
+                // Only include nodes with a parent
+                if (!node.parentId) return false;
+                
+                // Check if this node is a descendant of any hidden node
+                let currentNode = node;
+                let isDescendantOfHiddenNode = false;
+                
+                // Traverse up the tree to check all ancestors
+                while (currentNode.parentId) {
+                  const parent = data.nodes.find(n => n.id === currentNode.parentId);
+                  if (!parent) break;
+                  
+                  // If any ancestor has hidden children, don't show this connection
+                  if (hiddenChildren[parent.id]) {
+                    isDescendantOfHiddenNode = true;
+                    break;
+                  }
+                  
+                  // Move up to the parent
+                  currentNode = parent;
+                }
+                
+                return !isDescendantOfHiddenNode;
+              })
               .map(node => {
                 const parent = data.nodes.find(n => n.id === node.parentId);
                 if (!parent) return null;
@@ -425,24 +458,55 @@ export default function PaperMap() {
           </svg>
           
           {/* Render nodes */}
-          {data?.nodes.map(node => {
-            const basePosition = nodePositions[node.id] || { x: 0, y: 0 };
-            const draggedPosition = draggedPositions[node.id] || { x: 0, y: 0 };
-            const isExpanded = nodeExpanded[node.id] || false;
-            
-            return (
-              <NodeCard
-                key={node.id}
-                node={node}
-                basePosition={basePosition}
-                draggedPosition={draggedPosition}
-                isExpanded={isExpanded}
-                onDrag={handleDrag}
-                onToggleExpand={toggleNode}
-                onDragStop={handleCardDragStop}
-              />
-            );
-          })}
+          {data?.nodes
+            .filter(node => {
+              // Always show root nodes
+              if (!node.parentId) return true;
+              
+              // Check if this node is a descendant of any hidden node
+              let currentNode = node;
+              let isDescendantOfHiddenNode = false;
+              
+              // Traverse up the tree to check all ancestors
+              while (currentNode.parentId) {
+                const parent = data.nodes.find(n => n.id === currentNode.parentId);
+                if (!parent) break;
+                
+                // If any ancestor has hidden children, don't show this node
+                if (hiddenChildren[parent.id]) {
+                  isDescendantOfHiddenNode = true;
+                  break;
+                }
+                
+                // Move up to the parent
+                currentNode = parent;
+              }
+              
+              return !isDescendantOfHiddenNode;
+            })
+            .map(node => {
+              const basePosition = nodePositions[node.id] || { x: 0, y: 0 };
+              const draggedPosition = draggedPositions[node.id] || { x: 0, y: 0 };
+              const isExpanded = nodeExpanded[node.id] || false;
+              const areChildrenHidden = hiddenChildren[node.id] || false;
+              const hasChildren = data.nodes.some(n => n.parentId === node.id);
+              
+              return (
+                <NodeCard
+                  key={node.id}
+                  node={node}
+                  basePosition={basePosition}
+                  draggedPosition={draggedPosition}
+                  isExpanded={isExpanded}
+                  hasChildren={hasChildren}
+                  areChildrenHidden={areChildrenHidden}
+                  onDrag={handleDrag}
+                  onToggleExpand={toggleNode}
+                  onToggleChildren={toggleChildrenVisibility}
+                  onDragStop={handleCardDragStop}
+                />
+              );
+            })}
         </div>
       </div>
     </div>
