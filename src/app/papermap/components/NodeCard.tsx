@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { MindMapNode, NodePosition } from './MindMapTypes';
 
@@ -22,15 +22,82 @@ const NodeCard: React.FC<NodeCardProps> = ({
   onDragStop
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartTimeRef = useRef<number>(0);
+  const touchMoveCountRef = useRef<number>(0);
+
+  // Handle mouse down to detect potential drag start
+  const handleMouseDown = () => {
+    // Set a timeout to distinguish between click and drag
+    dragTimeoutRef.current = setTimeout(() => {
+      setIsDragging(true);
+    }, 150); // Short delay to detect if it's a drag or click
+  };
+
+  // Handle mouse up to detect click vs drag
+  const handleMouseUp = () => {
+    // Clear the timeout
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current);
+      dragTimeoutRef.current = null;
+    }
+
+    // If we weren't dragging, it was a click - toggle expand
+    if (!isDragging) {
+      onToggleExpand(node.id);
+    }
+    
+    // Reset dragging state
+    setIsDragging(false);
+  };
+
+  // Handle drag start
+  const handleDragStart = () => {
+    setIsDragging(true);
+    // Clear the timeout if it exists
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current);
+      dragTimeoutRef.current = null;
+    }
+  };
+
+  // Touch event handlers
+  const handleTouchStart = () => {
+    touchStartTimeRef.current = Date.now();
+    touchMoveCountRef.current = 0;
+  };
+
+  const handleTouchMove = () => {
+    touchMoveCountRef.current += 1;
+    if (touchMoveCountRef.current > 3) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const touchDuration = Date.now() - touchStartTimeRef.current;
+    
+    // If it was a short touch with minimal movement, treat as a click
+    if (touchDuration < 300 && touchMoveCountRef.current < 3 && !isDragging) {
+      onToggleExpand(node.id);
+    }
+    
+    setIsDragging(false);
+    touchMoveCountRef.current = 0;
+  };
 
   return (
     <Draggable
       nodeRef={nodeRef as any}
       position={draggedPosition}
       onDrag={(e, data) => onDrag(node.id, e, data)}
-      onStop={onDragStop}
-      bounds="parent"
-      handle=".drag-handle" // Only the element with this class will trigger dragging
+      onStop={() => {
+        if (onDragStop) onDragStop();
+        setIsDragging(false);
+      }}
+      onStart={handleDragStart}
+      cancel=".no-drag" // Elements with this class won't trigger dragging
     >
       <div
         ref={nodeRef}
@@ -42,26 +109,26 @@ const NodeCard: React.FC<NodeCardProps> = ({
           width: '300px',
           zIndex: 10,
           touchAction: 'none', // Important for touch devices
+          cursor: isDragging ? 'grabbing' : 'grab',
         }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div 
           className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative"
-          onClick={() => onToggleExpand(node.id)} // Entire card toggles expansion
         >
-          {/* Drag handle indicator */}
-          <div 
-            className="drag-handle absolute top-0 right-0 w-6 h-6 flex items-center justify-center bg-gray-100 rounded-bl-lg rounded-tr-lg cursor-move border-l border-b border-gray-200 hover:bg-gray-200"
-            onClick={(e) => e.stopPropagation()} // Prevent toggle when clicking the handle
-            title="Drag to move"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-            </svg>
-          </div>
-
-          <div className="flex items-center gap-2"> {/* Changed to use gap instead of justify-between */}
+          <div className="flex items-center gap-2">
             <h3 className="font-bold text-lg">{node.title}</h3>
-            <button className="text-gray-500 hover:text-gray-700"> {/* Added ml-2 for a bit of spacing */}
+            <button 
+              className="text-gray-500 hover:text-gray-700 no-drag" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand(node.id);
+              }}
+            >
               {isExpanded ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />

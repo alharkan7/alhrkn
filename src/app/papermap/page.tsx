@@ -399,8 +399,9 @@ export default function PaperMap() {
               left: 0,
               width: '100%',
               height: '100%',
-              zIndex: 1,
+              zIndex: 5,
               pointerEvents: 'none', // Allows clicking through to the containers
+              overflow: 'visible', // Allow lines to extend beyond SVG boundaries
             }}
           >
             {/* Create connections */}
@@ -438,6 +439,7 @@ export default function PaperMap() {
                 isExpanded={isExpanded}
                 onDrag={handleDrag}
                 onToggleExpand={toggleNode}
+                onDragStop={handleCardDragStop}
               />
             );
           })}
