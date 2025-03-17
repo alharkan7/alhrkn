@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'rea
 import NodeCard from './components/NodeCard';
 import Uploader from './components/Uploader';
 import Line from './components/Line';
+import { FitToViewIcon } from './components/Icons';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 
 export default function PaperMap() {
@@ -456,7 +457,7 @@ export default function PaperMap() {
              style={{ display: pan.x > 0 ? 'block' : 'none' }} />
         
         {/* Zoom controls - moved to bottom left corner and arranged vertically */}
-        <div className="absolute bottom-2 left-2 flex flex-col space-y-2 bg-white bg-opacity-80 p-2 rounded-lg shadow-md z-50">
+        <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] left-2 flex flex-col space-y-2 bg-white bg-opacity-90 p-2 rounded-lg shadow-md z-50">
           <button 
             onClick={handleZoomIn}
             className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
@@ -469,9 +470,7 @@ export default function PaperMap() {
             className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
             title="Fit to View"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
+            <FitToViewIcon />
           </button>
           <button 
             onClick={handleZoomOut}
