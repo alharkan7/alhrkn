@@ -118,7 +118,7 @@ export default function PaperMap() {
     setData(sampleData);
   }, []);
 
-  // Center view when data or container changes
+  // Center view when data or container changes and ensure entire mindmap is visible
   useEffect(() => {
     if (data && containerRef.current) {
       const container = containerRef.current;
@@ -138,16 +138,22 @@ export default function PaperMap() {
           maxY = Math.max(maxY, pos.y + 100); // Approx card height
         });
         
-        // Calculate center position
+        // Calculate mindmap dimensions
         const mindmapWidth = maxX - minX;
         const mindmapHeight = maxY - minY;
         
-        // Calculate the pan needed to center
-        const newPanX = (containerWidth - mindmapWidth) / 2 - minX;
-        const newPanY = (containerHeight - mindmapHeight) / 2 - minY;
+        // Calculate the scale needed to fit the entire mindmap
+        const scaleX = containerWidth / mindmapWidth;
+        const scaleY = containerHeight / mindmapHeight;
+        const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
         
-        // Apply centering
+        // Calculate the pan needed to center
+        const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
+        const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
+        
+        // Apply centering and scaling
         setPan({ x: newPanX, y: newPanY });
+        setZoom(fitScale);
       }, 100);
     }
   }, [data, nodePositions, containerRef]);
@@ -245,12 +251,10 @@ export default function PaperMap() {
 
   // Handle zoom controls
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.1));
   const handleResetZoom = () => {
-    setZoom(1);
-    // Reset any custom pan or dragged positions to re-center
+    // Reset zoom to fit the entire mindmap
     if (containerRef.current && data) {
-      // Recenter (calling useEffect's logic again)
       const container = containerRef.current;
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
@@ -268,10 +272,18 @@ export default function PaperMap() {
       const mindmapWidth = maxX - minX;
       const mindmapHeight = maxY - minY;
       
-      const newPanX = (containerWidth - mindmapWidth) / 2 - minX;
-      const newPanY = (containerHeight - mindmapHeight) / 2 - minY;
+      // Calculate the scale needed to fit the entire mindmap
+      const scaleX = containerWidth / mindmapWidth;
+      const scaleY = containerHeight / mindmapHeight;
+      const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
       
+      // Calculate the pan needed to center
+      const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
+      const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
+      
+      // Apply centering and scaling
       setPan({ x: newPanX, y: newPanY });
+      setZoom(fitScale);
     }
   };
 
@@ -413,31 +425,6 @@ export default function PaperMap() {
           loading={loading}
           error={error}
         />
-        
-        {/* Zoom controls */}
-        <div className="flex space-x-2">
-          <button 
-            onClick={handleZoomOut}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold"
-            title="Zoom Out"
-          >
-            -
-          </button>
-          <button 
-            onClick={handleResetZoom}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-            title="Reset View"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button 
-            onClick={handleZoomIn}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold"
-            title="Zoom In"
-          >
-            +
-          </button>
-        </div>
       </div>
       
       <div 
@@ -467,6 +454,33 @@ export default function PaperMap() {
              style={{ display: pan.x < 0 ? 'block' : 'none' }} />
         <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-gray-300 to-transparent opacity-50 pointer-events-none" 
              style={{ display: pan.x > 0 ? 'block' : 'none' }} />
+        
+        {/* Zoom controls - moved to bottom left corner and arranged vertically */}
+        <div className="absolute bottom-2 left-2 flex flex-col space-y-2 bg-white bg-opacity-80 p-2 rounded-lg shadow-md z-50">
+          <button 
+            onClick={handleZoomIn}
+            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
+            title="Zoom In"
+          >
+            <span className="text-lg font-bold">+</span>
+          </button>
+          <button 
+            onClick={handleResetZoom}
+            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
+            title="Fit to View"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <button 
+            onClick={handleZoomOut}
+            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
+            title="Zoom Out"
+          >
+            <span className="text-lg font-bold">-</span>
+          </button>
+        </div>
         
         <div 
           ref={canvasRef}
