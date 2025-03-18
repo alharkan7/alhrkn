@@ -9,7 +9,7 @@ const InfoTip: React.FC<InfoTipProps> = ({ onClose, visible }) => {
   if (!visible) return null;
   
   return (
-    <div className="absolute top-16 right-4 bg-white bg-opacity-90 px-3 py-2 rounded-lg shadow-md text-sm text-gray-700 max-w-xs z-50 animate-fadeIn">
+    <div className="absolute top-16 right-4 bg-white bg-opacity-90 p-4 rounded-lg shadow-md text-sm text-gray-700 max-w-xs z-50 animate-fadeIn">
       <h3 className="font-bold text-base mb-1">Card Interactions:</h3>
       <ul className="list-disc pl-5 space-y-1">
         <li>Click a card to select it</li>
@@ -28,10 +28,10 @@ const InfoTip: React.FC<InfoTipProps> = ({ onClose, visible }) => {
       
       <button 
         onClick={onClose}
-        className="absolute top-1 right-1 text-gray-400 hover:text-gray-600"
+        className="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
         aria-label="Close tip"
       >
-        ×
+        X
       </button>
     </div>
   );
