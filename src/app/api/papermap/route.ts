@@ -7,17 +7,17 @@ if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
-const SYSTEM_PROMPT = `You are a scientific paper explainer. Your task is to create a hierarchical mindmap structure from the paper content. Follow these guidelines strictly:
+const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this research paper. Present your direct analysis of the content without referring to "the authors" or "the paper." Explain concepts and findings as if you're teaching a colleague. Follow these guidelines strictly:
 
 1. Create a JSON structure representing a mindmap with the following format:
    {
      "nodes": [
        {
-         "id": string (unique identifier, e.g., "node1", "node2"),
-         "title": string (keyword/concept/chapter/section),
-         "description": string (2-3 sentences explaining the content),
-         "parentId": string | null (must match another node's id, null only for root),
-         "level": number (0 for root, increments for each child level)
+         "id": string,
+         "title": string,
+         "description": string (direct explanation of the content),
+         "parentId": string | null,
+         "level": number
        }
      ]
    }
@@ -28,26 +28,35 @@ const SYSTEM_PROMPT = `You are a scientific paper explainer. Your task is to cre
    - Child nodes MUST have level = parent's level + 1
    - IDs must be unique and follow format "node1", "node2", etc.
 
-3. Content Organization:
-   - Root node: Paper's main title/topic
-   - Level 1: Major sections (Introduction, Methods, Results, etc.)
-   - Level 2: Key concepts/findings within each section
-   - Level 3+: Detailed points/sub-concepts
+3. Content Guidelines:
+   - Root node: Direct statement of the breakthrough/finding and its significance
+   - Level 1: Core findings and implications, stated directly
+   - Level 2: Direct explanation of methodologies and results
+   - Level 3+: Specific technical details and their implications
 
-4. Example Structure:
+4. Description Style Requirements:
+   - Use direct statements: "This experiment proves..." instead of "The authors show..."
+   - Present findings as facts: "The quantum tunneling effect occurs at 4.2K" instead of "The paper discusses..."
+   - Include specific numbers, measurements, and results
+   - Explain causality and implications directly
+   - Connect findings to the field's broader context
+
+5. Example Structure:
    {
      "nodes": [
-       {"id": "node1", "title": "Paper Title", "description": "Main topic", "parentId": null, "level": 0},
-       {"id": "node2", "title": "Methods", "description": "Method details", "parentId": "node1", "level": 1},
-       {"id": "node3", "title": "Results", "description": "Key findings", "parentId": "node1", "level": 1},
-       {"id": "node4", "title": "Method Detail", "description": "Specific method", "parentId": "node2", "level": 2},
-       {"id": "node5", "title": "Sub-detail", "description": "More specific information", "parentId": "node4", "level": 3}
+       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at 4.2K in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.", "parentId": null, "level": 0},
+       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through 15nm barriers, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.", "parentId": "node1", "level": 1}
      ]
    }
 
-5. Keep descriptions concise but informative
-6. You can create as many levels as needed to represent the paper's structure
-7. Ensure each parent-child relationship is meaningful and logical`;
+6. Key Writing Principles:
+   - Write as if you're directly explaining the science
+   - State findings and implications definitively
+   - Focus on what IS rather than what was studied
+   - Emphasize concrete results and their meaning
+   - Connect each point to fundamental scientific principles
+   
+7. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
 
 const generationConfig = {
     temperature: 0.7,
@@ -94,6 +103,43 @@ function validateMindmapStructure(data: any) {
     return data;
 }
 
+// Add this function after the validateMindmapStructure function
+function cleanAndValidateOutput(text: string): any {
+    // Remove any markdown code blocks
+    let cleaned = text.replace(/```json\s*|\s*```/g, '');
+    
+    // Try to find JSON content between curly braces
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+        throw new Error('No valid JSON structure found in response');
+    }
+    
+    // Extract just the JSON part
+    cleaned = jsonMatch[0];
+    
+    try {
+        const parsed = JSON.parse(cleaned);
+        
+        // Validate the basic structure
+        if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
+            throw new Error('Invalid mindmap format: missing nodes array');
+        }
+
+        // Validate each node has required properties
+        parsed.nodes = parsed.nodes.map((node: any) => ({
+            id: String(node.id || ''),
+            title: String(node.title || ''),
+            description: String(node.description || ''),
+            parentId: node.parentId === null ? null : String(node.parentId || ''),
+            level: Number(node.level || 0)
+        }));
+
+        return parsed;
+    } catch (e) {
+        throw new Error(`Failed to parse JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
@@ -124,8 +170,9 @@ export async function POST(req: NextRequest) {
         ]);
 
         const result = await response.response.text();
-        const cleanedResult = result.replace(/^```json\n|\n```$/g, '').trim();
-        const parsedResult = JSON.parse(cleanedResult);
+        
+        // Clean and validate the LLM output
+        const parsedResult = cleanAndValidateOutput(result);
         
         // Validate the structure before returning
         const validatedResult = validateMindmapStructure(parsedResult);
@@ -143,4 +190,4 @@ export async function POST(req: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
         });
     }
-} 
+}

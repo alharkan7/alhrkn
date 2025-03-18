@@ -66,12 +66,27 @@ const NodeCard: React.FC<NodeCardProps> = ({
   }, [node.id, hasChildren, registerToggleButtonRef, isExpanded]);
   
   // Editing states
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [titleValue, setTitleValue] = useState(node.title);
-  const [descriptionValue, setDescriptionValue] = useState(node.description);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Replace the existing title and description state with controlled state
+  const [editState, setEditState] = useState({
+    title: node.title,
+    description: node.description,
+    isEditingTitle: false,
+    isEditingDescription: false
+  });
+
+  // Replace the useEffect that syncs with node changes
+  useEffect(() => {
+    if (!editState.isEditingTitle && !editState.isEditingDescription) {
+      setEditState(prev => ({
+        ...prev,
+        title: node.title,
+        description: node.description
+      }));
+    }
+  }, [node.title, node.description]);
 
   // Handle mouse down to detect potential drag start
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -184,8 +199,10 @@ const NodeCard: React.FC<NodeCardProps> = ({
   // Handle double click on title to edit
   const handleTitleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsEditingTitle(true);
-    // Focus the input after rendering
+    setEditState(prev => ({
+      ...prev,
+      isEditingTitle: true
+    }));
     setTimeout(() => {
       if (titleInputRef.current) {
         titleInputRef.current.focus();
@@ -197,8 +214,10 @@ const NodeCard: React.FC<NodeCardProps> = ({
   // Handle double click on description to edit
   const handleDescriptionDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsEditingDescription(true);
-    // Focus the textarea after rendering
+    setEditState(prev => ({
+      ...prev,
+      isEditingDescription: true
+    }));
     setTimeout(() => {
       if (descriptionInputRef.current) {
         descriptionInputRef.current.focus();
@@ -209,21 +228,30 @@ const NodeCard: React.FC<NodeCardProps> = ({
 
   // Save title changes
   const handleTitleSave = () => {
-    if (onUpdateNode && titleValue.trim() !== '') {
-      onUpdateNode(node.id, { title: titleValue });
+    const newTitle = editState.title.trim();
+    if (onUpdateNode && newTitle !== '') {
+      onUpdateNode(node.id, { title: newTitle });
     } else {
-      // Reset to original if empty
-      setTitleValue(node.title);
+      setEditState(prev => ({
+        ...prev,
+        title: node.title
+      }));
     }
-    setIsEditingTitle(false);
+    setEditState(prev => ({
+      ...prev,
+      isEditingTitle: false
+    }));
   };
 
   // Save description changes
   const handleDescriptionSave = () => {
     if (onUpdateNode) {
-      onUpdateNode(node.id, { description: descriptionValue });
+      onUpdateNode(node.id, { description: editState.description });
     }
-    setIsEditingDescription(false);
+    setEditState(prev => ({
+      ...prev,
+      isEditingDescription: false
+    }));
   };
 
   // Handle key press in inputs
@@ -231,8 +259,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
     if (e.key === 'Enter') {
       handleTitleSave();
     } else if (e.key === 'Escape') {
-      setTitleValue(node.title);
-      setIsEditingTitle(false);
+      setEditState(prev => ({
+        ...prev,
+        title: node.title,
+        isEditingTitle: false
+      }));
     }
   };
 
@@ -240,18 +271,21 @@ const NodeCard: React.FC<NodeCardProps> = ({
     if (e.key === 'Enter' && e.ctrlKey) {
       handleDescriptionSave();
     } else if (e.key === 'Escape') {
-      setDescriptionValue(node.description);
-      setIsEditingDescription(false);
+      setEditState(prev => ({
+        ...prev,
+        description: node.description,
+        isEditingDescription: false
+      }));
     }
   };
 
   // Handle clicks outside the editing fields
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (isEditingTitle && titleInputRef.current && !titleInputRef.current.contains(e.target as Node)) {
+      if (editState.isEditingTitle && titleInputRef.current && !titleInputRef.current.contains(e.target as Node)) {
         handleTitleSave();
       }
-      if (isEditingDescription && descriptionInputRef.current && !descriptionInputRef.current.contains(e.target as Node)) {
+      if (editState.isEditingDescription && descriptionInputRef.current && !descriptionInputRef.current.contains(e.target as Node)) {
         handleDescriptionSave();
       }
     };
@@ -260,7 +294,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isEditingTitle, isEditingDescription, titleValue, descriptionValue]);
+  }, [editState.isEditingTitle, editState.isEditingDescription, editState.title, editState.description]);
 
   // Basic styles without the transform animation (which comes from the parent)
   const baseStyles: CSSProperties = {
@@ -310,14 +344,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
             alignItems: 'flex-start', 
             justifyContent: 'space-between'
           }}>
-            {isEditingTitle ? (
+            {editState.isEditingTitle ? (
               <input
                 ref={titleInputRef}
                 type="text"
                 className="font-bold text-lg border rounded px-1 py-0.5 no-drag flex-1"
                 style={{ outline: 'none' }}
-                value={titleValue}
-                onChange={(e) => setTitleValue(e.target.value)}
+                value={editState.title}
+                onChange={(e) => setEditState(prev => ({ ...prev, title: e.target.value }))}
                 onKeyDown={handleTitleKeyDown}
                 onBlur={handleTitleSave}
               />
@@ -374,13 +408,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
               borderTop: isExpanded ? '1px solid #e5e7eb' : 'none'
             }}
           >
-            {isEditingDescription ? (
+            {editState.isEditingDescription ? (
               <textarea
                 ref={descriptionInputRef}
                 className="text-sm text-gray-600 pt-2 w-full border rounded px-2 py-1 no-drag"
                 style={{ outline: 'none' }}
-                value={descriptionValue}
-                onChange={(e) => setDescriptionValue(e.target.value)}
+                value={editState.description}
+                onChange={(e) => setEditState(prev => ({ ...prev, description: e.target.value }))}
                 onKeyDown={handleDescriptionKeyDown}
                 onBlur={handleDescriptionSave}
                 rows={3}
@@ -432,4 +466,4 @@ const NodeCard: React.FC<NodeCardProps> = ({
   );
 };
 
-export default NodeCard; 
+export default NodeCard;
