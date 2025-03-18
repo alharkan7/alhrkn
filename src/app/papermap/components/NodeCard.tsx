@@ -320,6 +320,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 className="font-bold text-lg cursor-text flex-1" 
                 onDoubleClick={handleTitleDoubleClick}
                 title="Double-click to edit"
+                style={{ 
+                  margin: '0', 
+                  padding: '0', 
+                  lineHeight: '1.5',
+                  display: 'inline-block',
+                  verticalAlign: 'middle'
+                }}
               >
                 {node.title}
               </h3>

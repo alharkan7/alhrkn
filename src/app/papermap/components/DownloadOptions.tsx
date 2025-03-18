@@ -143,6 +143,14 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
     // If exporting transparent PNG, temporarily make the container background transparent
     if (transparent) {
       container.style.backgroundColor = 'transparent';
+      
+      // Also set the canvas container to transparent
+      if (containerRef.current) {
+        containerRef.current.style.backgroundColor = 'transparent';
+      }
+      
+      // Make the parent container transparent too
+      document.body.style.backgroundColor = 'transparent';
     }
     
     // Fix ONLY the title elements, leave description text alone
@@ -162,18 +170,14 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
             padding: titleEl.style.padding,
             lineHeight: titleEl.style.lineHeight,
             display: titleEl.style.display,
-            transform: titleEl.style.transform
+            transform: titleEl.style.transform,
+            verticalAlign: titleEl.style.verticalAlign
           }
         };
         
         originalStyles.push(original);
         
-        // Apply fix only to title
-        titleEl.style.position = 'static';
-        titleEl.style.margin = '0';
-        titleEl.style.padding = '0';
-        titleEl.style.lineHeight = '1.3';
-        titleEl.style.transform = 'none';
+        // Don't apply any fixes to the title to preserve its original appearance
       }
       
       // Ensure the description container has proper height if expanded
@@ -205,7 +209,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       const canvas = await html2canvas(container, {
         scale: 3, // High resolution
         useCORS: true,
-        backgroundColor: transparent ? undefined : '#f9fafb', // Use undefined for true transparency
+        backgroundColor: transparent ? null : '#f9fafb', // Use null for true transparency
         allowTaint: true,
         logging: false,
         // Crop to just the mindmap content area plus margin
@@ -233,38 +237,59 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
           );
         },
         onclone: (documentClone, element) => {
-          // Handle transparency in PNG exports - only make the background transparent
+          // Handle transparency in PNG exports
           if (transparent) {
-            // Make only container and main background elements transparent
-            const containerEl = documentClone.querySelector('.bg-gray-50') as HTMLElement;
-            if (containerEl) {
-              containerEl.style.backgroundColor = 'transparent';
-            }
-            
-            // Also remove any bg-gray-* classes that might be on background elements
-            const bgElements = documentClone.querySelectorAll('.bg-gray-50, .bg-gray-100, .bg-gray-200');
+            // Make all background elements transparent
+            const bgElements = documentClone.querySelectorAll('*');
             bgElements.forEach(el => {
-              (el as HTMLElement).style.backgroundColor = 'transparent';
+              const element = el as HTMLElement;
+              
+              // Only make non-card elements transparent
+              // Important: Don't make node cards or their white backgrounds transparent!
+              if (!element.closest('.node-card') && 
+                  !element.closest('svg') &&
+                  !element.classList.contains('bg-white')) {
+                element.style.backgroundColor = 'transparent';
+              }
             });
             
-            // Clear any other background elements that aren't part of cards
-            const otherBgElements = documentClone.querySelectorAll('body, .flex-1, .relative, .overflow-hidden');
-            otherBgElements.forEach(el => {
-              if (!(el as HTMLElement).closest('.node-card') && !(el as HTMLElement).classList.contains('bg-white')) {
-                (el as HTMLElement).style.backgroundColor = 'transparent';
+            // Make container and parent elements transparent
+            const containers = documentClone.querySelectorAll('.bg-gray-50, .flex-1, .relative, .overflow-hidden');
+            containers.forEach(el => {
+              const element = el as HTMLElement;
+              // Don't apply to card elements
+              if (!element.closest('.node-card')) {
+                element.style.backgroundColor = 'transparent';
               }
+            });
+            
+            // Set the body background transparent
+            const body = documentClone.querySelector('body');
+            if (body) {
+              (body as HTMLElement).style.backgroundColor = 'transparent';
+            }
+            
+            // Explicitly ensure card backgrounds remain white
+            const cardBodies = documentClone.querySelectorAll('.node-card .bg-white');
+            cardBodies.forEach(card => {
+              (card as HTMLElement).style.backgroundColor = 'white';
             });
           }
           
-          // Apply the same fixes to the cloned document's title elements
+          // Important: Do NOT modify title element styles in the clone
+          // Let them keep their original positioning and styling
+          
+          // Preserve exact original styles for titles
           const cardTitles = documentClone.querySelectorAll('.node-card h3');
           cardTitles.forEach(titleEl => {
             const element = titleEl as HTMLElement;
-            element.style.position = 'static';
-            element.style.margin = '0';
-            element.style.padding = '0';
-            element.style.lineHeight = '1.3';
-            element.style.transform = 'none';
+            // Ensure consistent positioning for export
+            if (!element.style.lineHeight) {
+              element.style.lineHeight = '1.5';
+            }
+            if (!element.style.verticalAlign) {
+              element.style.verticalAlign = 'middle';
+            }
           });
           
           // Fix description container overflow in the clone
@@ -314,6 +339,14 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       
       // Restore background color
       container.style.backgroundColor = originalBgColor;
+      
+      // Restore background for transparent exports
+      if (transparent) {
+        if (containerRef.current) {
+          containerRef.current.style.backgroundColor = '';
+        }
+        document.body.style.backgroundColor = '';
+      }
     }
   };
 
@@ -328,7 +361,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       const canvas = await captureVisibleMindmap(false);
       
       // Convert to JPEG and download
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
       const a = document.createElement('a');
       a.href = dataUrl;
       a.download = `${getFormattedFileName()}.jpg`;
@@ -395,26 +428,42 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       setIsExporting(true);
       setExportType('PNG');
       
-      const canvas = await captureVisibleMindmap(true);
+      // Apply extra styles to ensure transparency when exporting
+      const canvas = containerRef.current?.parentElement;
+      if (canvas) {
+        // Store original background and styles
+        const originalContainerStyles = {
+          backgroundColor: document.body.style.backgroundColor,
+          bgColor: canvas.style.backgroundColor,
+        };
+        
+        // Temporarily apply consistent background classes for transparent elements
+        document.body.style.backgroundColor = 'transparent';
+        canvas.style.backgroundColor = 'transparent';
+      }
+      
+      const capturedCanvas = await captureVisibleMindmap(true);
       
       // Create a new canvas with transparency properly set
       const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = canvas.width;
-      finalCanvas.height = canvas.height;
+      finalCanvas.width = capturedCanvas.width;
+      finalCanvas.height = capturedCanvas.height;
       
       const ctx = finalCanvas.getContext('2d', { alpha: true });
       if (ctx) {
-        // Set global composite operation to ensure transparency is preserved
-        ctx.globalCompositeOperation = 'source-over';
-        
-        // Clear to transparent before drawing
+        // Clear to transparent
         ctx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
         
-        // Draw the image onto transparent canvas
-        ctx.drawImage(canvas, 0, 0);
+        // Set composite operation to ensure transparency
+        ctx.globalCompositeOperation = 'source-over';
         
-        // Force png format with transparency preserved
+        // Draw the image
+        ctx.drawImage(capturedCanvas, 0, 0);
+        
+        // Convert to PNG with full alpha channel
         const finalDataUrl = finalCanvas.toDataURL('image/png');
+        
+        // Download the image
         const a = document.createElement('a');
         a.href = finalDataUrl;
         a.download = `${getFormattedFileName()}.png`;
@@ -422,7 +471,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       } else {
         // Fallback if context creation fails
         const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
+        a.href = capturedCanvas.toDataURL('image/png');
         a.download = `${getFormattedFileName()}.png`;
         a.click();
       }
