@@ -11,10 +11,13 @@ interface NodeCardProps {
   hasChildren: boolean;
   areChildrenHidden: boolean;
   onDrag: (nodeId: string, e: any, data: { x: number, y: number }) => void;
+  onDragStart?: () => void;
   onToggleExpand: (nodeId: string) => void;
   onToggleChildren?: (nodeId: string) => void;
   onDragStop?: () => void;
   onUpdateNode?: (nodeId: string, updates: Partial<MindMapNode>) => void;
+  onSelect?: (nodeId: string, e: React.MouseEvent) => void;
+  isSelected?: boolean;
   registerToggleButtonRef?: (nodeId: string, ref: HTMLDivElement | null) => void;
   isVisible?: boolean; // New prop to control animation
   style?: React.CSSProperties; // Allow custom style overrides
@@ -28,10 +31,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
   hasChildren,
   areChildrenHidden,
   onDrag,
+  onDragStart,
   onToggleExpand,
   onToggleChildren,
   onDragStop,
   onUpdateNode,
+  onSelect,
+  isSelected = false,
   registerToggleButtonRef,
   isVisible = true, // Default to visible
   style = {} // Default to empty style object
@@ -42,6 +48,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartTimeRef = useRef<number>(0);
   const touchMoveCountRef = useRef<number>(0);
+  const isBeingDragged = useRef<boolean>(false);
   
   // Register the toggle button ref with the parent component
   useEffect(() => {
@@ -65,23 +72,44 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Handle mouse down to detect potential drag start
-  const handleMouseDown = () => {
-    // Set a timeout to distinguish between click and drag
-    dragTimeoutRef.current = setTimeout(() => {
-      setIsDragging(true);
-    }, 150); // Short delay to detect if it's a drag or click
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't set dragging timeout if we're clicking on interactive elements
+    const target = e.target as HTMLElement;
+    const isToggleOrExpand = target.closest('.toggle-expand') || target.closest('.toggle-children');
+    const isEditableField = target.closest('.editable-title') || target.closest('.editable-description');
+    
+    if (!isToggleOrExpand && !isEditableField) {
+      // Handle selection first
+      if (onSelect) {
+        e.stopPropagation(); // Prevent event bubbling to container
+        onSelect(node.id, e);
+      }
+      
+      // Set a timeout to distinguish between click and drag
+      dragTimeoutRef.current = setTimeout(() => {
+        setIsDragging(true);
+      }, 150); // Short delay to detect if it's a drag or click
+    }
   };
 
   // Handle mouse up to detect click vs drag
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
     // Clear the timeout
     if (dragTimeoutRef.current) {
       clearTimeout(dragTimeoutRef.current);
       dragTimeoutRef.current = null;
     }
 
-    // If we weren't dragging, it was a click - toggle expand
-    if (!isDragging) {
+    // Check if we're clicking on interactive elements
+    const target = e.target as HTMLElement;
+    const isToggleOrExpand = target.closest('.toggle-expand') || target.closest('.toggle-children');
+    const isEditableField = target.closest('.editable-title') || target.closest('.editable-description');
+
+    // Only toggle expansion if:
+    // 1. We weren't dragging
+    // 2. Not clicking on controls
+    // 3. Double click (for expansion) - we're using single click for selection now
+    if (!isDragging && !isToggleOrExpand && !isEditableField && e.detail === 2) {
       onToggleExpand(node.id);
     }
     
@@ -90,7 +118,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
   };
 
   // Handle drag start
-  const handleDragStart = () => {
+  const handleDragStart = (e: any) => {
+    // Call onDragStart if provided
+    onDragStart?.();
+    
+    // Original drag start logic
     setIsDragging(true);
     // Clear the timeout if it exists
     if (dragTimeoutRef.current) {
@@ -98,11 +130,29 @@ const NodeCard: React.FC<NodeCardProps> = ({
       dragTimeoutRef.current = null;
     }
   };
+  
+  // Handle drag stop
+  const handleDragStop = () => {
+    if (onDragStop) onDragStop();
+    setIsDragging(false);
+  };
 
   // Touch event handlers
-  const handleTouchStart = () => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     touchStartTimeRef.current = Date.now();
     touchMoveCountRef.current = 0;
+    
+    // Check for interactive elements like we do in mousedown
+    const target = e.target as HTMLElement;
+    const isToggleOrExpand = target.closest('.toggle-expand') || target.closest('.toggle-children');
+    const isEditableField = target.closest('.editable-title') || target.closest('.editable-description');
+    
+    // Handle selection similar to mousedown if touching the card itself
+    if (!isToggleOrExpand && !isEditableField && onSelect) {
+      // For touch events, we don't have shift key, so we simulate a non-shift click
+      const simEvent = { shiftKey: false } as React.MouseEvent;
+      onSelect(node.id, simEvent);
+    }
   };
 
   const handleTouchMove = () => {
@@ -112,11 +162,16 @@ const NodeCard: React.FC<NodeCardProps> = ({
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     const touchDuration = Date.now() - touchStartTimeRef.current;
     
+    // Check for interactive elements
+    const target = e.target as HTMLElement;
+    const isToggleOrExpand = target.closest('.toggle-expand') || target.closest('.toggle-children');
+    const isEditableField = target.closest('.editable-title') || target.closest('.editable-description');
+    
     // If it was a short touch with minimal movement, treat as a click
-    if (touchDuration < 300 && touchMoveCountRef.current < 3 && !isDragging) {
+    if (touchDuration < 300 && touchMoveCountRef.current < 3 && !isDragging && !isToggleOrExpand && !isEditableField) {
       onToggleExpand(node.id);
     }
     
@@ -228,25 +283,24 @@ const NodeCard: React.FC<NodeCardProps> = ({
       nodeRef={nodeRef as any}
       position={draggedPosition}
       onDrag={(e, data) => onDrag(node.id, e, data)}
-      onStop={() => {
-        if (onDragStop) onDragStop();
-        setIsDragging(false);
-      }}
       onStart={handleDragStart}
+      onStop={handleDragStop}
       cancel=".no-drag" // Elements with this class won't trigger dragging
     >
-      <div
+      <div 
         ref={nodeRef}
-        className="node-card transition-all duration-250 ease-out"
+        className={`node-card transition-all duration-250 ease-out ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
         style={combinedStyles}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        title="Click to select, double-click to expand"
       >
         <div 
-          className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative"
+          className={`bg-white p-4 rounded-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
+          style={isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5), 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } : undefined}
         >
           <div className="flex items-start gap-2">
             {isEditingTitle ? (

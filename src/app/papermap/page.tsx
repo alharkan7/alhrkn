@@ -6,6 +6,8 @@ import Uploader from './components/Uploader';
 import Line from './components/Line';
 import { FitToViewIcon } from './components/Icons';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
+import InfoTip from './components/InfoTip';
+import ZoomControls from './components/ZoomControls';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -16,7 +18,7 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.4);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
@@ -36,19 +38,33 @@ export default function PaperMap() {
   // Track if data structure has changed or if it's just a text edit
   const [dataStructureVersion, setDataStructureVersion] = useState(0);
 
-  // Register toggle button refs from NodeCard components
-  const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
-    setToggleButtonRefs(prev => {
-      if (ref === null) {
-        const newRefs = { ...prev };
-        delete newRefs[nodeId];
-        return newRefs;
-      } else {
-        return { ...prev, [nodeId]: ref };
-      }
-    });
-  }, []);
+  // New state for selected nodes
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const lastDragPosition = useRef<{ x: number, y: number } | null>(null);
+  
+  // Track if initial rendering is complete to enable transitions
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
 
+  // Handle zoom controls with smaller increments for smoother zooming
+  const handleZoomIn = useCallback(() => {
+    // Ensure transitions are enabled
+    setInitialRenderComplete(true);
+    
+    setZoom(prev => Math.min(prev + 0.05, 2));
+  }, [setInitialRenderComplete]);
+  
+  const handleZoomOut = useCallback(() => {
+    // Ensure transitions are enabled
+    setInitialRenderComplete(true);
+    
+    // Ensure consistent zoom out steps - for large zoom values use larger steps
+    // For small zoom values use smaller steps to avoid jumping too far
+    setZoom(prev => {
+      const step = Math.max(0.05, prev * 0.1); // 10% of current zoom or minimum of 0.05
+      return Math.max(0.1, prev - step);
+    });
+  }, [setInitialRenderComplete]);
+  
   // Calculate initial positions
   useEffect(() => {
     if (data) {
@@ -123,17 +139,77 @@ export default function PaperMap() {
         }
         
         setNodePositions(initialPositions);
+        
+        // Only do automatic centering on first load
+        if (Object.keys(nodePositions).length === 0 && dataStructureVersion === 0) {
+          // Flag to indicate this is the initial load
+          const isInitialLoad = true;
+          centerView(initialPositions, isInitialLoad);
+        }
       }
     }
   }, [data, dataStructureVersion]);
+  
+  // Helper function to center the view - extracted for reuse
+  const centerView = useCallback((positions: Record<string, NodePosition>, isInitialLoad = false) => {
+    if (!containerRef.current) return;
+    
+    const container = containerRef.current;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Calculate mindmap bounds
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+    Object.values(positions).forEach(pos => {
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x + 300); // 300px is card width
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y + 100); // Approx card height
+    });
+    
+    // Calculate mindmap dimensions
+    const mindmapWidth = maxX - minX;
+    const mindmapHeight = maxY - minY;
+    
+    // Calculate the scale needed to fit the entire mindmap
+    const scaleX = containerWidth / mindmapWidth;
+    const scaleY = containerHeight / mindmapHeight;
+    const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
+    
+    // Calculate the pan needed to center
+    const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
+    const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
+    
+    if (isInitialLoad) {
+      // For initial load, set zoom and pan without animation
+      setZoom(fitScale);
+      setPan({ x: newPanX, y: newPanY });
+      
+      // Mark initial rendering as complete after a brief delay to ensure values are applied
+      setTimeout(() => {
+        setInitialRenderComplete(true);
+      }, 100);
+    } else if (canvasRef.current) {
+      // For subsequent centering, use animation
+      canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+      
+      // Apply the zoom and pan directly
+      setPan({ x: newPanX, y: newPanY });
+      setZoom(fitScale);
+      
+      // After animation completes, reset to default transition
+      setTimeout(() => {
+        if (canvasRef.current) {
+          canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        }
+      }, 600);
+    }
+  }, [containerRef, canvasRef]);
 
   // Load sample data initially
   useEffect(() => {
     setData(sampleData);
-    // Trigger centering after initial load
-    setTimeout(() => {
-      setDataStructureVersion(1);
-    }, 500);
   }, []);
   
   // Reset dataStructureVersion after it's been processed
@@ -148,45 +224,40 @@ export default function PaperMap() {
     }
   }, [dataStructureVersion]);
   
-  // Center view ONLY when explicitly triggered by dataStructureVersion
+  // Center view ONLY when explicitly triggered by dataStructureVersion or fit button
   useEffect(() => {
     if (dataStructureVersion > 0 && data && containerRef.current) {
-      const container = containerRef.current;
-      
-      // Timeout to ensure the container has been measured
-      setTimeout(() => {
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-        
-        // Calculate mindmap bounds
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        
-        Object.values(nodePositions).forEach(pos => {
-          minX = Math.min(minX, pos.x);
-          maxX = Math.max(maxX, pos.x + 300); // 300px is card width
-          minY = Math.min(minY, pos.y);
-          maxY = Math.max(maxY, pos.y + 100); // Approx card height
-        });
-        
-        // Calculate mindmap dimensions
-        const mindmapWidth = maxX - minX;
-        const mindmapHeight = maxY - minY;
-        
-        // Calculate the scale needed to fit the entire mindmap
-        const scaleX = containerWidth / mindmapWidth;
-        const scaleY = containerHeight / mindmapHeight;
-        const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
-        
-        // Calculate the pan needed to center
-        const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
-        const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
-        
-        // Apply centering and scaling
-        setPan({ x: newPanX, y: newPanY });
-        setZoom(fitScale);
-      }, 100);
+      // Use the centerView helper for consistency
+      centerView(nodePositions);
     }
-  }, [dataStructureVersion, nodePositions, containerRef, data]);
+  }, [dataStructureVersion, data, centerView, nodePositions]);
+
+  // Redefine handleResetZoom to use centerView helper
+  const handleResetZoom = useCallback(() => {
+    if (data && Object.keys(nodePositions).length > 0) {
+      centerView(nodePositions);
+    }
+  }, [data, nodePositions, centerView]);
+
+  // CSS classes for selected status
+  const getSelectionClassNames = (isSelected: boolean) => {
+    return isSelected 
+      ? 'ring-2 ring-blue-500 shadow-lg z-20' 
+      : '';
+  };
+
+  // Register toggle button refs from NodeCard components
+  const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
+    setToggleButtonRefs(prev => {
+      if (ref === null) {
+        const newRefs = { ...prev };
+        delete newRefs[nodeId];
+        return newRefs;
+      } else {
+        return { ...prev, [nodeId]: ref };
+      }
+    });
+  }, []);
 
   // Toggle node expansion
   const toggleNode = (id: string) => {
@@ -300,17 +371,74 @@ export default function PaperMap() {
     };
   };
 
-  // Handle card drag
+  // Handle card selection
+  const handleCardSelect = (nodeId: string, e: React.MouseEvent) => {
+    // If shift key is pressed, toggle selection
+    if (e.shiftKey) {
+      setSelectedNodes(prev => {
+        if (prev.includes(nodeId)) {
+          return prev.filter(id => id !== nodeId);
+        } else {
+          return [...prev, nodeId];
+        }
+      });
+    } else {
+      // If this card isn't already selected, make it the only selection
+      if (!selectedNodes.includes(nodeId)) {
+        setSelectedNodes([nodeId]);
+      }
+      // If already selected, keep the selection for dragging
+    }
+  };
+
+  // Handle card drag with multi-select support
   const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
     isCardBeingDragged.current = true;
-    setDraggedPositions(prev => ({
-      ...prev,
-      [nodeId]: { x: data.x, y: data.y }
-    }));
+    
+    // Get the delta from the last position
+    const deltaX = lastDragPosition.current ? data.x - lastDragPosition.current.x : 0;
+    const deltaY = lastDragPosition.current ? data.y - lastDragPosition.current.y : 0;
+    
+    // If this is a selected node and there are other selected nodes
+    if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
+      // Update all selected nodes
+      setDraggedPositions(prev => {
+        const newPositions = { ...prev };
+        
+        // Move all selected nodes by the same delta
+        selectedNodes.forEach(id => {
+          const currentPos = prev[id] || { x: 0, y: 0 };
+          newPositions[id] = {
+            x: currentPos.x + deltaX,
+            y: currentPos.y + deltaY
+          };
+        });
+        
+        return newPositions;
+      });
+    } else {
+      // Just move this node
+      setDraggedPositions(prev => ({
+        ...prev,
+        [nodeId]: { x: data.x, y: data.y }
+      }));
+    }
+    
+    // Update the last position
+    lastDragPosition.current = { x: data.x, y: data.y };
+  };
+
+  // Handle card drag start
+  const handleCardDragStart = () => {
+    // Reset last position
+    lastDragPosition.current = null;
   };
 
   // Handle card drag stop
   const handleCardDragStop = () => {
+    // Reset last position
+    lastDragPosition.current = null;
+    
     // Reset the flag after a short delay
     setTimeout(() => {
       isCardBeingDragged.current = false;
@@ -356,7 +484,8 @@ export default function PaperMap() {
       setData(responseData);
       // Reset positions when loading new data
       setDraggedPositions({});
-      setZoom(1);
+      // Don't set zoom directly here, let dataStructureVersion trigger it
+      // setZoom(1);
       // Increment structure version to trigger zoom fit
       setDataStructureVersion(prev => prev + 1);
     } catch (err) {
@@ -367,17 +496,46 @@ export default function PaperMap() {
     }
   };
 
-  // Handle zoom controls
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.1));
-  const handleResetZoom = () => {
-    // Increment dataStructureVersion to trigger the useEffect that fits everything to view
-    setDataStructureVersion(prev => prev + 1);
-  };
+  // Add new state variables for selection box
+  const [isBoxSelecting, setIsBoxSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState({ startX: 0, startY: 0, endX: 0, endY: 0 });
+  const [isShiftKeyDown, setIsShiftKeyDown] = useState(false);
 
-  // Handle canvas drag (for panning)
+  // Track shift key state for cursor feedback
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftKeyDown(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftKeyDown(false);
+      }
+    };
+
+    // Handle when window loses focus or is blurred
+    const handleBlur = () => {
+      setIsShiftKeyDown(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleBlur);
+    };
+  }, []);
+
+  // Handle canvas drag (for panning) or box selection
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Allow panning when clicking on the container or canvas, but not on cards
+    // Only handle left mouse button
     if (e.button === 0) {
       const target = e.target as HTMLElement;
       
@@ -385,26 +543,126 @@ export default function PaperMap() {
       const isCard = target.closest('.node-card');
       
       if (!isCard) {
-        setIsDragging(true);
-        setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-        e.preventDefault(); // Prevent text selection during drag
+        // Get container's bounding rect to calculate correct relative coordinates
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        
+        if (containerRect) {
+          // Calculate coordinates relative to the container
+          const relativeX = e.clientX - containerRect.left;
+          const relativeY = e.clientY - containerRect.top;
+          
+          // If shift key is pressed, start panning
+          if (e.shiftKey || isShiftKeyDown) {
+            setIsDragging(true);
+            setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+          } else {
+            // Otherwise, start box selection
+            setIsBoxSelecting(true);
+            // Store start point in container-relative coordinates
+            setSelectionBox({
+              startX: relativeX,
+              startY: relativeY,
+              endX: relativeX,
+              endY: relativeY,
+            });
+          }
+          e.preventDefault(); // Prevent text selection during drag
+        }
       }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
+      // Handle panning
       setPan({
         x: e.clientX - startPan.x,
         y: e.clientY - startPan.y
       });
       e.preventDefault();
+    } else if (isBoxSelecting) {
+      // Get container's bounding rect to calculate correct relative coordinates
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      
+      if (containerRect) {
+        // Calculate coordinates relative to the container
+        const relativeX = e.clientX - containerRect.left;
+        const relativeY = e.clientY - containerRect.top;
+        
+        // Update selection box end position
+        setSelectionBox(prev => ({
+          ...prev,
+          endX: relativeX,
+          endY: relativeY
+        }));
+        e.preventDefault();
+      }
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
     if (isDragging) {
       setIsDragging(false);
+      setStartPan({ x: 0, y: 0 }); // Reset start pan position
+    } else if (isBoxSelecting) {
+      // Calculate which nodes are inside selection box
+      if (data) {
+        const boxLeft = Math.min(selectionBox.startX, selectionBox.endX);
+        const boxRight = Math.max(selectionBox.startX, selectionBox.endX);
+        const boxTop = Math.min(selectionBox.startY, selectionBox.endY);
+        const boxBottom = Math.max(selectionBox.startY, selectionBox.endY);
+        
+        // Get container's bounding rect
+        const canvasRect = containerRef.current?.getBoundingClientRect();
+        if (canvasRect) {
+          const selectedIds: string[] = [];
+          
+          // Check each node to see if it's in the selection box
+          data.nodes.forEach(node => {
+            // Skip hidden nodes
+            let isHidden = false;
+            let currentNode = node;
+            while (currentNode.parentId) {
+              const parent = data.nodes.find(n => n.id === currentNode.parentId);
+              if (!parent) break;
+              if (hiddenChildren[parent.id]) {
+                isHidden = true;
+                break;
+              }
+              currentNode = parent;
+            }
+            
+            if (isHidden) return;
+            
+            // Get node position in canvas coordinates
+            const nodePos = getNodePosition(node.id);
+            
+            // Transform from canvas space to container space
+            // We need to account for both zoom and pan
+            const containerX = nodePos.x * zoom + pan.x;
+            const containerY = nodePos.y * zoom + pan.y;
+            
+            // Calculate the center point of the node card for selection (150px is half width, 50px is approx half height)
+            const nodeCenterX = containerX + 150;
+            const nodeCenterY = containerY + 50;
+            
+            if (nodeCenterX >= boxLeft && nodeCenterX <= boxRight &&
+                nodeCenterY >= boxTop && nodeCenterY <= boxBottom) {
+              selectedIds.push(node.id);
+            }
+          });
+          
+          // Update selected nodes, keeping already selected nodes if shift is pressed
+          if (e.shiftKey) {
+            setSelectedNodes(prev => [...prev, ...selectedIds.filter(id => !prev.includes(id))]);
+          } else {
+            setSelectedNodes(selectedIds);
+          }
+        }
+      }
+      
+      setIsBoxSelecting(false);
+      setSelectionBox({ startX: 0, startY: 0, endX: 0, endY: 0 }); // Reset selection box
     }
   };
 
@@ -458,20 +716,34 @@ export default function PaperMap() {
   const handleTouchMove = (e: TouchEvent) => {
     // Handle pinch gesture (two fingers)
     if (e.touches.length === 2 && touchDistance !== null && touchCenter !== null) {
+      // Ensure transitions are enabled for smooth zooming
+      setInitialRenderComplete(true);
+      
       // Calculate new distance between touches
       const newDistance = getDistance(e.touches[0], e.touches[1]);
       
       // Calculate zoom factor based on the change in distance
       const factor = newDistance / touchDistance;
       
-      // Calculate new zoom level
-      const newZoom = Math.max(0.5, Math.min(2, zoom * factor));
+      // Apply a stronger dampening factor for smoother zooming
+      const dampenedFactor = factor > 1 
+        ? 1 + (factor - 1) * 0.25 // Reduced from 0.5 to 0.25 for more gentle zooming in
+        : 1 - (1 - factor) * 0.25; // Reduced from 0.5 to 0.25 for more gentle zooming out
       
-      // Update zoom if it changed significantly
-      if (Math.abs(newZoom - zoom) > 0.01) {
-        setZoom(newZoom);
-        setTouchDistance(newDistance);
-      }
+      setZoom(prev => {
+        // For consistency with other zoom controls, limit the changes and prevent jumps
+        if (dampenedFactor > 1) {
+          // Zooming in - limit the increment
+          return Math.min(prev * dampenedFactor, prev + 0.1);
+        } else {
+          // Zooming out - use proportional step with minimum to prevent jarring jumps
+          const step = Math.max(0.05, prev * (1 - dampenedFactor));
+          return Math.max(0.1, prev - step);
+        }
+      });
+      
+      // Update the reference distance to the new distance to prevent jumps
+      setTouchDistance(newDistance);
       
       e.preventDefault();
       return;
@@ -484,9 +756,15 @@ export default function PaperMap() {
       
       // Get the first touch point
       const touch = e.touches[0];
+      
+      // Apply smoothing using lerp (linear interpolation)
+      const targetX = touch.clientX - startPan.x;
+      const targetY = touch.clientY - startPan.y;
+      const smoothingFactor = 0.7; // Reduced from 0.8 for smoother panning (0 = no smoothing, 1 = maximum smoothing)
+      
       setPan({
-        x: touch.clientX - startPan.x,
-        y: touch.clientY - startPan.y
+        x: pan.x + (targetX - pan.x) * (1 - smoothingFactor),
+        y: pan.y + (targetY - pan.y) * (1 - smoothingFactor)
       });
     }
   };
@@ -497,13 +775,27 @@ export default function PaperMap() {
     setTouchCenter(null);
   };
 
-  // Handle wheel zoom
-  const handleWheel = (e: React.WheelEvent) => {
+  // Handle wheel zoom with smoother increments
+  const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY * -0.001;
-    const newZoom = Math.max(0.5, Math.min(2, zoom + delta));
-    setZoom(newZoom);
-  };
+    
+    // Ensure transitions are enabled for smooth zooming
+    setInitialRenderComplete(true);
+    
+    // Use proportional zooming like zoom buttons for consistency
+    const direction = e.deltaY < 0 ? 1 : -1;
+    
+    setZoom(prev => {
+      if (direction > 0) {
+        // Zoom in - add a fixed small increment
+        return Math.min(prev + 0.05, 2);
+      } else {
+        // Zoom out - use proportional step with minimum to prevent jarring jumps
+        const step = Math.max(0.05, prev * 0.1);
+        return Math.max(0.1, prev - step);
+      }
+    });
+  }, [setInitialRenderComplete]);
 
   // Create connections
   const renderConnections = () => {
@@ -561,6 +853,81 @@ export default function PaperMap() {
       });
   };
 
+  const [showTip, setShowTip] = useState(true);
+
+  // Use effect to automatically hide the tip after some time
+  useEffect(() => {
+    if (showTip) {
+      const timer = setTimeout(() => {
+        setShowTip(false);
+      }, 8000); // Hide after 8 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showTip]);
+
+  // Also hide the tip after successfully selecting multiple cards
+  useEffect(() => {
+    if (selectedNodes.length > 1) {
+      setShowTip(false);
+    }
+  }, [selectedNodes]);
+
+  // Add keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+A or Cmd+A to select all visible nodes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        // Prevent the browser's default "select all" behavior
+        e.preventDefault();
+        
+        if (data) {
+          // Only select nodes that are currently visible
+          const visibleNodeIds = data.nodes
+            .filter(node => {
+              // If this node is a descendant of any hidden node, it's not visible
+              let currentNode = node;
+              let isDescendantOfHiddenNode = false;
+              
+              while (currentNode.parentId) {
+                const parent = data.nodes.find(n => n.id === currentNode.parentId);
+                if (!parent) break;
+                
+                // If any ancestor has hidden children, don't show this node
+                if (hiddenChildren[parent.id]) {
+                  isDescendantOfHiddenNode = true;
+                  break;
+                }
+                
+                currentNode = parent;
+              }
+              
+              return !isDescendantOfHiddenNode;
+            })
+            .map(node => node.id);
+          
+          setSelectedNodes(visibleNodeIds);
+        }
+      }
+      
+      // Escape key to clear selection
+      if (e.key === 'Escape') {
+        setSelectedNodes([]);
+      }
+      
+      // Delete key to handle selected nodes (if needed in the future)
+      if (e.key === 'Delete' && selectedNodes.length > 0) {
+        // For now, just log - you could implement deletion if needed
+        console.log('Delete pressed on selected nodes:', selectedNodes);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [data, hiddenChildren, selectedNodes]);
+
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
@@ -573,12 +940,22 @@ export default function PaperMap() {
       
       <div 
         ref={containerRef}
-        className="flex-1 bg-gray-50 relative overflow-hidden"
+        className="flex-1 bg-gray-50 relative overflow-hidden select-none"
         style={{ 
-          cursor: isDragging ? 'grabbing' : 'grab', 
+          cursor: isShiftKeyDown
+            ? isDragging 
+              ? 'grabbing' 
+              : 'grab'
+            : isBoxSelecting
+              ? 'crosshair'
+              : 'default',
           touchAction: 'none',
           width: '100%',
-          height: '100%'
+          height: '100%',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          outline: 'none',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -599,39 +976,61 @@ export default function PaperMap() {
         <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-gray-300 to-transparent opacity-50 pointer-events-none" 
              style={{ display: pan.x > 0 ? 'block' : 'none' }} />
         
-        {/* Zoom controls - moved to bottom left corner and arranged vertically */}
-        <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] left-2 flex flex-col space-y-2 bg-white bg-opacity-90 p-2 rounded-lg shadow-md z-50">
-          <button 
-            onClick={handleZoomIn}
-            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
-            title="Zoom In"
-          >
-            <span className="text-lg font-bold">+</span>
-          </button>
-          <button 
-            onClick={handleResetZoom}
-            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
-            title="Fit to View"
-          >
-            <FitToViewIcon />
-          </button>
-          <button 
-            onClick={handleZoomOut}
-            className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
-            title="Zoom Out"
-          >
-            <span className="text-lg font-bold">-</span>
-          </button>
-        </div>
+        {/* Zoom controls */}
+        <ZoomControls 
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetZoom={handleResetZoom}
+        />
+        
+        {/* Selection box overlay */}
+        {isBoxSelecting && (
+          <div 
+            className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none z-50"
+            style={{
+              left: Math.min(selectionBox.startX, selectionBox.endX) + 'px',
+              top: Math.min(selectionBox.startY, selectionBox.endY) + 'px',
+              width: Math.abs(selectionBox.endX - selectionBox.startX) + 'px',
+              height: Math.abs(selectionBox.endY - selectionBox.startY) + 'px',
+            }}
+          />
+        )}
+        
+        {/* Multi-select info tooltip */}
+        <InfoTip visible={showTip} onClose={() => setShowTip(false)} />
+        
+        {/* Selection counter */}
+        {selectedNodes.length > 0 && (
+          <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] right-2 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-md text-sm font-medium z-50 flex items-center space-x-2 animate-fadeIn">
+            <span>{selectedNodes.length} card{selectedNodes.length > 1 ? 's' : ''} selected</span>
+            <button 
+              onClick={() => setSelectedNodes([])}
+              className="ml-2 text-white hover:bg-blue-600 rounded-full h-5 w-5 flex items-center justify-center text-xs"
+              title="Clear selection"
+            >
+              ×
+            </button>
+          </div>
+        )}
         
         <div 
           ref={canvasRef}
+          className="pointer-events-auto absolute inset-0 select-none" 
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
-            width: '5000px',
-            height: '3000px',
-            position: 'relative',
+            minWidth: '100%',
+            minHeight: '100%',
+            width: '8000px',  // Provide large canvas area
+            height: '6000px', // Provide large canvas area
+            position: 'absolute',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none',
+            outline: 'none',
+            // Enable transitions once initial rendering is complete
+            transition: initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
           }}
         >
           {/* SVG for connections */}
@@ -683,6 +1082,7 @@ export default function PaperMap() {
               const isExpanded = nodeExpanded[node.id] || false;
               const areChildrenHidden = hiddenChildren[node.id] || false;
               const hasChildren = data.nodes.some(n => n.parentId === node.id);
+              const isSelected = selectedNodes.includes(node.id);
               
               // Determine if this node should be animating
               const isAnimating = animatingNodes[node.id];
@@ -697,24 +1097,31 @@ export default function PaperMap() {
                     : 'translateX(30px) scale(0.98)'  // Going out to right
               } : undefined;
               
+              // Apply an additional class for selection status
+              const selectionClass = getSelectionClassNames(isSelected);
+              
               return (
-                <NodeCard
-                  key={node.id}
-                  node={node}
-                  basePosition={basePosition}
-                  draggedPosition={draggedPosition}
-                  isExpanded={isExpanded}
-                  hasChildren={hasChildren}
-                  areChildrenHidden={areChildrenHidden}
-                  onDrag={handleDrag}
-                  onToggleExpand={toggleNode}
-                  onToggleChildren={toggleChildrenVisibility}
-                  onDragStop={handleCardDragStop}
-                  onUpdateNode={handleNodeUpdate}
-                  registerToggleButtonRef={registerToggleButtonRef}
-                  isVisible={!isAnimating || isVisible}
-                  style={customStyles}
-                />
+                <div key={node.id} className={selectionClass}>
+                  <NodeCard
+                    node={node}
+                    basePosition={basePosition}
+                    draggedPosition={draggedPosition}
+                    isExpanded={isExpanded}
+                    hasChildren={hasChildren}
+                    areChildrenHidden={areChildrenHidden}
+                    onDrag={handleDrag}
+                    onDragStart={handleCardDragStart}
+                    onToggleExpand={toggleNode}
+                    onToggleChildren={toggleChildrenVisibility}
+                    onDragStop={handleCardDragStop}
+                    onUpdateNode={handleNodeUpdate}
+                    onSelect={handleCardSelect}
+                    isSelected={isSelected}
+                    registerToggleButtonRef={registerToggleButtonRef}
+                    isVisible={!isAnimating || isVisible}
+                    style={customStyles}
+                  />
+                </div>
               );
             })}
         </div>
