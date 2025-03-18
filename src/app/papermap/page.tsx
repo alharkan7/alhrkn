@@ -33,6 +33,9 @@ export default function PaperMap() {
   // New state to track animation direction (true = showing, false = hiding)
   const [showingAnimation, setShowingAnimation] = useState<Record<string, boolean>>({});
 
+  // Track if data structure has changed or if it's just a text edit
+  const [dataStructureVersion, setDataStructureVersion] = useState(0);
+
   // Register toggle button refs from NodeCard components
   const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
     setToggleButtonRefs(prev => {
@@ -49,85 +52,105 @@ export default function PaperMap() {
   // Calculate initial positions
   useEffect(() => {
     if (data) {
-      const initialPositions: Record<string, NodePosition> = {};
-      const usedPositions: Record<string, boolean> = {}; // Track used positions to avoid conflicts
-      
-      // First, position the root nodes
-      const rootNodes = data.nodes.filter(node => node.parentId === null);
-      rootNodes.forEach((node, index) => {
-        initialPositions[node.id] = {
-          x: 0, // Root nodes are at level 0
-          y: index * NODE_VERTICAL_SPACING + 50
+      // Don't recalculate positions if this is just a text update
+      // Only calculate if positions haven't been set yet or if dataStructureVersion changed
+      if (Object.keys(nodePositions).length === 0 || dataStructureVersion > 0) {
+        const initialPositions: Record<string, NodePosition> = {};
+        const usedPositions: Record<string, boolean> = {}; // Track used positions to avoid conflicts
+        
+        // First, position the root nodes
+        const rootNodes = data.nodes.filter(node => node.parentId === null);
+        rootNodes.forEach((node, index) => {
+          initialPositions[node.id] = {
+            x: 0, // Root nodes are at level 0
+            y: index * NODE_VERTICAL_SPACING + 50
+          };
+          // Mark this position as used
+          usedPositions[`0_${index}`] = true;
+        });
+        
+        // Helper function to get all children of a node
+        const getChildren = (nodeId: string) => {
+          return data.nodes.filter(n => n.parentId === nodeId);
         };
-        // Mark this position as used
-        usedPositions[`0_${index}`] = true;
-      });
-      
-      // Helper function to get all children of a node
-      const getChildren = (nodeId: string) => {
-        return data.nodes.filter(n => n.parentId === nodeId);
-      };
-      
-      // Helper function to position a node and its children recursively
-      const positionNodeAndChildren = (node: MindMapNode, level: number) => {
-        // Skip if this node already has a position (e.g., root nodes)
-        if (initialPositions[node.id]) return;
         
-        const parentPos = initialPositions[node.parentId!];
-        const children = getChildren(node.id);
+        // Helper function to position a node and its children recursively
+        const positionNodeAndChildren = (node: MindMapNode, level: number) => {
+          // Skip if this node already has a position (e.g., root nodes)
+          if (initialPositions[node.id]) return;
+          
+          const parentPos = initialPositions[node.parentId!];
+          const children = getChildren(node.id);
+          
+          // Find the first available vertical position at this level, starting from parent's y
+          let yPos = parentPos.y;
+          let yIndex = Math.floor(yPos / NODE_VERTICAL_SPACING);
+          
+          // Check if position is already taken, if so, move down
+          while (usedPositions[`${level}_${yIndex}`]) {
+            yIndex++;
+            yPos = yIndex * NODE_VERTICAL_SPACING + 50;
+          }
+          
+          // Set position for this node
+          initialPositions[node.id] = {
+            x: level * COLUMN_WIDTH,
+            y: yPos
+          };
+          
+          // Mark this position as used
+          usedPositions[`${level}_${yIndex}`] = true;
+          
+          // Position children recursively
+          children.forEach(child => {
+            positionNodeAndChildren(child, level + 1);
+          });
+        };
         
-        // Find the first available vertical position at this level, starting from parent's y
-        let yPos = parentPos.y;
-        let yIndex = Math.floor(yPos / NODE_VERTICAL_SPACING);
+        // Process nodes level by level to ensure parent nodes are positioned before their children
+        const maxLevel = Math.max(...data.nodes.map(n => n.level));
         
-        // Check if position is already taken, if so, move down
-        while (usedPositions[`${level}_${yIndex}`]) {
-          yIndex++;
-          yPos = yIndex * NODE_VERTICAL_SPACING + 50;
+        for (let level = 1; level <= maxLevel; level++) {
+          // Get all nodes at this level
+          const nodesAtLevel = data.nodes.filter(n => n.level === level);
+          
+          // For each node at this level, position it and its descendants
+          nodesAtLevel.forEach(node => {
+            if (!initialPositions[node.id]) {
+              positionNodeAndChildren(node, level);
+            }
+          });
         }
         
-        // Set position for this node
-        initialPositions[node.id] = {
-          x: level * COLUMN_WIDTH,
-          y: yPos
-        };
-        
-        // Mark this position as used
-        usedPositions[`${level}_${yIndex}`] = true;
-        
-        // Position children recursively
-        children.forEach(child => {
-          positionNodeAndChildren(child, level + 1);
-        });
-      };
-      
-      // Process nodes level by level to ensure parent nodes are positioned before their children
-      const maxLevel = Math.max(...data.nodes.map(n => n.level));
-      
-      for (let level = 1; level <= maxLevel; level++) {
-        // Get all nodes at this level
-        const nodesAtLevel = data.nodes.filter(n => n.level === level);
-        
-        // For each node at this level, position it and its descendants
-        nodesAtLevel.forEach(node => {
-          if (!initialPositions[node.id]) {
-            positionNodeAndChildren(node, level);
-          }
-        });
+        setNodePositions(initialPositions);
       }
-      
-      setNodePositions(initialPositions);
     }
-  }, [data]);
+  }, [data, dataStructureVersion]);
 
   // Load sample data initially
   useEffect(() => {
     setData(sampleData);
+    // Trigger centering after initial load
+    setTimeout(() => {
+      setDataStructureVersion(1);
+    }, 500);
   }, []);
-
-  // Center view when data or container changes and ensure entire mindmap is visible
+  
+  // Reset dataStructureVersion after it's been processed
   useEffect(() => {
-    if (data && containerRef.current) {
+    if (dataStructureVersion > 0) {
+      // This prevents repeated zoom resets by resetting the version after it's been used
+      const timeoutId = setTimeout(() => {
+        setDataStructureVersion(0);
+      }, 200);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [dataStructureVersion]);
+  
+  // Center view ONLY when explicitly triggered by dataStructureVersion
+  useEffect(() => {
+    if (dataStructureVersion > 0 && data && containerRef.current) {
       const container = containerRef.current;
       
       // Timeout to ensure the container has been measured
@@ -163,7 +186,7 @@ export default function PaperMap() {
         setZoom(fitScale);
       }, 100);
     }
-  }, [data, nodePositions, containerRef]);
+  }, [dataStructureVersion, nodePositions, containerRef, data]);
 
   // Toggle node expansion
   const toggleNode = (id: string) => {
@@ -303,7 +326,8 @@ export default function PaperMap() {
       node.id === nodeId ? { ...node, ...updates } : node
     );
     
-    // Update the data state with the new nodes
+    // Update the data state with the new nodes WITHOUT incrementing dataStructureVersion
+    // since text edits shouldn't reset zoom/pan
     setData({
       ...data,
       nodes: updatedNodes
@@ -333,6 +357,8 @@ export default function PaperMap() {
       // Reset positions when loading new data
       setDraggedPositions({});
       setZoom(1);
+      // Increment structure version to trigger zoom fit
+      setDataStructureVersion(prev => prev + 1);
     } catch (err) {
       console.error('Error details:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -345,38 +371,8 @@ export default function PaperMap() {
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.1));
   const handleResetZoom = () => {
-    // Reset zoom to fit the entire mindmap
-    if (containerRef.current && data) {
-      const container = containerRef.current;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Recalculate mindmap bounds
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      
-      Object.values(nodePositions).forEach(pos => {
-        minX = Math.min(minX, pos.x);
-        maxX = Math.max(maxX, pos.x + 300);
-        minY = Math.min(minY, pos.y);
-        maxY = Math.max(maxY, pos.y + 100);
-      });
-      
-      const mindmapWidth = maxX - minX;
-      const mindmapHeight = maxY - minY;
-      
-      // Calculate the scale needed to fit the entire mindmap
-      const scaleX = containerWidth / mindmapWidth;
-      const scaleY = containerHeight / mindmapHeight;
-      const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
-      
-      // Calculate the pan needed to center
-      const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
-      const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
-      
-      // Apply centering and scaling
-      setPan({ x: newPanX, y: newPanY });
-      setZoom(fitScale);
-    }
+    // Increment dataStructureVersion to trigger the useEffect that fits everything to view
+    setDataStructureVersion(prev => prev + 1);
   };
 
   // Handle canvas drag (for panning)

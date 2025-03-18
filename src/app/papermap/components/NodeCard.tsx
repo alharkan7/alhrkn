@@ -284,11 +284,20 @@ const NodeCard: React.FC<NodeCardProps> = ({
             </button>
           </div>
           
-          {isExpanded && (
-            isEditingDescription ? (
+          {/* Description section with animation */}
+          <div 
+            className="overflow-hidden transition-all duration-200 ease-in-out"
+            style={{ 
+              maxHeight: isExpanded ? '200px' : '0px',
+              opacity: isExpanded ? 1 : 0,
+              marginTop: isExpanded ? '8px' : '0px',
+              borderTop: isExpanded ? '1px solid #e5e7eb' : 'none'
+            }}
+          >
+            {isEditingDescription ? (
               <textarea
                 ref={descriptionInputRef}
-                className="text-sm text-gray-600 mt-2 border-t pt-2 w-full border rounded px-2 py-1 no-drag"
+                className="text-sm text-gray-600 pt-2 w-full border rounded px-2 py-1 no-drag"
                 style={{ outline: 'none' }}
                 value={descriptionValue}
                 onChange={(e) => setDescriptionValue(e.target.value)}
@@ -299,14 +308,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
               />
             ) : (
               <p 
-                className="text-sm text-gray-600 mt-2 border-t pt-2 cursor-text" 
+                className="text-sm text-gray-600 pt-2 cursor-text" 
                 onDoubleClick={handleDescriptionDoubleClick}
                 title="Double-click to edit"
               >
                 {node.description || "Double-click to add description"}
               </p>
-            )
-          )}
+            )}
+          </div>
 
           {/* Children toggle indicator on the right side */}
           {hasChildren && onToggleChildren && (
@@ -316,14 +325,15 @@ const NodeCard: React.FC<NodeCardProps> = ({
               style={{
                 width: '24px',
                 height: '24px',
-                backgroundColor: '#6366f1',
+                backgroundColor: 'white',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                color: '#6B7280',
+                border: '2px solid #9CA3AF',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
                 zIndex: 20,
                 top: '20px',
                 transform: 'translateX(50%)'
@@ -334,11 +344,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 onToggleChildren(node.id);
               }}
             >
-              {areChildrenHidden ? (
+              {/* {areChildrenHidden ? (
                 <ChevronRightIcon />
               ) : (
                 <ChevronLeftIcon />
-              )}
+              )} */}
             </div>
           )}
         </div>
