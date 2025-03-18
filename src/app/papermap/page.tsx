@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'rea
 import NodeCard from './components/NodeCard';
 import Uploader from './components/Uploader';
 import Line from './components/Line';
-import { FitToViewIcon } from './components/Icons';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 import InfoTip from './components/InfoTip';
 import ZoomControls from './components/ZoomControls';
@@ -1025,15 +1024,17 @@ export default function PaperMap() {
         
         <div 
           ref={canvasRef}
-          className="pointer-events-auto absolute inset-0 select-none" 
+          className="pointer-events-auto absolute select-none" 
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
             minWidth: '100%',
             minHeight: '100%',
-            width: '8000px',  // Provide large canvas area
-            height: '6000px', // Provide large canvas area
+            width: '16000px',  // Double the canvas area width
+            height: '12000px', // Double the canvas area height
             position: 'absolute',
+            top: '0',  // Reset to 0 instead of negative value
+            left: '0', // Reset to 0 instead of negative value
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
@@ -1109,11 +1110,9 @@ export default function PaperMap() {
                     : 'translateX(30px) scale(0.98)'  // Going out to right
               } : undefined;
               
-              // Apply an additional class for selection status
-              const selectionClass = getSelectionClassNames(isSelected);
-              
+              // Move the selection class to the NodeCard component instead of its parent div
               return (
-                <div key={node.id} className={selectionClass}>
+                <div key={node.id}>
                   <NodeCard
                     node={node}
                     basePosition={basePosition}
@@ -1132,6 +1131,7 @@ export default function PaperMap() {
                     registerToggleButtonRef={registerToggleButtonRef}
                     isVisible={!isAnimating || isVisible}
                     style={customStyles}
+                    selectionClass={getSelectionClassNames(isSelected)}
                   />
                 </div>
               );

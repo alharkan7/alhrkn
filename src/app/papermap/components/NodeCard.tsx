@@ -21,6 +21,7 @@ interface NodeCardProps {
   registerToggleButtonRef?: (nodeId: string, ref: HTMLDivElement | null) => void;
   isVisible?: boolean; // New prop to control animation
   style?: React.CSSProperties; // Allow custom style overrides
+  selectionClass?: string; // Add the selection class prop
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -40,7 +41,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
   isSelected = false,
   registerToggleButtonRef,
   isVisible = true, // Default to visible
-  style = {} // Default to empty style object
+  style = {}, // Default to empty style object
+  selectionClass = '' // Default to empty string
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLDivElement>(null);
@@ -290,7 +292,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     >
       <div 
         ref={nodeRef}
-        className={`node-card transition-all duration-250 ease-out ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+        className={`node-card transition-all duration-250 ease-out ${selectionClass}`}
         style={combinedStyles}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -303,7 +305,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
           className={`bg-white p-4 rounded-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
           style={isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5), 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } : undefined}
         >
-          <div className="flex items-start gap-2">
+          <div className="flex items-center gap-2" style={{
+            display: 'flex',
+            alignItems: 'center', 
+            justifyContent: 'space-between'
+          }}>
             {isEditingTitle ? (
               <input
                 ref={titleInputRef}
@@ -322,20 +328,32 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 title="Double-click to edit"
                 style={{ 
                   margin: '0', 
-                  padding: '0', 
-                  lineHeight: '1.5',
-                  display: 'inline-block',
-                  verticalAlign: 'middle'
+                  padding: '0',
+                  lineHeight: '24px',
+                  height: '24px',
+                  maxHeight: '24px',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
               >
                 {node.title}
               </h3>
             )}
             <button 
-              className="text-gray-500 hover:text-gray-700 no-drag mt-1" 
+              className="text-gray-500 hover:text-gray-700 no-drag" 
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleExpand(node.id);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '24px',
+                width: '24px',
+                minWidth: '24px',
+                padding: '0',
+                margin: '0'
               }}
             >
               {isExpanded ? (
@@ -406,11 +424,6 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 onToggleChildren(node.id);
               }}
             >
-              {/* {areChildrenHidden ? (
-                <ChevronRightIcon />
-              ) : (
-                <ChevronLeftIcon />
-              )} */}
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDownIcon } from './Icons';
+import { LoadingCircleIcon, ImageIcon, DocumentIcon, CodeIcon } from './Icons';
 import { MindMapData, NodePosition } from './MindMapTypes';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -279,17 +279,51 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
           // Important: Do NOT modify title element styles in the clone
           // Let them keep their original positioning and styling
           
-          // Preserve exact original styles for titles
+          // Preserve exact original styles for titles with explicit positioning
           const cardTitles = documentClone.querySelectorAll('.node-card h3');
           cardTitles.forEach(titleEl => {
             const element = titleEl as HTMLElement;
-            // Ensure consistent positioning for export
-            if (!element.style.lineHeight) {
-              element.style.lineHeight = '1.5';
-            }
-            if (!element.style.verticalAlign) {
-              element.style.verticalAlign = 'middle';
-            }
+            // Force exact positioning to match web view
+            element.style.margin = '0';
+            element.style.padding = '0';
+            element.style.lineHeight = '24px';
+            element.style.height = '24px';
+            element.style.maxHeight = '24px';
+            element.style.display = 'flex';
+            element.style.alignItems = 'center';
+            // Apply transform to adjust vertical position
+            element.style.transform = 'translateY(-3px)';
+            element.style.position = 'relative';
+            element.style.top = '0';
+          });
+          
+          // Ensure chevron buttons are properly aligned
+          const buttons = documentClone.querySelectorAll('.node-card button');
+          buttons.forEach(button => {
+            const element = button as HTMLElement;
+            element.style.display = 'flex';
+            element.style.alignItems = 'center';
+            element.style.justifyContent = 'center';
+            element.style.height = '24px';
+            element.style.width = '24px';
+            element.style.minWidth = '24px';
+            element.style.padding = '0';
+            element.style.margin = '0';
+          });
+          
+          // Make sure parent flex containers use items-center for alignment
+          const titleContainers = documentClone.querySelectorAll('.node-card .flex');
+          titleContainers.forEach(container => {
+            const element = container as HTMLElement;
+            element.style.display = 'flex';
+            element.style.alignItems = 'center';
+            element.style.justifyContent = 'space-between';
+          });
+          
+          // Ensure SVG icons inside buttons are centered
+          const icons = documentClone.querySelectorAll('.node-card button svg');
+          icons.forEach(icon => {
+            (icon as SVGElement).style.margin = 'auto';
           });
           
           // Fix description container overflow in the clone
@@ -525,10 +559,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       >
         {isExporting ? (
           <>
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <LoadingCircleIcon />
             <span>Exporting {exportType}...</span>
           </>
         ) : (
@@ -545,9 +576,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
               onClick={downloadAsJPEG}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
-              <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <ImageIcon />
               JPEG
             </button>
 
@@ -555,9 +584,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
               onClick={downloadAsPNG}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
-              <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <ImageIcon />
               PNG
             </button>
             
@@ -565,9 +592,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
               onClick={downloadAsPDF}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
-              <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
+              <DocumentIcon />
               PDF
             </button>
             
@@ -575,9 +600,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
               onClick={downloadAsJSON}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
-              <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
+              <CodeIcon />
               JSON
             </button>
           </div>
