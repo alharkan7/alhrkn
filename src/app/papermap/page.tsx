@@ -938,6 +938,12 @@ export default function PaperMap() {
           loading={loading}
           error={error}
         />
+        
+        <div className="absolute left-1/2 -translate-x-1/2">
+          {loading && <p className="text-blue-600">Analyzing paper...</p>}
+          {error && <p className="text-red-600">{error}</p>}
+        </div>
+        
         <DownloadOptions 
           data={data}
           containerRef={canvasRef}

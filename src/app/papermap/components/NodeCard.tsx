@@ -307,7 +307,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
         >
           <div className="flex items-center gap-2" style={{
             display: 'flex',
-            alignItems: 'center', 
+            alignItems: 'flex-start', 
             justifyContent: 'space-between'
           }}>
             {isEditingTitle ? (
@@ -329,11 +329,10 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 style={{ 
                   margin: '0', 
                   padding: '0',
-                  lineHeight: '24px',
-                  height: '24px',
-                  maxHeight: '24px',
-                  display: 'flex',
-                  alignItems: 'center'
+                  lineHeight: '1.3',
+                  minHeight: '24px',
+                  display: 'block',
+                  wordBreak: 'break-word'
                 }}
               >
                 {node.title}
@@ -353,7 +352,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 width: '24px',
                 minWidth: '24px',
                 padding: '0',
-                margin: '0'
+                margin: '0',
+                marginTop: '2px'
               }}
             >
               {isExpanded ? (

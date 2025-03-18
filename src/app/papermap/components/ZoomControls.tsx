@@ -79,24 +79,24 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
   };
   
   return (
-    <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] left-2 flex flex-col space-y-2 bg-white bg-opacity-90 p-2 rounded-lg shadow-md z-50">
+    <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] left-2 flex flex-col space-y-1.5 bg-white bg-opacity-90 p-1.5 rounded-lg shadow-md z-50">
       <button 
         onMouseDown={() => handleZoomButtonDown('in')}
         onMouseUp={handleZoomButtonUp}
         onMouseLeave={handleZoomButtonUp}
         onTouchStart={() => handleZoomButtonDown('in')}
         onTouchEnd={handleZoomButtonUp}
-        className={`w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'in' ? 'bg-gray-300' : ''}`}
+        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'in' ? 'bg-gray-300' : ''}`}
         title="Zoom In"
       >
-        <span className="text-lg font-bold">+</span>
+        <span className="text-sm font-bold">+</span>
       </button>
       <button 
         onClick={handleFitClick}
-        className={`w-8 h-8 ${fitActive ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded hover:bg-gray-300 flex items-center justify-center transition-all duration-200`}
+        className={`w-6 h-6 ${fitActive ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded hover:bg-gray-300 flex items-center justify-center transition-all duration-200`}
         title="Fit to View"
       >
-        <FitToViewIcon className={fitActive ? 'text-white' : ''} />
+        <FitToViewIcon className={`w-4 h-4 ${fitActive ? 'text-white' : ''}`} />
       </button>
       <button 
         onMouseDown={() => handleZoomButtonDown('out')}
@@ -104,10 +104,10 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
         onMouseLeave={handleZoomButtonUp}
         onTouchStart={() => handleZoomButtonDown('out')}
         onTouchEnd={handleZoomButtonUp}
-        className={`w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'out' ? 'bg-gray-300' : ''}`}
+        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'out' ? 'bg-gray-300' : ''}`}
         title="Zoom Out"
       >
-        <span className="text-lg font-bold">-</span>
+        <span className="text-sm font-bold">-</span>
       </button>
     </div>
   );

@@ -7,7 +7,7 @@ interface IconProps {
 export const FitToViewIcon: React.FC<IconProps> = ({ className = "h-5 w-5" }) => {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M3 3h4v2H5v2H3V3zm10 0h4v4h-2V5h-2V3zm-10 10v4h4v-2H5v-2H3zm14 0v4h-4v-2h2v-2h2z" clipRule="evenodd" />
         </svg>
     );
 };
