@@ -9,6 +9,7 @@ interface LineProps {
   parentToggleButtonRef?: HTMLDivElement;
   childToggleButtonRef?: HTMLDivElement;
   isVisible?: boolean; // Add visibility prop for animation
+  isDragging?: boolean; // Add prop to know when dragging is happening
 }
 
 const Line: React.FC<LineProps> = ({ 
@@ -18,7 +19,8 @@ const Line: React.FC<LineProps> = ({
   isChildExpanded,
   parentToggleButtonRef,
   childToggleButtonRef,
-  isVisible = true // Default to visible
+  isVisible = true, // Default to visible
+  isDragging = false // Default to not dragging
 }) => {
   // Card dimensions
   const CARD_WIDTH = 300;
@@ -76,14 +78,14 @@ const Line: React.FC<LineProps> = ({
             cy="5" 
             r="4" 
             fill="#6366f1" 
-            className="transition-opacity duration-250 ease-out" 
+            className={isDragging ? "" : "transition-opacity duration-250 ease-out"} 
             style={{ opacity: isVisible ? 1 : 0 }} 
           />
         </marker>
       </defs>
       <path
         d={animatedPath}
-        className="transition-all duration-250 ease-out"
+        className={isDragging ? "" : "transition-all duration-250 ease-out"}
         style={{
           stroke: '#6366f1',
           strokeWidth: 2,

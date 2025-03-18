@@ -417,7 +417,7 @@ export default function PaperMap() {
         return newPositions;
       });
     } else {
-      // Just move this node
+      // Just move this node - use direct position for immediate response
       setDraggedPositions(prev => ({
         ...prev,
         [nodeId]: { x: data.x, y: data.y }
@@ -757,14 +757,10 @@ export default function PaperMap() {
       // Get the first touch point
       const touch = e.touches[0];
       
-      // Apply smoothing using lerp (linear interpolation)
-      const targetX = touch.clientX - startPan.x;
-      const targetY = touch.clientY - startPan.y;
-      const smoothingFactor = 0.7; // Reduced from 0.8 for smoother panning (0 = no smoothing, 1 = maximum smoothing)
-      
+      // Apply direct positioning without smoothing for responsive dragging
       setPan({
-        x: pan.x + (targetX - pan.x) * (1 - smoothingFactor),
-        y: pan.y + (targetY - pan.y) * (1 - smoothingFactor)
+        x: touch.clientX - startPan.x,
+        y: touch.clientY - startPan.y
       });
     }
   };
@@ -848,6 +844,7 @@ export default function PaperMap() {
             parentToggleButtonRef={toggleButtonRefs[parent.id]}
             childToggleButtonRef={toggleButtonRefs[node.id]}
             isVisible={!isAnimating || isVisible}
+            isDragging={isDragging || isCardBeingDragged.current}
           />
         );
       });
@@ -1029,8 +1026,10 @@ export default function PaperMap() {
             MozUserSelect: 'none',
             msUserSelect: 'none',
             outline: 'none',
-            // Enable transitions once initial rendering is complete
-            transition: initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+            // Enable transitions once initial rendering is complete, but disable during dragging
+            transition: isDragging || isCardBeingDragged.current
+              ? 'none'
+              : initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
           }}
         >
           {/* SVG for connections */}

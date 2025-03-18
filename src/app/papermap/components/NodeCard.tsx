@@ -269,7 +269,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
     zIndex: 10,
     touchAction: 'none',
     cursor: isDragging ? 'grabbing' : 'grab',
-    opacity: isVisible ? 1 : 0
+    opacity: isVisible ? 1 : 0,
+    transition: isDragging ? 'none' : undefined // Disable transitions during drag
   };
 
   // Combine base styles with custom styles from parent
