@@ -8,6 +8,7 @@ import { FitToViewIcon } from './components/Icons';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 import InfoTip from './components/InfoTip';
 import ZoomControls from './components/ZoomControls';
+import DownloadOptions from './components/DownloadOptions';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +45,9 @@ export default function PaperMap() {
   
   // Track if initial rendering is complete to enable transitions
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
+
+  // Add fileName state
+  const [fileName, setFileName] = useState<string>("mindmap");
 
   // Handle zoom controls with smaller increments for smoother zooming
   const handleZoomIn = useCallback(() => {
@@ -466,6 +470,10 @@ export default function PaperMap() {
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     setError(null);
+    
+    // Set the file name from the uploaded file
+    const originalFileName = file.name;
+    setFileName(originalFileName);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -484,8 +492,6 @@ export default function PaperMap() {
       setData(responseData);
       // Reset positions when loading new data
       setDraggedPositions({});
-      // Don't set zoom directly here, let dataStructureVersion trigger it
-      // setZoom(1);
       // Increment structure version to trigger zoom fit
       setDataStructureVersion(prev => prev + 1);
     } catch (err) {
@@ -932,6 +938,13 @@ export default function PaperMap() {
           onFileUpload={handleFileUpload}
           loading={loading}
           error={error}
+        />
+        <DownloadOptions 
+          data={data}
+          containerRef={canvasRef}
+          onResetZoom={handleResetZoom}
+          nodePositions={nodePositions}
+          fileName={fileName}
         />
       </div>
       
