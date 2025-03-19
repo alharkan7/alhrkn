@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, TouchEvent } from 'react';
-import NodeCard from './components/NodeCard';
 import Uploader from './components/Uploader';
-import Line from './components/Line';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, sampleData, NodePosition } from './components/MindMapTypes';
 import InfoTip from './components/InfoTip';
 import ZoomControls from './components/ZoomControls';
 import DownloadOptions from './components/DownloadOptions';
+import CanvasPage from './components/CanvasPage';
 
 export default function PaperMap() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,10 +22,7 @@ export default function PaperMap() {
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
-  const isTouchDragging = useRef(false);
   const isCardBeingDragged = useRef(false);
-  const [touchDistance, setTouchDistance] = useState<number | null>(null);
-  const [touchCenter, setTouchCenter] = useState<{ x: number, y: number } | null>(null);
   const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
 
   // New state for animation
@@ -84,7 +80,7 @@ export default function PaperMap() {
         const rootNodes = data.nodes.filter(node => node.parentId === null);
         rootNodes.forEach((node, index) => {
           initialPositions[node.id] = {
-            x: 0, // Root nodes are at level 0
+            x: 50, // Add some left margin for root nodes
             y: index * NODE_VERTICAL_SPACING + 50
           };
           // Mark this position as used
@@ -116,7 +112,7 @@ export default function PaperMap() {
           
           // Set position for this node
           initialPositions[node.id] = {
-            x: level * COLUMN_WIDTH,
+            x: level * COLUMN_WIDTH, // Use full COLUMN_WIDTH instead of reducing it
             y: yPos
           };
           
@@ -169,10 +165,17 @@ export default function PaperMap() {
     
     Object.values(positions).forEach(pos => {
       minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x + 300); // 300px is card width
+      maxX = Math.max(maxX, pos.x + 250); // 250px is card width (reduced from 300)
       minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y + 100); // Approx card height
+      maxY = Math.max(maxY, pos.y + 80); // 80px is approx card height (reduced from 100)
     });
+    
+    // Add padding
+    const padding = 100;
+    minX -= padding;
+    maxX += padding;
+    minY -= padding;
+    maxY += padding;
     
     // Calculate mindmap dimensions
     const mindmapWidth = maxX - minX;
@@ -181,7 +184,7 @@ export default function PaperMap() {
     // Calculate the scale needed to fit the entire mindmap
     const scaleX = containerWidth / mindmapWidth;
     const scaleY = containerHeight / mindmapHeight;
-    const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to add some padding
+    const fitScale = Math.min(scaleX, scaleY) * 0.85; // 85% to add some padding
     
     // Calculate the pan needed to center
     const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
@@ -403,30 +406,37 @@ export default function PaperMap() {
   const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
     isCardBeingDragged.current = true;
     
-    // If this is a selected node and there are other selected nodes
-    if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
-      // Update all selected nodes
-      setDraggedPositions(prev => {
-        const newPositions = { ...prev };
+    // Directly use the data position for draggedPositions
+    // This ensures the card follows exactly the mouse pointer
+    setDraggedPositions(prev => {
+      const newPositions = { ...prev };
+      
+      if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
+        // For multi-selection, apply same drag to all selected nodes
+        const delta = lastDragPosition.current 
+          ? { 
+              x: data.x - lastDragPosition.current.x, 
+              y: data.y - lastDragPosition.current.y 
+            }
+          : { x: 0, y: 0 };
         
-        // Move all selected nodes by the same delta
         selectedNodes.forEach(id => {
-          const currentPos = prev[id] || { x: 0, y: 0 };
+          const currentDragPos = prev[id] || { x: 0, y: 0 };
           newPositions[id] = {
-            x: currentPos.x + data.x,
-            y: currentPos.y + data.y
+            x: currentDragPos.x + delta.x,
+            y: currentDragPos.y + delta.y
           };
         });
-        
-        return newPositions;
-      });
-    } else {
-      // Just move this node - use direct position for immediate response
-      setDraggedPositions(prev => ({
-        ...prev,
-        [nodeId]: { x: data.x, y: data.y }
-      }));
-    }
+      } else {
+        // For single node, directly set the position
+        newPositions[nodeId] = { x: data.x, y: data.y };
+      }
+      
+      return newPositions;
+    });
+    
+    // Update the last position for the next drag event
+    lastDragPosition.current = { x: data.x, y: data.y };
   };
 
   // Handle card drag start
@@ -434,26 +444,78 @@ export default function PaperMap() {
     // Reset last position
     lastDragPosition.current = null;
     
-    // Disable transitions during drag
+    // Create a style element to disable ALL transitions during dragging
+    const styleElement = document.createElement('style');
+    styleElement.id = 'disable-all-transitions';
+    styleElement.textContent = `
+      * {
+        transition: none !important;
+        animation: none !important;
+      }
+    `;
+    document.head.appendChild(styleElement);
+    
+    // Also apply directly to canvas for good measure
     if (canvasRef.current) {
-      canvasRef.current.style.transition = 'none';
+      canvasRef.current.style.transition = 'none !important';
+      const allElements = canvasRef.current.querySelectorAll('*');
+      allElements.forEach(el => {
+        (el as HTMLElement).style.cssText += 'transition: none !important; animation: none !important;';
+      });
     }
   };
 
   // Handle card drag stop
   const handleCardDragStop = () => {
+    // Move draggedPositions changes into nodePositions for persistence
+    setNodePositions(prevNodePositions => {
+      const newPositions = { ...prevNodePositions };
+      
+      // Apply all dragged positions to base positions
+      Object.entries(draggedPositions).forEach(([id, pos]) => {
+        const basePos = prevNodePositions[id] || { x: 0, y: 0 };
+        newPositions[id] = {
+          x: basePos.x + pos.x,
+          y: basePos.y + pos.y
+        };
+      });
+      
+      return newPositions;
+    });
+    
+    // Clear all dragged positions
+    setDraggedPositions({});
+    
     // Reset last position
     lastDragPosition.current = null;
     
-    // Re-enable transitions after drag
-    if (canvasRef.current) {
-      canvasRef.current.style.transition = initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
-    }
-    
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      isCardBeingDragged.current = false;
-    }, 50);
+    // Using a sequence of delayed operations to ensure proper rendering
+    requestAnimationFrame(() => {
+      // First frame: leave transitions disabled
+      
+      // Schedule second frame for position settling
+      requestAnimationFrame(() => {
+        // Second frame: still leave transitions disabled
+        
+        // Schedule final cleanup after significant delay
+        setTimeout(() => {
+          // Remove the global style element after positions have settled
+          const styleElement = document.getElementById('disable-all-transitions');
+          if (styleElement) {
+            document.head.removeChild(styleElement);
+          }
+          
+          // Restore canvas transitions
+          if (canvasRef.current) {
+            canvasRef.current.style.transition = initialRenderComplete ? 
+              'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
+          }
+          
+          // Reset the flag after positions have fully settled
+          isCardBeingDragged.current = false;
+        }, 350); // Extra long delay to ensure everything is settled
+      });
+    });
   };
 
   // Modify handleNodeUpdate to properly update the node
@@ -570,266 +632,6 @@ export default function PaperMap() {
     };
   }, []);
 
-  // Handle canvas drag (for panning) or box selection
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only handle left mouse button
-    if (e.button === 0) {
-      const target = e.target as HTMLElement;
-      
-      // Check if we're clicking on a card or its children
-      const isCard = target.closest('.node-card');
-      
-      if (!isCard) {
-        // Get container's bounding rect to calculate correct relative coordinates
-        const containerRect = containerRef.current?.getBoundingClientRect();
-        
-        if (containerRect) {
-          // Calculate coordinates relative to the container
-          const relativeX = e.clientX - containerRect.left;
-          const relativeY = e.clientY - containerRect.top;
-          
-          // If shift key is pressed, start box selection
-          if (e.shiftKey || isShiftKeyDown) {
-            setIsBoxSelecting(true);
-            // Store start point in container-relative coordinates
-            setSelectionBox({
-              startX: relativeX,
-              startY: relativeY,
-              endX: relativeX,
-              endY: relativeY,
-            });
-          } else {
-            // Otherwise, start panning
-            setIsDragging(true);
-            setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-          }
-          e.preventDefault(); // Prevent text selection during drag
-        }
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      // Handle panning
-      setPan({
-        x: e.clientX - startPan.x,
-        y: e.clientY - startPan.y
-      });
-      e.preventDefault();
-    } else if (isBoxSelecting) {
-      // Get container's bounding rect to calculate correct relative coordinates
-      const containerRect = containerRef.current?.getBoundingClientRect();
-      
-      if (containerRect) {
-        // Calculate coordinates relative to the container
-        const relativeX = e.clientX - containerRect.left;
-        const relativeY = e.clientY - containerRect.top;
-        
-        // Update selection box end position
-        setSelectionBox(prev => ({
-          ...prev,
-          endX: relativeX,
-          endY: relativeY
-        }));
-        e.preventDefault();
-      }
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setIsDragging(false);
-      setStartPan({ x: 0, y: 0 }); // Reset start pan position
-    } else if (isBoxSelecting) {
-      // Calculate which nodes are inside selection box
-      if (data) {
-        const boxLeft = Math.min(selectionBox.startX, selectionBox.endX);
-        const boxRight = Math.max(selectionBox.startX, selectionBox.endX);
-        const boxTop = Math.min(selectionBox.startY, selectionBox.endY);
-        const boxBottom = Math.max(selectionBox.startY, selectionBox.endY);
-        
-        // Get container's bounding rect
-        const canvasRect = containerRef.current?.getBoundingClientRect();
-        if (canvasRect) {
-          const selectedIds: string[] = [];
-          
-          // Check each node to see if it's in the selection box
-          data.nodes.forEach(node => {
-            // Skip hidden nodes
-            let isHidden = false;
-            let currentNode = node;
-            while (currentNode.parentId) {
-              const parent = data.nodes.find(n => n.id === currentNode.parentId);
-              if (!parent) break;
-              if (hiddenChildren[parent.id]) {
-                isHidden = true;
-                break;
-              }
-              currentNode = parent;
-            }
-            
-            if (isHidden) return;
-            
-            // Get node position in canvas coordinates
-            const nodePos = getNodePosition(node.id);
-            
-            // Transform from canvas space to container space
-            // We need to account for both zoom and pan
-            const containerX = nodePos.x * zoom + pan.x;
-            const containerY = nodePos.y * zoom + pan.y;
-            
-            // Calculate the center point of the node card for selection (150px is half width, 50px is approx half height)
-            const nodeCenterX = containerX + 150;
-            const nodeCenterY = containerY + 50;
-            
-            if (nodeCenterX >= boxLeft && nodeCenterX <= boxRight &&
-                nodeCenterY >= boxTop && nodeCenterY <= boxBottom) {
-              selectedIds.push(node.id);
-            }
-          });
-          
-          // Update selected nodes, keeping already selected nodes if shift is pressed
-          if (e.shiftKey) {
-            setSelectedNodes(prev => [...prev, ...selectedIds.filter(id => !prev.includes(id))]);
-          } else {
-            setSelectedNodes(selectedIds);
-          }
-        }
-      }
-      
-      setIsBoxSelecting(false);
-      setSelectionBox({ startX: 0, startY: 0, endX: 0, endY: 0 }); // Reset selection box
-    }
-  };
-
-  // Calculate distance between two touch points
-  const getDistance = (touch1: React.Touch, touch2: React.Touch): number => {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  // Calculate center point between two touches
-  const getCenter = (touch1: React.Touch, touch2: React.Touch): { x: number, y: number } => {
-    return {
-      x: (touch1.clientX + touch2.clientX) / 2,
-      y: (touch1.clientY + touch2.clientY) / 2
-    };
-  };
-
-  // Touch event handlers for mobile
-  const handleTouchStart = (e: TouchEvent) => {
-    // Handle pinch gesture (two fingers)
-    if (e.touches.length === 2) {
-      // Calculate initial distance between touches
-      const distance = getDistance(e.touches[0], e.touches[1]);
-      setTouchDistance(distance);
-      
-      // Calculate center point between touches
-      const center = getCenter(e.touches[0], e.touches[1]);
-      setTouchCenter(center);
-      
-      e.preventDefault();
-      return;
-    }
-    
-    // Handle pan gesture (one finger)
-    const target = e.target as HTMLElement;
-    
-    // Check if we're touching a card or its children
-    const isCard = target.closest('.node-card');
-    
-    if (!isCard) {
-      isTouchDragging.current = true;
-      
-      // Get the first touch point
-      const touch = e.touches[0];
-      setStartPan({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
-      e.preventDefault(); // Prevent scrolling
-    }
-  };
-
-  const handleTouchMove = (e: TouchEvent) => {
-    // Handle pinch gesture (two fingers)
-    if (e.touches.length === 2 && touchDistance !== null && touchCenter !== null) {
-      // Ensure transitions are enabled for smooth zooming
-      setInitialRenderComplete(true);
-      
-      // Calculate new distance between touches
-      const newDistance = getDistance(e.touches[0], e.touches[1]);
-      
-      // Calculate zoom factor based on the change in distance
-      const factor = newDistance / touchDistance;
-      
-      // Apply a stronger dampening factor for smoother zooming
-      const dampenedFactor = factor > 1 
-        ? 1 + (factor - 1) * 0.25 // Reduced from 0.5 to 0.25 for more gentle zooming in
-        : 1 - (1 - factor) * 0.25; // Reduced from 0.5 to 0.25 for more gentle zooming out
-      
-      setZoom(prev => {
-        // For consistency with other zoom controls, limit the changes and prevent jumps
-        if (dampenedFactor > 1) {
-          // Zooming in - limit the increment
-          return Math.min(prev * dampenedFactor, prev + 0.1);
-        } else {
-          // Zooming out - use proportional step with minimum to prevent jarring jumps
-          const step = Math.max(0.05, prev * (1 - dampenedFactor));
-          return Math.max(0.1, prev - step);
-        }
-      });
-      
-      // Update the reference distance to the new distance to prevent jumps
-      setTouchDistance(newDistance);
-      
-      e.preventDefault();
-      return;
-    }
-    
-    // Handle pan gesture (one finger)
-    if (isTouchDragging.current) {
-      // Prevent default to stop scrolling
-      e.preventDefault();
-      
-      // Get the first touch point
-      const touch = e.touches[0];
-      
-      // Apply direct positioning without smoothing for responsive dragging
-      setPan({
-        x: touch.clientX - startPan.x,
-        y: touch.clientY - startPan.y
-      });
-    }
-  };
-
-  const handleTouchEnd = () => {
-    isTouchDragging.current = false;
-    setTouchDistance(null);
-    setTouchCenter(null);
-  };
-
-  // Handle wheel zoom with smoother increments
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    
-    // Ensure transitions are enabled for smooth zooming
-    setInitialRenderComplete(true);
-    
-    // Use proportional zooming like zoom buttons for consistency
-    const direction = e.deltaY < 0 ? 1 : -1;
-    
-    setZoom(prev => {
-      if (direction > 0) {
-        // Zoom in - add a fixed small increment
-        return Math.min(prev + 0.05, 2);
-      } else {
-        // Zoom out - use proportional step with minimum to prevent jarring jumps
-        const step = Math.max(0.05, prev * 0.1);
-        return Math.max(0.1, prev - step);
-      }
-    });
-  }, [setInitialRenderComplete]);
-
   // Modify handleNodeResize to be more responsive
   const handleNodeResize = useCallback((nodeId: string, width: number) => {
     // Update nodeWidths immediately
@@ -838,62 +640,6 @@ export default function PaperMap() {
       return newWidths;
     });
   }, []);
-
-  // Update renderConnections to properly use nodeWidths
-  const renderConnections = () => {
-    if (!data) return null;
-    
-    return data.nodes
-      .filter(node => node.parentId)
-      .map(node => {
-        const parent = data.nodes.find(n => n.id === node.parentId);
-        if (!parent) return null;
-        
-        // Check if this line should be hidden
-        // A line should be hidden if:
-        // 1. The node is hidden due to a collapsed parent
-        // 2. The node is animating and fading out
-        let isLineVisible = true;
-        let currentNode = node;
-        
-        // Check all ancestors to see if any are hidden
-        while (currentNode.parentId) {
-          const ancestor = data.nodes.find(n => n.id === currentNode.parentId);
-          if (!ancestor) break;
-          
-          if (hiddenChildren[ancestor.id]) {
-            isLineVisible = false;
-            break;
-          }
-          currentNode = ancestor;
-        }
-        
-        // Also hide the line if the node is animating and fading out
-        if (animatingNodes[node.id] && !showingAnimation[node.id]) {
-          isLineVisible = false;
-        }
-        
-        const parentPos = getNodePosition(parent.id);
-        const nodePos = getNodePosition(node.id);
-        
-        // Get the current width from nodeWidths
-        const parentWidth = nodeWidths[parent.id] || 300;
-        
-        return (
-          <Line
-            key={`${parent.id}-${node.id}`}
-            startPosition={parentPos}
-            endPosition={nodePos}
-            isParentExpanded={!!nodeExpanded[parent.id]}
-            isChildExpanded={!!nodeExpanded[node.id]}
-            nodeWidth={parentWidth}
-            isVisible={isLineVisible}
-            isDragging={isDragging || isCardBeingDragged.current}
-          />
-        );
-      })
-      .filter(Boolean);
-  };
 
   const [showTip, setShowTip] = useState(true);
 
@@ -993,44 +739,24 @@ export default function PaperMap() {
         />
       </div>
       
-      <div 
-        ref={containerRef}
-        className="flex-1 bg-gray-50 relative overflow-hidden select-none"
-        style={{ 
-          cursor: isShiftKeyDown
-            ? isBoxSelecting 
-              ? 'crosshair' 
-              : 'crosshair'
-            : isDragging
-              ? 'grabbing'
-              : 'grab',
-          touchAction: 'none',
-          width: '100%',
-          height: '100%',
-          WebkitUserSelect: 'none',
-          MozUserSelect: 'none',
-          msUserSelect: 'none',
-          outline: 'none',
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onWheel={handleWheel}
-      >
-        {/* Edge indicators */}
-        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-gray-300 to-transparent opacity-50 pointer-events-none" 
-             style={{ display: pan.y < 0 ? 'block' : 'none' }} />
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-300 to-transparent opacity-50 pointer-events-none" 
-             style={{ display: pan.y > 0 ? 'block' : 'none' }} />
-        <div className="absolute top-0 left-0 bottom-0 w-8 bg-gradient-to-r from-gray-300 to-transparent opacity-50 pointer-events-none" 
-             style={{ display: pan.x < 0 ? 'block' : 'none' }} />
-        <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-gray-300 to-transparent opacity-50 pointer-events-none" 
-             style={{ display: pan.x > 0 ? 'block' : 'none' }} />
-        
+      <div className="flex-1 overflow-hidden">
+        <CanvasPage
+          data={data}
+          nodePositions={nodePositions}
+          draggedPositions={draggedPositions}
+          nodeExpanded={nodeExpanded}
+          hiddenChildren={hiddenChildren}
+          selectedNodes={selectedNodes}
+          onNodeUpdate={handleNodeUpdate}
+          onNodeSelect={handleCardSelect}
+          onNodeDrag={handleDrag}
+          onNodeDragStart={handleCardDragStart}
+          onNodeDragStop={handleCardDragStop}
+          onToggleExpand={toggleNode}
+          onToggleChildren={toggleChildrenVisibility}
+          onNodeResize={handleNodeResize}
+          registerToggleButtonRef={registerToggleButtonRef}
+        >
         {/* Zoom controls */}
         <ZoomControls 
           onZoomIn={handleZoomIn}
@@ -1059,7 +785,7 @@ export default function PaperMap() {
         
         {/* Selection counter */}
         {selectedNodes.length > 0 && (
-          <div className="absolute bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] right-2 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-md text-sm font-medium z-50 flex items-center space-x-2 animate-fadeIn">
+            <div className="absolute bottom-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-md text-sm font-medium z-50 flex items-center space-x-2 animate-fadeIn">
             <span>{selectedNodes.length} card{selectedNodes.length > 1 ? 's' : ''} selected</span>
             <button 
               onClick={() => setSelectedNodes([])}
@@ -1070,124 +796,7 @@ export default function PaperMap() {
             </button>
           </div>
         )}
-        
-        <div 
-          ref={canvasRef}
-          className="pointer-events-auto absolute select-none" 
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            minWidth: '100%',
-            minHeight: '100%',
-            width: '16000px',  // Double the canvas area width
-            height: '12000px', // Double the canvas area height
-            position: 'absolute',
-            top: '0',  // Reset to 0 instead of negative value
-            left: '0', // Reset to 0 instead of negative value
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none',
-            outline: 'none',
-            overflow: 'visible', // Add this to allow resize handles to show
-            // Enable transitions once initial rendering is complete, but disable during dragging
-            transition: isDragging || isCardBeingDragged.current
-              ? 'none'
-              : initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
-          }}
-        >
-          {/* SVG for connections */}
-          <svg
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              zIndex: 5,
-              pointerEvents: 'none', // Allows clicking through to the containers
-              overflow: 'visible', // Allow lines to extend beyond SVG boundaries
-            }}
-          >
-            {renderConnections()}
-          </svg>
-          
-          {/* Render nodes */}
-          {data?.nodes
-            .filter(node => {
-              // Always show root nodes
-              if (!node.parentId) return true;
-              
-              // Check if this node is a descendant of any hidden node
-              let currentNode = node;
-              let isDescendantOfHiddenNode = false;
-              
-              // Traverse up the tree to check all ancestors
-              while (currentNode.parentId) {
-                const parent = data.nodes.find(n => n.id === currentNode.parentId);
-                if (!parent) break;
-                
-                // If any ancestor has hidden children, don't show this node
-                if (hiddenChildren[parent.id]) {
-                  isDescendantOfHiddenNode = true;
-                  break;
-                }
-                
-                // Move up to the parent
-                currentNode = parent;
-              }
-              
-              return !isDescendantOfHiddenNode;
-            })
-            .map(node => {
-              const basePosition = nodePositions[node.id] || { x: 0, y: 0 };
-              const draggedPosition = draggedPositions[node.id] || { x: 0, y: 0 };
-              const isExpanded = nodeExpanded[node.id] || false;
-              const areChildrenHidden = hiddenChildren[node.id] || false;
-              const hasChildren = data.nodes.some(n => n.parentId === node.id);
-              const isSelected = selectedNodes.includes(node.id);
-              
-              // Determine if this node should be animating
-              const isAnimating = animatingNodes[node.id];
-              const isVisible = visibilityState[node.id] !== false;
-              
-              // Custom node styles to override the default ones in NodeCard
-              const customStyles = isAnimating ? {
-                transform: isVisible 
-                  ? 'translateX(0) scale(1)' 
-                  : showingAnimation[node.id] 
-                    ? 'translateX(-30px) scale(0.98)' // Coming in from left (will animate to translateX(0))
-                    : 'translateX(30px) scale(0.98)'  // Going out to right
-              } : undefined;
-              
-              // Move the selection class to the NodeCard component instead of its parent div
-              return (
-                <div key={node.id}>
-                  <NodeCard
-                    node={node}
-                    basePosition={basePosition}
-                    draggedPosition={draggedPosition}
-                    isExpanded={isExpanded}
-                    hasChildren={hasChildren}
-                    areChildrenHidden={areChildrenHidden}
-                    onDrag={handleDrag}
-                    onDragStart={handleCardDragStart}
-                    onToggleExpand={toggleNode}
-                    onToggleChildren={toggleChildrenVisibility}
-                    onDragStop={handleCardDragStop}
-                    onUpdateNode={handleNodeUpdate}
-                    onSelect={handleCardSelect}
-                    isSelected={isSelected}
-                    registerToggleButtonRef={registerToggleButtonRef}
-                    isVisible={!isAnimating || isVisible}
-                    style={customStyles}
-                    selectionClass={getSelectionClassNames(isSelected)}
-                    onResize={handleNodeResize}
-                  />
-                </div>
-              );
-            })}
-        </div>
+        </CanvasPage>
       </div>
     </div>
   );

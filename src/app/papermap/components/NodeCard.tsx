@@ -55,8 +55,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const isBeingDragged = useRef<boolean>(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0 });
-  const [cardSize, setCardSize] = useState<{ width: number }>({ width: 300 }); // Remove height from cardSize
-  const initialSize = useRef({ width: 300, height: 0 });
+  const [cardSize, setCardSize] = useState<{ width: number }>({ width: 250 }); // Reduced width from 300 to 250
+  const initialSize = useRef({ width: 250, height: 0 }); // Reduced width from 300 to 250
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [descriptionHeight, setDescriptionHeight] = useState<number>(100); // Default description height
   const [contentHeight, setContentHeight] = useState<number>(0);
@@ -193,19 +193,80 @@ const NodeCard: React.FC<NodeCardProps> = ({
     // Call onDragStart if provided
     onDragStart?.();
     
-    // Original drag start logic
+    // Set dragging state immediately
     setIsDragging(true);
+    isBeingDragged.current = true;
+    
     // Clear the timeout if it exists
     if (dragTimeoutRef.current) {
       clearTimeout(dragTimeoutRef.current);
       dragTimeoutRef.current = null;
     }
+    
+    // CRITICAL: Aggressively disable all transitions via style injection
+    document.body.classList.add('dragging-active');
+    
+    // Apply inline style override for this specific node
+    if (nodeRef.current) {
+      // Force most aggressive performance optimizations
+      nodeRef.current.style.cssText += `
+        will-change: transform !important;
+        transition: none !important;
+        animation: none !important;
+      `;
+      
+      // Also apply to all children
+      const allElements = nodeRef.current.querySelectorAll('*');
+      allElements.forEach(el => {
+        (el as HTMLElement).style.cssText += `
+          transition: none !important;
+          animation: none !important;
+        `;
+      });
+    }
   };
   
   // Handle drag stop
-  const handleDragStop = () => {
-    if (onDragStop) onDragStop();
+  const handleDragStop = (e: any, data: any) => {
     setIsDragging(false);
+    isBeingDragged.current = false;
+    
+    document.body.classList.remove('dragging-active');
+    
+    // Call the parent's onDragStop callback FIRST before any style changes
+    if (onDragStop) {
+      onDragStop();
+    }
+    
+    // Keep transitions disabled on the nodes for a longer period
+    if (nodeRef.current) {
+      // Wait for the next frame to remove the style overrides
+      requestAnimationFrame(() => {
+        // First frame: keep transitions disabled
+        if (!nodeRef.current) return;
+        
+        // Set up another frame to apply transitions after positions settle
+        requestAnimationFrame(() => {
+          // Second frame: still keep transitions off to allow positions to apply
+          if (!nodeRef.current) return;
+          
+          setTimeout(() => {
+            // After a substantial delay, restore normal behavior
+            if (!nodeRef.current) return;
+            
+            // Apply transition styles carefully
+            nodeRef.current.style.willChange = 'auto';
+            nodeRef.current.style.transition = ''; // Let CSS handle it
+            
+            // Restore normal child element behavior
+            const allElements = nodeRef.current.querySelectorAll('*');
+            allElements.forEach(el => {
+              (el as HTMLElement).style.transition = '';
+            });
+          }, 300); // Very substantial delay to ensure positions are settled
+        });
+      });
+    }
   };
 
   // Touch event handlers
@@ -389,26 +450,6 @@ const NodeCard: React.FC<NodeCardProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // Basic styles without the transform animation (which comes from the parent)
-  const baseStyles: CSSProperties = {
-    position: 'absolute',
-    left: `${basePosition.x}px`,
-    top: `${basePosition.y}px`,
-    width: `${cardSize.width}px`,
-    height: 'auto', // Always auto height to fit content
-    zIndex: isResizing ? 1000 : 10, // Increase z-index while resizing
-    touchAction: 'none',
-    cursor: isDragging ? 'grabbing' : 'grab',
-    opacity: isVisible ? 1 : 0,
-    transition: isDragging || isResizing ? 'none' : undefined // Disable transitions during drag and resize
-  };
-
-  // Combine base styles with custom styles from parent
-  const combinedStyles: CSSProperties = {
-    ...baseStyles,
-    ...style
-  };
-
   // Update the return JSX, specifically the outer div styles
   return (
     <Draggable
@@ -419,18 +460,32 @@ const NodeCard: React.FC<NodeCardProps> = ({
       onStop={handleDragStop}
       cancel=".no-drag" // Elements with this class won't trigger dragging
       disabled={isResizing}
+      bounds={false} // Disable bounds to prevent bouncing back
+      scale={1} // Ensure consistent scaling
     >
       <div 
         ref={nodeRef}
         className={`node-card ${selectionClass}`}
         style={{
-          ...combinedStyles,
+          position: 'absolute',
+          left: basePosition.x,
+          top: basePosition.y,
           width: cardSize.width,
           height: 'auto',
-          minWidth: '300px',
-          minHeight: '100px',
-          transition: isDragging || isResizing ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflow: 'visible' // Add this to allow resize handles to show
+          minWidth: '200px',
+          minHeight: '80px',
+          maxWidth: '300px',
+          // Disable transitions completely during drag
+          transition: isDragging ? 'none !important' : 'all 0.2s ease',
+          overflow: 'visible',
+          fontSize: '0.9rem',
+          zIndex: isResizing ? 1000 : (isSelected ? 20 : 10),
+          touchAction: 'none',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          opacity: isVisible ? 1 : 0,
+          willChange: isDragging ? 'transform' : 'auto',
+          // Allow any additional custom styles
+          ...style
         }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -442,23 +497,26 @@ const NodeCard: React.FC<NodeCardProps> = ({
         <div className="flex flex-col">
           {/* Title section - fixed height */}
           <div 
-            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative p-4`}
+            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative p-3`}
             style={{
               ...(isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)' } : {}),
               borderBottom: isExpanded ? 'none' : undefined,
               borderRadius: isExpanded ? '0.5rem 0.5rem 0 0' : '0.5rem',
+              height: '50px', // Fixed height for title div to ensure consistent line connections
+              display: 'flex',
+              alignItems: 'center'
             }}
           >
             {/* Title content */}
-            <div className="flex items-center gap-2" style={{
+            <div className="flex items-center gap-2 w-full" style={{
               display: 'flex',
-              alignItems: 'flex-start', 
+              alignItems: 'center', 
               justifyContent: 'space-between'
             }}>
               {editState.isEditingTitle ? (
                 <textarea
                   ref={titleInputRef as any}
-                  className="font-bold text-lg no-drag flex-1"
+                  className="font-bold text-sm no-drag flex-1"
                   style={{ 
                     outline: 'none',
                     border: 'none',
@@ -483,16 +541,18 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 />
               ) : (
                 <h3 
-                  className="font-bold text-lg cursor-text flex-1" 
+                  className="font-bold text-sm cursor-text flex-1" 
                   onDoubleClick={handleTitleDoubleClick}
                   title="Double-click to edit"
                   style={{ 
                     margin: '0', 
                     padding: '0',
                     lineHeight: '1.3',
-                    minHeight: '24px',
                     display: 'block',
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxHeight: '40px'
                   }}
                 >
                   {node.title}
@@ -508,12 +568,12 @@ const NodeCard: React.FC<NodeCardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  height: '24px',
-                  width: '24px',
-                  minWidth: '24px',
+                  height: '20px',
+                  width: '20px',
+                  minWidth: '20px',
                   padding: '0',
                   margin: '0',
-                  marginTop: '2px'
+                  marginLeft: '8px'
                 }}
               >
                 {isExpanded ? (
@@ -535,7 +595,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
               height: isExpanded ? `${descriptionHeight}px` : '0',
               minHeight: isExpanded ? `${contentHeight}px` : '0',
               transitionProperty: 'height, opacity',
-              transitionDuration: isResizing ? '0s' : '0.1s',
+              transitionDuration: isResizing || isDragging ? '0s' : '0.1s',
               transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
               overflow: 'hidden',
               opacity: isExpanded ? 1 : 0,
@@ -543,18 +603,18 @@ const NodeCard: React.FC<NodeCardProps> = ({
             }}
           >
             <div 
-              className="p-4 h-full overflow-hidden description-content"
+              className="p-3 h-full overflow-hidden description-content"
               style={{
                 opacity: isExpanded ? 1 : 0,
                 transform: isExpanded ? 'translateY(0)' : 'translateY(-12px)',
-                transition: isResizing ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                transition: isResizing || isDragging ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
                 willChange: 'transform, opacity'
               }}
             >
               {editState.isEditingDescription ? (
                 <textarea
                   ref={descriptionInputRef}
-                  className="text-sm text-gray-600 w-full no-drag resize-none"
+                  className="text-xs text-gray-600 w-full no-drag resize-none"
                   style={{ 
                     outline: 'none',
                     border: 'none',
@@ -578,9 +638,10 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 />
               ) : (
                 <p 
-                  className="text-sm text-gray-600 cursor-text"
+                  className="text-xs text-gray-600 cursor-text"
                   style={{
-                    minHeight: '1.5em' // Ensure at least one line is always visible
+                    minHeight: '1.5em', // Ensure at least one line is always visible
+                    margin: 0
                   }}
                   onDoubleClick={handleDescriptionDoubleClick}
                   title="Double-click to edit"
@@ -609,10 +670,10 @@ const NodeCard: React.FC<NodeCardProps> = ({
           style={{ 
             touchAction: 'none',
             right: '-6px',
-            zIndex: 15, // Lower z-index than toggle button
+            zIndex: 3, // Lower z-index than connections (5) and toggle button (20)
             pointerEvents: 'auto',
-            // Disable pointer events in the middle section where the toggle button is
-            clipPath: 'polygon(0 0, 100% 0, 100% calc(20px - 6px), 0 calc(20px - 6px), 0 calc(20px + 30px), 100% calc(20px + 30px), 100% 100%, 0 100%)'
+            // Clip path to avoid the middle area where connection lines and toggle button are
+            clipPath: 'polygon(0 0, 100% 0, 100% 15px, 0 15px, 0 35px, 100% 35px, 100% 100%, 0 100%)'
           }}
         />
 
@@ -622,8 +683,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
             ref={toggleButtonRef}
             className="absolute right-0 no-drag transition-all duration-250 ease-out"
             style={{
-              width: '24px',
-              height: '24px',
+              width: '18px',
+              height: '18px',
               backgroundColor: 'white',
               borderRadius: '50%',
               display: 'flex',
@@ -634,11 +695,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
               border: '2px solid #9CA3AF',
               boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
               zIndex: 20,
-              top: '20px',
-              right: '-12px',
-              transform: isResizing ? 'none' : 'translateX(0)', // Important: don't use transform during resize
-              transition: isResizing ? 'none' : 'all 0.1s ease-out', // Smooth transition when not resizing
-              pointerEvents: 'auto' // Ensure pointer events work
+              top: '25px', // Exactly at the vertical center of title div (50px height / 2)
+              right: '-9px', // Position button to align with the connection line
+              marginTop: '-9px', // Half of height to center it vertically
+              transition: isResizing || isDragging ? 'none' : 'all 0.1s ease-out',
+              pointerEvents: 'auto',
+              fontSize: '10px', // Smaller font for the +/- symbol
+              fontWeight: 'bold'
             }}
             title={areChildrenHidden ? "Show children" : "Hide children"}
             onClick={(e) => {

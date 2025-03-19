@@ -19,8 +19,8 @@ export interface MindMapData {
 }
 
 // Constants for layout
-export const COLUMN_WIDTH = 400;
-export const NODE_VERTICAL_SPACING = 200;
+export const COLUMN_WIDTH = 550;
+export const NODE_VERTICAL_SPACING = 160;
 
 // Sample data for testing
 export const sampleData: MindMapData = {
