@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, CSSProperties } from 'react';
 import Draggable from 'react-draggable';
 import { MindMapNode, NodePosition } from './MindMapTypes';
-import { ChevronDownIcon, ChevronUpIcon, ChevronRightIcon, ChevronLeftIcon } from './Icons';
+import { ChevronDownIcon, ChevronUpIcon } from './Icons';
 
 interface NodeCardProps {
   node: MindMapNode;
@@ -22,6 +22,7 @@ interface NodeCardProps {
   isVisible?: boolean; // New prop to control animation
   style?: React.CSSProperties; // Allow custom style overrides
   selectionClass?: string; // Add the selection class prop
+  onResize?: (nodeId: string, width: number, height: number) => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -42,7 +43,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
   registerToggleButtonRef,
   isVisible = true, // Default to visible
   style = {}, // Default to empty style object
-  selectionClass = '' // Default to empty string
+  selectionClass = '',
+  onResize
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLDivElement>(null);
@@ -51,7 +53,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const touchStartTimeRef = useRef<number>(0);
   const touchMoveCountRef = useRef<number>(0);
   const isBeingDragged = useRef<boolean>(false);
-  
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0 });
+  const [cardSize, setCardSize] = useState<{ width: number }>({ width: 300 }); // Remove height from cardSize
+  const initialSize = useRef({ width: 300, height: 0 });
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const [descriptionHeight, setDescriptionHeight] = useState<number>(100); // Default description height
+  const [contentHeight, setContentHeight] = useState<number>(0);
+
   // Register the toggle button ref with the parent component
   useEffect(() => {
     if (hasChildren && toggleButtonRef.current && registerToggleButtonRef) {
@@ -66,7 +75,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
   }, [node.id, hasChildren, registerToggleButtonRef, isExpanded]);
   
   // Editing states
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Replace the existing title and description state with controlled state
@@ -87,6 +96,42 @@ const NodeCard: React.FC<NodeCardProps> = ({
       }));
     }
   }, [node.title, node.description]);
+
+  // Add this function near other handlers
+  const adjustTextAreaHeight = (element: HTMLTextAreaElement) => {
+    element.style.height = '0';
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  // Add effect to handle initial height adjustment
+  useEffect(() => {
+    if (editState.isEditingTitle && titleInputRef.current) {
+      adjustTextAreaHeight(titleInputRef.current);
+    }
+    if (editState.isEditingDescription && descriptionInputRef.current) {
+      adjustTextAreaHeight(descriptionInputRef.current);
+    }
+  }, [editState.isEditingTitle, editState.isEditingDescription]);
+
+  // Update description height calculation
+  useEffect(() => {
+    if (descriptionRef.current && isExpanded) {
+      const content = descriptionRef.current.querySelector('.description-content');
+      if (content) {
+        const newContentHeight = content.scrollHeight;
+        setContentHeight(newContentHeight);
+        // Only update height if current height is less than content height
+        setDescriptionHeight(prev => Math.max(newContentHeight, prev));
+      }
+    }
+  }, [isExpanded, editState.description]);
+
+  // Add an effect to notify parent of width changes
+  useEffect(() => {
+    if (onResize) {
+      onResize(node.id, cardSize.width, 0);
+    }
+  }, [cardSize.width, node.id, onResize]);
 
   // Handle mouse down to detect potential drag start
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -296,17 +341,57 @@ const NodeCard: React.FC<NodeCardProps> = ({
     };
   }, [editState.isEditingTitle, editState.isEditingDescription, editState.title, editState.description]);
 
+  // Modify handleResizeStart to handle both horizontal and vertical resizing
+  const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(true);
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = nodeRef.current?.offsetWidth || 300;
+    const startHeight = descriptionRef.current?.offsetHeight || contentHeight;
+
+    const handleResize = (e: MouseEvent) => {
+      if (!nodeRef.current || !descriptionRef.current) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      if (direction === 'right' || direction === 'corner') {
+        const newWidth = Math.max(300, startWidth + deltaX);
+        setCardSize({ width: newWidth });
+        onResize?.(node.id, newWidth, 0);
+      }
+      
+      if (direction === 'bottom' || direction === 'corner') {
+        const newHeight = Math.max(contentHeight, startHeight + deltaY);
+        setDescriptionHeight(newHeight);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleResize);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   // Basic styles without the transform animation (which comes from the parent)
   const baseStyles: CSSProperties = {
     position: 'absolute',
     left: `${basePosition.x}px`,
     top: `${basePosition.y}px`,
-    width: '300px',
-    zIndex: 10,
+    width: `${cardSize.width}px`,
+    height: 'auto', // Always auto height to fit content
+    zIndex: isResizing ? 1000 : 10, // Increase z-index while resizing
     touchAction: 'none',
     cursor: isDragging ? 'grabbing' : 'grab',
     opacity: isVisible ? 1 : 0,
-    transition: isDragging ? 'none' : undefined // Disable transitions during drag
+    transition: isDragging || isResizing ? 'none' : undefined // Disable transitions during drag and resize
   };
 
   // Combine base styles with custom styles from parent
@@ -315,6 +400,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     ...style
   };
 
+  // Update the return JSX, specifically the outer div styles
   return (
     <Draggable
       nodeRef={nodeRef as any}
@@ -323,11 +409,20 @@ const NodeCard: React.FC<NodeCardProps> = ({
       onStart={handleDragStart}
       onStop={handleDragStop}
       cancel=".no-drag" // Elements with this class won't trigger dragging
+      disabled={isResizing}
     >
       <div 
         ref={nodeRef}
         className={`node-card transition-all duration-250 ease-out ${selectionClass}`}
-        style={combinedStyles}
+        style={{
+          ...combinedStyles,
+          width: cardSize.width,
+          height: 'auto',
+          minWidth: '300px',
+          minHeight: '100px',
+          transition: isResizing ? 'none' : combinedStyles.transition,
+          overflow: 'visible' // Add this to allow resize handles to show
+        }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onTouchStart={handleTouchStart}
@@ -335,132 +430,201 @@ const NodeCard: React.FC<NodeCardProps> = ({
         onTouchEnd={handleTouchEnd}
         title="Click to select, double-click to expand"
       >
-        <div 
-          className={`bg-white p-4 rounded-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
-          style={isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5), 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } : undefined}
-        >
-          <div className="flex items-center gap-2" style={{
-            display: 'flex',
-            alignItems: 'flex-start', 
-            justifyContent: 'space-between'
-          }}>
-            {editState.isEditingTitle ? (
-              <input
-                ref={titleInputRef}
-                type="text"
-                className="font-bold text-lg border rounded px-1 py-0.5 no-drag flex-1"
-                style={{ outline: 'none' }}
-                value={editState.title}
-                onChange={(e) => setEditState(prev => ({ ...prev, title: e.target.value }))}
-                onKeyDown={handleTitleKeyDown}
-                onBlur={handleTitleSave}
-              />
-            ) : (
-              <h3 
-                className="font-bold text-lg cursor-text flex-1" 
-                onDoubleClick={handleTitleDoubleClick}
-                title="Double-click to edit"
-                style={{ 
-                  margin: '0', 
-                  padding: '0',
-                  lineHeight: '1.3',
-                  minHeight: '24px',
-                  display: 'block',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {node.title}
-              </h3>
-            )}
-            <button 
-              className="text-gray-500 hover:text-gray-700 no-drag" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleExpand(node.id);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '24px',
-                width: '24px',
-                minWidth: '24px',
-                padding: '0',
-                margin: '0',
-                marginTop: '2px'
-              }}
-            >
-              {isExpanded ? (
-                <ChevronUpIcon />
-              ) : (
-                <ChevronDownIcon />
-              )}
-            </button>
-          </div>
-          
-          {/* Description section with animation */}
+        <div className="flex flex-col">
+          {/* Title section - fixed height */}
           <div 
-            className="overflow-hidden transition-all duration-200 ease-in-out"
-            style={{ 
-              maxHeight: isExpanded ? '200px' : '0px',
-              opacity: isExpanded ? 1 : 0,
-              marginTop: isExpanded ? '8px' : '0px',
-              borderTop: isExpanded ? '1px solid #e5e7eb' : 'none'
+            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative p-4`}
+            style={{
+              ...(isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)' } : {}),
+              borderBottom: isExpanded ? 'none' : undefined,
+              borderRadius: isExpanded ? '0.5rem 0.5rem 0 0' : '0.5rem',
             }}
           >
-            {editState.isEditingDescription ? (
-              <textarea
-                ref={descriptionInputRef}
-                className="text-sm text-gray-600 pt-2 w-full border rounded px-2 py-1 no-drag"
-                style={{ outline: 'none' }}
-                value={editState.description}
-                onChange={(e) => setEditState(prev => ({ ...prev, description: e.target.value }))}
-                onKeyDown={handleDescriptionKeyDown}
-                onBlur={handleDescriptionSave}
-                rows={3}
-                placeholder="Enter description..."
-              />
-            ) : (
-              <p 
-                className="text-sm text-gray-600 pt-2 cursor-text" 
-                onDoubleClick={handleDescriptionDoubleClick}
-                title="Double-click to edit"
+            {/* Title content */}
+            <div className="flex items-center gap-2" style={{
+              display: 'flex',
+              alignItems: 'flex-start', 
+              justifyContent: 'space-between'
+            }}>
+              {editState.isEditingTitle ? (
+                <textarea
+                  ref={titleInputRef as any}
+                  className="font-bold text-lg no-drag flex-1"
+                  style={{ 
+                    outline: 'none',
+                    border: 'none',
+                    background: 'transparent',
+                    width: '100%',
+                    margin: '0',
+                    padding: '0',
+                    lineHeight: '1.3',
+                    resize: 'none',
+                    overflow: 'hidden',
+                    display: 'block',
+                    wordBreak: 'break-word'
+                  }}
+                  value={editState.title}
+                  onChange={(e) => {
+                    adjustTextAreaHeight(e.target);
+                    setEditState(prev => ({ ...prev, title: e.target.value }));
+                  }}
+                  onKeyDown={handleTitleKeyDown}
+                  onBlur={handleTitleSave}
+                  rows={1}
+                />
+              ) : (
+                <h3 
+                  className="font-bold text-lg cursor-text flex-1" 
+                  onDoubleClick={handleTitleDoubleClick}
+                  title="Double-click to edit"
+                  style={{ 
+                    margin: '0', 
+                    padding: '0',
+                    lineHeight: '1.3',
+                    minHeight: '24px',
+                    display: 'block',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {node.title}
+                </h3>
+              )}
+              <button 
+                className="text-gray-500 hover:text-gray-700 no-drag" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand(node.id);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '24px',
+                  width: '24px',
+                  minWidth: '24px',
+                  padding: '0',
+                  margin: '0',
+                  marginTop: '2px'
+                }}
               >
-                {node.description || "Double-click to add description"}
-              </p>
-            )}
+                {isExpanded ? (
+                  <ChevronUpIcon />
+                ) : (
+                  <ChevronDownIcon />
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Children toggle indicator on the right side */}
-          {hasChildren && onToggleChildren && (
+          {/* Description section - expandable/collapsible */}
+          {isExpanded && (
             <div 
-              ref={toggleButtonRef}
-              className="absolute right-0 no-drag transition-all duration-250 ease-out"
+              ref={descriptionRef}
+              className={`bg-white rounded-b-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
               style={{
-                width: '24px',
-                height: '24px',
-                backgroundColor: 'white',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#6B7280',
-                border: '2px solid #9CA3AF',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-                zIndex: 20,
-                top: '20px',
-                transform: 'translateX(50%)'
-              }}
-              title={areChildrenHidden ? "Show children" : "Hide children"}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleChildren(node.id);
+                borderTop: 'none',
+                borderRadius: '0 0 0.5rem 0.5rem',
+                height: `${descriptionHeight}px`,
+                minHeight: `${contentHeight}px`,
+                transition: isResizing ? 'none' : 'height 0.2s ease-in-out',
+                overflow: 'hidden'
               }}
             >
+              <div className="p-4 h-full overflow-hidden description-content">
+                {editState.isEditingDescription ? (
+                  <textarea
+                    ref={descriptionInputRef}
+                    className="text-sm text-gray-600 w-full no-drag resize-none"
+                    style={{ 
+                      outline: 'none',
+                      border: 'none',
+                      background: 'transparent',
+                      width: '100%',
+                      overflow: 'hidden',
+                      display: 'block',
+                      wordBreak: 'break-word',
+                      minHeight: '1.5em',
+                      height: 'auto'
+                    }}
+                    value={editState.description}
+                    onChange={(e) => {
+                      adjustTextAreaHeight(e.target);
+                      setEditState(prev => ({ ...prev, description: e.target.value }));
+                    }}
+                    onKeyDown={handleDescriptionKeyDown}
+                    onBlur={handleDescriptionSave}
+                    placeholder="Double-click to add description"
+                    rows={1}
+                  />
+                ) : (
+                  <p 
+                    className="text-sm text-gray-600 cursor-text"
+                    style={{
+                      minHeight: '1.5em' // Ensure at least one line is always visible
+                    }}
+                    onDoubleClick={handleDescriptionDoubleClick}
+                    title="Double-click to edit"
+                  >
+                    {node.description || "Double-click to add description"}
+                  </p>
+                )}
+              </div>
+
+              {/* Bottom resize handle */}
+              <div 
+                className="absolute right-0 bottom-0 left-0 h-3 cursor-ns-resize hover:bg-blue-200 opacity-0 hover:opacity-20"
+                onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+                style={{ 
+                  bottom: '-6px',
+                  zIndex: 1000
+                }}
+              />
             </div>
           )}
         </div>
+
+        {/* Width resize handle - always visible */}
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-blue-200 opacity-0 hover:opacity-20"
+          onMouseDown={(e) => handleResizeStart(e, 'right')}
+          style={{ 
+            touchAction: 'none',
+            right: '-6px',
+            zIndex: 1000
+          }}
+        />
+
+        {/* Children toggle indicator on the right side */}
+        {hasChildren && onToggleChildren && (
+          <div 
+            ref={toggleButtonRef}
+            className="absolute right-0 no-drag transition-all duration-250 ease-out"
+            style={{
+              width: '24px',
+              height: '24px',
+              backgroundColor: 'white',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#6B7280',
+              border: '2px solid #9CA3AF',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+              zIndex: 20,
+              top: '20px',
+              right: '-12px',
+              transform: isResizing ? 'none' : 'translateX(0)', // Important: don't use transform during resize
+              transition: isResizing ? 'none' : 'all 0.2s ease-out' // Smooth transition when not resizing
+            }}
+            title={areChildrenHidden ? "Show children" : "Hide children"}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            {areChildrenHidden ? "+" : "-"}
+          </div>
+        )}
       </div>
     </Draggable>
   );

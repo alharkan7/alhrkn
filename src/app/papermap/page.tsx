@@ -48,6 +48,9 @@ export default function PaperMap() {
   // Add fileName state
   const [fileName, setFileName] = useState<string>("mindmap");
 
+  // Add state to track node widths
+  const [nodeWidths, setNodeWidths] = useState<Record<string, number>>({});
+
   // Handle zoom controls with smaller increments for smoother zooming
   const handleZoomIn = useCallback(() => {
     // Ensure transitions are enabled
@@ -210,11 +213,13 @@ export default function PaperMap() {
     }
   }, [containerRef, canvasRef]);
 
-  // Load sample data initially
+  // Modify the initial data loading
   useEffect(() => {
-    setData(sampleData);
-  }, []);
-  
+    if (!data) {  // Only set sample data if no data exists
+      setData(sampleData);
+    }
+  }, [data]);
+
   // Reset dataStructureVersion after it's been processed
   useEffect(() => {
     if (dataStructureVersion > 0) {
@@ -448,29 +453,28 @@ export default function PaperMap() {
     }, 50);
   };
 
-  // Handle node updates (title, description)
+  // Modify handleNodeUpdate to properly update the node
   const handleNodeUpdate = (nodeId: string, updates: Partial<MindMapNode>) => {
     if (!data) return;
     
-    // Create a new nodes array with the updated node
+    // Create new nodes array with the updated node
     const updatedNodes = data.nodes.map(node => 
-      node.id === nodeId ? { ...node, ...updates } : node
+      node.id === nodeId 
+        ? { ...node, ...updates }
+        : node
     );
-    
-    // Update the data state with the new nodes WITHOUT incrementing dataStructureVersion
-    // since text edits shouldn't reset zoom/pan
+
+    // Set the new data state immutably to ensure React detects the change
     setData({
-      ...data,
       nodes: updatedNodes
     });
   };
 
-  // Handle file upload
+  // Modify handleFileUpload to maintain uploaded data
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     setError(null);
     
-    // Set the file name from the uploaded file
     const originalFileName = file.name;
     setFileName(originalFileName);
 
@@ -487,12 +491,37 @@ export default function PaperMap() {
         throw new Error('Failed to analyze paper');
       }
 
-      const responseData: MindMapData = await response.json();
-      setData(responseData);
-      // Reset positions when loading new data
+      const responseData = await response.json();
+      
+      // Validate and transform the response data
+      if (!responseData.nodes || !Array.isArray(responseData.nodes)) {
+        throw new Error('Invalid response format from server');
+      }
+
+      // Reset states
       setDraggedPositions({});
-      // Increment structure version to trigger zoom fit
+      setNodeExpanded({});
+      setHiddenChildren({});
+      setSelectedNodes([]);
+      setNodePositions({}); // Clear node positions to trigger recalculation
+      
+      // Create a new MindMapData object with the response data
+      const newData: MindMapData = {
+        nodes: responseData.nodes.map((node: any) => ({
+          id: node.id,
+          title: node.title || '',
+          description: node.description || '',
+          parentId: node.parentId,
+          level: node.level
+        }))
+      };
+
+      // Set the new data
+      setData(newData);
+      
+      // Trigger layout recalculation
       setDataStructureVersion(prev => prev + 1);
+
     } catch (err) {
       console.error('Error details:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -556,12 +585,8 @@ export default function PaperMap() {
           const relativeX = e.clientX - containerRect.left;
           const relativeY = e.clientY - containerRect.top;
           
-          // If shift key is pressed, start panning
+          // If shift key is pressed, start box selection
           if (e.shiftKey || isShiftKeyDown) {
-            setIsDragging(true);
-            setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-          } else {
-            // Otherwise, start box selection
             setIsBoxSelecting(true);
             // Store start point in container-relative coordinates
             setSelectionBox({
@@ -570,6 +595,10 @@ export default function PaperMap() {
               endX: relativeX,
               endY: relativeY,
             });
+          } else {
+            // Otherwise, start panning
+            setIsDragging(true);
+            setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
           }
           e.preventDefault(); // Prevent text selection during drag
         }
@@ -798,36 +827,21 @@ export default function PaperMap() {
     });
   }, [setInitialRenderComplete]);
 
-  // Create connections
+  // Modify handleNodeResize to be more responsive
+  const handleNodeResize = useCallback((nodeId: string, width: number) => {
+    // Update nodeWidths immediately
+    setNodeWidths(prev => {
+      const newWidths = { ...prev, [nodeId]: width };
+      return newWidths;
+    });
+  }, []);
+
+  // Update renderConnections to properly use nodeWidths
   const renderConnections = () => {
     if (!data) return null;
     
     return data.nodes
-      .filter(node => {
-        // Only include nodes with a parent
-        if (!node.parentId) return false;
-        
-        // Check if this node is a descendant of any hidden node
-        let currentNode = node;
-        let isDescendantOfHiddenNode = false;
-        
-        // Traverse up the tree to check all ancestors
-        while (currentNode.parentId) {
-          const parent = data.nodes.find(n => n.id === currentNode.parentId);
-          if (!parent) break;
-          
-          // If any ancestor has hidden children, don't show this connection
-          if (hiddenChildren[parent.id]) {
-            isDescendantOfHiddenNode = true;
-            break;
-          }
-          
-          // Move up to the parent
-          currentNode = parent;
-        }
-        
-        return !isDescendantOfHiddenNode;
-      })
+      .filter(node => node.parentId)
       .map(node => {
         const parent = data.nodes.find(n => n.id === node.parentId);
         if (!parent) return null;
@@ -835,24 +849,23 @@ export default function PaperMap() {
         const parentPos = getNodePosition(parent.id);
         const nodePos = getNodePosition(node.id);
         
-        // Determine if this line should be animating
-        const isAnimating = animatingNodes[node.id];
-        const isVisible = visibilityState[node.id] !== false;
+        // Get the current width from nodeWidths
+        const parentWidth = nodeWidths[parent.id] || 300;
         
         return (
           <Line
             key={`${parent.id}-${node.id}`}
             startPosition={parentPos}
             endPosition={nodePos}
-            isParentExpanded={nodeExpanded[parent.id] || false}
-            isChildExpanded={nodeExpanded[node.id] || false}
-            parentToggleButtonRef={toggleButtonRefs[parent.id]}
-            childToggleButtonRef={toggleButtonRefs[node.id]}
-            isVisible={!isAnimating || isVisible}
+            isParentExpanded={!!nodeExpanded[parent.id]}
+            isChildExpanded={!!nodeExpanded[node.id]}
+            nodeWidth={parentWidth} // Pass the current width
+            isVisible={!animatingNodes[node.id] || visibilityState[node.id] !== false}
             isDragging={isDragging || isCardBeingDragged.current}
           />
         );
-      });
+      })
+      .filter(Boolean);
   };
 
   const [showTip, setShowTip] = useState(true);
@@ -958,12 +971,12 @@ export default function PaperMap() {
         className="flex-1 bg-gray-50 relative overflow-hidden select-none"
         style={{ 
           cursor: isShiftKeyDown
-            ? isDragging 
-              ? 'grabbing' 
-              : 'grab'
-            : isBoxSelecting
-              ? 'crosshair'
-              : 'default',
+            ? isBoxSelecting 
+              ? 'crosshair' 
+              : 'crosshair'
+            : isDragging
+              ? 'grabbing'
+              : 'grab',
           touchAction: 'none',
           width: '100%',
           height: '100%',
@@ -1012,7 +1025,11 @@ export default function PaperMap() {
         )}
         
         {/* Multi-select info tooltip */}
-        <InfoTip visible={showTip} onClose={() => setShowTip(false)} />
+        <InfoTip 
+          visible={showTip} 
+          onClose={() => setShowTip(false)}
+          message="Hold Shift key and drag to select multiple nodes. Drag outside nodes to move the view."
+        />
         
         {/* Selection counter */}
         {selectedNodes.length > 0 && (
@@ -1046,6 +1063,7 @@ export default function PaperMap() {
             MozUserSelect: 'none',
             msUserSelect: 'none',
             outline: 'none',
+            overflow: 'visible', // Add this to allow resize handles to show
             // Enable transitions once initial rendering is complete, but disable during dragging
             transition: isDragging || isCardBeingDragged.current
               ? 'none'
@@ -1138,6 +1156,7 @@ export default function PaperMap() {
                     isVisible={!isAnimating || isVisible}
                     style={customStyles}
                     selectionClass={getSelectionClassNames(isSelected)}
+                    onResize={handleNodeResize}
                   />
                 </div>
               );
