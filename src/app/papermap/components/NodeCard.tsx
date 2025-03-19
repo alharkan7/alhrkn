@@ -422,14 +422,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
     >
       <div 
         ref={nodeRef}
-        className={`node-card transition-all duration-250 ease-out ${selectionClass}`}
+        className={`node-card ${selectionClass}`}
         style={{
           ...combinedStyles,
           width: cardSize.width,
           height: 'auto',
           minWidth: '300px',
           minHeight: '100px',
-          transition: isResizing ? 'none' : combinedStyles.transition,
+          transition: isDragging || isResizing ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'visible' // Add this to allow resize handles to show
         }}
         onMouseDown={handleMouseDown}
@@ -534,18 +534,19 @@ const NodeCard: React.FC<NodeCardProps> = ({
               borderRadius: '0 0 0.5rem 0.5rem',
               height: isExpanded ? `${descriptionHeight}px` : '0',
               minHeight: isExpanded ? `${contentHeight}px` : '0',
-              transition: isResizing ? 'none' : 'height 0.2s ease-out',
+              transition: isResizing ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
               overflow: 'hidden',
               opacity: isExpanded ? 1 : 0,
-              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden'
+              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden',
+              transitionProperty: 'height, opacity'
             }}
           >
             <div 
               className="p-4 h-full overflow-hidden description-content"
               style={{
                 opacity: isExpanded ? 1 : 0,
-                transform: `translateY(${shouldSlideUp ? '8px' : '0'})`,
-                transition: isResizing ? 'none' : 'all 0.15s ease-out',
+                transform: isExpanded ? 'translateY(0)' : 'translateY(-12px)',
+                transition: isResizing ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
                 willChange: 'transform, opacity'
               }}
             >
@@ -635,7 +636,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
               top: '20px',
               right: '-12px',
               transform: isResizing ? 'none' : 'translateX(0)', // Important: don't use transform during resize
-              transition: isResizing ? 'none' : 'all 0.2s ease-out', // Smooth transition when not resizing
+              transition: isResizing ? 'none' : 'all 0.1s ease-out', // Smooth transition when not resizing
               pointerEvents: 'auto' // Ensure pointer events work
             }}
             title={areChildrenHidden ? "Show children" : "Hide children"}

@@ -327,7 +327,7 @@ export default function PaperMap() {
           delete updatedAnimatingNodes[nodeId];
         });
         setAnimatingNodes(updatedAnimatingNodes);
-      }, 250); // Match the animation duration
+      }, 100); // Reduced from 250ms to 150ms for snappier animation
     } else {
       // If we're showing nodes, update hidden state first
       setHiddenChildren(prev => ({
@@ -363,8 +363,8 @@ export default function PaperMap() {
             delete updatedAnimatingNodes[nodeId];
           });
           setAnimatingNodes(updatedAnimatingNodes);
-        }, 250); // Match the animation duration
-      }, 50); // Small delay to ensure DOM updates
+        }, 100); // Reduced from 250ms to 150ms for snappier animation
+      }, 20); // Reduced from 50ms to 20ms for quicker start
     }
   };
 
@@ -403,10 +403,6 @@ export default function PaperMap() {
   const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
     isCardBeingDragged.current = true;
     
-    // Get the delta from the last position
-    const deltaX = lastDragPosition.current ? data.x - lastDragPosition.current.x : 0;
-    const deltaY = lastDragPosition.current ? data.y - lastDragPosition.current.y : 0;
-    
     // If this is a selected node and there are other selected nodes
     if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
       // Update all selected nodes
@@ -417,8 +413,8 @@ export default function PaperMap() {
         selectedNodes.forEach(id => {
           const currentPos = prev[id] || { x: 0, y: 0 };
           newPositions[id] = {
-            x: currentPos.x + deltaX,
-            y: currentPos.y + deltaY
+            x: currentPos.x + data.x,
+            y: currentPos.y + data.y
           };
         });
         
@@ -431,21 +427,28 @@ export default function PaperMap() {
         [nodeId]: { x: data.x, y: data.y }
       }));
     }
-    
-    // Update the last position
-    lastDragPosition.current = { x: data.x, y: data.y };
   };
 
   // Handle card drag start
   const handleCardDragStart = () => {
     // Reset last position
     lastDragPosition.current = null;
+    
+    // Disable transitions during drag
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = 'none';
+    }
   };
 
   // Handle card drag stop
   const handleCardDragStop = () => {
     // Reset last position
     lastDragPosition.current = null;
+    
+    // Re-enable transitions after drag
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = initialRenderComplete ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
+    }
     
     // Reset the flag after a short delay
     setTimeout(() => {

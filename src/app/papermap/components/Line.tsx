@@ -49,7 +49,7 @@ const Line: React.FC<LineProps> = ({
             fill="#6366f1" 
             style={{ 
               opacity: isVisible ? 1 : 0,
-              transition: isDragging ? 'none' : 'opacity 0.25s ease-out'
+              transition: isDragging ? 'none' : 'opacity 0.15s ease-out'
             }} 
           />
         </marker>
@@ -62,7 +62,7 @@ const Line: React.FC<LineProps> = ({
           fill: 'none',
           pointerEvents: 'none',
           opacity: isVisible ? 1 : 0,
-          transition: isDragging ? 'none' : 'opacity 0.25s ease-out',
+          transition: isDragging ? 'none' : 'opacity 0.1s ease-out',
         }}
         markerEnd={`url(#${markerId})`}
       />
