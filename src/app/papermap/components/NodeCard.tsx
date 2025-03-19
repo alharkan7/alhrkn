@@ -534,11 +534,12 @@ const NodeCard: React.FC<NodeCardProps> = ({
               borderRadius: '0 0 0.5rem 0.5rem',
               height: isExpanded ? `${descriptionHeight}px` : '0',
               minHeight: isExpanded ? `${contentHeight}px` : '0',
-              transition: isResizing ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
+              transitionProperty: 'height, opacity',
+              transitionDuration: isResizing ? '0s' : '0.1s',
+              transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
               overflow: 'hidden',
               opacity: isExpanded ? 1 : 0,
-              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden',
-              transitionProperty: 'height, opacity'
+              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden'
             }}
           >
             <div 
