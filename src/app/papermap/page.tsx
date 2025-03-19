@@ -846,6 +846,30 @@ export default function PaperMap() {
         const parent = data.nodes.find(n => n.id === node.parentId);
         if (!parent) return null;
         
+        // Check if this line should be hidden
+        // A line should be hidden if:
+        // 1. The node is hidden due to a collapsed parent
+        // 2. The node is animating and fading out
+        let isLineVisible = true;
+        let currentNode = node;
+        
+        // Check all ancestors to see if any are hidden
+        while (currentNode.parentId) {
+          const ancestor = data.nodes.find(n => n.id === currentNode.parentId);
+          if (!ancestor) break;
+          
+          if (hiddenChildren[ancestor.id]) {
+            isLineVisible = false;
+            break;
+          }
+          currentNode = ancestor;
+        }
+        
+        // Also hide the line if the node is animating and fading out
+        if (animatingNodes[node.id] && !showingAnimation[node.id]) {
+          isLineVisible = false;
+        }
+        
         const parentPos = getNodePosition(parent.id);
         const nodePos = getNodePosition(node.id);
         
@@ -859,8 +883,8 @@ export default function PaperMap() {
             endPosition={nodePos}
             isParentExpanded={!!nodeExpanded[parent.id]}
             isChildExpanded={!!nodeExpanded[node.id]}
-            nodeWidth={parentWidth} // Pass the current width
-            isVisible={!animatingNodes[node.id] || visibilityState[node.id] !== false}
+            nodeWidth={parentWidth}
+            isVisible={isLineVisible}
             isDragging={isDragging || isCardBeingDragged.current}
           />
         );
@@ -1028,7 +1052,6 @@ export default function PaperMap() {
         <InfoTip 
           visible={showTip} 
           onClose={() => setShowTip(false)}
-          message="Hold Shift key and drag to select multiple nodes. Drag outside nodes to move the view."
         />
         
         {/* Selection counter */}

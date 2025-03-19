@@ -1,26 +1,41 @@
 import React from 'react';
 
 interface InfoTipProps {
-  visible: boolean;
   onClose: () => void;
-  message?: string; // Make it optional to maintain backward compatibility
+  visible: boolean;
 }
 
-const InfoTip: React.FC<InfoTipProps> = ({ onClose, visible, message }) => {
+const InfoTip: React.FC<InfoTipProps> = ({ onClose, visible }) => {
   if (!visible) return null;
-
+  
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg text-sm text-gray-600 flex items-center space-x-2 z-50 animate-fadeIn">
-      <span>{message || "Hold Shift key and drag to select multiple nodes"}</span>
+    <div className="absolute top-16 right-4 bg-white bg-opacity-90 p-4 rounded-lg shadow-md text-sm text-gray-700 max-w-xs z-50 animate-fadeIn">
+      <h3 className="font-bold text-base mb-1">Card Interactions:</h3>
+      <ul className="list-disc pl-5 space-y-1">
+        <li>Click a card to select it</li>
+        <li>Double-click a card to edit the content</li>
+        <li>Click the arrow to show/hide the description</li>
+        <li>Drag and drop to reposition cards</li>
+      </ul>
+      
+      <h3 className="font-bold text-base mt-3 mb-1">Multi-select:</h3>
+      <ul className="list-disc pl-5 space-y-1">
+        <li>Hold <span className="font-mono bg-gray-100 px-1 rounded">Shift</span> +  click-drag on empty space to select multiple cards</li>
+        <li>Hold click-drag to pan the view</li>
+        <li>Press <span className="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span> to select all visible cards</li>
+        <li>Press <span className="font-mono bg-gray-100 px-1 rounded">Esc</span> to clear selection</li>
+        <li>Drag any selected card to move all selected cards together</li>
+      </ul>
+      
       <button 
         onClick={onClose}
-        className="ml-2 text-gray-400 hover:text-gray-600"
+        className="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
+        aria-label="Close tip"
       >
-        ×
+        X
       </button>
     </div>
   );
 };
 
-export default InfoTip;
-export type { InfoTipProps };
+export default InfoTip; 

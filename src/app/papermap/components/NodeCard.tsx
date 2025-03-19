@@ -60,6 +60,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [descriptionHeight, setDescriptionHeight] = useState<number>(100); // Default description height
   const [contentHeight, setContentHeight] = useState<number>(0);
+  const [isDescriptionAnimating, setIsDescriptionAnimating] = useState(false);
+  const [shouldSlideUp, setShouldSlideUp] = useState(false);
 
   // Register the toggle button ref with the parent component
   useEffect(() => {
@@ -115,13 +117,20 @@ const NodeCard: React.FC<NodeCardProps> = ({
 
   // Update description height calculation
   useEffect(() => {
-    if (descriptionRef.current && isExpanded) {
+    if (descriptionRef.current) {
       const content = descriptionRef.current.querySelector('.description-content');
       if (content) {
         const newContentHeight = content.scrollHeight;
         setContentHeight(newContentHeight);
-        // Only update height if current height is less than content height
-        setDescriptionHeight(prev => Math.max(newContentHeight, prev));
+        
+        setShouldSlideUp(!isExpanded);
+        setIsDescriptionAnimating(true);
+        setDescriptionHeight(isExpanded ? newContentHeight : 0);
+        
+        const timer = setTimeout(() => {
+          setIsDescriptionAnimating(false);
+        }, 150);
+        return () => clearTimeout(timer);
       }
     }
   }, [isExpanded, editState.description]);
@@ -517,70 +526,78 @@ const NodeCard: React.FC<NodeCardProps> = ({
           </div>
 
           {/* Description section - expandable/collapsible */}
-          {isExpanded && (
+          <div 
+            ref={descriptionRef}
+            className={`bg-white rounded-b-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
+            style={{
+              borderTop: 'none',
+              borderRadius: '0 0 0.5rem 0.5rem',
+              height: isExpanded ? `${descriptionHeight}px` : '0',
+              minHeight: isExpanded ? `${contentHeight}px` : '0',
+              transition: isResizing ? 'none' : 'height 0.2s ease-out',
+              overflow: 'hidden',
+              opacity: isExpanded ? 1 : 0,
+              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden'
+            }}
+          >
             <div 
-              ref={descriptionRef}
-              className={`bg-white rounded-b-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
+              className="p-4 h-full overflow-hidden description-content"
               style={{
-                borderTop: 'none',
-                borderRadius: '0 0 0.5rem 0.5rem',
-                height: `${descriptionHeight}px`,
-                minHeight: `${contentHeight}px`,
-                transition: isResizing ? 'none' : 'height 0.2s ease-in-out',
-                overflow: 'hidden'
+                opacity: isExpanded ? 1 : 0,
+                transform: `translateY(${shouldSlideUp ? '8px' : '0'})`,
+                transition: isResizing ? 'none' : 'all 0.15s ease-out',
+                willChange: 'transform, opacity'
               }}
             >
-              <div className="p-4 h-full overflow-hidden description-content">
-                {editState.isEditingDescription ? (
-                  <textarea
-                    ref={descriptionInputRef}
-                    className="text-sm text-gray-600 w-full no-drag resize-none"
-                    style={{ 
-                      outline: 'none',
-                      border: 'none',
-                      background: 'transparent',
-                      width: '100%',
-                      overflow: 'hidden',
-                      display: 'block',
-                      wordBreak: 'break-word',
-                      minHeight: '1.5em',
-                      height: 'auto'
-                    }}
-                    value={editState.description}
-                    onChange={(e) => {
-                      adjustTextAreaHeight(e.target);
-                      setEditState(prev => ({ ...prev, description: e.target.value }));
-                    }}
-                    onKeyDown={handleDescriptionKeyDown}
-                    onBlur={handleDescriptionSave}
-                    placeholder="Double-click to add description"
-                    rows={1}
-                  />
-                ) : (
-                  <p 
-                    className="text-sm text-gray-600 cursor-text"
-                    style={{
-                      minHeight: '1.5em' // Ensure at least one line is always visible
-                    }}
-                    onDoubleClick={handleDescriptionDoubleClick}
-                    title="Double-click to edit"
-                  >
-                    {node.description || "Double-click to add description"}
-                  </p>
-                )}
-              </div>
-
-              {/* Bottom resize handle */}
-              <div 
-                className="absolute right-0 bottom-0 left-0 h-3 cursor-ns-resize hover:bg-blue-200 opacity-0 hover:opacity-20"
-                onMouseDown={(e) => handleResizeStart(e, 'bottom')}
-                style={{ 
-                  bottom: '-6px',
-                  zIndex: 1000
-                }}
-              />
+              {editState.isEditingDescription ? (
+                <textarea
+                  ref={descriptionInputRef}
+                  className="text-sm text-gray-600 w-full no-drag resize-none"
+                  style={{ 
+                    outline: 'none',
+                    border: 'none',
+                    background: 'transparent',
+                    width: '100%',
+                    overflow: 'hidden',
+                    display: 'block',
+                    wordBreak: 'break-word',
+                    minHeight: '1.5em',
+                    height: 'auto'
+                  }}
+                  value={editState.description}
+                  onChange={(e) => {
+                    adjustTextAreaHeight(e.target);
+                    setEditState(prev => ({ ...prev, description: e.target.value }));
+                  }}
+                  onKeyDown={handleDescriptionKeyDown}
+                  onBlur={handleDescriptionSave}
+                  placeholder="Double-click to add description"
+                  rows={1}
+                />
+              ) : (
+                <p 
+                  className="text-sm text-gray-600 cursor-text"
+                  style={{
+                    minHeight: '1.5em' // Ensure at least one line is always visible
+                  }}
+                  onDoubleClick={handleDescriptionDoubleClick}
+                  title="Double-click to edit"
+                >
+                  {node.description || "Double-click to add description"}
+                </p>
+              )}
             </div>
-          )}
+
+            {/* Bottom resize handle */}
+            <div 
+              className="absolute right-0 bottom-0 left-0 h-3 cursor-ns-resize hover:bg-blue-200 opacity-0 hover:opacity-20"
+              onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+              style={{ 
+                bottom: '-6px',
+                zIndex: 1000
+              }}
+            />
+          </div>
         </div>
 
         {/* Width resize handle - always visible */}
@@ -590,11 +607,14 @@ const NodeCard: React.FC<NodeCardProps> = ({
           style={{ 
             touchAction: 'none',
             right: '-6px',
-            zIndex: 1000
+            zIndex: 15, // Lower z-index than toggle button
+            pointerEvents: 'auto',
+            // Disable pointer events in the middle section where the toggle button is
+            clipPath: 'polygon(0 0, 100% 0, 100% calc(20px - 6px), 0 calc(20px - 6px), 0 calc(20px + 30px), 100% calc(20px + 30px), 100% 100%, 0 100%)'
           }}
         />
 
-        {/* Children toggle indicator on the right side */}
+        {/* Children toggle indicator - now with higher z-index */}
         {hasChildren && onToggleChildren && (
           <div 
             ref={toggleButtonRef}
@@ -615,11 +635,15 @@ const NodeCard: React.FC<NodeCardProps> = ({
               top: '20px',
               right: '-12px',
               transform: isResizing ? 'none' : 'translateX(0)', // Important: don't use transform during resize
-              transition: isResizing ? 'none' : 'all 0.2s ease-out' // Smooth transition when not resizing
+              transition: isResizing ? 'none' : 'all 0.2s ease-out', // Smooth transition when not resizing
+              pointerEvents: 'auto' // Ensure pointer events work
             }}
             title={areChildrenHidden ? "Show children" : "Hide children"}
             onClick={(e) => {
               e.stopPropagation();
+              if (onToggleChildren) {
+                onToggleChildren(node.id);
+              }
             }}
           >
             {areChildrenHidden ? "+" : "-"}

@@ -47,20 +47,22 @@ const Line: React.FC<LineProps> = ({
             cy="5" 
             r="4" 
             fill="#6366f1" 
-            className={isDragging ? "" : "transition-opacity duration-250 ease-out"} 
-            style={{ opacity: isVisible ? 1 : 0 }} 
+            style={{ 
+              opacity: isVisible ? 1 : 0,
+              transition: isDragging ? 'none' : 'opacity 0.25s ease-out'
+            }} 
           />
         </marker>
       </defs>
       <path
         d={path}
-        className={isDragging ? "" : "transition-all duration-250 ease-out"}
         style={{
           stroke: '#6366f1',
           strokeWidth: 2,
           fill: 'none',
           pointerEvents: 'none',
           opacity: isVisible ? 1 : 0,
+          transition: isDragging ? 'none' : 'opacity 0.25s ease-out',
         }}
         markerEnd={`url(#${markerId})`}
       />
