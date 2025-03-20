@@ -72,7 +72,7 @@ export default function CanvasPage({
   const [touchZoomStart, setTouchZoomStart] = useState<number>(1);
 
   // Add state for container dimensions
-  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0, offsetX: 0, offsetY: 0 });
 
   // Add new state for description heights
   const [nodeDescriptionHeights, setNodeDescriptionHeights] = useState<Record<string, number>>({});
@@ -105,17 +105,19 @@ export default function CanvasPage({
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
+    // Calculate absolute bounds including dragged positions
     Object.entries(nodePositions).forEach(([nodeId, pos]) => {
       const draggedPos = draggedPositions[nodeId] || { x: 0, y: 0 };
+      // Calculate total position including base position and dragged offset
       const totalX = pos.x + draggedPos.x;
       const totalY = pos.y + draggedPos.y;
       const width = nodeWidths[nodeId] || 250;
       
       const isNodeExpanded = nodeExpanded[nodeId] || false;
-      // Use actual description height if available, or default to 100px
       const descriptionHeight = nodeDescriptionHeights[nodeId] || 100;
       const height = isNodeExpanded ? (80 + descriptionHeight) : 80;
 
+      // Update bounds to include the full extent of each node
       minX = Math.min(minX, totalX);
       maxX = Math.max(maxX, totalX + width);
       minY = Math.min(minY, totalY);
@@ -123,16 +125,23 @@ export default function CanvasPage({
     });
 
     const padding = {
-      top: 0,
+      top: 60,
       right: 60,
-      bottom: 30,
-      left: 0
+      bottom: 0,
+      left: 60
     };
 
-    const width = maxX - minX + padding.left + padding.right;
-    const height = maxY - minY + padding.top + padding.bottom;
+    // Calculate absolute dimensions from zero point
+    const absoluteWidth = Math.max(maxX + padding.right, Math.abs(minX) + maxX + padding.left + padding.right);
+    const absoluteHeight = Math.max(maxY + padding.bottom, Math.abs(minY) + maxY + padding.top + padding.bottom);
 
-    setContainerDimensions({ width, height });
+    // Set the container dimensions with absolute values
+    setContainerDimensions({ 
+      width: absoluteWidth,
+      height: absoluteHeight,
+      offsetX: minX - padding.left,
+      offsetY: minY - padding.top
+    });
   }, [data, nodePositions, draggedPositions, nodeWidths, nodeExpanded, nodeDescriptionHeights]);
 
   // Get final node position without any transformations
@@ -386,78 +395,101 @@ export default function CanvasPage({
             width: `${containerDimensions.width}px`,
             height: `${containerDimensions.height}px`,
             transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
-            transformOrigin: '50% 50%',
+            transformOrigin: '0 0',
             transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-            overflow: 'visible', // Allow elements to extend beyond boundaries
-            backgroundColor: '#ffffff'
+            overflow: 'visible',
+            backgroundColor: '#ffffff',
+            position: 'absolute',
+            willChange: 'transform, width, height',
+            minWidth: '100%',
+            minHeight: '100%'
           }}
         >
-          {/* SVG for connections - Must be rendered AFTER position calculations but BEFORE nodes */}
+          {/* SVG for connections */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
             style={{
               overflow: 'visible',
               width: '100%',
               height: '100%',
-              zIndex: 5, // Ensure lines appear behind nodes
-              willChange: resizingNodeId ? 'transform' : 'auto'  // Force GPU acceleration during resize
+              zIndex: 5,
+              willChange: 'transform',
+              position: 'absolute',
+              left: 0,
+              top: 0
             }}
-            key={`svg-container-${resizingNodeId || 'default'}`} // Force re-render of SVG when resize changes
+            key={`svg-container-${resizingNodeId || 'default'}`}
           >
-            {renderConnections()}
+            <g transform={`translate(${-containerDimensions.offsetX}, ${-containerDimensions.offsetY})`}>
+              {renderConnections()}
+            </g>
           </svg>
           
-          {/* Render nodes */}
-          {data?.nodes
-            .filter(node => {
-              if (!node.parentId) return true;
-              
-              let currentNode = node;
-              let isDescendantOfHiddenNode = false;
-              
-              while (currentNode.parentId) {
-                const parent = data.nodes.find(n => n.id === currentNode.parentId);
-                if (!parent) break;
+          {/* Container for nodes */}
+          <div 
+            className="absolute inset-0" 
+            style={{ 
+              overflow: 'visible',
+              transform: `translate(${-containerDimensions.offsetX}px, ${-containerDimensions.offsetY}px)`,
+              width: '100%',
+              height: '100%',
+              willChange: 'transform',
+              position: 'absolute',
+              minWidth: '100%',
+              minHeight: '100%'
+            }}
+          >
+            {data?.nodes
+              .filter(node => {
+                if (!node.parentId) return true;
                 
-                if (hiddenChildren[parent.id]) {
-                  isDescendantOfHiddenNode = true;
-                  break;
+                let currentNode = node;
+                let isDescendantOfHiddenNode = false;
+                
+                while (currentNode.parentId) {
+                  const parent = data.nodes.find(n => n.id === currentNode.parentId);
+                  if (!parent) break;
+                  
+                  if (hiddenChildren[parent.id]) {
+                    isDescendantOfHiddenNode = true;
+                    break;
+                  }
+                  
+                  currentNode = parent;
                 }
                 
-                currentNode = parent;
-              }
-              
-              return !isDescendantOfHiddenNode;
-            })
-            .map(node => {
-              const position = getNodePosition(node.id);
-              const isExpanded = nodeExpanded[node.id] || false;
-              const areChildrenHidden = hiddenChildren[node.id] || false;
-              const hasChildren = data.nodes.some(n => n.parentId === node.id);
-              const isSelected = selectedNodes.includes(node.id);
-              
-              return (
-                <NodeCard
-                  key={node.id}
-                  node={node}
-                  basePosition={position}
-                  draggedPosition={{x: 0, y: 0}}
-                  isExpanded={isExpanded}
-                  hasChildren={hasChildren}
-                  areChildrenHidden={areChildrenHidden}
-                  onDrag={onNodeDrag}
-                  onDragStart={onNodeDragStart}
-                  onToggleExpand={onToggleExpand}
-                  onToggleChildren={onToggleChildren}
-                  onDragStop={onNodeDragStop}
-                  onUpdateNode={onNodeUpdate}
-                  onSelect={onNodeSelect}
-                  isSelected={isSelected}
-                  registerToggleButtonRef={registerToggleButtonRef}
-                  onResize={handleNodeResize}
-                />
-              );
-            })}
+                return !isDescendantOfHiddenNode;
+              })
+              .map(node => {
+                const position = getNodePosition(node.id);
+                const isExpanded = nodeExpanded[node.id] || false;
+                const areChildrenHidden = hiddenChildren[node.id] || false;
+                const hasChildren = data.nodes.some(n => n.parentId === node.id);
+                const isSelected = selectedNodes.includes(node.id);
+                
+                return (
+                  <NodeCard
+                    key={node.id}
+                    node={node}
+                    basePosition={position}
+                    draggedPosition={{x: 0, y: 0}}
+                    isExpanded={isExpanded}
+                    hasChildren={hasChildren}
+                    areChildrenHidden={areChildrenHidden}
+                    onDrag={onNodeDrag}
+                    onDragStart={onNodeDragStart}
+                    onToggleExpand={onToggleExpand}
+                    onToggleChildren={onToggleChildren}
+                    onDragStop={onNodeDragStop}
+                    onUpdateNode={onNodeUpdate}
+                    onSelect={onNodeSelect}
+                    isSelected={isSelected}
+                    registerToggleButtonRef={registerToggleButtonRef}
+                    onResize={handleNodeResize}
+                  />
+                );
+              })}
+          </div>
         </div>
       
       {/* Render children (zoom controls, etc.) */}

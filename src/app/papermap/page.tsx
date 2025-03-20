@@ -17,8 +17,8 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(0.65);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(0.6);
+  const [pan, setPan] = useState({ x: 300, y: 200 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const isCardBeingDragged = useRef(false);
   const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
@@ -268,75 +268,6 @@ export default function PaperMap() {
 
   // Improved handleResetZoom function to match initial behavior
   const handleResetZoom = useCallback(() => {
-    // Basic validation
-    if (!data || !data.nodes || data.nodes.length === 0) {
-      return;
-    }
-
-    // Get the container dimensions from the flex-1 container
-    const container = document.querySelector('.flex-1.overflow-hidden');
-    if (!container) {
-      return;
-    }
-    
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    
-    // Calculate bounds of all nodes
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    
-    // Use node positions to calculate bounds
-    Object.entries(nodePositions).forEach(([id, pos]) => {
-      const nodeWidth = nodeWidths[id] || 250; // Use actual node width if available
-      // Account for expanded state when calculating height
-      const isNodeExpanded = nodeExpanded[id] || false;
-      const nodeHeight = isNodeExpanded ? 180 : 80; // 180px for expanded nodes (title + description), 80px for collapsed
-      
-      minX = Math.min(minX, pos.x);
-      minY = Math.min(minY, pos.y);
-      maxX = Math.max(maxX, pos.x + nodeWidth);
-      maxY = Math.max(maxY, pos.y + nodeHeight);
-    });
-    
-    // Add padding with different values for each side
-    const padding = {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0
-    };
-    
-    // Apply padding to bounds
-    minX -= padding.left;
-    maxX += padding.right;
-    minY -= padding.top;
-    maxY += padding.bottom;
-    
-    // Calculate mindmap dimensions
-    const mapWidth = maxX - minX;
-    const mapHeight = maxY - minY;
-    
-    if (mapWidth <= 0 || mapHeight <= 0) {
-      return;
-    }
-    
-    // Calculate appropriate zoom level with a slightly smaller divisor to zoom in more
-    const scaleX = containerWidth / mapWidth;
-    const scaleY = containerHeight / mapHeight;
-    let newZoom = Math.min(scaleX, scaleY);
-    
-    // Increase zoom slightly (zoom in more)
-    newZoom = Math.min(newZoom * 0.85, 0.85); // Increase zoom by 10% but still cap at 1.2
-    
-    // Calculate pan to center the content, with slight adjustments
-    const scaledWidth = mapWidth * newZoom;
-    const scaledHeight = mapHeight * newZoom;
-    const newPanX = (containerWidth - scaledWidth) / 2 - minX * newZoom;
-    const newPanY = (containerHeight - scaledHeight) / 2 - minY * newZoom;
-    
     // Force enable transitions
     setInitialRenderComplete(true);
     
@@ -345,9 +276,9 @@ export default function PaperMap() {
       canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
     }
     
-    // Set zoom and pan
-    setZoom(newZoom);
-    setPan({ x: newPanX - 320, y: newPanY - 30 });
+    // Reset to original values
+    setZoom(0.6);
+    setPan({ x: 300, y: 200 });
     
     // Reset transition after animation
     setTimeout(() => {
@@ -355,7 +286,7 @@ export default function PaperMap() {
         canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
       }
     }, 600);
-  }, [data, nodePositions, nodeWidths, nodeExpanded, canvasRef]);
+  }, [canvasRef]);
 
   // CSS classes for selected status
   const getSelectionClassNames = (isSelected: boolean) => {
@@ -503,8 +434,6 @@ export default function PaperMap() {
   const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
     isCardBeingDragged.current = true;
     
-    // Directly use the data position for draggedPositions
-    // This ensures the card follows exactly the mouse pointer
     setDraggedPositions(prev => {
       const newPositions = { ...prev };
       
@@ -532,7 +461,6 @@ export default function PaperMap() {
       return newPositions;
     });
     
-    // Update the last position for the next drag event
     lastDragPosition.current = { x: data.x, y: data.y };
   };
 
@@ -568,12 +496,12 @@ export default function PaperMap() {
     setNodePositions(prevNodePositions => {
       const newPositions = { ...prevNodePositions };
       
-      // Apply all dragged positions to base positions
-      Object.entries(draggedPositions).forEach(([id, pos]) => {
+      // Apply all dragged positions to base positions without any constraints
+      Object.entries(draggedPositions).forEach(([id, dragPos]) => {
         const basePos = prevNodePositions[id] || { x: 0, y: 0 };
         newPositions[id] = {
-          x: basePos.x + pos.x,
-          y: basePos.y + pos.y
+          x: basePos.x + dragPos.x,
+          y: basePos.y + dragPos.y
         };
       });
       
@@ -582,35 +510,24 @@ export default function PaperMap() {
     
     // Clear all dragged positions
     setDraggedPositions({});
-    
-    // Reset last position
     lastDragPosition.current = null;
     
     // Using a sequence of delayed operations to ensure proper rendering
     requestAnimationFrame(() => {
-      // First frame: leave transitions disabled
-      
-      // Schedule second frame for position settling
       requestAnimationFrame(() => {
-        // Second frame: still leave transitions disabled
-        
-        // Schedule final cleanup after significant delay
         setTimeout(() => {
-          // Remove the global style element after positions have settled
           const styleElement = document.getElementById('disable-all-transitions');
           if (styleElement) {
             document.head.removeChild(styleElement);
           }
           
-          // Restore canvas transitions
           if (canvasRef.current) {
             canvasRef.current.style.transition = initialRenderComplete ? 
               'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
           }
           
-          // Reset the flag after positions have fully settled
           isCardBeingDragged.current = false;
-        }, 350); // Extra long delay to ensure everything is settled
+        }, 350);
       });
     });
   };
