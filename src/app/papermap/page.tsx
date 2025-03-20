@@ -17,7 +17,7 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(0.4);
+  const [zoom, setZoom] = useState(0.9);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
@@ -49,24 +49,76 @@ export default function PaperMap() {
 
   // Handle zoom controls with smaller increments for smoother zooming
   const handleZoomIn = useCallback(() => {
-    // Ensure transitions are enabled
     setInitialRenderComplete(true);
     
-    setZoom(prev => Math.min(prev + 0.05, 2));
-  }, [setInitialRenderComplete]);
+    // Apply direct transition to canvas for smooth animation
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    
+    // Calculate target zoom with easing
+    setZoom(prev => {
+      const target = Math.min(prev + 0.05, 2);
+      return target;
+    });
+    
+    // Reset transition after animation
+    setTimeout(() => {
+      if (canvasRef.current) {
+        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+    }, 200);
+  }, [canvasRef, setInitialRenderComplete]);
   
   const handleZoomOut = useCallback(() => {
-    // Ensure transitions are enabled
     setInitialRenderComplete(true);
     
-    // Ensure consistent zoom out steps - for large zoom values use larger steps
-    // For small zoom values use smaller steps to avoid jumping too far
+    // Apply direct transition to canvas for smooth animation
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    
+    // Calculate target zoom with easing
     setZoom(prev => {
-      const step = Math.max(0.05, prev * 0.1); // 10% of current zoom or minimum of 0.05
-      return Math.max(0.1, prev - step);
+      const step = Math.max(0.05, prev * 0.1);
+      const target = Math.max(0.1, prev - step);
+      return target;
     });
-  }, [setInitialRenderComplete]);
-  
+    
+    // Reset transition after animation
+    setTimeout(() => {
+      if (canvasRef.current) {
+        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+    }, 200);
+  }, [canvasRef, setInitialRenderComplete]);
+
+  // Handle zoom from wheel or other sources
+  const handleZoom = useCallback((direction: number) => {
+    setInitialRenderComplete(true);
+    
+    // Apply direct transition to canvas for smoother wheel zoom
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = 'transform 0.15s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    
+    setZoom(prev => {
+      if (direction > 0) {
+        return Math.min(prev + 0.05, 2);
+      } else {
+        const step = Math.max(0.05, prev * 0.1);
+        return Math.max(0.1, prev - step);
+      }
+    });
+    
+    // Reset transition after animation
+    setTimeout(() => {
+      if (canvasRef.current) {
+        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+    }, 150);
+  }, [canvasRef, setInitialRenderComplete]);
+
   // Calculate initial positions
   useEffect(() => {
     if (data) {
@@ -199,9 +251,14 @@ export default function PaperMap() {
       setTimeout(() => {
         setInitialRenderComplete(true);
       }, 100);
-    } else if (canvasRef.current) {
+    } else {
       // For subsequent centering, use animation
-      canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+      // Always ensure transitions are enabled for fit to view
+      setInitialRenderComplete(true);
+      
+      if (canvasRef.current) {
+        canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
       
       // Apply the zoom and pan directly
       setPan({ x: newPanX, y: newPanY });
@@ -243,12 +300,113 @@ export default function PaperMap() {
     }
   }, [dataStructureVersion, data, centerView, nodePositions]);
 
-  // Redefine handleResetZoom to use centerView helper
+  // Improved handleResetZoom function to match initial behavior
   const handleResetZoom = useCallback(() => {
-    if (data && Object.keys(nodePositions).length > 0) {
-      centerView(nodePositions);
+    console.log("Fit to view button clicked - matching initial zoom behavior");
+    
+    // Basic validation
+    if (!data || !data.nodes || data.nodes.length === 0) {
+      console.log("No data available");
+      return;
     }
-  }, [data, nodePositions, centerView]);
+
+    // Force layout calculation to ensure proper measurements
+    document.body.getBoundingClientRect();
+
+    // Get the container dimensions directly from the DOM
+    const container = document.querySelector('.flex-1.overflow-hidden');
+    if (!container) {
+      console.log("Container not found");
+      return;
+    }
+    
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    console.log("Container dimensions:", containerWidth, containerHeight);
+    
+    // Calculate bounds of all nodes
+    let minX = Number.MAX_VALUE;
+    let minY = Number.MAX_VALUE;
+    let maxX = Number.MIN_VALUE;
+    let maxY = Number.MIN_VALUE;
+    
+    // Use node positions directly
+    Object.entries(nodePositions).forEach(([id, pos]) => {
+      const nodeWidth = 250; // Default width
+      const nodeHeight = 80; // Default height
+      
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + nodeWidth);
+      maxY = Math.max(maxY, pos.y + nodeHeight);
+    });
+    
+    // Add padding - matching initial load behavior
+    const padding = 100;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Calculate mindmap dimensions
+    const mapWidth = maxX - minX;
+    const mapHeight = maxY - minY;
+    console.log("Map dimensions:", mapWidth, mapHeight);
+    
+    if (mapWidth <= 0 || mapHeight <= 0) {
+      console.log("Invalid map dimensions");
+      return;
+    }
+    
+    // Calculate appropriate zoom level - matched to initial behavior (85% padding)
+    const scaleX = containerWidth / mapWidth;
+    const scaleY = containerHeight / mapHeight;
+    const newZoom = Math.min(scaleX, scaleY) * 1.45; // Match the 0.85 scale factor from centerView
+    
+    console.log("Calculated new zoom:", newZoom);
+    
+    // Calculate pan to center the content - same formula as in centerView
+    const newPanX = (containerWidth - mapWidth * newZoom) / 2 - minX * newZoom;
+    const newPanY = (containerHeight - mapHeight * newZoom) / 2 - minY * newZoom;
+    
+    console.log("Calculated new pan:", { x: newPanX, y: newPanY });
+    
+    // Force enable transitions
+    setInitialRenderComplete(true);
+    
+    // Set the values with explicit DOM manipulation for canvas element
+    const canvasElement = document.querySelector('.relative.bg-white.shadow-lg.rounded-lg');
+    const panElement = canvasElement?.querySelector('.absolute.inset-0');
+    
+    if (canvasElement) {
+      console.log("Setting transitions on canvas element");
+      (canvasElement as HTMLElement).style.transition = 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    
+    if (panElement) {
+      console.log("Setting transitions on pan element");
+      (panElement as HTMLElement).style.transition = 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+    
+    // Set the zoom first
+    setZoom(newZoom);
+    
+    // Set the pan after a small delay
+    setTimeout(() => {
+      setPan({ x: newPanX, y: newPanY });
+      
+      // Reset transitions after the animation completes
+      setTimeout(() => {
+        if (canvasElement) {
+          (canvasElement as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+        }
+        
+        if (panElement) {
+          (panElement as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+        }
+      }, 1000);
+    }, 50);
+  }, [data, nodePositions, setInitialRenderComplete]);
 
   // CSS classes for selected status
   const getSelectionClassNames = (isSelected: boolean) => {
@@ -756,6 +914,10 @@ export default function PaperMap() {
           onToggleChildren={toggleChildrenVisibility}
           onNodeResize={handleNodeResize}
           registerToggleButtonRef={registerToggleButtonRef}
+          zoom={zoom}
+          onZoom={handleZoom}
+          pan={pan}
+          onPan={setPan}
         >
         {/* Zoom controls */}
         <ZoomControls 

@@ -19,6 +19,10 @@ interface CanvasPageProps {
   onToggleChildren: (id: string) => void;
   onNodeResize: (nodeId: string, width: number) => void;
   registerToggleButtonRef: (nodeId: string, ref: HTMLDivElement | null) => void;
+  zoom?: number;
+  onZoom?: (zoomDelta: number) => void;
+  pan?: { x: number, y: number };
+  onPan?: (newPan: { x: number, y: number }) => void;
   children?: React.ReactNode;
   className?: string;
 }
@@ -39,11 +43,17 @@ export default function CanvasPage({
   onToggleChildren,
   onNodeResize,
   registerToggleButtonRef,
+  zoom = 0.9,
+  onZoom,
+  pan = { x: 0, y: 0 },
+  onPan,
   children,
   className = ''
 }: CanvasPageProps) {
-  const [zoom, setZoom] = useState(0.9);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [localZoom, setLocalZoom] = useState(0.9);
+  const effectiveZoom = zoom ?? localZoom;
+  const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
+  const effectivePan = pan ?? localPan;
   const [isDragging, setIsDragging] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [nodeWidths, setNodeWidths] = useState<Record<string, number>>({});
@@ -137,7 +147,7 @@ export default function CanvasPage({
       
       if (!isCard) {
         setIsDragging(true);
-        setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        setStartPan({ x: e.clientX - effectivePan.x, y: e.clientY - effectivePan.y });
         e.preventDefault();
       }
     }
@@ -145,10 +155,16 @@ export default function CanvasPage({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
-      setPan({
+      const newPan = {
         x: e.clientX - startPan.x,
         y: e.clientY - startPan.y
-      });
+      };
+      
+      if (onPan) {
+        onPan(newPan);
+      } else {
+        setLocalPan(newPan);
+      }
       e.preventDefault();
     }
   };
@@ -158,20 +174,25 @@ export default function CanvasPage({
     setStartPan({ x: 0, y: 0 });
   };
 
-  // Handle wheel zoom
+  // Handle wheel zoom - delegate to parent if handler provided
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const direction = e.deltaY < 0 ? 1 : -1;
     
-    setZoom(prev => {
-      if (direction > 0) {
-        return Math.min(prev + 0.05, 2);
-      } else {
-        const step = Math.max(0.05, prev * 0.1);
-        return Math.max(0.1, prev - step);
-      }
-    });
-  }, []);
+    if (onZoom) {
+      onZoom(direction);
+    } else {
+      // If no parent handler, use local zoom state
+      setLocalZoom(prev => {
+        if (direction > 0) {
+          return Math.min(prev + 0.05, 2);
+        } else {
+          const step = Math.max(0.05, prev * 0.1);
+          return Math.max(0.1, prev - step);
+        }
+      });
+    }
+  }, [onZoom]);
 
   // Helper function to check if a node is a descendant of a hidden node
   const isNodeDescendantOfHidden = useCallback((nodeId: string): boolean => {
@@ -282,6 +303,25 @@ export default function CanvasPage({
     }));
   }, []);
 
+  useEffect(() => {
+    // Update transitions whenever zoom changes
+    if (canvasRef.current && initialRenderComplete) {
+      // Apply smooth transition when zoom changes
+      canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+    }
+  }, [zoom, initialRenderComplete]);
+
+  useEffect(() => {
+    // Update transitions whenever pan changes
+    if (canvasRef.current && initialRenderComplete && !isDragging) {
+      const innerContainer = canvasRef.current.querySelector('.absolute.inset-0');
+      if (innerContainer) {
+        // Apply smooth transition when pan changes
+        (innerContainer as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+    }
+  }, [pan, initialRenderComplete, isDragging]);
+
   return (
     <div 
       ref={containerRef}
@@ -301,9 +341,9 @@ export default function CanvasPage({
           height: '210mm', // A4 landscape height
           maxWidth: 'calc(100vw - 6rem)',
           maxHeight: 'calc(100vh - 8rem)',
-          transform: `scale(${zoom})`,
+          transform: `scale(${effectiveZoom})`,
           transformOrigin: 'center center',
-          transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05)',
           overflow: 'visible' // Allow elements to extend beyond canvas boundaries
         }}
@@ -312,8 +352,8 @@ export default function CanvasPage({
         <div 
           className="absolute inset-0"
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
-            transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: `translate(${effectivePan.x}px, ${effectivePan.y}px)`,
+            transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
             overflow: 'visible' // Allow elements to extend beyond boundaries
           }}
         >
