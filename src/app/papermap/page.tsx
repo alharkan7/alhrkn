@@ -347,7 +347,7 @@ export default function PaperMap() {
     
     // Set zoom and pan
     setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
+    setPan({ x: newPanX - 320, y: newPanY - 30 });
     
     // Reset transition after animation
     setTimeout(() => {
