@@ -17,10 +17,8 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(0.9);
+  const [zoom, setZoom] = useState(1.05);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const isCardBeingDragged = useRef(false);
   const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
@@ -236,7 +234,7 @@ export default function PaperMap() {
     // Calculate the scale needed to fit the entire mindmap
     const scaleX = containerWidth / mindmapWidth;
     const scaleY = containerHeight / mindmapHeight;
-    const fitScale = Math.min(scaleX, scaleY) * 0.85; // 85% to add some padding
+    const fitScale = Math.min(scaleX, scaleY) * 1.7; // Changed from 0.85 to 1.45 to match handleResetZoom
     
     // Calculate the pan needed to center
     const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
@@ -358,10 +356,10 @@ export default function PaperMap() {
       return;
     }
     
-    // Calculate appropriate zoom level - matched to initial behavior (85% padding)
+    // Calculate appropriate zoom level - matched to initial behavior (1.45 scaling factor)
     const scaleX = containerWidth / mapWidth;
     const scaleY = containerHeight / mapHeight;
-    const newZoom = Math.min(scaleX, scaleY) * 1.45; // Match the 0.85 scale factor from centerView
+    const newZoom = Math.min(scaleX, scaleY) * 1.7; // Using 1.45 scale factor for larger view
     
     console.log("Calculated new zoom:", newZoom);
     
