@@ -813,6 +813,8 @@ export default function PaperMap() {
     };
   }, [data, hiddenChildren, selectedNodes]);
 
+  const mindmapContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
@@ -829,7 +831,7 @@ export default function PaperMap() {
         
         <DownloadOptions 
           data={data}
-          containerRef={canvasRef}
+          containerRef={mindmapContainerRef}
           onResetZoom={handleResetZoom}
           nodePositions={nodePositions}
           fileName={fileName}
@@ -857,6 +859,7 @@ export default function PaperMap() {
           onZoom={handleZoom}
           pan={pan}
           onPan={setPan}
+          mindmapContainerRef={mindmapContainerRef}
         >
         {/* Zoom controls */}
         <ZoomControls 

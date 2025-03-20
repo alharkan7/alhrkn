@@ -43,16 +43,22 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
   // Close dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close if we're clicking inside the dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        // Only close if we're not in the middle of exporting
+        if (!isExporting) {
+          setIsOpen(false);
+        }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownRef]);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen, isExporting]); // Add dependencies
 
   // Prepare for export - centers the view and waits for animation to complete
   const prepareForExport = () => {
@@ -69,342 +75,102 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
 
   // Improved approach for capturing the mindmap
   const captureVisibleMindmap = async (transparent = false) => {
-    if (!containerRef.current?.parentElement || !data) {
+    console.log("Starting capture...");
+    if (!containerRef.current || !data) {
+      console.log("Missing refs:", { 
+        containerRef: !!containerRef.current, 
+        data: !!data 
+      });
       throw new Error("Container not available");
     }
     
     // First center the view and wait for animation
+    console.log("Preparing for export...");
     await prepareForExport();
     
-    // Get the container element (the viewport that contains the mindmap)
-    const container = containerRef.current.parentElement;
-    
-    // Calculate the actual bounds of the mindmap content
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
-    // Find all node cards to determine content boundaries
-    const nodeCards = container.querySelectorAll('.node-card');
-    nodeCards.forEach(card => {
-      const rect = card.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      
-      // Convert to container-relative coordinates
-      const relX = rect.left - containerRect.left;
-      const relY = rect.top - containerRect.top;
-      
-      minX = Math.min(minX, relX);
-      minY = Math.min(minY, relY);
-      maxX = Math.max(maxX, relX + rect.width);
-      maxY = Math.max(maxY, relY + rect.height);
+    // Get the container element
+    const container = containerRef.current;
+    console.log("Container found:", { 
+      width: container.offsetWidth, 
+      height: container.offsetHeight 
     });
-    
-    // Add margin (50px on each side)
-    const margin = 50;
-    minX = Math.max(0, minX - margin);
-    minY = Math.max(0, minY - margin);
-    maxX = Math.min(container.clientWidth, maxX + margin);
-    maxY = Math.min(container.clientHeight, maxY + margin);
-    
-    // Calculate dimensions
-    const width = maxX - minX;
-    const height = maxY - minY;
-    
-    // Temporarily hide elements that shouldn't be in the export
-    const edgeIndicators = container.querySelectorAll('.bg-gradient-to-b, .bg-gradient-to-t, .bg-gradient-to-r, .bg-gradient-to-l');
-    const hiddenElements: HTMLElement[] = [];
-    
-    // Store original display values and hide elements
-    edgeIndicators.forEach((el) => {
-      const element = el as HTMLElement;
-      hiddenElements.push(element);
-      element.dataset.originalDisplay = element.style.display;
-      element.style.display = 'none';
-    });
-    
-    // Find and hide zoom controls
-    const zoomControls = container.querySelector('.bottom-4') as HTMLElement;
-    if (zoomControls) {
-      hiddenElements.push(zoomControls);
-      zoomControls.dataset.originalDisplay = zoomControls.style.display;
-      zoomControls.style.display = 'none';
-    }
-    
-    // Find and hide selection counter if present
-    const selectionCounter = container.querySelector('.bottom-\\[max\\(1rem\\,calc\\(env\\(safe-area-inset-bottom\\)\\+0\\.5rem\\)\\)\\]') as HTMLElement;
-    if (selectionCounter) {
-      hiddenElements.push(selectionCounter);
-      selectionCounter.dataset.originalDisplay = selectionCounter.style.display;
-      selectionCounter.style.display = 'none';
-    }
-    
-    // Store original background color
-    const originalBgColor = container.style.backgroundColor;
-    
-    // If exporting transparent PNG, temporarily make the container background transparent
-    if (transparent) {
-      container.style.backgroundColor = 'transparent';
-      
-      // Also set the canvas container to transparent
-      if (containerRef.current) {
-        containerRef.current.style.backgroundColor = 'transparent';
-      }
-      
-      // Make the parent container transparent too
-      document.body.style.backgroundColor = 'transparent';
-    }
-    
-    // Fix ONLY the title elements, leave description text alone
-    const originalStyles: Array<{element: HTMLElement, props: Record<string, string>}> = [];
-    
-    // Find and fix each card's h3 title
-    nodeCards.forEach(card => {
-      // Fix only the h3 title element
-      const titleEl = card.querySelector('h3') as HTMLElement;
-      if (titleEl) {
-        // Store original styles for restoration
-        const original = {
-          element: titleEl,
-          props: {
-            position: titleEl.style.position,
-            margin: titleEl.style.margin,
-            padding: titleEl.style.padding,
-            lineHeight: titleEl.style.lineHeight,
-            display: titleEl.style.display,
-            transform: titleEl.style.transform,
-            verticalAlign: titleEl.style.verticalAlign
-          }
-        };
-        
-        originalStyles.push(original);
-        
-        // Don't apply any fixes to the title to preserve its original appearance
-      }
-      
-      // Ensure the description container has proper height if expanded
-      const descContainer = card.querySelector('.overflow-hidden') as HTMLElement;
-      if (descContainer) {
-        const isExpanded = window.getComputedStyle(descContainer).maxHeight !== '0px';
-        if (isExpanded) {
-          const origMaxHeight = descContainer.style.maxHeight;
-          const origHeight = descContainer.style.height;
-          
-          // Store for restoration
-          originalStyles.push({
-            element: descContainer,
-            props: {
-              maxHeight: origMaxHeight,
-              height: origHeight
-            }
-          });
-          
-          // Ensure enough height for content
-          descContainer.style.maxHeight = 'none';
-          descContainer.style.height = 'auto';
-        }
-      }
-    });
-    
+
     try {
-      // Capture the visible portion of the mindmap
-      const canvas = await html2canvas(container, {
-        scale: 3, // High resolution
-        useCORS: true,
-        backgroundColor: transparent ? null : '#f9fafb', // Use null for true transparency
-        allowTaint: true,
-        logging: false,
-        // Crop to just the mindmap content area plus margin
-        x: minX,
-        y: minY,
-        width: width,
-        height: height,
-        // Exclude control elements and edge indicators
-        ignoreElements: (element) => {
-          // Check if the element is a control button or panel
-          return (
-            // Exclude zoom controls
-            (element.classList?.contains('bottom-4')) ||
-            // Exclude selection counter
-            (element.classList?.contains('bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]')) ||
-            // Exclude header
-            element.classList?.contains('border-b') ||
-            // Exclude edge indicators/shadows
-            element.classList?.contains('bg-gradient-to-b') ||
-            element.classList?.contains('bg-gradient-to-t') ||
-            element.classList?.contains('bg-gradient-to-r') ||
-            element.classList?.contains('bg-gradient-to-l') ||
-            // Exclude info tip
-            element.classList?.contains('top-4')
-          );
-        },
-        onclone: (documentClone, element) => {
-          // Handle transparency in PNG exports
-          if (transparent) {
-            // Make all background elements transparent
-            const bgElements = documentClone.querySelectorAll('*');
-            bgElements.forEach(el => {
-              const element = el as HTMLElement;
-              
-              // Only make non-card elements transparent
-              // Important: Don't make node cards or their white backgrounds transparent!
-              if (!element.closest('.node-card') && 
-                  !element.closest('svg') &&
-                  !element.classList.contains('bg-white')) {
-                element.style.backgroundColor = 'transparent';
-              }
-            });
-            
-            // Make container and parent elements transparent
-            const containers = documentClone.querySelectorAll('.bg-gray-50, .flex-1, .relative, .overflow-hidden');
-            containers.forEach(el => {
-              const element = el as HTMLElement;
-              // Don't apply to card elements
-              if (!element.closest('.node-card')) {
-                element.style.backgroundColor = 'transparent';
-              }
-            });
-            
-            // Set the body background transparent
-            const body = documentClone.querySelector('body');
-            if (body) {
-              (body as HTMLElement).style.backgroundColor = 'transparent';
-            }
-            
-            // Explicitly ensure card backgrounds remain white
-            const cardBodies = documentClone.querySelectorAll('.node-card .bg-white');
-            cardBodies.forEach(card => {
-              (card as HTMLElement).style.backgroundColor = 'white';
-            });
-          }
-          
-          // Important: Do NOT modify title element styles in the clone
-          // Let them keep their original positioning and styling
-          
-          // Preserve exact original styles for titles with explicit positioning
-          const cardTitles = documentClone.querySelectorAll('.node-card h3');
-          cardTitles.forEach(titleEl => {
-            const element = titleEl as HTMLElement;
-            // Force exact positioning to match web view
-            element.style.margin = '0';
-            element.style.padding = '0';
-            element.style.lineHeight = '24px';
-            element.style.height = '24px';
-            element.style.maxHeight = '24px';
-            element.style.display = 'flex';
-            element.style.alignItems = 'center';
-            // Apply transform to adjust vertical position
-            element.style.transform = 'translateY(-3px)';
-            element.style.position = 'relative';
-            element.style.top = '0';
-          });
-          
-          // Ensure chevron buttons are properly aligned
-          const buttons = documentClone.querySelectorAll('.node-card button');
-          buttons.forEach(button => {
-            const element = button as HTMLElement;
-            element.style.display = 'flex';
-            element.style.alignItems = 'center';
-            element.style.justifyContent = 'center';
-            element.style.height = '24px';
-            element.style.width = '24px';
-            element.style.minWidth = '24px';
-            element.style.padding = '0';
-            element.style.margin = '0';
-          });
-          
-          // Make sure parent flex containers use items-center for alignment
-          const titleContainers = documentClone.querySelectorAll('.node-card .flex');
-          titleContainers.forEach(container => {
-            const element = container as HTMLElement;
-            element.style.display = 'flex';
-            element.style.alignItems = 'center';
-            element.style.justifyContent = 'space-between';
-          });
-          
-          // Ensure SVG icons inside buttons are centered
-          const icons = documentClone.querySelectorAll('.node-card button svg');
-          icons.forEach(icon => {
-            (icon as SVGElement).style.margin = 'auto';
-          });
-          
-          // Fix description container overflow in the clone
-          const descContainers = documentClone.querySelectorAll('.node-card .overflow-hidden');
-          descContainers.forEach(container => {
-            const element = container as HTMLElement;
-            const isExpanded = window.getComputedStyle(element).maxHeight !== '0px';
-            if (isExpanded) {
-              element.style.maxHeight = 'none';
-              element.style.height = 'auto';
-              element.style.paddingBottom = '5px'; // Add extra space at bottom to prevent cutoff
-              
-              // Ensure description paragraph has enough space
-              const descText = element.querySelector('p');
-              if (descText) {
-                (descText as HTMLElement).style.paddingBottom = '5px';
-              }
-            }
-          });
-          
-          // Increase card padding to prevent text cutoff
-          const cardBodies = documentClone.querySelectorAll('.node-card .bg-white');
-          cardBodies.forEach(card => {
-            const element = card as HTMLElement;
-            element.style.paddingBottom = '12px'; // Add extra padding at bottom
-          });
-        }
-      });
-      
-      return canvas;
-    } finally {
-      // Restore all original styles
-      originalStyles.forEach(item => {
-        const element = item.element;
-        Object.entries(item.props).forEach(([prop, value]) => {
-          element.style[prop as any] = value;
-        });
-      });
-      
-      // Restore display of hidden elements
-      hiddenElements.forEach(element => {
-        if (element.dataset.originalDisplay !== undefined) {
-          element.style.display = element.dataset.originalDisplay;
-          delete element.dataset.originalDisplay;
-        }
-      });
-      
-      // Restore background color
-      container.style.backgroundColor = originalBgColor;
-      
-      // Restore background for transparent exports
+      console.log("Setting up capture...");
+      // Set background for capture
       if (transparent) {
-        if (containerRef.current) {
-          containerRef.current.style.backgroundColor = '';
+        container.style.backgroundColor = 'transparent';
+      }
+      
+      // Capture the mindmap
+      console.log("Starting html2canvas...");
+      const canvas = await html2canvas(container, {
+        scale: 2, // Higher resolution
+        useCORS: true,
+        backgroundColor: transparent ? null : '#ffffff',
+        onclone: (clonedDoc) => {
+          console.log("Cloning document...");
+          // Fix styles in the cloned document
+          const clonedCards = clonedDoc.querySelectorAll('.node-card');
+          clonedCards.forEach(card => {
+            const element = card as HTMLElement;
+            element.style.overflow = 'visible';
+            
+            // Ensure descriptions are visible in expanded cards
+            const descContainer = element.querySelector('.overflow-hidden') as HTMLElement;
+            if (descContainer && descContainer.style.height === 'auto') {
+              descContainer.style.overflow = 'visible';
+              descContainer.style.maxHeight = 'none';
+            }
+          });
         }
-        document.body.style.backgroundColor = '';
+      });
+      
+      console.log("Canvas created successfully");
+      return canvas;
+    } catch (error) {
+      console.error("Error during capture:", error);
+      throw error;
+    } finally {
+      console.log("Cleaning up...");
+      // Restore background
+      if (transparent) {
+        container.style.backgroundColor = '';
       }
     }
   };
 
   // Download as JPEG
   const downloadAsJPEG = async () => {
-    if (!containerRef.current?.parentElement || !data) return;
+    console.log("JPEG download started");
+    if (!containerRef.current || !data) {
+      console.log("Missing refs:", { containerRef: !!containerRef.current, data: !!data });
+      return;
+    }
     
     try {
+      console.log("Setting export state");
       setIsExporting(true);
       setExportType('JPEG');
       
+      console.log("Starting capture");
       const canvas = await captureVisibleMindmap(false);
+      console.log("Canvas captured:", !!canvas);
       
-      // Convert to JPEG and download
+      // Convert to JPEG with high quality
       const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `${getFormattedFileName()}.jpg`;
-      a.click();
+      console.log("Data URL created");
+      
+      const link = document.createElement('a');
+      link.download = `${getFormattedFileName()}.jpg`;
+      link.href = dataUrl;
+      console.log("Triggering download");
+      link.click();
       
       setIsOpen(false);
     } catch (error) {
-      console.error('Error generating JPEG:', error);
-      alert('Failed to export as JPEG');
+      console.error('Detailed error exporting JPEG:', error);
+      alert('Failed to export as JPEG: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsExporting(false);
       setExportType(null);
@@ -413,7 +179,7 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
 
   // Download as PDF
   const downloadAsPDF = async () => {
-    if (!containerRef.current?.parentElement || !data) return;
+    if (!containerRef.current || !data) return;
     
     try {
       setIsExporting(true);
@@ -421,32 +187,24 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       
       const canvas = await captureVisibleMindmap(false);
       
-      // Get the canvas data as an image
+      // Convert canvas dimensions to PDF points (72 DPI)
+      const width = canvas.width * 0.75;
+      const height = canvas.height * 0.75;
+      
+      // Create PDF with proper orientation
+      const orientation = width > height ? 'landscape' : 'portrait';
+      const pdf = new jsPDF(orientation, 'pt', [width, height]);
+      
+      // Add the image to PDF
       const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
       
-      // Create PDF with the same dimensions as the image
-      const width = canvas.width;
-      const height = canvas.height;
-      
-      // Convert from pixels to mm (assuming 96 DPI)
-      const pxToMm = 0.264583;
-      const pdfWidth = Math.floor(width * pxToMm);
-      const pdfHeight = Math.floor(height * pxToMm);
-      
-      // Create PDF with dimensions that match the canvas
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [pdfWidth, pdfHeight]
-      });
-      
-      // Add the image at full size
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      
+      // Save the PDF
       pdf.save(`${getFormattedFileName()}.pdf`);
+      
       setIsOpen(false);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error exporting PDF:', error);
       alert('Failed to export as PDF');
     } finally {
       setIsExporting(false);
@@ -456,63 +214,24 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
 
   // Download as PNG (transparent)
   const downloadAsPNG = async () => {
-    if (!containerRef.current?.parentElement || !data) return;
+    if (!containerRef.current || !data) return;
     
     try {
       setIsExporting(true);
       setExportType('PNG');
       
-      // Apply extra styles to ensure transparency when exporting
-      const canvas = containerRef.current?.parentElement;
-      if (canvas) {
-        // Store original background and styles
-        const originalContainerStyles = {
-          backgroundColor: document.body.style.backgroundColor,
-          bgColor: canvas.style.backgroundColor,
-        };
-        
-        // Temporarily apply consistent background classes for transparent elements
-        document.body.style.backgroundColor = 'transparent';
-        canvas.style.backgroundColor = 'transparent';
-      }
+      const canvas = await captureVisibleMindmap(true);
       
-      const capturedCanvas = await captureVisibleMindmap(true);
-      
-      // Create a new canvas with transparency properly set
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = capturedCanvas.width;
-      finalCanvas.height = capturedCanvas.height;
-      
-      const ctx = finalCanvas.getContext('2d', { alpha: true });
-      if (ctx) {
-        // Clear to transparent
-        ctx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
-        
-        // Set composite operation to ensure transparency
-        ctx.globalCompositeOperation = 'source-over';
-        
-        // Draw the image
-        ctx.drawImage(capturedCanvas, 0, 0);
-        
-        // Convert to PNG with full alpha channel
-        const finalDataUrl = finalCanvas.toDataURL('image/png');
-        
-        // Download the image
-        const a = document.createElement('a');
-        a.href = finalDataUrl;
-        a.download = `${getFormattedFileName()}.png`;
-        a.click();
-      } else {
-        // Fallback if context creation fails
-        const a = document.createElement('a');
-        a.href = capturedCanvas.toDataURL('image/png');
-        a.download = `${getFormattedFileName()}.png`;
-        a.click();
-      }
+      // Convert to PNG with transparency
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `${getFormattedFileName()}.png`;
+      link.href = dataUrl;
+      link.click();
       
       setIsOpen(false);
     } catch (error) {
-      console.error('Error generating PNG:', error);
+      console.error('Error exporting PNG:', error);
       alert('Failed to export as PNG');
     } finally {
       setIsExporting(false);
@@ -570,10 +289,22 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
       </button>
       
       {isOpen && !isExporting && (
-        <div className="absolute right-0 mt-2 w-25 bg-white rounded-md shadow-lg z-50 overflow-hidden ring-1 ring-black ring-opacity-5">
+        <div 
+          className="absolute right-0 mt-2 w-25 bg-white rounded-md shadow-lg z-50 overflow-hidden ring-1 ring-black ring-opacity-5"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="py-1">
             <button
-              onClick={downloadAsJPEG}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("JPEG button clicked");
+                downloadAsJPEG().catch(err => {
+                  console.error("JPEG download error:", err);
+                  alert("Failed to download JPEG: " + (err instanceof Error ? err.message : String(err)));
+                });
+              }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
               <ImageIcon />
@@ -581,7 +312,16 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
             </button>
 
             <button
-              onClick={downloadAsPNG}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("PNG button clicked");
+                downloadAsPNG().catch(err => {
+                  console.error("PNG download error:", err);
+                  alert("Failed to download PNG: " + (err instanceof Error ? err.message : String(err)));
+                });
+              }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
               <ImageIcon />
@@ -589,7 +329,16 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
             </button>
             
             <button
-              onClick={downloadAsPDF}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("PDF button clicked");
+                downloadAsPDF().catch(err => {
+                  console.error("PDF download error:", err);
+                  alert("Failed to download PDF: " + (err instanceof Error ? err.message : String(err)));
+                });
+              }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
               <DocumentIcon />
@@ -597,7 +346,13 @@ const DownloadOptions: React.FC<DownloadOptionsProps> = ({
             </button>
             
             <button
-              onClick={downloadAsJSON}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("JSON button clicked");
+                downloadAsJSON();
+              }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
               <CodeIcon />

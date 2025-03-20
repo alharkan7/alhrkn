@@ -565,17 +565,19 @@ const NodeCard: React.FC<NodeCardProps> = ({
               ...(isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)' } : {}),
               borderBottom: isExpanded ? 'none' : undefined,
               borderRadius: isExpanded ? '0.5rem 0.5rem 0 0' : '0.5rem',
-              minHeight: '50px', // Changed from fixed height to minHeight
+              minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
-              padding: isExpanded ? '0.75rem 0.75rem 0.375rem 0.75rem' : '0.75rem' // Reduce bottom padding when expanded
+              padding: '0.75rem',
+              overflow: 'visible' // Allow text to be visible outside if needed
             }}
           >
             {/* Title content */}
             <div className="flex items-center gap-2 w-full" style={{
               display: 'flex',
               alignItems: 'center', 
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              minHeight: '24px' // Ensure minimum height for text
             }}>
               {editState.isEditingTitle ? (
                 <textarea
@@ -588,11 +590,12 @@ const NodeCard: React.FC<NodeCardProps> = ({
                     width: '100%',
                     margin: '0',
                     padding: '0',
-                    lineHeight: '1.3',
+                    lineHeight: '1.5',
                     resize: 'none',
                     overflow: 'hidden',
                     display: 'block',
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
+                    minHeight: '24px' // Match parent's min-height
                   }}
                   value={editState.title}
                   onChange={(e) => {
@@ -612,12 +615,12 @@ const NodeCard: React.FC<NodeCardProps> = ({
                   style={{ 
                     margin: '0', 
                     padding: '0',
-                    lineHeight: '1.3',
+                    lineHeight: '1.5',
                     display: 'block',
                     wordBreak: 'break-word',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxHeight: 'none' // Allow text to expand vertically
+                    overflow: 'visible',
+                    minHeight: '24px', // Match parent's min-height
+                    position: 'relative' // Enable proper overflow handling
                   }}
                 >
                   {node.title}
@@ -633,12 +636,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  height: '20px',
-                  width: '20px',
-                  minWidth: '20px',
+                  height: '24px', // Match text height
+                  width: '24px',
+                  minWidth: '24px',
                   padding: '0',
                   margin: '0',
-                  marginLeft: '8px'
+                  marginLeft: '8px',
+                  flexShrink: 0 // Prevent button from shrinking
                 }}
               >
                 {isExpanded ? (

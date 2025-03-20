@@ -25,6 +25,7 @@ interface CanvasPageProps {
   onPan?: (newPan: { x: number, y: number }) => void;
   children?: React.ReactNode;
   className?: string;
+  mindmapContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function CanvasPage({
@@ -48,7 +49,8 @@ export default function CanvasPage({
   pan = { x: 0, y: 0 },
   onPan,
   children,
-  className = ''
+  className = '',
+  mindmapContainerRef
 }: CanvasPageProps) {
   const [localZoom, setLocalZoom] = useState(0.9);
   const effectiveZoom = zoom ?? localZoom;
@@ -71,6 +73,9 @@ export default function CanvasPage({
 
   // Add state for container dimensions
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+
+  // Add new state for description heights
+  const [nodeDescriptionHeights, setNodeDescriptionHeights] = useState<Record<string, number>>({});
 
   // Auto-fit the mindmap when component mounts or data changes
   useEffect(() => {
@@ -105,7 +110,11 @@ export default function CanvasPage({
       const totalX = pos.x + draggedPos.x;
       const totalY = pos.y + draggedPos.y;
       const width = nodeWidths[nodeId] || 250;
-      const height = 80;
+      
+      const isNodeExpanded = nodeExpanded[nodeId] || false;
+      // Use actual description height if available, or default to 100px
+      const descriptionHeight = nodeDescriptionHeights[nodeId] || 100;
+      const height = isNodeExpanded ? (80 + descriptionHeight) : 80;
 
       minX = Math.min(minX, totalX);
       maxX = Math.max(maxX, totalX + width);
@@ -113,18 +122,18 @@ export default function CanvasPage({
       maxY = Math.max(maxY, totalY + height);
     });
 
-    // Add padding for each side
     const padding = {
       top: 0,
       right: 60,
-      bottom: 100,
+      bottom: 30,
       left: 0
     };
+
     const width = maxX - minX + padding.left + padding.right;
     const height = maxY - minY + padding.top + padding.bottom;
 
     setContainerDimensions({ width, height });
-  }, [data, nodePositions, draggedPositions, nodeWidths]);
+  }, [data, nodePositions, draggedPositions, nodeWidths, nodeExpanded, nodeDescriptionHeights]);
 
   // Get final node position without any transformations
   const getNodePosition = (nodeId: string) => {
@@ -371,7 +380,7 @@ export default function CanvasPage({
     >
         {/* Container for the mindmap with panning and zooming */}
         <div 
-          ref={canvasRef}
+          ref={mindmapContainerRef}
           className="absolute border bg-white rounded-lg"
           style={{
             width: `${containerDimensions.width}px`,
@@ -379,7 +388,8 @@ export default function CanvasPage({
             transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
             transformOrigin: '50% 50%',
             transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-            overflow: 'visible' // Allow elements to extend beyond boundaries
+            overflow: 'visible', // Allow elements to extend beyond boundaries
+            backgroundColor: '#ffffff'
           }}
         >
           {/* SVG for connections - Must be rendered AFTER position calculations but BEFORE nodes */}
