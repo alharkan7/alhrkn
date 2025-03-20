@@ -53,6 +53,7 @@ export default function CanvasPage({
   const [animatingNodes, setAnimatingNodes] = useState<Record<string, boolean>>({});
   const [showingAnimation, setShowingAnimation] = useState<Record<string, boolean>>({});
   const isCardBeingDragged = useRef<boolean>(false);
+  const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
 
   // Auto-fit the mindmap when component mounts or data changes
   useEffect(() => {
@@ -198,7 +199,7 @@ export default function CanvasPage({
   }, [data, hiddenChildren]);
 
   // Render connections between nodes
-  const renderConnections = () => {
+  const renderConnections = useCallback(() => {
     if (!data) return null;
     
     const connections: React.ReactNode[] = [];
@@ -267,7 +268,19 @@ export default function CanvasPage({
     });
     
     return connections;
-  };
+  }, [data, nodePositions, draggedPositions, nodeWidths, hiddenChildren, nodeExpanded, animatingNodes, showingAnimation, isNodeDescendantOfHidden]);
+
+  // Update the onNodeResize handler to be more responsive
+  const handleNodeResize = useCallback((nodeId: string, width: number) => {
+    // Set this node as currently being resized
+    setResizingNodeId(nodeId);
+    
+    // Update nodeWidths immediately
+    setNodeWidths(prev => ({
+      ...prev,
+      [nodeId]: width
+    }));
+  }, []);
 
   return (
     <div 
@@ -311,8 +324,10 @@ export default function CanvasPage({
               overflow: 'visible',
               width: '100%',
               height: '100%',
-              zIndex: 5 // Ensure lines appear behind nodes
+              zIndex: 5, // Ensure lines appear behind nodes
+              willChange: resizingNodeId ? 'transform' : 'auto'  // Force GPU acceleration during resize
             }}
+            key={`svg-container-${resizingNodeId || 'default'}`} // Force re-render of SVG when resize changes
           >
             {renderConnections()}
           </svg>
@@ -364,7 +379,7 @@ export default function CanvasPage({
                   onSelect={onNodeSelect}
                   isSelected={isSelected}
                   registerToggleButtonRef={registerToggleButtonRef}
-                  onResize={onNodeResize}
+                  onResize={handleNodeResize}
                 />
               );
             })}

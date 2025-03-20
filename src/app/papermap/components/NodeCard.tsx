@@ -79,6 +79,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
   // Editing states
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const titleContentRef = useRef<HTMLHeadingElement>(null);
 
   // Replace the existing title and description state with controlled state
   const [editState, setEditState] = useState({
@@ -135,12 +136,52 @@ const NodeCard: React.FC<NodeCardProps> = ({
     }
   }, [isExpanded, editState.description]);
 
+  // Add an effect to recalculate content height when card width changes
+  useEffect(() => {
+    if (descriptionRef.current) {
+      const content = descriptionRef.current.querySelector('.description-content');
+      if (content) {
+        const newContentHeight = content.scrollHeight;
+        setContentHeight(newContentHeight);
+        
+        if (isExpanded) {
+          setDescriptionHeight(newContentHeight);
+        }
+      }
+    }
+  }, [cardSize.width, isExpanded]);
+
   // Add an effect to notify parent of width changes
   useEffect(() => {
     if (onResize) {
       onResize(node.id, cardSize.width, 0);
     }
   }, [cardSize.width, node.id, onResize]);
+
+  // Add effect to adjust title height based on content
+  useEffect(() => {
+    // Check if title content is overflowing
+    if (titleContentRef.current) {
+      const titleElement = titleContentRef.current;
+      
+      // Reset styles first to get accurate measurements
+      titleElement.style.maxHeight = '';
+      titleElement.style.height = '';
+      
+      // Check if content still overflows after reset
+      const hasOverflow = titleElement.scrollHeight > titleElement.clientHeight;
+      
+      if (hasOverflow) {
+        // Adjust the height to fit content with a small buffer
+        titleElement.style.maxHeight = 'none';
+        const newHeight = titleElement.scrollHeight + 5;
+        titleElement.style.height = `${newHeight}px`;
+      } else {
+        // Content fits, so we can use default height
+        titleElement.style.height = '';
+      }
+    }
+  }, [editState.title, node.title, cardSize.width]);
 
   // Handle mouse down to detect potential drag start
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -419,7 +460,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     
     const startX = e.clientX;
     const startY = e.clientY;
-    const startWidth = nodeRef.current?.offsetWidth || 300;
+    const startWidth = nodeRef.current?.offsetWidth || 250;
     const startHeight = descriptionRef.current?.offsetHeight || contentHeight;
 
     const handleResize = (e: MouseEvent) => {
@@ -428,20 +469,43 @@ const NodeCard: React.FC<NodeCardProps> = ({
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
       
+      // Apply direct DOM manipulation for immediate feedback during resize
       if (direction === 'right' || direction === 'corner') {
-        const newWidth = Math.max(300, startWidth + deltaX);
+        const newWidth = Math.max(200, startWidth + deltaX);
+        
+        // Update the DOM directly for smoother resize
+        if (nodeRef.current) {
+          nodeRef.current.style.width = `${newWidth}px`;
+        }
+        
+        // Also update React state
         setCardSize({ width: newWidth });
+        
+        // Call onResize immediately to update node width in parent
         onResize?.(node.id, newWidth, 0);
       }
       
       if (direction === 'bottom' || direction === 'corner') {
         const newHeight = Math.max(contentHeight, startHeight + deltaY);
+        
+        // Update DOM directly
+        if (descriptionRef.current) {
+          descriptionRef.current.style.height = `${newHeight}px`;
+        }
+        
+        // Also update React state
         setDescriptionHeight(newHeight);
       }
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      
+      // Do a final onResize call with a third parameter of 'true' to indicate resize is complete
+      if (onResize) {
+        onResize(node.id, nodeRef.current?.offsetWidth || cardSize.width, 1);
+      }
+      
       document.removeEventListener('mousemove', handleResize);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -474,16 +538,15 @@ const NodeCard: React.FC<NodeCardProps> = ({
           height: 'auto',
           minWidth: '200px',
           minHeight: '80px',
-          maxWidth: '300px',
-          // Disable transitions completely during drag
-          transition: isDragging ? 'none !important' : 'all 0.2s ease',
+          // Disable transitions completely during drag or resize
+          transition: isDragging || isResizing ? 'none !important' : 'all 0.2s ease',
           overflow: 'visible',
           fontSize: '0.9rem',
           zIndex: isResizing ? 1000 : (isSelected ? 20 : 10),
           touchAction: 'none',
-          cursor: isDragging ? 'grabbing' : 'grab',
+          cursor: isDragging ? 'grabbing' : (isResizing ? 'auto' : 'grab'),
           opacity: isVisible ? 1 : 0,
-          willChange: isDragging ? 'transform' : 'auto',
+          willChange: isDragging || isResizing ? 'transform, width' : 'auto',
           // Allow any additional custom styles
           ...style
         }}
@@ -497,14 +560,15 @@ const NodeCard: React.FC<NodeCardProps> = ({
         <div className="flex flex-col">
           {/* Title section - fixed height */}
           <div 
-            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative p-3`}
+            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
             style={{
               ...(isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)' } : {}),
               borderBottom: isExpanded ? 'none' : undefined,
               borderRadius: isExpanded ? '0.5rem 0.5rem 0 0' : '0.5rem',
-              height: '50px', // Fixed height for title div to ensure consistent line connections
+              minHeight: '50px', // Changed from fixed height to minHeight
               display: 'flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              padding: isExpanded ? '0.75rem 0.75rem 0.375rem 0.75rem' : '0.75rem' // Reduce bottom padding when expanded
             }}
           >
             {/* Title content */}
@@ -541,6 +605,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
                 />
               ) : (
                 <h3 
+                  ref={titleContentRef}
                   className="font-bold text-sm cursor-text flex-1" 
                   onDoubleClick={handleTitleDoubleClick}
                   title="Double-click to edit"
@@ -552,7 +617,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
                     wordBreak: 'break-word',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    maxHeight: '40px'
+                    maxHeight: 'none' // Allow text to expand vertically
                   }}
                 >
                   {node.title}
@@ -603,12 +668,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
             }}
           >
             <div 
-              className="p-3 h-full overflow-hidden description-content"
+              className="description-content h-full overflow-hidden"
               style={{
                 opacity: isExpanded ? 1 : 0,
                 transform: isExpanded ? 'translateY(0)' : 'translateY(-12px)',
                 transition: isResizing || isDragging ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
-                willChange: 'transform, opacity'
+                willChange: 'transform, opacity',
+                padding: '0.75rem 0.75rem 0.75rem 0.75rem' // Reduce top padding for description
               }}
             >
               {editState.isEditingDescription ? (

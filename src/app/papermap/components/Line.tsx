@@ -18,6 +18,12 @@ const Line: React.FC<LineProps> = ({
   isDragging = false,
   nodeWidth
 }) => {
+  // Add a debug useEffect
+  React.useEffect(() => {
+    // We intentionally log width changes to help with debugging
+    // console.log('Line rerendered with width:', nodeWidth);
+  }, [nodeWidth]);
+  
   // Calculate positions for the curved line
   
   // Start EXACTLY at right edge of the parent node's card
@@ -95,4 +101,5 @@ const Line: React.FC<LineProps> = ({
   );
 };
 
-export default React.memo(Line);
+// Export without memo to ensure it always rerenders
+export default Line;
