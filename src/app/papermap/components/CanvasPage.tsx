@@ -66,6 +66,7 @@ export default function CanvasPage({
   const [showingAnimation, setShowingAnimation] = useState<Record<string, boolean>>({});
   const isCardBeingDragged = useRef<boolean>(false);
   const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
+  const [isCalculatingLayout, setIsCalculatingLayout] = useState(true);
 
   // Add touch state for pinch zoom
   const [touchDistance, setTouchDistance] = useState<number | null>(null);
@@ -99,16 +100,20 @@ export default function CanvasPage({
     }
   }, [data]);
 
-  // Calculate container dimensions based on node positions
+  // Modify the container dimensions effect to track calculation state
   useEffect(() => {
-    if (!data || Object.keys(nodePositions).length === 0) return;
+    if (!data || Object.keys(nodePositions).length === 0) {
+      setIsCalculatingLayout(true);
+      return;
+    }
+
+    setIsCalculatingLayout(true);
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
     // Calculate absolute bounds including dragged positions
     Object.entries(nodePositions).forEach(([nodeId, pos]) => {
       const draggedPos = draggedPositions[nodeId] || { x: 0, y: 0 };
-      // Calculate total position including base position and dragged offset
       const totalX = pos.x + draggedPos.x;
       const totalY = pos.y + draggedPos.y;
       const width = nodeWidths[nodeId] || 250;
@@ -117,7 +122,6 @@ export default function CanvasPage({
       const descriptionHeight = nodeDescriptionHeights[nodeId] || 100;
       const height = isNodeExpanded ? (80 + descriptionHeight) : 80;
 
-      // Update bounds to include the full extent of each node
       minX = Math.min(minX, totalX);
       maxX = Math.max(maxX, totalX + width);
       minY = Math.min(minY, totalY);
@@ -131,17 +135,18 @@ export default function CanvasPage({
       left: 60
     };
 
-    // Calculate absolute dimensions from zero point
     const absoluteWidth = Math.max(maxX + padding.right, Math.abs(minX) + maxX + padding.left + padding.right);
     const absoluteHeight = Math.max(maxY + padding.bottom, Math.abs(minY) + maxY + padding.top + padding.bottom);
 
-    // Set the container dimensions with absolute values
     setContainerDimensions({ 
       width: absoluteWidth,
       height: absoluteHeight,
       offsetX: minX - padding.left,
       offsetY: minY - padding.top
     });
+
+    // Mark calculations as complete
+    setIsCalculatingLayout(false);
   }, [data, nodePositions, draggedPositions, nodeWidths, nodeExpanded, nodeDescriptionHeights]);
 
   // Get final node position without any transformations
@@ -387,113 +392,122 @@ export default function CanvasPage({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
-        {/* Container for the mindmap with panning and zooming */}
-        <div 
-          ref={mindmapContainerRef}
-          className="absolute border bg-white rounded-lg"
-          style={{
-            width: `${containerDimensions.width}px`,
-            height: `${containerDimensions.height}px`,
-            transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
-            transformOrigin: '0 0',
-            transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-            overflow: 'visible',
-            backgroundColor: '#ffffff',
-            position: 'absolute',
-            willChange: 'transform, width, height',
-            minWidth: '100%',
-            minHeight: '100%'
-          }}
-        >
-          {/* SVG for connections */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{
-              overflow: 'visible',
-              width: '100%',
-              height: '100%',
-              zIndex: 5,
-              willChange: 'transform',
-              position: 'absolute',
-              left: 0,
-              top: 0
-            }}
-            key={`svg-container-${resizingNodeId || 'default'}`}
-          >
-            <g transform={`translate(${-containerDimensions.offsetX}, ${-containerDimensions.offsetY})`}>
-              {renderConnections()}
-            </g>
-          </svg>
-          
-          {/* Container for nodes */}
-          <div 
-            className="absolute inset-0" 
-            style={{ 
-              overflow: 'visible',
-              transform: `translate(${-containerDimensions.offsetX}px, ${-containerDimensions.offsetY}px)`,
-              width: '100%',
-              height: '100%',
-              willChange: 'transform',
-              position: 'absolute',
-              minWidth: '100%',
-              minHeight: '100%'
-            }}
-          >
-            {data?.nodes
-              .filter(node => {
-                if (!node.parentId) return true;
-                
-                let currentNode = node;
-                let isDescendantOfHiddenNode = false;
-                
-                while (currentNode.parentId) {
-                  const parent = data.nodes.find(n => n.id === currentNode.parentId);
-                  if (!parent) break;
-                  
-                  if (hiddenChildren[parent.id]) {
-                    isDescendantOfHiddenNode = true;
-                    break;
-                  }
-                  
-                  currentNode = parent;
-                }
-                
-                return !isDescendantOfHiddenNode;
-              })
-              .map(node => {
-                const position = getNodePosition(node.id);
-                const isExpanded = nodeExpanded[node.id] || false;
-                const areChildrenHidden = hiddenChildren[node.id] || false;
-                const hasChildren = data.nodes.some(n => n.parentId === node.id);
-                const isSelected = selectedNodes.includes(node.id);
-                
-                return (
-                  <NodeCard
-                    key={node.id}
-                    node={node}
-                    basePosition={position}
-                    draggedPosition={{x: 0, y: 0}}
-                    isExpanded={isExpanded}
-                    hasChildren={hasChildren}
-                    areChildrenHidden={areChildrenHidden}
-                    onDrag={onNodeDrag}
-                    onDragStart={onNodeDragStart}
-                    onToggleExpand={onToggleExpand}
-                    onToggleChildren={onToggleChildren}
-                    onDragStop={onNodeDragStop}
-                    onUpdateNode={onNodeUpdate}
-                    onSelect={onNodeSelect}
-                    isSelected={isSelected}
-                    registerToggleButtonRef={registerToggleButtonRef}
-                    onResize={handleNodeResize}
-                  />
-                );
-              })}
+        {isCalculatingLayout ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-        </div>
-      
-      {/* Render children (zoom controls, etc.) */}
-      {children}
+        ) : (
+          <>
+            {/* Container for the mindmap with panning and zooming */}
+            <div 
+              ref={mindmapContainerRef}
+              className="absolute border bg-white rounded-lg"
+              style={{
+                width: `${containerDimensions.width}px`,
+                height: `${containerDimensions.height}px`,
+                transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
+                transformOrigin: '0 0',
+                transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+                overflow: 'visible',
+                backgroundColor: '#ffffff',
+                position: 'absolute',
+                willChange: 'transform, width, height',
+                minWidth: '100%',
+                minHeight: '100%'
+              }}
+            >
+              {/* SVG for connections - Render FIRST */}
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                style={{
+                  overflow: 'visible',
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 1,
+                  willChange: 'transform',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0
+                }}
+                key={`svg-container-${resizingNodeId || 'default'}`}
+              >
+                <g transform={`translate(${-containerDimensions.offsetX}, ${-containerDimensions.offsetY})`}>
+                  {renderConnections()}
+                </g>
+              </svg>
+              
+              {/* Container for nodes - Render SECOND, so it appears above lines */}
+              <div 
+                className="absolute inset-0" 
+                style={{ 
+                  overflow: 'visible',
+                  transform: `translate(${-containerDimensions.offsetX}px, ${-containerDimensions.offsetY}px)`,
+                  width: '100%',
+                  height: '100%',
+                  willChange: 'transform',
+                  position: 'absolute',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  zIndex: 2 // Ensure nodes container is above SVG
+                }}
+              >
+                {data?.nodes
+                  .filter(node => {
+                    if (!node.parentId) return true;
+                    
+                    let currentNode = node;
+                    let isDescendantOfHiddenNode = false;
+                    
+                    while (currentNode.parentId) {
+                      const parent = data.nodes.find(n => n.id === currentNode.parentId);
+                      if (!parent) break;
+                      
+                      if (hiddenChildren[parent.id]) {
+                        isDescendantOfHiddenNode = true;
+                        break;
+                      }
+                      
+                      currentNode = parent;
+                    }
+                    
+                    return !isDescendantOfHiddenNode;
+                  })
+                  .map(node => {
+                    const position = getNodePosition(node.id);
+                    const isExpanded = nodeExpanded[node.id] || false;
+                    const areChildrenHidden = hiddenChildren[node.id] || false;
+                    const hasChildren = data.nodes.some(n => n.parentId === node.id);
+                    const isSelected = selectedNodes.includes(node.id);
+                    
+                    return (
+                      <NodeCard
+                        key={node.id}
+                        node={node}
+                        basePosition={position}
+                        draggedPosition={{x: 0, y: 0}}
+                        isExpanded={isExpanded}
+                        hasChildren={hasChildren}
+                        areChildrenHidden={areChildrenHidden}
+                        onDrag={onNodeDrag}
+                        onDragStart={onNodeDragStart}
+                        onToggleExpand={onToggleExpand}
+                        onToggleChildren={onToggleChildren}
+                        onDragStop={onNodeDragStop}
+                        onUpdateNode={onNodeUpdate}
+                        onSelect={onNodeSelect}
+                        isSelected={isSelected}
+                        registerToggleButtonRef={registerToggleButtonRef}
+                        onResize={handleNodeResize}
+                      />
+                    );
+                  })}
+              </div>
+            </div>
+            
+            {/* Render children (zoom controls, etc.) */}
+            {children}
+          </>
+        )}
     </div>
   );
 } 

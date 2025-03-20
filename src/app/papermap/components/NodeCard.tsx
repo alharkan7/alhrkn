@@ -362,7 +362,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     setTimeout(() => {
       if (titleInputRef.current) {
         titleInputRef.current.focus();
-        titleInputRef.current.select();
+        titleInputRef.current.setSelectionRange(editState.title.length, editState.title.length);
       }
     }, 10);
   };
@@ -377,7 +377,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
     setTimeout(() => {
       if (descriptionInputRef.current) {
         descriptionInputRef.current.focus();
-        descriptionInputRef.current.select();
+        descriptionInputRef.current.setSelectionRange(editState.description.length, editState.description.length);
       }
     }, 10);
   };
@@ -560,16 +560,18 @@ const NodeCard: React.FC<NodeCardProps> = ({
         <div className="flex flex-col">
           {/* Title section - fixed height */}
           <div 
-            className={`bg-white rounded-t-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
+            className={`bg-white rounded-lg shadow-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
             style={{
               ...(isSelected ? { boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)' } : {}),
+              borderBottomLeftRadius: isExpanded ? 0 : '0.5rem',
+              borderBottomRightRadius: isExpanded ? 0 : '0.5rem',
               borderBottom: isExpanded ? 'none' : undefined,
-              borderRadius: isExpanded ? '0.5rem 0.5rem 0 0' : '0.5rem',
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
               padding: '0.75rem',
-              overflow: 'visible' // Allow text to be visible outside if needed
+              overflow: 'visible',
+              transition: isDragging || isResizing ? 'none' : 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)'
             }}
           >
             {/* Title content */}
@@ -657,28 +659,30 @@ const NodeCard: React.FC<NodeCardProps> = ({
           {/* Description section - expandable/collapsible */}
           <div 
             ref={descriptionRef}
-            className={`bg-white rounded-b-lg border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
+            className={`bg-white border ${isSelected ? 'border-blue-500' : 'border-gray-200'} relative`}
             style={{
               borderTop: 'none',
-              borderRadius: '0 0 0.5rem 0.5rem',
+              borderBottomLeftRadius: '0.5rem',
+              borderBottomRightRadius: '0.5rem',
               height: isExpanded ? `${descriptionHeight}px` : '0',
               minHeight: isExpanded ? `${contentHeight}px` : '0',
-              transitionProperty: 'height, opacity',
-              transitionDuration: isResizing || isDragging ? '0s' : '0.1s',
+              transitionProperty: 'all',
+              transitionDuration: isResizing || isDragging ? '0s' : '0.2s',
               transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
               overflow: 'hidden',
               opacity: isExpanded ? 1 : 0,
-              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden'
+              visibility: (isExpanded || isDescriptionAnimating) ? 'visible' : 'hidden',
+              transform: `translateY(${isExpanded ? '0' : '-4px'})`
             }}
           >
             <div 
               className="description-content h-full overflow-hidden"
               style={{
                 opacity: isExpanded ? 1 : 0,
-                transform: isExpanded ? 'translateY(0)' : 'translateY(-12px)',
-                transition: isResizing || isDragging ? 'none' : 'all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                transform: `translateY(${isExpanded ? '0' : '-4px'})`,
+                transition: isResizing || isDragging ? 'none' : 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)',
                 willChange: 'transform, opacity',
-                padding: '0.75rem 0.75rem 0.75rem 0.75rem' // Reduce top padding for description
+                padding: '0.75rem'
               }}
             >
               {editState.isEditingDescription ? (
