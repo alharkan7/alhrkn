@@ -16,27 +16,37 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
   const [fitActive, setFitActive] = useState(false);
   const zoomIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Handle press and hold for continuous zooming
+  // Handle press and hold for continuous zooming with acceleration
   useEffect(() => {
     if (activeButton === null) {
-      // Clear any existing interval when no button is active
+      // Clear any existing intervals and timeouts when no button is active
       if (zoomIntervalRef.current) {
         clearInterval(zoomIntervalRef.current);
         zoomIntervalRef.current = null;
       }
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+        zoomTimeoutRef.current = null;
+      }
       return;
     }
     
-    // Initial zoom action
-    if (activeButton === 'in') {
-      onZoomIn();
-    } else {
-      onZoomOut();
-    }
+    // Initial zoom action with a small delay for better control
+    zoomTimeoutRef.current = setTimeout(() => {
+      if (activeButton === 'in') {
+        onZoomIn();
+      } else {
+        onZoomOut();
+      }
+    }, 50);
     
-    // Small delay before starting continuous zoom for better control
-    const timeoutId = setTimeout(() => {
+    // Start with a longer delay before continuous zoom
+    const startContinuousTimeout = setTimeout(() => {
+      let zoomSpeed = 200; // Initial interval between zooms
+      let accelerationPhase = 0;
+      
       // Set up an interval for continuous zooming while button is held
       const interval = setInterval(() => {
         if (activeButton === 'in') {
@@ -44,17 +54,36 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
         } else {
           onZoomOut();
         }
-      }, 150); // Slightly slower for better control and smoother animation
+        
+        // Gradually increase zoom speed
+        accelerationPhase++;
+        if (accelerationPhase > 5 && zoomSpeed > 50) {
+          zoomSpeed = Math.max(50, zoomSpeed * 0.8);
+          // Reset the interval with the new speed
+          clearInterval(zoomIntervalRef.current!);
+          zoomIntervalRef.current = setInterval(() => {
+            if (activeButton === 'in') {
+              onZoomIn();
+            } else {
+              onZoomOut();
+            }
+          }, zoomSpeed);
+        }
+      }, zoomSpeed);
       
       zoomIntervalRef.current = interval;
-    }, 400); // Longer delay before continuous zoom kicks in
+    }, 400);
     
-    // Clean up the interval and timeout when component unmounts or button state changes
+    // Clean up all intervals and timeouts
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(startContinuousTimeout);
       if (zoomIntervalRef.current) {
         clearInterval(zoomIntervalRef.current);
         zoomIntervalRef.current = null;
+      }
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+        zoomTimeoutRef.current = null;
       }
     };
   }, [activeButton, onZoomIn, onZoomOut]);
@@ -69,32 +98,24 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
   };
   
   const handleFitClick = () => {
-    // Avoid multiple rapid clicks
     if (fitActive) return;
     
-    // Visual feedback for fit button
     setFitActive(true);
     
-    // Need to ensure we clean up previous timeouts
+    // Clean up any existing timeout
     if (fitTimeoutRef.current) {
       clearTimeout(fitTimeoutRef.current);
     }
     
-    // Add a small delay before triggering the zoom reset
-    // This gives the DOM time to update visual state
+    // Small delay for visual feedback before zoom
     setTimeout(() => {
-      console.log("Fit button: Calling onResetZoom");
-      // Trigger the reset zoom handler (fit to view)
       onResetZoom();
     }, 50);
     
-    // Reset the active state after animation completes
-    // Use a longer timeout to ensure the animation completes
-    const timeoutId = setTimeout(() => {
+    // Reset the active state after animation
+    fitTimeoutRef.current = setTimeout(() => {
       setFitActive(false);
-    }, 1200); // Longer duration to ensure animation completes
-    
-    fitTimeoutRef.current = timeoutId;
+    }, 800);
   };
   
   // Clean up timeouts on unmount
@@ -102,6 +123,12 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
     return () => {
       if (fitTimeoutRef.current) {
         clearTimeout(fitTimeoutRef.current);
+      }
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+      }
+      if (zoomIntervalRef.current) {
+        clearInterval(zoomIntervalRef.current);
       }
     };
   }, []);
@@ -115,18 +142,20 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
         onTouchStart={() => handleZoomButtonDown('in')}
         onTouchEnd={handleZoomButtonUp}
         onTouchCancel={handleZoomButtonUp}
-        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'in' ? 'bg-gray-300' : ''}`}
+        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-all duration-150 ${
+          activeButton === 'in' ? 'bg-gray-300 transform scale-95' : ''
+        }`}
         title="Zoom In"
       >
-        <span className="text-sm font-bold">+</span>
+        <span className="text-sm font-bold select-none">+</span>
       </button>
       <button 
         onClick={handleFitClick}
         className={`w-6 h-6 ${
           fitActive 
-            ? 'bg-blue-500 text-white shadow-md transform scale-110' 
+            ? 'bg-blue-500 text-white shadow-md transform scale-95' 
             : 'bg-gray-200 hover:bg-gray-300'
-        } rounded flex items-center justify-center transition-all duration-300`}
+        } rounded flex items-center justify-center transition-all duration-150`}
         title="Fit to View"
       >
         <FitToViewIcon className={`w-4 h-4 ${fitActive ? 'text-white' : ''}`} />
@@ -138,10 +167,12 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
         onTouchStart={() => handleZoomButtonDown('out')}
         onTouchEnd={handleZoomButtonUp}
         onTouchCancel={handleZoomButtonUp}
-        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-colors ${activeButton === 'out' ? 'bg-gray-300' : ''}`}
+        className={`w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center transition-all duration-150 ${
+          activeButton === 'out' ? 'bg-gray-300 transform scale-95' : ''
+        }`}
         title="Zoom Out"
       >
-        <span className="text-sm font-bold">-</span>
+        <span className="text-sm font-bold select-none">-</span>
       </button>
     </div>
   );

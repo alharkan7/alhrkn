@@ -17,7 +17,7 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(1.05);
+  const [zoom, setZoom] = useState(0.65);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const isCardBeingDragged = useRef(false);
@@ -49,73 +49,34 @@ export default function PaperMap() {
   const handleZoomIn = useCallback(() => {
     setInitialRenderComplete(true);
     
-    // Apply direct transition to canvas for smooth animation
-    if (canvasRef.current) {
-      canvasRef.current.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
-    }
-    
     // Calculate target zoom with easing
     setZoom(prev => {
-      const target = Math.min(prev + 0.05, 2);
-      return target;
+      const step = prev > 1 ? 0.1 : 0.05;
+      return Math.min(prev + step, 2);
     });
-    
-    // Reset transition after animation
-    setTimeout(() => {
-      if (canvasRef.current) {
-        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-      }
-    }, 200);
-  }, [canvasRef, setInitialRenderComplete]);
+  }, []);
   
   const handleZoomOut = useCallback(() => {
     setInitialRenderComplete(true);
     
-    // Apply direct transition to canvas for smooth animation
-    if (canvasRef.current) {
-      canvasRef.current.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
-    }
-    
     // Calculate target zoom with easing
     setZoom(prev => {
-      const step = Math.max(0.05, prev * 0.1);
-      const target = Math.max(0.1, prev - step);
-      return target;
+      const step = prev > 1 ? 0.1 : 0.05;
+      return Math.max(prev - step, 0.1);
     });
-    
-    // Reset transition after animation
-    setTimeout(() => {
-      if (canvasRef.current) {
-        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-      }
-    }, 200);
-  }, [canvasRef, setInitialRenderComplete]);
+  }, []);
 
   // Handle zoom from wheel or other sources
   const handleZoom = useCallback((direction: number) => {
     setInitialRenderComplete(true);
     
-    // Apply direct transition to canvas for smoother wheel zoom
-    if (canvasRef.current) {
-      canvasRef.current.style.transition = 'transform 0.15s cubic-bezier(0.22, 1, 0.36, 1)';
-    }
-    
     setZoom(prev => {
-      if (direction > 0) {
-        return Math.min(prev + 0.05, 2);
-      } else {
-        const step = Math.max(0.05, prev * 0.1);
-        return Math.max(0.1, prev - step);
-      }
+      const step = prev > 1 ? 0.1 : 0.05;
+      return direction > 0 
+        ? Math.min(prev + step, 2)
+        : Math.max(prev - step, 0.1);
     });
-    
-    // Reset transition after animation
-    setTimeout(() => {
-      if (canvasRef.current) {
-        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-      }
-    }, 150);
-  }, [canvasRef, setInitialRenderComplete]);
+  }, []);
 
   // Calculate initial positions
   useEffect(() => {
@@ -130,8 +91,8 @@ export default function PaperMap() {
         const rootNodes = data.nodes.filter(node => node.parentId === null);
         rootNodes.forEach((node, index) => {
           initialPositions[node.id] = {
-            x: 50, // Add some left margin for root nodes
-            y: index * NODE_VERTICAL_SPACING + 50
+            x: 30, // Remove left margin for root nodes
+            y: index * NODE_VERTICAL_SPACING + 30 // Remove top padding, keep vertical spacing
           };
           // Mark this position as used
           usedPositions[`0_${index}`] = true;
@@ -210,59 +171,66 @@ export default function PaperMap() {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    // Calculate mindmap bounds
+    // Calculate mindmap bounds including padding
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
     Object.values(positions).forEach(pos => {
       minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x + 250); // 250px is card width (reduced from 300)
+      maxX = Math.max(maxX, pos.x + 250); // 250px is card width
       minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y + 80); // 80px is approx card height (reduced from 100)
+      maxY = Math.max(maxY, pos.y + 80); // 80px is card height
     });
     
-    // Add padding
-    const padding = 100;
-    minX -= padding;
-    maxX += padding;
-    minY -= padding;
-    maxY += padding;
+    // Add padding to ensure nodes near edges are visible
+    const padding = {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0
+    };
     
-    // Calculate mindmap dimensions
+    // Apply padding to bounds
+    minX -= padding.left;
+    maxX += padding.right;
+    minY -= padding.top;
+    maxY += padding.bottom;
+    
+    // Calculate mindmap dimensions with padding
     const mindmapWidth = maxX - minX;
     const mindmapHeight = maxY - minY;
     
     // Calculate the scale needed to fit the entire mindmap
     const scaleX = containerWidth / mindmapWidth;
     const scaleY = containerHeight / mindmapHeight;
-    const fitScale = Math.min(scaleX, scaleY) * 1.7; // Changed from 0.85 to 1.45 to match handleResetZoom
+    const fitScale = Math.min(scaleX, scaleY, 1.2); // Cap at 1.2 to prevent excessive zoom
     
-    // Calculate the pan needed to center
-    const newPanX = (containerWidth - mindmapWidth * fitScale) / 2 - minX * fitScale;
-    const newPanY = (containerHeight - mindmapHeight * fitScale) / 2 - minY * fitScale;
+    // Calculate the pan needed to center, accounting for scale
+    const scaledWidth = mindmapWidth * fitScale;
+    const scaledHeight = mindmapHeight * fitScale;
+    const newPanX = (containerWidth - scaledWidth) / 2 - minX * fitScale;
+    const newPanY = (containerHeight - scaledHeight) / 2 - minY * fitScale;
     
     if (isInitialLoad) {
       // For initial load, set zoom and pan without animation
       setZoom(fitScale);
       setPan({ x: newPanX, y: newPanY });
       
-      // Mark initial rendering as complete after a brief delay to ensure values are applied
+      // Mark initial rendering as complete after a brief delay
       setTimeout(() => {
         setInitialRenderComplete(true);
       }, 100);
     } else {
       // For subsequent centering, use animation
-      // Always ensure transitions are enabled for fit to view
       setInitialRenderComplete(true);
       
       if (canvasRef.current) {
         canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
       }
       
-      // Apply the zoom and pan directly
       setPan({ x: newPanX, y: newPanY });
       setZoom(fitScale);
       
-      // After animation completes, reset to default transition
+      // Reset transition after animation
       setTimeout(() => {
         if (canvasRef.current) {
           canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -300,38 +268,32 @@ export default function PaperMap() {
 
   // Improved handleResetZoom function to match initial behavior
   const handleResetZoom = useCallback(() => {
-    console.log("Fit to view button clicked - matching initial zoom behavior");
-    
     // Basic validation
     if (!data || !data.nodes || data.nodes.length === 0) {
-      console.log("No data available");
       return;
     }
 
-    // Force layout calculation to ensure proper measurements
-    document.body.getBoundingClientRect();
-
-    // Get the container dimensions directly from the DOM
+    // Get the container dimensions from the flex-1 container
     const container = document.querySelector('.flex-1.overflow-hidden');
     if (!container) {
-      console.log("Container not found");
       return;
     }
     
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    console.log("Container dimensions:", containerWidth, containerHeight);
     
     // Calculate bounds of all nodes
-    let minX = Number.MAX_VALUE;
-    let minY = Number.MAX_VALUE;
-    let maxX = Number.MIN_VALUE;
-    let maxY = Number.MIN_VALUE;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
     
-    // Use node positions directly
+    // Use node positions to calculate bounds
     Object.entries(nodePositions).forEach(([id, pos]) => {
-      const nodeWidth = 250; // Default width
-      const nodeHeight = 80; // Default height
+      const nodeWidth = nodeWidths[id] || 250; // Use actual node width if available
+      // Account for expanded state when calculating height
+      const isNodeExpanded = nodeExpanded[id] || false;
+      const nodeHeight = isNodeExpanded ? 180 : 80; // 180px for expanded nodes (title + description), 80px for collapsed
       
       minX = Math.min(minX, pos.x);
       minY = Math.min(minY, pos.y);
@@ -339,72 +301,61 @@ export default function PaperMap() {
       maxY = Math.max(maxY, pos.y + nodeHeight);
     });
     
-    // Add padding - matching initial load behavior
-    const padding = 100;
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
+    // Add padding with different values for each side
+    const padding = {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0
+    };
+    
+    // Apply padding to bounds
+    minX -= padding.left;
+    maxX += padding.right;
+    minY -= padding.top;
+    maxY += padding.bottom;
     
     // Calculate mindmap dimensions
     const mapWidth = maxX - minX;
     const mapHeight = maxY - minY;
-    console.log("Map dimensions:", mapWidth, mapHeight);
     
     if (mapWidth <= 0 || mapHeight <= 0) {
-      console.log("Invalid map dimensions");
       return;
     }
     
-    // Calculate appropriate zoom level - matched to initial behavior (1.45 scaling factor)
+    // Calculate appropriate zoom level with a slightly smaller divisor to zoom in more
     const scaleX = containerWidth / mapWidth;
     const scaleY = containerHeight / mapHeight;
-    const newZoom = Math.min(scaleX, scaleY) * 1.7; // Using 1.45 scale factor for larger view
+    let newZoom = Math.min(scaleX, scaleY);
     
-    console.log("Calculated new zoom:", newZoom);
+    // Increase zoom slightly (zoom in more)
+    newZoom = Math.min(newZoom * 0.85, 0.85); // Increase zoom by 10% but still cap at 1.2
     
-    // Calculate pan to center the content - same formula as in centerView
-    const newPanX = (containerWidth - mapWidth * newZoom) / 2 - minX * newZoom;
-    const newPanY = (containerHeight - mapHeight * newZoom) / 2 - minY * newZoom;
-    
-    console.log("Calculated new pan:", { x: newPanX, y: newPanY });
+    // Calculate pan to center the content, with slight adjustments
+    const scaledWidth = mapWidth * newZoom;
+    const scaledHeight = mapHeight * newZoom;
+    const newPanX = (containerWidth - scaledWidth) / 2 - minX * newZoom;
+    const newPanY = (containerHeight - scaledHeight) / 2 - minY * newZoom;
     
     // Force enable transitions
     setInitialRenderComplete(true);
     
-    // Set the values with explicit DOM manipulation for canvas element
-    const canvasElement = document.querySelector('.relative.bg-white.shadow-lg.rounded-lg');
-    const panElement = canvasElement?.querySelector('.absolute.inset-0');
-    
-    if (canvasElement) {
-      console.log("Setting transitions on canvas element");
-      (canvasElement as HTMLElement).style.transition = 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
+    // Apply the zoom and pan with smooth transition
+    if (canvasRef.current) {
+      canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
     }
     
-    if (panElement) {
-      console.log("Setting transitions on pan element");
-      (panElement as HTMLElement).style.transition = 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
-    }
-    
-    // Set the zoom first
+    // Set zoom and pan
     setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
     
-    // Set the pan after a small delay
+    // Reset transition after animation
     setTimeout(() => {
-      setPan({ x: newPanX, y: newPanY });
-      
-      // Reset transitions after the animation completes
-      setTimeout(() => {
-        if (canvasElement) {
-          (canvasElement as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-        }
-        
-        if (panElement) {
-          (panElement as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-        }
-      }, 1000);
-    }, 50);
-  }, [data, nodePositions, setInitialRenderComplete]);
+      if (canvasRef.current) {
+        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+    }, 600);
+  }, [data, nodePositions, nodeWidths, nodeExpanded, canvasRef]);
 
   // CSS classes for selected status
   const getSelectionClassNames = (isSelected: boolean) => {
@@ -527,16 +478,6 @@ export default function PaperMap() {
     }
   };
 
-  // Get final node position (base + dragged delta)
-  const getNodePosition = (nodeId: string) => {
-    const basePos = nodePositions[nodeId] || { x: 0, y: 0 };
-    const draggedPos = draggedPositions[nodeId] || { x: 0, y: 0 };
-    
-    return {
-      x: basePos.x + draggedPos.x,
-      y: basePos.y + draggedPos.y
-    };
-  };
 
   // Handle card selection
   const handleCardSelect = (nodeId: string, e: React.MouseEvent) => {

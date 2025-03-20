@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, TouchEvent } from 'react';
 import { MindMapData, MindMapNode, NodePosition } from './MindMapTypes';
 import NodeCard from './NodeCard';
 import Line from './Line';
@@ -65,6 +65,13 @@ export default function CanvasPage({
   const isCardBeingDragged = useRef<boolean>(false);
   const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
 
+  // Add touch state for pinch zoom
+  const [touchDistance, setTouchDistance] = useState<number | null>(null);
+  const [touchZoomStart, setTouchZoomStart] = useState<number>(1);
+
+  // Add state for container dimensions
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+
   // Auto-fit the mindmap when component mounts or data changes
   useEffect(() => {
     if (data && Object.keys(nodePositions).length > 0) {
@@ -87,19 +94,18 @@ export default function CanvasPage({
     }
   }, [data]);
 
-  // Calculate mindmap bounds and scale
-  const calculateMindmapScale = useCallback(() => {
-    if (!data || Object.keys(nodePositions).length === 0) return { scale: 0.9, offset: { x: 0, y: 0 } };
+  // Calculate container dimensions based on node positions
+  useEffect(() => {
+    if (!data || Object.keys(nodePositions).length === 0) return;
 
-    // Calculate mindmap bounds
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
     Object.entries(nodePositions).forEach(([nodeId, pos]) => {
       const draggedPos = draggedPositions[nodeId] || { x: 0, y: 0 };
       const totalX = pos.x + draggedPos.x;
       const totalY = pos.y + draggedPos.y;
-      const width = nodeWidths[nodeId] || 250; // Default node width is 250px
-      const height = 80; // Default node height is 80px
+      const width = nodeWidths[nodeId] || 250;
+      const height = 80;
 
       minX = Math.min(minX, totalX);
       maxX = Math.max(maxX, totalX + width);
@@ -107,32 +113,18 @@ export default function CanvasPage({
       maxY = Math.max(maxY, totalY + height);
     });
 
-    // Add padding
-    const padding = 100;
-    minX -= padding;
-    maxX += padding;
-    minY -= padding;
-    maxY += padding;
+    // Add padding for each side
+    const padding = {
+      top: 0,
+      right: 60,
+      bottom: 100,
+      left: 0
+    };
+    const width = maxX - minX + padding.left + padding.right;
+    const height = maxY - minY + padding.top + padding.bottom;
 
-    // Calculate mindmap dimensions
-    const mindmapWidth = maxX - minX;
-    const mindmapHeight = maxY - minY;
-
-    // Get canvas dimensions
-    const canvasWidth = canvasRef.current?.clientWidth || 1123; // A4 landscape width in pixels
-    const canvasHeight = canvasRef.current?.clientHeight || 794; // A4 landscape height in pixels
-
-    // Calculate scale to fit
-    const scaleX = canvasWidth / mindmapWidth;
-    const scaleY = canvasHeight / mindmapHeight;
-    const scale = Math.min(scaleX, scaleY, 0.9); // Cap at 0.9 to ensure everything fits with margin
-
-    // Calculate offset to center
-    const offsetX = (canvasWidth - mindmapWidth * scale) / 2 - minX * scale;
-    const offsetY = (canvasHeight - mindmapHeight * scale) / 2 - minY * scale;
-
-    return { scale, offset: { x: offsetX, y: offsetY } };
-  }, [data, nodePositions, draggedPositions, nodeWidths, canvasRef]);
+    setContainerDimensions({ width, height });
+  }, [data, nodePositions, draggedPositions, nodeWidths]);
 
   // Get final node position without any transformations
   const getNodePosition = (nodeId: string) => {
@@ -174,22 +166,63 @@ export default function CanvasPage({
     setStartPan({ x: 0, y: 0 });
   };
 
-  // Handle wheel zoom - delegate to parent if handler provided
+  // Calculate distance between two touch points
+  const getTouchDistance = (e: TouchEvent) => {
+    if (e.touches.length < 2) return null;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Handle touch events for pinch zoom
+  const handleTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      const distance = getTouchDistance(e);
+      setTouchDistance(distance);
+      setTouchZoomStart(effectiveZoom);
+      e.preventDefault(); // Prevent default zoom behavior
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length === 2 && touchDistance) {
+      const newDistance = getTouchDistance(e);
+      if (newDistance) {
+        const scale = newDistance / touchDistance;
+        const newZoom = Math.min(Math.max(touchZoomStart * scale, 0.1), 2);
+        
+        if (onZoom) {
+          // Convert the absolute zoom to a relative change
+          const zoomDelta = newZoom > effectiveZoom ? 1 : -1;
+          onZoom(zoomDelta);
+        } else {
+          setLocalZoom(newZoom);
+        }
+      }
+      e.preventDefault(); // Prevent default zoom behavior
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchDistance(null);
+    setTouchZoomStart(1);
+  };
+
+  // Improved wheel zoom handler with smoother steps
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
+    
+    // Determine zoom direction
     const direction = e.deltaY < 0 ? 1 : -1;
     
     if (onZoom) {
       onZoom(direction);
     } else {
-      // If no parent handler, use local zoom state
       setLocalZoom(prev => {
-        if (direction > 0) {
-          return Math.min(prev + 0.05, 2);
-        } else {
-          const step = Math.max(0.05, prev * 0.1);
-          return Math.max(0.1, prev - step);
-        }
+        const step = prev > 1 ? 0.1 : 0.05;
+        return direction > 0 
+          ? Math.min(prev + step, 2)
+          : Math.max(prev - step, 0.1);
       });
     }
   }, [onZoom]);
@@ -325,34 +358,26 @@ export default function CanvasPage({
   return (
     <div 
       ref={containerRef}
-      className={`relative w-full h-full bg-gray-100 flex items-center justify-center p-12 ${className}`}
+      className={`relative w-full h-full bg-gray-100 flex items-center justify-center ${className}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
-      {/* Canvas container */}
-      <div 
-        ref={canvasRef}
-        className="relative bg-white shadow-lg rounded-lg"
-        style={{
-          width: '297mm', // A4 landscape width
-          height: '210mm', // A4 landscape height
-          maxWidth: 'calc(100vw - 6rem)',
-          maxHeight: 'calc(100vh - 8rem)',
-          transform: `scale(${effectiveZoom})`,
-          transformOrigin: 'center center',
-          transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          overflow: 'visible' // Allow elements to extend beyond canvas boundaries
-        }}
-      >
-        {/* Container for the mindmap with panning */}
+        {/* Container for the mindmap with panning and zooming */}
         <div 
-          className="absolute inset-0"
+          ref={canvasRef}
+          className="absolute border bg-white rounded-lg"
           style={{
-            transform: `translate(${effectivePan.x}px, ${effectivePan.y}px)`,
+            width: `${containerDimensions.width}px`,
+            height: `${containerDimensions.height}px`,
+            transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
+            transformOrigin: '50% 50%',
             transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
             overflow: 'visible' // Allow elements to extend beyond boundaries
           }}
@@ -424,7 +449,6 @@ export default function CanvasPage({
               );
             })}
         </div>
-      </div>
       
       {/* Render children (zoom controls, etc.) */}
       {children}
