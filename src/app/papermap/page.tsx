@@ -830,43 +830,65 @@ export default function PaperMap() {
   };
 
   // Handle card drag with multi-select support
-  const handleDrag = (nodeId: string, e: any, data: { x: number, y: number }) => {
-    isCardBeingDragged.current = true;
+  const handleDrag = (nodeId: string, e: any, deltaPos: { x: number, y: number }) => {
+    // Prevent any default behavior
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
     
+    // Set dragging flag immediately for performance improvements
+    if (!isCardBeingDragged.current) {
+      isCardBeingDragged.current = true;
+      
+      // Apply a CSS variable to the body to trigger transitions on lines
+      document.body.style.setProperty('--dragging-active', '1');
+      document.body.classList.add('is-dragging');
+    }
+    
+    // Important: Use a direct state update to ensure immediate UI response
     setDraggedPositions(prev => {
       const newPositions = { ...prev };
       
+      // Calculate accumulated position based on deltas
+      const currentPosition = prev[nodeId] || { x: 0, y: 0 };
+      const newPosition = {
+        x: currentPosition.x + deltaPos.x,
+        y: currentPosition.y + deltaPos.y
+      };
+      
       if (selectedNodes.includes(nodeId) && selectedNodes.length > 1) {
-        // For multi-selection, apply same drag to all selected nodes
-        const delta = lastDragPosition.current 
-          ? { 
-              x: data.x - lastDragPosition.current.x, 
-              y: data.y - lastDragPosition.current.y 
-            }
-          : { x: 0, y: 0 };
-        
+        // For multi-selection, move all selected nodes by the same delta
         selectedNodes.forEach(id => {
-          const currentDragPos = prev[id] || { x: 0, y: 0 };
-          newPositions[id] = {
-            x: currentDragPos.x + delta.x,
-            y: currentDragPos.y + delta.y
-          };
+          if (id === nodeId) {
+            newPositions[id] = newPosition;
+          } else {
+            const otherPos = prev[id] || { x: 0, y: 0 };
+            newPositions[id] = {
+              x: otherPos.x + deltaPos.x,
+              y: otherPos.y + deltaPos.y
+            };
+          }
         });
       } else {
-        // For single node, directly set the position
-        newPositions[nodeId] = { x: data.x, y: data.y };
+        // For single node, just update its position
+        newPositions[nodeId] = newPosition;
       }
       
+      // Return new positions immediately
       return newPositions;
     });
     
-    lastDragPosition.current = { x: data.x, y: data.y };
+    // Still track the last position, but now we store the accumulated position
+    const prevPos = lastDragPosition.current || { x: 0, y: 0 };
+    lastDragPosition.current = {
+      x: prevPos.x + deltaPos.x,
+      y: prevPos.y + deltaPos.y
+    };
   };
 
   // Handle card drag start
   const handleCardDragStart = () => {
     // Reset last position
-    lastDragPosition.current = null;
+    lastDragPosition.current = { x: 0, y: 0 };
     
     // Create a style element to disable ALL transitions during dragging
     const styleElement = document.createElement('style');
@@ -887,10 +909,17 @@ export default function PaperMap() {
         (el as HTMLElement).style.cssText += 'transition: none !important; animation: none !important;';
       });
     }
+    
+    // Mark as dragging
+    document.body.classList.add('is-dragging');
   };
 
   // Handle card drag stop
   const handleCardDragStop = () => {
+    // Mark dragging as complete first
+    isCardBeingDragged.current = false;
+    lastDragPosition.current = null;
+    
     // Move draggedPositions changes into nodePositions for persistence
     setNodePositions(prevNodePositions => {
       const newPositions = { ...prevNodePositions };
@@ -909,24 +938,27 @@ export default function PaperMap() {
     
     // Clear all dragged positions
     setDraggedPositions({});
-    lastDragPosition.current = null;
+    
+    // Remove the style element for transitions
+    const styleElement = document.getElementById('disable-all-transitions');
+    if (styleElement) {
+      styleElement.remove();
+    }
+    
+    // Reset the dragging state CSS variable
+    document.body.style.removeProperty('--dragging-active');
     
     // Using a sequence of delayed operations to ensure proper rendering
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
-          const styleElement = document.getElementById('disable-all-transitions');
-          if (styleElement) {
-            document.head.removeChild(styleElement);
-          }
-          
           if (canvasRef.current) {
             canvasRef.current.style.transition = initialRenderComplete ? 
               'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
           }
           
-          isCardBeingDragged.current = false;
-        }, 350);
+          document.body.classList.remove('is-dragging');
+        }, 50);
       });
     });
   };
@@ -1138,6 +1170,32 @@ export default function PaperMap() {
     };
   }, [data, hiddenChildren, selectedNodes]);
 
+  // Add global styles for dragging
+  useEffect(() => {
+    // Add a style element to handle dragging transitions
+    const styleElement = document.createElement('style');
+    styleElement.id = 'global-drag-styles';
+    styleElement.textContent = `
+      body.is-dragging * {
+        transition: none !important;
+        animation: none !important;
+      }
+      
+      .node-card, .qna-card {
+        will-change: transform;
+      }
+    `;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      // Remove the style element when component unmounts
+      const styleEl = document.getElementById('global-drag-styles');
+      if (styleEl) {
+        styleEl.remove();
+      }
+    };
+  }, []);
+
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
@@ -1223,14 +1281,6 @@ export default function PaperMap() {
               >
                 ×
               </button>
-            </div>
-          )}
-          
-          {/* Loading indicator for follow-up questions */}
-          {followUpLoading && (
-            <div className="fixed bottom-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-3 animate-fadeIn">
-              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-              <span>Processing follow-up question...</span>
             </div>
           )}
           

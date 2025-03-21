@@ -69,8 +69,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="follow-up-handle p-3 font-medium text-sm text-blue-600 flex justify-between cursor-move border-b border-gray-100 bg-gray-50">
-            <span>Ask a follow-up question</span>
-            <div className="text-xs text-gray-500">(Drag to move)</div>
+            <span>Ask a Question</span>
           </div>
           <div className="p-3">
             <input
@@ -83,6 +82,28 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
             />
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button 
+                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuestion("Give an example");
+                  onSave(parentNode.id, "Give an example");
+                }}
+              >
+                Give an example
+              </button>
+              <button 
+                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuestion("Add more details");
+                  onSave(parentNode.id, "Add more details");
+                }}
+              >
+                Add more details
+              </button>
+            </div>
             <div className="flex justify-end mt-3 space-x-2 text-sm">
               <button 
                 className="px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"

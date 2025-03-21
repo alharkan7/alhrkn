@@ -202,6 +202,9 @@ const NodeCard: React.FC<NodeCardProps> = ({
       dragTimeoutRef.current = setTimeout(() => {
         setIsDragging(true);
       }, 150); // Short delay to detect if it's a drag or click
+    } else {
+      // For interactive elements, still stop propagation
+      e.stopPropagation();
     }
   };
 
@@ -232,6 +235,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
 
   // Handle drag start
   const handleDragStart = (e: any) => {
+    e.stopPropagation();
+    
     // Call onDragStart if provided
     onDragStart?.();
     
@@ -268,6 +273,23 @@ const NodeCard: React.FC<NodeCardProps> = ({
     }
   };
   
+  // Handle drag
+  const handleDrag = (e: any, ui: any) => {
+    e.stopPropagation();
+    
+    // Ensure the dragging state is set
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+    
+    // Scale down the deltas to ensure 1:1 movement with pointer
+    const deltaX = ui.deltaX * 0.625; // Scale down by 5/8 to match pointer movement
+    const deltaY = ui.deltaY * 0.625;
+    
+    // Pass the event to the parent handler with properly scaled drag info
+    onDrag(node.id, e, { x: deltaX, y: deltaY });
+  };
+
   // Handle drag stop
   const handleDragStop = (e: any, data: any) => {
     setIsDragging(false);
@@ -536,14 +558,17 @@ const NodeCard: React.FC<NodeCardProps> = ({
   return (
     <Draggable
       nodeRef={nodeRef as any}
-      position={draggedPosition}
-      onDrag={(e, data) => onDrag(node.id, e, data)}
+      defaultPosition={{x: 0, y: 0}}
+      position={undefined}
+      positionOffset={draggedPosition}
+      onDrag={handleDrag}
       onStart={handleDragStart}
       onStop={handleDragStop}
       cancel=".no-drag" // Elements with this class won't trigger dragging
       disabled={isResizing}
       bounds={false} // Disable bounds to prevent bouncing back
       scale={1} // Ensure consistent scaling
+      grid={[1, 1]} // Fine grid for smooth movement
     >
       <div 
         ref={nodeRef}
