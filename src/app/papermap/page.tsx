@@ -7,6 +7,7 @@ import InfoTip from './components/InfoTip';
 import ZoomControls from './components/ZoomControls';
 import DownloadOptions from './components/DownloadOptions';
 import CanvasPage from './components/CanvasPage';
+import FollowUpCard from './components/FollowUpCard';
 
 export default function PaperMap() {
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
@@ -46,6 +47,374 @@ export default function PaperMap() {
 
   // Add state to track node widths
   const [nodeWidths, setNodeWidths] = useState<Record<string, number>>({});
+
+  // Add state to store the PDF data
+  const [pdfData, setPdfData] = useState<string | null>(null);
+  
+  // Add state to track loading status of follow-up questions
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  // Add state for follow-up card
+  const [followUpParentNode, setFollowUpParentNode] = useState<MindMapNode | null>(null);
+  const [followUpPosition, setFollowUpPosition] = useState<NodePosition | null>(null);
+
+  // Use refs to handle functions and break circular dependencies
+  const processFollowUpQuestionRef = useRef<((nodeId: string, parentNode: MindMapNode, question: string) => Promise<void>) | null>(null);
+  const createFollowUpQuestionRef = useRef<((parentId: string, question: string) => void) | null>(null);
+
+  // Function to process a follow-up question and update the node with the answer
+  processFollowUpQuestionRef.current = async (nodeId: string, parentNode: MindMapNode, question: string) => {
+    if (!data) return;
+    
+    try {
+      // Call the API to get an answer
+      const response = await fetch('/api/papermap/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pdfData,
+          nodeContext: parentNode,
+          question
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get answer');
+      }
+      
+      const answerData = await response.json();
+      console.log("Received answer data:", answerData);
+      
+      // Ensure data is still available
+      if (!data) return;
+      
+      // Update the node with the answer
+      if (answerData.answer) {
+        console.log("Updating node with answer. Before update visibility:", {
+          nodeId,
+          visibilityState: visibilityState[nodeId],
+          hiddenChildren: hiddenChildren[nodeId],
+          nodeExists: data.nodes.some(n => n.id === nodeId),
+          nodesCount: data.nodes.length
+        });
+
+        // Find original node to preserve all properties
+        let originalNode = data.nodes.find(n => n.id === nodeId);
+        
+        // Recovery: If node can't be found, recreate it
+        if (!originalNode) {
+          console.log(`Node ${nodeId} not found - recreating it`);
+          originalNode = {
+            id: nodeId,
+            title: question,
+            description: 'Loading answer...',
+            parentId: parentNode.id,
+            level: parentNode.level + 1,
+            type: 'qna'
+          };
+          
+          // Also ensure the position is set for the recreated node
+          if (!nodePositions[nodeId]) {
+            const parentPosition = nodePositions[parentNode.id] || { x: 0, y: 0 };
+            const parentWidth = nodeWidths[parentNode.id] || 250;
+            
+            const position = {
+              x: parentPosition.x + parentWidth + 50,
+              y: parentPosition.y
+            };
+            
+            // Update node positions
+            setNodePositions(prevPositions => ({
+              ...prevPositions,
+              [nodeId]: position
+            }));
+          }
+        }
+
+        // Create a new node array with all existing nodes except the one we're updating
+        const updatedNodesWithAnswer = data.nodes.filter(n => n.id !== nodeId);
+        
+        // Add the updated node with the answer
+        updatedNodesWithAnswer.push({
+          ...originalNode,
+          description: answerData.answer,
+          type: 'qna'
+        });
+        
+        // Log the node counts to help with debugging
+        console.log("Node counts:", {
+          before: data.nodes.length,
+          after: updatedNodesWithAnswer.length,
+          nodeId
+        });
+        
+        // Update the data with the new nodes array
+        setData({
+          nodes: updatedNodesWithAnswer
+        });
+        
+        // Force all visibility states to ensure the node is visible
+        setVisibilityState(prev => ({
+          ...prev,
+          [nodeId]: true
+        }));
+        
+        setAnimatingNodes(prev => {
+          const newState = { ...prev };
+          delete newState[nodeId];
+          return newState;
+        });
+        
+        setShowingAnimation(prev => ({
+          ...prev,
+          [nodeId]: true
+        }));
+        
+        // Make sure parent's children are visible
+        if (parentNode) {
+          setHiddenChildren(prev => ({
+            ...prev,
+            [parentNode.id]: false
+          }));
+        }
+        
+        console.log("Updated node visibility state:", {
+          nodeId,
+          visibilityState: true,
+          animatingNodes: false,
+          showingAnimation: true,
+          parentHiddenChildren: parentNode ? false : null
+        });
+      }
+    } catch (error) {
+      console.error('Error getting answer:', error);
+      
+      // Ensure data is still available
+      if (!data) return;
+      
+      // Find original node to preserve all properties
+      let originalNode = data.nodes.find(n => n.id === nodeId);
+      
+      // Recovery: If node can't be found, recreate it
+      if (!originalNode) {
+        console.log(`Error node ${nodeId} not found - recreating it`);
+        originalNode = {
+          id: nodeId,
+          title: question,
+          description: 'Loading answer...',
+          parentId: parentNode.id,
+          level: parentNode.level + 1,
+          type: 'qna'
+        };
+        
+        // Also ensure the position is set for the recreated node
+        if (!nodePositions[nodeId]) {
+          const parentPosition = nodePositions[parentNode.id] || { x: 0, y: 0 };
+          const parentWidth = nodeWidths[parentNode.id] || 250;
+          
+          const position = {
+            x: parentPosition.x + parentWidth + 50,
+            y: parentPosition.y
+          };
+          
+          // Update node positions
+          setNodePositions(prevPositions => ({
+            ...prevPositions,
+            [nodeId]: position
+          }));
+        }
+      }
+
+      // Similar to success case, recreate the node array to force rerender
+      const updatedNodesWithError = data.nodes.filter(n => n.id !== nodeId);
+      
+      // Add the node with error message
+      updatedNodesWithError.push({
+        ...originalNode,
+        description: "Sorry, I couldn't get an answer for this question. Please try again later.",
+        type: 'qna'
+      });
+      
+      setData({
+        nodes: updatedNodesWithError
+      });
+      
+      // Force all visibility settings
+      setVisibilityState(prev => ({
+        ...prev,
+        [nodeId]: true
+      }));
+      
+      setAnimatingNodes(prev => {
+        const newState = { ...prev };
+        delete newState[nodeId];
+        return newState;
+      });
+      
+      setShowingAnimation(prev => ({
+        ...prev,
+        [nodeId]: true
+      }));
+      
+      // Make sure parent's children are visible
+      if (parentNode) {
+        setHiddenChildren(prev => ({
+          ...prev,
+          [parentNode.id]: false
+        }));
+      }
+      
+      console.log("Updated node with error, visibility:", { 
+        nodeId, 
+        visible: true,
+        animating: false,
+        showing: true
+      });
+    } finally {
+      setFollowUpLoading(false);
+    }
+  };
+
+  // Function to create and process follow-up questions
+  createFollowUpQuestionRef.current = (parentId: string, question: string) => {
+    if (!data || !pdfData) return;
+    
+    const parentNode = data.nodes.find(n => n.id === parentId);
+    if (!parentNode) return;
+    
+    // Generate a unique ID for the new node
+    const newNodeId = `follow-up-${Date.now()}`;
+    console.log("Creating follow-up node with ID:", newNodeId);
+    
+    // Create a new node with the question as the title and mark it as a QnA node
+    const newNode: MindMapNode = {
+      id: newNodeId,
+      title: question,
+      description: 'Loading answer...', // Initial placeholder
+      parentId: parentId,
+      level: parentNode.level + 1,
+      type: 'qna' // Add type property to distinguish QnA nodes
+    };
+    
+    // Calculate position for the new node
+    const parentPosition = nodePositions[parentId] || { x: 0, y: 0 };
+    const parentWidth = nodeWidths[parentId] || 250; // Use actual width if available
+    const position = { 
+      x: parentPosition.x + parentWidth + 50, // Position to the right with a 50px gap
+      y: parentPosition.y // Same vertical position
+    };
+    
+    const currentData = data; // Create a non-null reference to data
+    
+    // First update the position, which doesn't depend on the data state
+    // This ensures the position is set before the node is added to the data
+    setNodePositions(prevPositions => ({
+      ...prevPositions,
+      [newNodeId]: position
+    }));
+    
+    // Make sure the visibility state is set before adding the node to the data
+    // This ensures the node is visible immediately when rendered
+    setVisibilityState(prev => ({
+      ...prev,
+      [newNodeId]: true
+    }));
+    
+    // Make parent's children visible - crucial for proper rendering
+    if (hiddenChildren[parentId]) {
+      setHiddenChildren(prev => ({
+        ...prev,
+        [parentId]: false
+      }));
+    }
+    
+    // Ensure showing animation is set to true
+    setShowingAnimation(prev => ({
+      ...prev,
+      [newNodeId]: true
+    }));
+    
+    // Make sure the node is not in the animating state
+    setAnimatingNodes(prev => {
+      const newState = { ...prev };
+      delete newState[newNodeId];
+      return newState;
+    });
+    
+    // Now update the data with the new node
+    // This happens last to ensure all visibility and position states are set
+    const updatedNodes = [...currentData.nodes, newNode];
+    setData({
+      ...currentData,
+      nodes: updatedNodes
+    });
+    
+    console.log("Creating follow-up QnA node with visibility:", { 
+      id: newNodeId,
+      visible: true,
+      hiddenChildren: false,
+      animating: false,
+      showing: true,
+      parentHiddenChildren: parentId ? hiddenChildren[parentId] : null,
+      parentId,
+      position
+    });
+    
+    // Set loading state
+    setFollowUpLoading(true);
+    
+    // Process the question (this happens asynchronously)
+    if (processFollowUpQuestionRef.current) {
+      processFollowUpQuestionRef.current(newNodeId, parentNode, question);
+    } else {
+      console.error("processFollowUpQuestionRef.current is not defined yet");
+    }
+  };
+
+  // Modified function to show the follow-up card instead of directly creating a question
+  const handleAskFollowUp = useCallback((nodeId: string) => {
+    if (!data) return;
+    
+    const parentNode = data.nodes.find(n => n.id === nodeId);
+    if (!parentNode) return;
+    
+    // Calculate position for the follow-up card (to the right of the parent node)
+    const parentPosition = nodePositions[nodeId] || { x: 0, y: 0 };
+    const parentWidth = nodeWidths[nodeId] || 250;
+    
+    const position = {
+      x: parentPosition.x + parentWidth + 50,
+      y: parentPosition.y
+    };
+    
+    // Set the parent node and position to show the follow-up card
+    setFollowUpParentNode(parentNode);
+    setFollowUpPosition(position);
+  }, [data, nodePositions, nodeWidths]);
+
+  // Handle saving the follow-up question
+  const handleSaveFollowUp = useCallback((parentId: string, question: string) => {
+    if (!followUpParentNode) return;
+    
+    // Clear the follow-up card state
+    setFollowUpParentNode(null);
+    setFollowUpPosition(null);
+    
+    // Create the follow-up question using the ref
+    if (createFollowUpQuestionRef.current) {
+      createFollowUpQuestionRef.current(parentId, question);
+    } else {
+      console.error("createFollowUpQuestionRef.current is not defined yet");
+    }
+  }, [followUpParentNode]);
+
+  // Handle canceling the follow-up question
+  const handleCancelFollowUp = useCallback(() => {
+    setFollowUpParentNode(null);
+    setFollowUpPosition(null);
+  }, []);
 
   // Handle zoom controls with smaller increments for smoother zooming
   const handleZoomIn = useCallback(() => {
@@ -579,7 +948,7 @@ export default function PaperMap() {
     });
   };
 
-  // Modify handleFileUpload to maintain uploaded data
+  // Modify handleFileUpload to store the PDF data
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     setError(null);
@@ -589,6 +958,15 @@ export default function PaperMap() {
 
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Store PDF data for future follow-up questions
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      setPdfData(base64Data);
+    } catch (err) {
+      console.error('Error reading PDF file:', err);
+    }
 
     try {
       const response = await fetch('/api/papermap', {
@@ -791,6 +1169,7 @@ export default function PaperMap() {
           nodeExpanded={nodeExpanded}
           hiddenChildren={hiddenChildren}
           selectedNodes={selectedNodes}
+          visibilityState={visibilityState}
           onNodeUpdate={handleNodeUpdate}
           onNodeSelect={handleCardSelect}
           onNodeDrag={handleDrag}
@@ -805,46 +1184,65 @@ export default function PaperMap() {
           pan={pan}
           onPan={setPan}
           mindmapContainerRef={mindmapContainerRef}
+          onAskFollowUp={handleAskFollowUp}
         >
-        {/* Zoom controls */}
-        <ZoomControls 
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onResetZoom={handleResetZoom}
-        />
-        
-        {/* Selection box overlay */}
-        {isBoxSelecting && (
-          <div 
-            className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none z-50"
-            style={{
-              left: Math.min(selectionBox.startX, selectionBox.endX) + 'px',
-              top: Math.min(selectionBox.startY, selectionBox.endY) + 'px',
-              width: Math.abs(selectionBox.endX - selectionBox.startX) + 'px',
-              height: Math.abs(selectionBox.endY - selectionBox.startY) + 'px',
-            }}
+          {/* Zoom controls */}
+          <ZoomControls 
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
           />
-        )}
-        
-        {/* Multi-select info tooltip */}
-        <InfoTip 
-          visible={showTip} 
-          onClose={() => setShowTip(false)}
-        />
-        
-        {/* Selection counter */}
-        {selectedNodes.length > 0 && (
-            <div className="absolute bottom-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-md text-sm font-medium z-50 flex items-center space-x-2 animate-fadeIn">
-            <span>{selectedNodes.length} card{selectedNodes.length > 1 ? 's' : ''} selected</span>
-            <button 
-              onClick={() => setSelectedNodes([])}
-              className="ml-2 text-white hover:bg-blue-600 rounded-full h-5 w-5 flex items-center justify-center text-xs"
-              title="Clear selection"
-            >
-              ×
-            </button>
-          </div>
-        )}
+          
+          {/* Selection box overlay */}
+          {isBoxSelecting && (
+            <div 
+              className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none z-50"
+              style={{
+                left: Math.min(selectionBox.startX, selectionBox.endX) + 'px',
+                top: Math.min(selectionBox.startY, selectionBox.endY) + 'px',
+                width: Math.abs(selectionBox.endX - selectionBox.startX) + 'px',
+                height: Math.abs(selectionBox.endY - selectionBox.startY) + 'px',
+              }}
+            />
+          )}
+          
+          {/* Multi-select info tooltip */}
+          <InfoTip 
+            visible={showTip} 
+            onClose={() => setShowTip(false)}
+          />
+          
+          {/* Selection counter */}
+          {selectedNodes.length > 0 && (
+              <div className="absolute bottom-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-md text-sm font-medium z-50 flex items-center space-x-2 animate-fadeIn">
+              <span>{selectedNodes.length} card{selectedNodes.length > 1 ? 's' : ''} selected</span>
+              <button 
+                onClick={() => setSelectedNodes([])}
+                className="ml-2 text-white hover:bg-blue-600 rounded-full h-5 w-5 flex items-center justify-center text-xs"
+                title="Clear selection"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          
+          {/* Loading indicator for follow-up questions */}
+          {followUpLoading && (
+            <div className="fixed bottom-4 left-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md z-50 flex items-center space-x-3 animate-fadeIn">
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+              <span>Processing follow-up question...</span>
+            </div>
+          )}
+          
+          {/* Follow-up question card */}
+          {followUpParentNode && followUpPosition && (
+            <FollowUpCard
+              parentNode={followUpParentNode}
+              basePosition={followUpPosition}
+              onSave={handleSaveFollowUp}
+              onCancel={handleCancelFollowUp}
+            />
+          )}
         </CanvasPage>
       </div>
     </div>

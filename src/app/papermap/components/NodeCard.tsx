@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect, CSSProperties } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { MindMapNode, NodePosition } from './MindMapTypes';
-import { ChevronDownIcon, ChevronUpIcon } from './Icons';
+import { ChevronDownIcon, ChevronUpIcon, ChatIcon } from './Icons';
 
 interface NodeCardProps {
   node: MindMapNode;
@@ -23,6 +23,7 @@ interface NodeCardProps {
   style?: React.CSSProperties; // Allow custom style overrides
   selectionClass?: string; // Add the selection class prop
   onResize?: (nodeId: string, width: number, height: number) => void;
+  onAskFollowUp?: (nodeId: string) => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -44,7 +45,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
   isVisible = true, // Default to visible
   style = {}, // Default to empty style object
   selectionClass = '',
-  onResize
+  onResize,
+  onAskFollowUp
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLDivElement>(null);
@@ -54,14 +56,13 @@ const NodeCard: React.FC<NodeCardProps> = ({
   const touchMoveCountRef = useRef<number>(0);
   const isBeingDragged = useRef<boolean>(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0 });
   const [cardSize, setCardSize] = useState<{ width: number }>({ width: 250 }); // Reduced width from 300 to 250
-  const initialSize = useRef({ width: 250, height: 0 }); // Reduced width from 300 to 250
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [descriptionHeight, setDescriptionHeight] = useState<number>(100); // Default description height
   const [contentHeight, setContentHeight] = useState<number>(0);
   const [isDescriptionAnimating, setIsDescriptionAnimating] = useState(false);
   const [shouldSlideUp, setShouldSlideUp] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Register the toggle button ref with the parent component
   useEffect(() => {
@@ -514,6 +515,23 @@ const NodeCard: React.FC<NodeCardProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Add handlers for hover events
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+  
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
+  
+  // Add chat button click handler
+  const handleChatClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAskFollowUp) {
+      onAskFollowUp(node.id);
+    }
+  };
+
   // Update the return JSX, specifically the outer div styles
   return (
     <Draggable
@@ -530,6 +548,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
       <div 
         ref={nodeRef}
         className={`node-card ${selectionClass}`}
+        data-node-id={node.id}
         style={{
           position: 'absolute',
           left: basePosition.x,
@@ -555,6 +574,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         title="Click to select, double-click to expand"
       >
         <div className="flex flex-col">
@@ -611,11 +632,11 @@ const NodeCard: React.FC<NodeCardProps> = ({
               ) : (
                 <h3 
                   ref={titleContentRef}
-                  className="font-bold text-sm cursor-text flex-1" 
+                  className="font-bold text-sm cursor-text flex-1 node-title" 
                   onDoubleClick={handleTitleDoubleClick}
                   title="Double-click to edit"
                   style={{ 
-                    margin: '0', 
+                    margin: '0',
                     padding: '0',
                     lineHeight: '1.5',
                     display: 'block',
@@ -710,6 +731,15 @@ const NodeCard: React.FC<NodeCardProps> = ({
                   placeholder="Double-click to add description"
                   rows={1}
                 />
+              ) : node.description === 'Loading answer...' ? (
+                <div className="flex flex-col items-center justify-center p-2">
+                  <div className="animate-pulse flex space-x-2 items-center">
+                    <div className="h-2.5 w-2.5 bg-blue-400 rounded-full"></div>
+                    <div className="h-2.5 w-2.5 bg-blue-400 rounded-full"></div>
+                    <div className="h-2.5 w-2.5 bg-blue-400 rounded-full"></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Getting answer from the paper...</p>
+                </div>
               ) : (
                 <p 
                   className="text-xs text-gray-600 cursor-text"
@@ -786,6 +816,31 @@ const NodeCard: React.FC<NodeCardProps> = ({
             }}
           >
             {areChildrenHidden ? "+" : "-"}
+          </div>
+        )}
+
+        {/* Chat button that appears on hover */}
+        {isHovered && (
+          <div 
+            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 no-drag"
+            style={{
+              width: '24px',
+              height: '24px',
+              backgroundColor: 'white',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#6B7280',
+              border: '2px solid #9CA3AF',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+              zIndex: 20
+            }}
+            title="Ask a follow-up question"
+            onClick={handleChatClick}
+          >
+            <ChatIcon />
           </div>
         )}
       </div>

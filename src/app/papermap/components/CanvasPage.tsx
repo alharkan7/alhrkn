@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, TouchEvent } from 'react';
 import { MindMapData, MindMapNode, NodePosition } from './MindMapTypes';
 import NodeCard from './NodeCard';
+import QnACard from './QnACard';
 import Line from './Line';
 
 interface CanvasPageProps {
@@ -10,6 +11,7 @@ interface CanvasPageProps {
   nodeExpanded: Record<string, boolean>;
   hiddenChildren: Record<string, boolean>;
   selectedNodes: string[];
+  visibilityState?: Record<string, boolean>;
   onNodeUpdate: (nodeId: string, updates: Partial<MindMapNode>) => void;
   onNodeSelect: (nodeId: string, e: React.MouseEvent) => void;
   onNodeDrag: (nodeId: string, e: any, data: { x: number, y: number }) => void;
@@ -17,7 +19,7 @@ interface CanvasPageProps {
   onNodeDragStop: () => void;
   onToggleExpand: (id: string) => void;
   onToggleChildren: (id: string) => void;
-  onNodeResize: (nodeId: string, width: number) => void;
+  onNodeResize: (nodeId: string, width: number, height: number) => void;
   registerToggleButtonRef: (nodeId: string, ref: HTMLDivElement | null) => void;
   zoom?: number;
   onZoom?: (zoomDelta: number) => void;
@@ -26,6 +28,7 @@ interface CanvasPageProps {
   children?: React.ReactNode;
   className?: string;
   mindmapContainerRef: React.RefObject<HTMLDivElement | null>;
+  onAskFollowUp?: (nodeId: string) => void;
 }
 
 export default function CanvasPage({
@@ -35,6 +38,7 @@ export default function CanvasPage({
   nodeExpanded,
   hiddenChildren,
   selectedNodes,
+  visibilityState = {},
   onNodeUpdate,
   onNodeSelect,
   onNodeDrag,
@@ -50,7 +54,8 @@ export default function CanvasPage({
   onPan,
   children,
   className = '',
-  mindmapContainerRef
+  mindmapContainerRef,
+  onAskFollowUp
 }: CanvasPageProps) {
   const [localZoom, setLocalZoom] = useState(0.9);
   const effectiveZoom = zoom ?? localZoom;
@@ -259,6 +264,11 @@ export default function CanvasPage({
     let currentNode = data.nodes.find(n => n.id === nodeId);
     if (!currentNode) return false;
     
+    // Special case: QnA nodes should ALWAYS be visible regardless of parent state
+    if (currentNode.type === 'qna') {
+      return false;
+    }
+    
     // Use a new variable with a type assertion to avoid TypeScript errors
     let nodeToCheck: MindMapNode = currentNode;
     
@@ -267,6 +277,7 @@ export default function CanvasPage({
       if (!parent) break;
       
       // If any ancestor has hidden children, this node is hidden
+      // BUT QnA nodes should never be hidden, which we already checked above
       if (hiddenChildren[parent.id]) {
         return true;
       }
@@ -288,10 +299,19 @@ export default function CanvasPage({
         const parent = data.nodes.find(n => n.id === node.parentId);
         if (!parent) return;
         
-        // Check if either node is hidden due to collapsed parent
-        const isNodeHidden = isNodeDescendantOfHidden(node.id);
-        const isParentHidden = isNodeDescendantOfHidden(parent.id);
-        if (isNodeHidden || isParentHidden) return;
+        // Special handling for QnA nodes - connections to QnA nodes should ALWAYS be visible
+        const isQnANode = node.type === 'qna';
+        
+        // For regular nodes, check visibility based on parent state
+        // For QnA nodes, ignore parent visibility and always show the connection
+        const isNodeHidden = !isQnANode && isNodeDescendantOfHidden(node.id);
+        
+        // Parent can be hidden only if we're not dealing with a QnA node
+        const isParentHidden = !isQnANode && isNodeDescendantOfHidden(parent.id);
+        
+        // Skip rendering the connection if both nodes should be hidden
+        // But ALWAYS show connections to QnA nodes
+        if ((isNodeHidden || isParentHidden) && !isQnANode) return;
         
         // Get the base positions from nodePositions
         const parentBasePos = nodePositions[parent.id] || { x: 0, y: 0 };
@@ -325,9 +345,11 @@ export default function CanvasPage({
         const isShowingNode = node.id in showingAnimation ? showingAnimation[node.id] : true;
         const isShowingParent = parent.id in showingAnimation ? showingAnimation[parent.id] : true;
         
+        // QnA nodes should always have visible lines
         const isLineVisible = 
-          (!isNodeAnimating || isShowingNode) && 
-          (!isParentAnimating || isShowingParent);
+          isQnANode || 
+          ((!isNodeAnimating || isShowingNode) && 
+          (!isParentAnimating || isShowingParent));
         
         const key = `${parent.id}-${node.id}`;
         
@@ -458,26 +480,21 @@ export default function CanvasPage({
                     : 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               >
+                {/* Render regular nodes first */}
                 {data?.nodes
                   .filter(node => {
-                    if (!node.parentId) return true;
-                    
-                    let currentNode = node;
-                    let isDescendantOfHiddenNode = false;
-                    
-                    while (currentNode.parentId) {
-                      const parent = data.nodes.find(n => n.id === currentNode.parentId);
-                      if (!parent) break;
-                      
-                      if (hiddenChildren[parent.id]) {
-                        isDescendantOfHiddenNode = true;
-                        break;
-                      }
-                      
-                      currentNode = parent;
+                    // Filter out QnA nodes for this section
+                    if (node.type === 'qna') {
+                      return false;
                     }
+
+                    // For regular nodes, check if they're descendants of hidden nodes
+                    if (!node.parentId) return true; // Root nodes are always visible
                     
-                    return !isDescendantOfHiddenNode;
+                    // Check if this node should be hidden due to a collapsed parent
+                    const shouldHide = isNodeDescendantOfHidden(node.id);
+                    
+                    return !shouldHide;
                   })
                   .map(node => {
                     const position = getNodePosition(node.id);
@@ -485,7 +502,9 @@ export default function CanvasPage({
                     const areChildrenHidden = hiddenChildren[node.id] || false;
                     const hasChildren = data.nodes.some(n => n.parentId === node.id);
                     const isSelected = selectedNodes.includes(node.id);
+                    const isVisible = node.id in visibilityState ? visibilityState[node.id] : true;
                     
+                    // Regular nodes use NodeCard component
                     return (
                       <NodeCard
                         key={node.id}
@@ -504,6 +523,41 @@ export default function CanvasPage({
                         onSelect={onNodeSelect}
                         isSelected={isSelected}
                         registerToggleButtonRef={registerToggleButtonRef}
+                        onResize={handleNodeResize}
+                        onAskFollowUp={onAskFollowUp}
+                        isVisible={isVisible}
+                      />
+                    );
+                  })}
+                
+                {/* Render QnA nodes second and in a separate section to ensure they appear on top */}
+                {data?.nodes
+                  .filter(node => node.type === 'qna')
+                  .map(node => {
+                    // Debug QnA node rendering
+                    console.log("Rendering QnA node:", {
+                      id: node.id,
+                      title: node.title,
+                      description: node.description?.substring(0, 20) + "...",
+                      position: nodePositions[node.id]
+                    });
+                    
+                    const position = getNodePosition(node.id);
+                    const isSelected = selectedNodes.includes(node.id);
+                    
+                    // QnA nodes use QnACard component
+                    return (
+                      <QnACard
+                        key={node.id}
+                        node={node}
+                        basePosition={position}
+                        draggedPosition={{x: 0, y: 0}}
+                        onDrag={onNodeDrag}
+                        onDragStart={onNodeDragStart}
+                        onDragStop={onNodeDragStop}
+                        onUpdateNode={onNodeUpdate}
+                        onSelect={onNodeSelect}
+                        isSelected={isSelected}
                         onResize={handleNodeResize}
                       />
                     );

@@ -5,6 +5,7 @@ export interface MindMapNode {
   description: string;
   parentId: string | null;
   level: number;
+  type?: 'regular' | 'qna'; // Optional type property to distinguish between regular and QnA nodes
 }
 
 // Interface for NodePosition
