@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerationConfig, Schema, SchemaType } from '@google/generative-ai';
 import { NextRequest } from 'next/server';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -13,11 +13,11 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    {
      "nodes": [
        {
-         "id": string,
-         "title": string,
-         "description": string (direct explanation of the content),
-         "parentId": string | null,
-         "level": number
+         "id": "string",
+         "title": "string",
+         "description": "string (direct explanation of the content)",
+         "parentId": "string or null",
+         "level": "integer"
        }
      ]
    }
@@ -58,11 +58,48 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    
 7. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
 
-const generationConfig = {
+// Define the schema using the proper Schema structure
+const nodeSchema: Schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        id: {
+            type: SchemaType.STRING
+        },
+        title: {
+            type: SchemaType.STRING
+        },
+        description: {
+            type: SchemaType.STRING
+        },
+        parentId: {
+            type: SchemaType.STRING,
+            nullable: true
+        },
+        level: {
+            type: SchemaType.INTEGER
+        }
+    },
+    required: ["id", "title", "description", "parentId", "level"]
+};
+
+const responseSchema: Schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        nodes: {
+            type: SchemaType.ARRAY,
+            items: nodeSchema
+        }
+    },
+    required: ["nodes"]
+};
+
+const generationConfig: GenerationConfig = {
     temperature: 0.7,
     topP: 0.8,
     topK: 40,
     maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+    responseSchema: responseSchema
 };
 
 const model = genAI.getGenerativeModel({
@@ -103,43 +140,6 @@ function validateMindmapStructure(data: any) {
     return data;
 }
 
-// Add this function after the validateMindmapStructure function
-function cleanAndValidateOutput(text: string): any {
-    // Remove any markdown code blocks
-    let cleaned = text.replace(/```json\s*|\s*```/g, '');
-    
-    // Try to find JSON content between curly braces
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error('No valid JSON structure found in response');
-    }
-    
-    // Extract just the JSON part
-    cleaned = jsonMatch[0];
-    
-    try {
-        const parsed = JSON.parse(cleaned);
-        
-        // Validate the basic structure
-        if (!parsed.nodes || !Array.isArray(parsed.nodes)) {
-            throw new Error('Invalid mindmap format: missing nodes array');
-        }
-
-        // Validate each node has required properties
-        parsed.nodes = parsed.nodes.map((node: any) => ({
-            id: String(node.id || ''),
-            title: String(node.title || ''),
-            description: String(node.description || ''),
-            parentId: node.parentId === null ? null : String(node.parentId || ''),
-            level: Number(node.level || 0)
-        }));
-
-        return parsed;
-    } catch (e) {
-        throw new Error(`Failed to parse JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
-    }
-}
-
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
@@ -169,10 +169,9 @@ export async function POST(req: NextRequest) {
             "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Ensure all parent-child relationships are valid."
         ]);
 
+        // With structured output, we can directly use the response object
         const result = await response.response.text();
-        
-        // Clean and validate the LLM output
-        const parsedResult = cleanAndValidateOutput(result);
+        const parsedResult = JSON.parse(result);
         
         // Validate the structure before returning
         const validatedResult = validateMindmapStructure(parsedResult);
