@@ -18,7 +18,7 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
   const fitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Handle press and hold for continuous zooming with acceleration
+  // Handle press and hold for continuous zooming
   useEffect(() => {
     if (activeButton === null) {
       // Clear any existing intervals and timeouts when no button is active
@@ -33,46 +33,19 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
       return;
     }
     
-    // Initial zoom action with a small delay for better control
-    zoomTimeoutRef.current = setTimeout(() => {
-      if (activeButton === 'in') {
-        onZoomIn();
-      } else {
-        onZoomOut();
-      }
-    }, 50);
+    // Initial zoom action
+    const zoomAction = activeButton === 'in' ? onZoomIn : onZoomOut;
+    zoomAction();
     
-    // Start with a longer delay before continuous zoom
+    // Set up an interval for continuous zooming while button is held
     const startContinuousTimeout = setTimeout(() => {
-      let zoomSpeed = 200; // Initial interval between zooms
-      let accelerationPhase = 0;
-      
-      // Set up an interval for continuous zooming while button is held
+      // Use a consistent interval of 300ms for smooth zooming
       const interval = setInterval(() => {
-        if (activeButton === 'in') {
-          onZoomIn();
-        } else {
-          onZoomOut();
-        }
-        
-        // Gradually increase zoom speed
-        accelerationPhase++;
-        if (accelerationPhase > 5 && zoomSpeed > 50) {
-          zoomSpeed = Math.max(50, zoomSpeed * 0.8);
-          // Reset the interval with the new speed
-          clearInterval(zoomIntervalRef.current!);
-          zoomIntervalRef.current = setInterval(() => {
-            if (activeButton === 'in') {
-              onZoomIn();
-            } else {
-              onZoomOut();
-            }
-          }, zoomSpeed);
-        }
-      }, zoomSpeed);
+        zoomAction();
+      }, 300);
       
       zoomIntervalRef.current = interval;
-    }, 400);
+    }, 500); // Wait 500ms before starting continuous zoom
     
     // Clean up all intervals and timeouts
     return () => {
@@ -80,10 +53,6 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
       if (zoomIntervalRef.current) {
         clearInterval(zoomIntervalRef.current);
         zoomIntervalRef.current = null;
-      }
-      if (zoomTimeoutRef.current) {
-        clearTimeout(zoomTimeoutRef.current);
-        zoomTimeoutRef.current = null;
       }
     };
   }, [activeButton, onZoomIn, onZoomOut]);
@@ -101,21 +70,12 @@ const ZoomControls: React.FC<ZoomControlsProps> = ({
     if (fitActive) return;
     
     setFitActive(true);
-    
-    // Clean up any existing timeout
-    if (fitTimeoutRef.current) {
-      clearTimeout(fitTimeoutRef.current);
-    }
-    
-    // Small delay for visual feedback before zoom
-    setTimeout(() => {
-      onResetZoom();
-    }, 50);
+    onResetZoom();
     
     // Reset the active state after animation
     fitTimeoutRef.current = setTimeout(() => {
       setFitActive(false);
-    }, 800);
+    }, 300);
   };
   
   // Clean up timeouts on unmount

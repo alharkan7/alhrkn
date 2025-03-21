@@ -81,13 +81,15 @@ export default function CanvasPage({
   // Auto-fit the mindmap when component mounts or data changes
   useEffect(() => {
     if (data && Object.keys(nodePositions).length > 0) {
-      // Only set initialRenderComplete without changing zoom
-      // This prevents the unwanted auto-zoom after first load
-      setTimeout(() => {
-        setInitialRenderComplete(true);
-      }, 500);
+      // Set initialRenderComplete immediately
+      setInitialRenderComplete(true);
     }
   }, [data, nodePositions]);
+
+  // Also set initialRenderComplete when zoom or pan changes
+  useEffect(() => {
+    setInitialRenderComplete(true);
+  }, [zoom, pan]);
 
   // Track node width changes
   useEffect(() => {
@@ -363,7 +365,7 @@ export default function CanvasPage({
     // Update transitions whenever zoom changes
     if (canvasRef.current && initialRenderComplete) {
       // Apply smooth transition when zoom changes
-      canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+      canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
     }
   }, [zoom, initialRenderComplete]);
 
@@ -373,7 +375,7 @@ export default function CanvasPage({
       const innerContainer = canvasRef.current.querySelector('.absolute.inset-0');
       if (innerContainer) {
         // Apply smooth transition when pan changes
-        (innerContainer as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+        (innerContainer as HTMLElement).style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
       }
     }
   }, [pan, initialRenderComplete, isDragging]);
@@ -407,11 +409,13 @@ export default function CanvasPage({
                 height: `${containerDimensions.height}px`,
                 transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveZoom})`,
                 transformOrigin: '0 0',
-                transition: isDragging || !initialRenderComplete ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+                transition: isDragging || !initialRenderComplete 
+                  ? 'none' 
+                  : 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
                 overflow: 'visible',
                 backgroundColor: '#ffffff',
                 position: 'absolute',
-                willChange: 'transform, width, height',
+                willChange: 'transform',
                 minWidth: '100%',
                 minHeight: '100%'
               }}
@@ -448,7 +452,10 @@ export default function CanvasPage({
                   position: 'absolute',
                   minWidth: '100%',
                   minHeight: '100%',
-                  zIndex: 2 // Ensure nodes container is above SVG
+                  zIndex: 2, // Ensure nodes container is above SVG
+                  transition: isDragging || !initialRenderComplete 
+                    ? 'none' 
+                    : 'transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               >
                 {data?.nodes

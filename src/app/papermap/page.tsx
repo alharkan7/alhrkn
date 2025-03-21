@@ -9,7 +9,15 @@ import DownloadOptions from './components/DownloadOptions';
 import CanvasPage from './components/CanvasPage';
 
 export default function PaperMap() {
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
+  const [zoom, setZoom] = useState(0.6);
+  const [pan, setPan] = useState({ x: 300, y: 200 });
+  
+  // Create refs for container elements
   const containerRef = useRef<HTMLDivElement>(null);
+  const mindmapContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  
   const [data, setData] = useState<MindMapData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,9 +25,6 @@ export default function PaperMap() {
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
   const [draggedPositions, setDraggedPositions] = useState<Record<string, NodePosition>>({});
   const [hiddenChildren, setHiddenChildren] = useState<Record<string, boolean>>({});
-  const [zoom, setZoom] = useState(0.6);
-  const [pan, setPan] = useState({ x: 300, y: 200 });
-  const canvasRef = useRef<HTMLDivElement>(null);
   const isCardBeingDragged = useRef(false);
   const [toggleButtonRefs, setToggleButtonRefs] = useState<Record<string, HTMLDivElement>>({});
 
@@ -36,9 +41,6 @@ export default function PaperMap() {
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const lastDragPosition = useRef<{ x: number, y: number } | null>(null);
   
-  // Track if initial rendering is complete to enable transitions
-  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
-
   // Add fileName state
   const [fileName, setFileName] = useState<string>("mindmap");
 
@@ -49,34 +51,83 @@ export default function PaperMap() {
   const handleZoomIn = useCallback(() => {
     setInitialRenderComplete(true);
     
-    // Calculate target zoom with easing
-    setZoom(prev => {
-      const step = prev > 1 ? 0.1 : 0.05;
-      return Math.min(prev + step, 2);
-    });
-  }, []);
+    if (!mindmapContainerRef.current) return;
+    
+    const container = mindmapContainerRef.current;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Calculate the center point in the current view
+    const centerX = -pan.x / zoom + containerWidth / (2 * zoom);
+    const centerY = -pan.y / zoom + containerHeight / (2 * zoom);
+    
+    // Calculate new zoom level with smaller increment for smoother transition
+    const step = zoom > 1 ? 0.02 : 0.01;
+    const newZoom = Math.min(zoom + step, 2);
+    
+    // Calculate new pan to maintain the same center point
+    const newPanX = -(centerX * newZoom - containerWidth / 2);
+    const newPanY = -(centerY * newZoom - containerHeight / 2);
+    
+    // Apply new zoom and pan simultaneously
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  }, [zoom, pan, mindmapContainerRef]);
   
   const handleZoomOut = useCallback(() => {
     setInitialRenderComplete(true);
     
-    // Calculate target zoom with easing
-    setZoom(prev => {
-      const step = prev > 1 ? 0.1 : 0.05;
-      return Math.max(prev - step, 0.1);
-    });
-  }, []);
+    if (!mindmapContainerRef.current) return;
+    
+    const container = mindmapContainerRef.current;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Calculate the center point in the current view
+    const centerX = -pan.x / zoom + containerWidth / (2 * zoom);
+    const centerY = -pan.y / zoom + containerHeight / (2 * zoom);
+    
+    // Calculate new zoom level with smaller increment for smoother transition
+    const step = zoom > 1 ? 0.02 : 0.01;
+    const newZoom = Math.max(zoom - step, 0.1);
+    
+    // Calculate new pan to maintain the same center point
+    const newPanX = -(centerX * newZoom - containerWidth / 2);
+    const newPanY = -(centerY * newZoom - containerHeight / 2);
+    
+    // Apply new zoom and pan simultaneously
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  }, [zoom, pan, mindmapContainerRef]);
 
   // Handle zoom from wheel or other sources
   const handleZoom = useCallback((direction: number) => {
     setInitialRenderComplete(true);
     
-    setZoom(prev => {
-      const step = prev > 1 ? 0.1 : 0.05;
-      return direction > 0 
-        ? Math.min(prev + step, 2)
-        : Math.max(prev - step, 0.1);
-    });
-  }, []);
+    if (!mindmapContainerRef.current) return;
+    
+    const container = mindmapContainerRef.current;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Calculate the center point in the current view
+    const centerX = -pan.x / zoom + containerWidth / (2 * zoom);
+    const centerY = -pan.y / zoom + containerHeight / (2 * zoom);
+    
+    // Calculate new zoom level with smaller increment for smoother transition
+    const step = zoom > 1 ? 0.02 : 0.01;
+    const newZoom = direction > 0 
+      ? Math.min(zoom + step, 2)
+      : Math.max(zoom - step, 0.1);
+    
+    // Calculate new pan to maintain the same center point
+    const newPanX = -(centerX * newZoom - containerWidth / 2);
+    const newPanY = -(centerY * newZoom - containerHeight / 2);
+    
+    // Apply new zoom and pan simultaneously
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  }, [zoom, pan, mindmapContainerRef]);
 
   // Calculate initial positions
   useEffect(() => {
@@ -268,25 +319,10 @@ export default function PaperMap() {
 
   // Improved handleResetZoom function to match initial behavior
   const handleResetZoom = useCallback(() => {
-    // Force enable transitions
     setInitialRenderComplete(true);
-    
-    // Apply the zoom and pan with smooth transition
-    if (canvasRef.current) {
-      canvasRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
-    }
-    
-    // Reset to original values
     setZoom(0.6);
     setPan({ x: 300, y: 200 });
-    
-    // Reset transition after animation
-    setTimeout(() => {
-      if (canvasRef.current) {
-        canvasRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-      }
-    }, 600);
-  }, [canvasRef]);
+  }, []);
 
   // CSS classes for selected status
   const getSelectionClassNames = (isSelected: boolean) => {
@@ -296,16 +332,10 @@ export default function PaperMap() {
   };
 
   // Register toggle button refs from NodeCard components
-  const registerToggleButtonRef = useCallback((nodeId: string, ref: HTMLDivElement | null) => {
-    setToggleButtonRefs(prev => {
-      if (ref === null) {
-        const newRefs = { ...prev };
-        delete newRefs[nodeId];
-        return newRefs;
-      } else {
-        return { ...prev, [nodeId]: ref };
-      }
-    });
+  const handleToggleButtonRef = useCallback((nodeId: string) => (el: HTMLDivElement | null) => {
+    if (el) {
+      setToggleButtonRefs(prev => ({ ...prev, [nodeId]: el }));
+    }
   }, []);
 
   // Toggle node expansion
@@ -730,8 +760,6 @@ export default function PaperMap() {
     };
   }, [data, hiddenChildren, selectedNodes]);
 
-  const mindmapContainerRef = useRef<HTMLDivElement>(null);
-
   return (
     <div className="w-screen h-screen flex flex-col">
       <div className="p-4 border-b flex items-center justify-between">
@@ -771,7 +799,7 @@ export default function PaperMap() {
           onToggleExpand={toggleNode}
           onToggleChildren={toggleChildrenVisibility}
           onNodeResize={handleNodeResize}
-          registerToggleButtonRef={registerToggleButtonRef}
+          registerToggleButtonRef={handleToggleButtonRef}
           zoom={zoom}
           onZoom={handleZoom}
           pan={pan}
