@@ -16,7 +16,7 @@ import 'reactflow/dist/style.css';
 
 import Uploader from './components/Uploader';
 import DownloadOptions from './components/DownloadOptions';
-import { MindMapData, NodePosition } from './components/MindMapTypes';
+import { MindMapData, NodePosition, MindMapNode } from './components/MindMapTypes';
 import { LoadingIcon } from './components/Icons';
 import { createMindMapLayout, updateMindMapLayout } from './components/MindMapLayout';
 import CustomNode from './components/CustomNode';
@@ -85,6 +85,7 @@ export default function PaperMap() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [nodePositions, setNodePositions] = useState<Record<string, NodePosition>>({});
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useRef<any>(null);
   
@@ -133,6 +134,114 @@ export default function PaperMap() {
     }
   `;
 
+  // Check if a node has children
+  const hasChildren = useCallback((nodeId: string) => {
+    if (!mindMapData) return false;
+    return mindMapData.nodes.some(node => node.parentId === nodeId);
+  }, [mindMapData]);
+  
+  // Get all descendant node IDs (recursive)
+  const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
+    const children = nodeMap[nodeId] || [];
+    const descendants = [...children];
+    
+    children.forEach(childId => {
+      const childDescendants = getDescendantIds(childId, nodeMap);
+      descendants.push(...childDescendants);
+    });
+    
+    return descendants;
+  }, []);
+
+  // Toggle visibility of children nodes
+  const toggleChildrenVisibility = useCallback((nodeId: string) => {
+    // If mindMapData is not available, do nothing
+    if (!mindMapData) return;
+    
+    // Create a mapping of parent ID to children IDs for faster lookup
+    const parentToChildren: Record<string, string[]> = {};
+    mindMapData.nodes.forEach(node => {
+      if (node.parentId) {
+        if (!parentToChildren[node.parentId]) {
+          parentToChildren[node.parentId] = [];
+        }
+        parentToChildren[node.parentId].push(node.id);
+      }
+    });
+    
+    setCollapsedNodes(prev => {
+      const newCollapsed = new Set(prev);
+      
+      // Toggle collapsed state for this node
+      if (newCollapsed.has(nodeId)) {
+        newCollapsed.delete(nodeId);
+      } else {
+        newCollapsed.add(nodeId);
+      }
+      
+      return newCollapsed;
+    });
+    
+    // Update node visibility based on collapsed state
+    updateNodeVisibility();
+  }, [mindMapData]);
+  
+  // Update node visibility based on collapsed state
+  const updateNodeVisibility = useCallback(() => {
+    // If mindMapData is not available, do nothing
+    if (!mindMapData) return;
+    
+    // Create a mapping of parent ID to children IDs for faster lookup
+    const parentToChildren: Record<string, string[]> = {};
+    mindMapData.nodes.forEach(node => {
+      if (node.parentId) {
+        if (!parentToChildren[node.parentId]) {
+          parentToChildren[node.parentId] = [];
+        }
+        parentToChildren[node.parentId].push(node.id);
+      }
+    });
+    
+    // Find all nodes that should be hidden due to their ancestor being collapsed
+    const nodesToHide = new Set<string>();
+    collapsedNodes.forEach(collapsedId => {
+      const descendants = getDescendantIds(collapsedId, parentToChildren);
+      descendants.forEach(id => nodesToHide.add(id));
+    });
+    
+    // Update nodes with visibility and hasChildren data
+    setNodes(currentNodes => 
+      currentNodes.map(node => {
+        const nodeHasChildren = !!parentToChildren[node.id]?.length;
+        const childrenCollapsed = collapsedNodes.has(node.id);
+        
+        return {
+          ...node,
+          hidden: nodesToHide.has(node.id),
+          data: {
+            ...node.data,
+            hasChildren: nodeHasChildren,
+            childrenCollapsed: childrenCollapsed,
+            toggleChildrenVisibility: toggleChildrenVisibility
+          }
+        };
+      })
+    );
+    
+    // Update edges - hide edges connected to hidden nodes
+    setEdges(currentEdges => 
+      currentEdges.map(edge => ({
+        ...edge,
+        hidden: nodesToHide.has(edge.target)
+      }))
+    );
+  }, [collapsedNodes, mindMapData, getDescendantIds, toggleChildrenVisibility]);
+
+  // Update node visibility when collapsed nodes or mindMapData change
+  useEffect(() => {
+    updateNodeVisibility();
+  }, [collapsedNodes, mindMapData, updateNodeVisibility]);
+
   // Update node data
   const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string}) => {
     // Apply visual feedback for the edited node (like a subtle highlight)
@@ -145,7 +254,10 @@ export default function PaperMap() {
             data: {
               ...node.data,
               ...newData,
-              updateNodeData // Keep the update function in the data
+              updateNodeData, // Keep the update function in the data
+              hasChildren: node.data.hasChildren,
+              childrenCollapsed: node.data.childrenCollapsed,
+              toggleChildrenVisibility
             },
             style: {
               ...node.style,
@@ -200,7 +312,7 @@ export default function PaperMap() {
         };
       });
     }
-  }, [mindMapData, setNodes]);
+  }, [mindMapData, setNodes, toggleChildrenVisibility]);
 
   // Add a new follow-up node
   const addFollowUpNode = (parentId: string, question: string, answer: string, customNodeId?: string): string => {
@@ -296,7 +408,10 @@ export default function PaperMap() {
         addFollowUpNode,
         nodeType: 'qna', // Set the nodeType for QnA nodes
         expanded: true, // Set expanded to true for QnA nodes
-        lastCreatedNodeId // Store reference to this node ID for updates
+        lastCreatedNodeId, // Store reference to this node ID for updates
+        hasChildren: false,
+        childrenCollapsed: false,
+        toggleChildrenVisibility
       },
       style: {
         border: '2px solid #4299e1', // Highlight the new node
@@ -330,7 +445,20 @@ export default function PaperMap() {
     setNodes(currentNodes => {
       const updatedNodes = [...currentNodes, newFlowNode];
       console.log('Updated nodes array:', updatedNodes.length, 'nodes');
-      return updatedNodes;
+      
+      // Also update the parent node to show it has children
+      return updatedNodes.map(node => {
+        if (node.id === parentId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              hasChildren: true
+            }
+          };
+        }
+        return node;
+      });
     });
     
     setEdges(currentEdges => {
@@ -439,12 +567,23 @@ export default function PaperMap() {
       // Convert MindMap data to ReactFlow elements
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
       
-      // Add the addFollowUpNode function to all nodes' data
+      // Create a map of parent to children for checking if nodes have children
+      const parentToChildren: Record<string, boolean> = {};
+      data.nodes.forEach((node: MindMapNode) => {
+        if (node.parentId) {
+          parentToChildren[node.parentId] = true;
+        }
+      });
+      
+      // Add the addFollowUpNode function to all nodes' data and mark nodes with children
       const nodesWithFollowUp = flowNodes.map(node => ({
         ...node,
         data: {
           ...node.data,
-          addFollowUpNode: stableAddFollowUpNode // Use the stable function
+          addFollowUpNode: stableAddFollowUpNode, // Use the stable function
+          hasChildren: !!parentToChildren[node.id],
+          childrenCollapsed: false,
+          toggleChildrenVisibility
         }
       }));
       
@@ -466,18 +605,29 @@ export default function PaperMap() {
     if (mindMapData && nodes.length > 0) {
       console.log('Updating addFollowUpNode references due to mindMapData change');
       
+      // Create a map of parent to children for checking if nodes have children
+      const parentToChildren: Record<string, boolean> = {};
+      mindMapData.nodes.forEach((node: MindMapNode) => {
+        if (node.parentId) {
+          parentToChildren[node.parentId] = true;
+        }
+      });
+      
       // Update all nodes with the current addFollowUpNode function
       setNodes(currentNodes => 
         currentNodes.map(node => ({
           ...node,
           data: {
             ...node.data,
-            addFollowUpNode: stableAddFollowUpNode // Use the stable function
+            addFollowUpNode: stableAddFollowUpNode, // Use the stable function
+            hasChildren: !!parentToChildren[node.id],
+            childrenCollapsed: collapsedNodes.has(node.id),
+            toggleChildrenVisibility
           }
         }))
       );
     }
-  }, [mindMapData, stableAddFollowUpNode]);
+  }, [mindMapData, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility]);
   
   // For debugging
   useEffect(() => {

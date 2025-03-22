@@ -17,6 +17,17 @@ export const createMindMapLayout = (
   // Maps to store nodes by level and their calculated sizes
   const levelNodes: { [key: number]: MindMapNode[] } = {};
   
+  // Create a map of parent to children IDs for checking if nodes have children
+  const parentToChildren: Record<string, string[]> = {};
+  data.nodes.forEach(node => {
+    if (node.parentId) {
+      if (!parentToChildren[node.parentId]) {
+        parentToChildren[node.parentId] = [];
+      }
+      parentToChildren[node.parentId].push(node.id);
+    }
+  });
+  
   // First, group nodes by their level
   data.nodes.forEach(node => {
     if (!levelNodes[node.level]) {
@@ -55,6 +66,9 @@ export const createMindMapLayout = (
       // Determine if this is a QnA node
       const isQnANode = node.type === 'qna';
       
+      // Check if this node has children
+      const hasChildren = !!parentToChildren[node.id]?.length;
+      
       // Create ReactFlow node
       nodes.push({
         id: node.id,
@@ -68,7 +82,8 @@ export const createMindMapLayout = (
           description: node.description,
           updateNodeData: updateNodeCallback,
           nodeType: node.type, // Pass the node type
-          expanded: isQnANode // Set expanded to true for QnA nodes
+          expanded: isQnANode, // Set expanded to true for QnA nodes
+          hasChildren: hasChildren // Pass if this node has children
         },
         style: {
           border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',

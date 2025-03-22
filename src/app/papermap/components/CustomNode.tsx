@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, useReactFlow } from 'reactflow';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import { ChatIcon } from './Icons';
@@ -13,6 +13,9 @@ interface CustomNodeProps {
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
     nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
+    hasChildren?: boolean; // Whether this node has children
+    childrenCollapsed?: boolean; // Whether children are collapsed
+    toggleChildrenVisibility?: (nodeId: string) => void; // Function to toggle children visibility
   };
   id: string;
 }
@@ -33,6 +36,7 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const reactFlow = useReactFlow();
   
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
@@ -130,6 +134,13 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
   const handleChatButtonClick = () => {
     setShowFollowUpCard(true);
     setShowChatButton(false);
+  };
+
+  const handleChildrenToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.toggleChildrenVisibility) {
+      data.toggleChildrenVisibility(id);
+    }
   };
 
   const handleFollowUpSave = async (parentId: string, question: string) => {
@@ -363,6 +374,22 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
         style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px' }}
         id="source"
       />
+      
+      {/* Toggle children visibility button */}
+      {data.hasChildren && (
+        <div 
+          className="absolute right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2 cursor-pointer"
+          onClick={handleChildrenToggle}
+          style={{ zIndex: 1001 }}
+          title={data.childrenCollapsed ? "Show children" : "Hide children"}
+        >
+          <div className={`w-5 h-5 bg-gray-200 hover:bg-blue-100 rounded-full flex items-center justify-center border border-gray-300 transition-colors`}>
+            <span className="text-xs font-bold transform translate-y-[-1px]">
+              {data.childrenCollapsed ? '+' : '−'}
+            </span>
+          </div>
+        </div>
+      )}
       
       {/* FollowUp Card popup */}
       {showFollowUpCard && (

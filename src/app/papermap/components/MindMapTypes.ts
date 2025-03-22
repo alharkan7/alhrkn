@@ -1,27 +1,34 @@
-// Define MindMapNode directly here to avoid circular dependencies
+// Constants for layout calculation
+export const COLUMN_WIDTH = 550; // The horizontal spacing between node columns
+export const NODE_VERTICAL_SPACING = 160; // The vertical spacing between nodes
+
+// Node position type
+export interface NodePosition {
+  x: number;
+  y: number;
+}
+
+// Mind map node type
 export interface MindMapNode {
   id: string;
   title: string;
   description: string;
   parentId: string | null;
   level: number;
-  type?: 'regular' | 'qna'; // Optional type property to distinguish between regular and QnA nodes
+  type?: 'regular' | 'qna'; // Optional type for QnA nodes
+  visible?: boolean; // Whether the node is visible (used for collapsed children)
 }
 
-// Interface for NodePosition
-export interface NodePosition {
-  x: number;
-  y: number;
-}
-
-// Interface for MindMapData
+// Mind map data type
 export interface MindMapData {
   nodes: MindMapNode[];
 }
 
-// Constants for layout
-export const COLUMN_WIDTH = 550;
-export const NODE_VERTICAL_SPACING = 160;
+// Types for managing collapsed node state
+export interface CollapsedNodesState {
+  collapsedNodes: Set<string>;
+  toggleNode: (nodeId: string) => void;
+}
 
 // Sample data for testing
 export const sampleData: MindMapData = {
