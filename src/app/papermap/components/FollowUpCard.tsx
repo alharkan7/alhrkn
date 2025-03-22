@@ -32,8 +32,10 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && question.trim()) {
+      e.preventDefault();
       onSave(parentNode.id, question);
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       onCancel();
     }
   };
@@ -45,10 +47,16 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   };
   
   return (
-    <div className="follow-up-card-container" style={{ position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' }}>
+    <div 
+      className="fixed inset-0 flex items-center justify-center" 
+      style={{ zIndex: 9999, backgroundColor: 'rgba(0, 0, 0, 0.25)' }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onCancel();
+      }}
+    >
       <Draggable 
         handle=".follow-up-handle" 
-        defaultPosition={{ x: window.innerWidth / 2 - 150, y: window.innerHeight / 2 - 100 }}
         nodeRef={dragRef as React.RefObject<HTMLElement>}
         bounds="parent"
         onMouseDown={(e) => e.stopPropagation()}
@@ -57,10 +65,9 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           ref={dragRef}
           className="follow-up-card" 
           style={{ 
-            position: 'absolute',
-            width: '300px',
+            width: '360px',
             pointerEvents: 'auto',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
             backgroundColor: 'white',
             borderRadius: '8px',
             overflow: 'hidden',
@@ -71,7 +78,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           <div className="follow-up-handle p-3 font-medium text-sm text-blue-600 flex justify-between cursor-move border-b border-gray-100 bg-gray-50">
             <span>Ask a Question</span>
           </div>
-          <div className="p-3">
+          <div className="p-4">
             <input
               ref={inputRef}
               type="text"
@@ -82,7 +89,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
             />
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-3">
               <button 
                 className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                 onClick={(e) => {
@@ -104,7 +111,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
                 Add more details
               </button>
             </div>
-            <div className="flex justify-end mt-3 space-x-2 text-sm">
+            <div className="flex justify-end mt-4 space-x-2 text-sm">
               <button 
                 className="px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
                 onClick={(e) => {

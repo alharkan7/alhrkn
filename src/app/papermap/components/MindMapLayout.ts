@@ -52,6 +52,9 @@ export const createMindMapLayout = (
         yPositions[node.id] = parentY + (offset * NODE_VERTICAL_SPACING);
       }
       
+      // Determine if this is a QnA node
+      const isQnANode = node.type === 'qna';
+      
       // Create ReactFlow node
       nodes.push({
         id: node.id,
@@ -63,15 +66,16 @@ export const createMindMapLayout = (
         data: { 
           title: node.title,
           description: node.description,
-          updateNodeData: updateNodeCallback
+          updateNodeData: updateNodeCallback,
+          nodeType: node.type, // Pass the node type
+          expanded: isQnANode // Set expanded to true for QnA nodes
         },
         style: {
-          border: '2px solid #e2e8f0',
-          backgroundColor: '#fff',
+          border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',
+          backgroundColor: isQnANode ? '#eff6ff' : '#fff',
           borderRadius: '8px',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           zIndex: 100,
-          transition: 'all 0.2s ease'
         },
         className: 'node-card'
       });

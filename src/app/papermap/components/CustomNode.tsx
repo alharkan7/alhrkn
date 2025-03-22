@@ -1,28 +1,49 @@
-import { useState, useCallback, useEffect, useRef, memo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position } from 'reactflow';
 import InfoTip from './InfoTip';
+import FollowUpCard from './FollowUpCard';
+import { ChatIcon } from './Icons';
 
 // Node component props type
 interface CustomNodeProps {
   data: { 
     title: string; 
     description: string; 
-    updateNodeData?: (id: string, newData: {title?: string; description?: string}) => void 
+    updateNodeData?: (id: string, newData: {title?: string; description?: string}) => void;
+    addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
+    nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
+    lastCreatedNodeId?: string; // ID of the most recently created node
   };
   id: string;
 }
 
-// Memoized Custom node component to improve performance
-const CustomNode = memo(({ data, id }: CustomNodeProps) => {
+// Custom node component
+const CustomNode = ({ data, id }: CustomNodeProps) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(data.nodeType === 'qna'); // Set QnA nodes expanded by default
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [titleValue, setTitleValue] = useState(data.title);
   const [descriptionValue, setDescriptionValue] = useState(data.description);
+  const [showChatButton, setShowChatButton] = useState(false);
+  const [showFollowUpCard, setShowFollowUpCard] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
+  
+  // Check if this is a QnA node
+  const isQnANode = data.nodeType === 'qna';
+
+  // Debug logging
+  useEffect(() => {
+    console.log(`CustomNode ${id} rendering with addFollowUpNode:`, data.addFollowUpNode ? 'available' : 'not available');
+    if (isQnANode) {
+      console.log(`Node ${id} is a QnA node`);
+    }
+  }, [id, data.addFollowUpNode, isQnANode]);
 
   // Update local state when data from parent changes
   useEffect(() => {
@@ -106,13 +127,128 @@ const CustomNode = memo(({ data, id }: CustomNodeProps) => {
     setShowInfo(false);
   };
 
+  const handleChatButtonClick = () => {
+    setShowFollowUpCard(true);
+    setShowChatButton(false);
+  };
+
+  const handleFollowUpSave = async (parentId: string, question: string) => {
+    console.log('handleFollowUpSave called with:', { parentId, question });
+    console.log('addFollowUpNode function available:', !!data.addFollowUpNode);
+    
+    if (!data.addFollowUpNode) {
+      console.error('addFollowUpNode function not provided to node');
+      alert('Error: Could not create follow-up node. Missing function reference.');
+      return;
+    }
+    
+    // Hide the card immediately
+    setShowFollowUpCard(false);
+    
+    try {
+      // Get the base64 encoded PDF data from localStorage
+      const pdfData = localStorage.getItem('pdfData');
+      if (!pdfData) {
+        console.error('PDF data not found in localStorage');
+        throw new Error('PDF data not found');
+      }
+      
+      // Create a placeholder node immediately with loading state
+      const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Generating answer...</div>';
+      
+      // Generate a unique ID for the new node to reference it later
+      const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create the node with loading state
+      const createdNodeId = data.addFollowUpNode(id, question, loadingMessage, nodeId);
+      
+      console.log('Created placeholder node with ID:', createdNodeId);
+      
+      // Start fetching the answer
+      console.log('Sending question to API:', question);
+      
+      // Prepare node context
+      const nodeContext = {
+        title: data.title,
+        description: data.description
+      };
+      
+      // Send request to API
+      const response = await fetch('/api/papermap/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pdfData,
+          nodeContext,
+          question
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error:', response.status, errorText);
+        throw new Error(`Failed to get answer: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('API response received:', {
+        answerLength: result.answer ? result.answer.length : 0,
+        answerPreview: result.answer ? result.answer.substring(0, 50) + '...' : 'No answer'
+      });
+      
+      if (!result.answer) {
+        throw new Error('API response contained no answer');
+      }
+      
+      // Update the existing node with the actual answer
+      if (data.updateNodeData) {
+        console.log('Updating node with actual answer:', createdNodeId);
+        data.updateNodeData(createdNodeId, { description: result.answer });
+      } else {
+        console.error('Cannot update node: updateNodeData function not available');
+      }
+      
+    } catch (error) {
+      console.error('Error getting answer:', error);
+      // If there's already a node with loading state, update it with error message
+      if (data.updateNodeData && data.lastCreatedNodeId) {
+        data.updateNodeData(data.lastCreatedNodeId, { 
+          description: "Error: Could not generate an answer. Please try again."
+        });
+      }
+    } finally {
+      // Make sure chat button is hidden after processing completes
+      setShowChatButton(false);
+    }
+  };
+
+  const handleFollowUpCancel = () => {
+    setShowFollowUpCard(false);
+  };
+
   return (
-    <div className="p-4 rounded-lg bg-white border-2 border-gray-200 shadow-md w-64">
+    <div 
+      className={`p-4 rounded-lg border-2 shadow-md w-64 ${isQnANode ? 'bg-blue-50' : 'bg-white'}`}
+      style={{ 
+        borderColor: isQnANode ? '#bfdbfe' : '#e2e8f0',
+      }}
+      ref={nodeRef}
+      onMouseEnter={() => {
+        setIsHovering(true);
+        setShowChatButton(true);
+      }}
+      onMouseLeave={() => {
+        setIsHovering(false);
+        setShowChatButton(false);
+      }}
+    >
       {/* Input handle on left side */}
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#555', width: '10px', height: '10px' }}
+        style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px' }}
         id="target"
       />
       
@@ -137,7 +273,7 @@ const CustomNode = memo(({ data, id }: CustomNodeProps) => {
           />
         ) : (
           <h3 
-            className="font-bold text-lg mb-2 cursor-text" 
+            className={`font-bold text-lg mb-2 cursor-text ${isQnANode ? 'text-blue-800' : ''}`}
             onDoubleClick={handleTitleDoubleClick}
           >
             {data.title}
@@ -179,24 +315,72 @@ const CustomNode = memo(({ data, id }: CustomNodeProps) => {
           <div 
             className="text-sm cursor-text" 
             onDoubleClick={handleDescriptionDoubleClick}
+            dangerouslySetInnerHTML={
+              // Check if the description contains HTML for loading animation
+              data.description.includes('<div class=') 
+                ? { __html: data.description } 
+                : undefined
+            }
           >
-            {data.description || 'Double-click to add a description'}
+            {/* Only render text content if not using dangerouslySetInnerHTML */}
+            {!data.description.includes('<div class=') 
+              ? (data.description || 'Double-click to add a description') 
+              : null
+            }
           </div>
         )
+      )}
+      
+      {/* Floating chat button - only show when hovering and not in other states */}
+      {showChatButton && isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
+        <div 
+          className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer"
+          style={{ zIndex: 1000 }}
+        >
+          <button
+            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
+            onClick={handleChatButtonClick}
+            title="Ask a follow-up question"
+          >
+            <ChatIcon className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      
+      {/* Display loading indicator when processing */}
+      {loading && (
+        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2" style={{ zIndex: 1000 }}>
+          <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+            Processing...
+          </div>
+        </div>
       )}
       
       {/* Output handle on right side */}
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#555', width: '10px', height: '10px' }}
+        style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px' }}
         id="source"
       />
+      
+      {/* FollowUp Card popup */}
+      {showFollowUpCard && (
+        <FollowUpCard
+          parentNode={{
+            id,
+            title: data.title,
+            description: data.description,
+            parentId: null,
+            level: 0
+          }}
+          basePosition={{ x: 0, y: 0 }}
+          onSave={handleFollowUpSave}
+          onCancel={handleFollowUpCancel}
+        />
+      )}
     </div>
   );
-});
-
-// Add display name for memo component
-CustomNode.displayName = 'CustomNode';
+};
 
 export default CustomNode; 
