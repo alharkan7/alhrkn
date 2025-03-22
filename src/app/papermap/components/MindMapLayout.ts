@@ -9,7 +9,7 @@ import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, NodePosi
  */
 export const createMindMapLayout = (
   data: MindMapData, 
-  updateNodeCallback: (nodeId: string, newData: {title?: string; description?: string}) => void
+  updateNodeCallback: (nodeId: string, newData: {title?: string; description?: string; width?: number}) => void
 ): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -83,7 +83,8 @@ export const createMindMapLayout = (
           updateNodeData: updateNodeCallback,
           nodeType: node.type, // Pass the node type
           expanded: isQnANode, // Set expanded to true for QnA nodes
-          hasChildren: hasChildren // Pass if this node has children
+          hasChildren: hasChildren, // Pass if this node has children
+          width: 256 // Default width for nodes
         },
         style: {
           border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',

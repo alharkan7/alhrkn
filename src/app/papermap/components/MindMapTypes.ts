@@ -17,6 +17,7 @@ export interface MindMapNode {
   level: number;
   type?: 'regular' | 'qna'; // Optional type for QnA nodes
   visible?: boolean; // Whether the node is visible (used for collapsed children)
+  width?: number; // Optional width of the node
 }
 
 // Mind map data type

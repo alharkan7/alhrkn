@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Handle, Position, useReactFlow } from 'reactflow';
+import { Handle, Position, useReactFlow, NodeProps, useUpdateNodeInternals } from 'reactflow';
+import { NodeResizer } from '@reactflow/node-resizer';
+import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import { ChatIcon } from './Icons';
@@ -9,19 +11,21 @@ interface CustomNodeProps {
   data: { 
     title: string; 
     description: string; 
-    updateNodeData?: (id: string, newData: {title?: string; description?: string}) => void;
+    updateNodeData?: (id: string, newData: {title?: string; description?: string; width?: number}) => void;
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
     nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
     hasChildren?: boolean; // Whether this node has children
     childrenCollapsed?: boolean; // Whether children are collapsed
     toggleChildrenVisibility?: (nodeId: string) => void; // Function to toggle children visibility
+    width?: number; // Width of the node
   };
   id: string;
+  selected?: boolean; // Add selected prop
 }
 
 // Custom node component
-const CustomNode = ({ data, id }: CustomNodeProps) => {
+const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const [showInfo, setShowInfo] = useState(false);
   const [expanded, setExpanded] = useState(data.nodeType === 'qna'); // Set QnA nodes expanded by default
   const [editingTitle, setEditingTitle] = useState(false);
@@ -32,11 +36,14 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
   const [showFollowUpCard, setShowFollowUpCard] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [width, setWidth] = useState(data.width || 256); // Default width 256px (64*4)
+  const [isResizing, setIsResizing] = useState(false);
   
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const reactFlow = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
@@ -143,6 +150,13 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
     }
   };
 
+  // Handler for when resizing is complete
+  const onResize = (_event: any, { width, height }: { width: number; height: number }) => {
+    if (data.updateNodeData) {
+      data.updateNodeData(id, { width });
+    }
+  };
+
   const handleFollowUpSave = async (parentId: string, question: string) => {
     console.log('handleFollowUpSave called with:', { parentId, question });
     console.log('addFollowUpNode function available:', !!data.addFollowUpNode);
@@ -239,174 +253,345 @@ const CustomNode = ({ data, id }: CustomNodeProps) => {
     setShowFollowUpCard(false);
   };
 
+  // Update reactflow when resizing starts or ends
+  useEffect(() => {
+    if (isResizing) {
+      // Set a data attribute that can be used by the parent ReactFlow component
+      const nodeElement = nodeRef.current;
+      if (nodeElement) {
+        nodeElement.setAttribute('data-nodedrag', 'false');
+      }
+    } else {
+      const nodeElement = nodeRef.current;
+      if (nodeElement) {
+        nodeElement.setAttribute('data-nodedrag', 'true');
+      }
+    }
+  }, [isResizing]);
+
+  // Update node internals when content changes or width changes
+  useEffect(() => {
+    // Use a small delay to ensure DOM has updated
+    const timeoutId = setTimeout(() => {
+      updateNodeInternals(id);
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [id, updateNodeInternals, width, titleValue, descriptionValue, expanded]);
+
+  // CSS to hide unwanted resize handles and fix node height
+  useEffect(() => {
+    // Create a style tag to add custom CSS
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .react-flow__resize-control.handle:not(.handle-right) {
+        display: none !important;
+      }
+      
+      /* Force ReactFlow to use auto height for nodes */
+      .react-flow__node.react-flow__node-custom {
+        height: auto !important;
+        overflow: visible !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Clean up
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Use MutationObserver to detect content height changes and update node
+  useEffect(() => {
+    if (!nodeRef.current) return;
+    
+    const observer = new MutationObserver(() => {
+      // Force node update when content changes
+      updateNodeInternals(id);
+    });
+    
+    observer.observe(nodeRef.current, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    
+    return () => observer.disconnect();
+  }, [id, updateNodeInternals]);
+
+  // Measure node content and synchronize with ReactFlow
+  useEffect(() => {
+    if (!nodeRef.current) return;
+
+    // Function to measure and update node dimensions
+    const syncNodeSize = () => {
+      const nodeElement = nodeRef.current;
+      if (!nodeElement) return;
+      
+      // Force a reflow to ensure accurate measurements
+      void nodeElement.offsetHeight;
+      
+      // Get actual content height
+      const contentHeight = nodeElement.getBoundingClientRect().height;
+      
+      // Update ReactFlow node dimensions
+      updateNodeInternals(id);
+      
+      // Access parent ReactFlow node if possible and update its height
+      const reactFlowNode = nodeElement.closest('.react-flow__node');
+      if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
+        reactFlowNode.style.height = `${contentHeight}px`;
+      }
+    };
+
+    // Sync node size initially
+    syncNodeSize();
+    
+    // Sync node size after resize and when content changes
+    const resizeObserver = new ResizeObserver(() => {
+      syncNodeSize();
+    });
+    
+    resizeObserver.observe(nodeRef.current);
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [id, updateNodeInternals, width, expanded]);
+
   return (
-    <div 
-      className={`p-4 rounded-lg border-2 shadow-md w-64 ${isQnANode ? 'bg-blue-50' : 'bg-white'}`}
-      style={{ 
-        borderColor: isQnANode ? '#bfdbfe' : '#e2e8f0',
-      }}
-      ref={nodeRef}
-      onMouseEnter={() => {
-        setIsHovering(true);
-        setShowChatButton(true);
-      }}
-      onMouseLeave={() => {
-        setIsHovering(false);
-        setShowChatButton(false);
-      }}
-    >
-      {/* Input handle on left side */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px' }}
-        id="target"
+    <>
+      {/* Add NodeResizer component - only visible when selected */}
+      <NodeResizer 
+        minWidth={200}
+        minHeight={50}
+        isVisible={selected}
+        onResizeStart={() => setIsResizing(true)}
+        onResize={(e, { width, height }) => {
+          setWidth(width);
+          
+          // Update node internals during resize to ensure height recalculates
+          requestAnimationFrame(() => {
+            // Access parent ReactFlow node and update its dimensions
+            if (nodeRef.current) {
+              const reactFlowNode = nodeRef.current.closest('.react-flow__node');
+              if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
+                const contentHeight = nodeRef.current.getBoundingClientRect().height;
+                reactFlowNode.style.height = `${contentHeight}px`;
+              }
+            }
+            updateNodeInternals(id);
+          });
+        }}
+        onResizeEnd={(e, params) => {
+          setIsResizing(false);
+          onResize(e, params);
+          
+          // Update node internals after resize completes
+          setTimeout(() => {
+            updateNodeInternals(id);
+          }, 50);
+        }}
+        handleStyle={{
+          width: '8px',
+          height: '8px',
+          backgroundColor: 'transparent',
+          borderRadius: '50%',
+          zIndex: 1002,
+          border: '0',
+          boxShadow: 'none',
+          opacity: 0.5
+        }}
+        lineStyle={{
+          borderWidth: '0',
+          borderColor: 'transparent',
+          borderStyle: 'none',
+          zIndex: 1002
+        }}
       />
       
-      <div className="flex justify-between items-start">
-        {editingTitle ? (
-          <textarea
-            ref={titleRef}
-            value={titleValue}
-            onChange={(e) => handleTextAreaChange(e, setTitleValue)}
-            onBlur={handleTitleBlur}
-            onKeyDown={(e) => handleKeyDown(e, 'title')}
-            className="font-bold text-lg mb-2 w-full resize-none overflow-hidden"
-            style={{ 
-              outline: 'none', 
-              border: 'none',
-              padding: 0,
-              minHeight: '1.5rem',
-              background: 'transparent',
-              boxShadow: 'none'
-            }}
-            rows={1}
-          />
-        ) : (
-          <h3 
-            className={`font-bold text-lg mb-2 cursor-text ${isQnANode ? 'text-blue-800' : ''}`}
-            onDoubleClick={handleTitleDoubleClick}
-          >
-            {data.title}
-          </h3>
-        )}
-        <div className="flex ml-2 flex-shrink-0">
-          <button 
-            className="text-gray-500 hover:text-blue-500"
-            onClick={toggleExpanded}
-            title={expanded ? "Collapse" : "Expand"}
-          >
-            {expanded ? "▲" : "▼"}
-          </button>
-        </div>
-      </div>
-      
-      {showInfo && <InfoTip content={data.description} />}
-      
-      {/* Only show description when expanded */}
-      {expanded && !showInfo && (
-        editingDescription ? (
-          <textarea
-            ref={descriptionRef}
-            value={descriptionValue}
-            onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
-            onBlur={handleDescriptionBlur}
-            onKeyDown={(e) => handleKeyDown(e, 'description')}
-            className="w-full text-sm resize-none overflow-hidden"
-            style={{ 
-              outline: 'none', 
-              border: 'none',
-              padding: 0,
-              minHeight: '2rem',
-              background: 'transparent',
-              boxShadow: 'none'
-            }}
-          />
-        ) : (
-          <div 
-            className="text-sm cursor-text" 
-            onDoubleClick={handleDescriptionDoubleClick}
-            dangerouslySetInnerHTML={
-              // Check if the description contains HTML for loading animation
-              data.description.includes('<div class=') 
-                ? { __html: data.description } 
-                : undefined
-            }
-          >
-            {/* Only render text content if not using dangerouslySetInnerHTML */}
-            {!data.description.includes('<div class=') 
-              ? (data.description || 'Double-click to add a description') 
-              : null
-            }
-          </div>
-        )
-      )}
-      
-      {/* Floating chat button - only show when hovering and not in other states */}
-      {showChatButton && isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
-        <div 
-          className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer"
-          style={{ zIndex: 1000 }}
-        >
-          <button
-            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
-            onClick={handleChatButtonClick}
-            title="Ask a follow-up question"
-          >
-            <ChatIcon className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-      
-      {/* Display loading indicator when processing */}
-      {loading && (
-        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2" style={{ zIndex: 1000 }}>
-          <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-            Processing...
-          </div>
-        </div>
-      )}
-      
-      {/* Output handle on right side */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px' }}
-        id="source"
-      />
-      
-      {/* Toggle children visibility button */}
-      {data.hasChildren && (
-        <div 
-          className="absolute right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2 cursor-pointer"
-          onClick={handleChildrenToggle}
-          style={{ zIndex: 1001 }}
-          title={data.childrenCollapsed ? "Show children" : "Hide children"}
-        >
-          <div className={`w-5 h-5 bg-gray-200 hover:bg-blue-100 rounded-full flex items-center justify-center border border-gray-300 transition-colors`}>
-            <span className="text-xs font-bold transform translate-y-[-1px]">
-              {data.childrenCollapsed ? '+' : '−'}
-            </span>
-          </div>
-        </div>
-      )}
-      
-      {/* FollowUp Card popup */}
-      {showFollowUpCard && (
-        <FollowUpCard
-          parentNode={{
-            id,
-            title: data.title,
-            description: data.description,
-            parentId: null,
-            level: 0
-          }}
-          basePosition={{ x: 0, y: 0 }}
-          onSave={handleFollowUpSave}
-          onCancel={handleFollowUpCancel}
+      <div 
+        className={`p-4 rounded-lg border-2 shadow-md relative group ${isQnANode ? 'bg-blue-50' : 'bg-white'}`}
+        style={{ 
+          borderColor: isResizing ? '#3b82f6' : selected ? '#3182CE' : isQnANode ? '#bfdbfe' : '#e2e8f0',
+          width: `${width}px`,
+          height: 'auto',
+          minHeight: 'fit-content',
+          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s',
+          userSelect: isResizing ? 'none' : 'auto',
+          boxShadow: selected ? '0 0 0 2px rgba(49, 130, 206, 0.5)' : '0 2px 5px rgba(0, 0, 0, 0.1)'
+        }}
+        ref={nodeRef}
+        onMouseEnter={() => {
+          setIsHovering(true);
+          setShowChatButton(true);
+        }}
+        onMouseLeave={() => {
+          setIsHovering(false);
+          setShowChatButton(false);
+        }}
+      >
+        {/* Input handle on left side */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px', opacity: 0 }}
+          id="target"
         />
-      )}
-    </div>
+        
+        <div className="flex justify-between items-start">
+          {editingTitle ? (
+            <textarea
+              ref={titleRef}
+              value={titleValue}
+              onChange={(e) => handleTextAreaChange(e, setTitleValue)}
+              onBlur={handleTitleBlur}
+              onKeyDown={(e) => handleKeyDown(e, 'title')}
+              className="font-bold text-lg mb-2 w-full resize-none overflow-hidden"
+              style={{ 
+                outline: 'none', 
+                border: 'none',
+                padding: 0,
+                minHeight: '1.5rem',
+                background: 'transparent',
+                boxShadow: 'none'
+              }}
+              rows={1}
+            />
+          ) : (
+            <h3 
+              className={`font-bold text-lg mb-2 cursor-text ${isQnANode ? 'text-blue-800' : ''}`}
+              onDoubleClick={handleTitleDoubleClick}
+            >
+              {data.title}
+            </h3>
+          )}
+          <div className="flex ml-2 flex-shrink-0">
+            <button 
+              className="text-gray-500 hover:text-blue-500"
+              onClick={toggleExpanded}
+              title={expanded ? "Collapse" : "Expand"}
+            >
+              {expanded ? "▲" : "▼"}
+            </button>
+          </div>
+        </div>
+        
+        {showInfo && <InfoTip content={data.description} />}
+        
+        {/* Only show description when expanded */}
+        {expanded && !showInfo && (
+          editingDescription ? (
+            <textarea
+              ref={descriptionRef}
+              value={descriptionValue}
+              onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
+              onBlur={handleDescriptionBlur}
+              onKeyDown={(e) => handleKeyDown(e, 'description')}
+              className="w-full text-sm resize-none overflow-hidden"
+              style={{ 
+                outline: 'none', 
+                border: 'none',
+                padding: 0,
+                minHeight: '2rem',
+                background: 'transparent',
+                boxShadow: 'none'
+              }}
+            />
+          ) : (
+            <div 
+              className="text-sm cursor-text" 
+              onDoubleClick={handleDescriptionDoubleClick}
+              dangerouslySetInnerHTML={
+                // Check if the description contains HTML for loading animation
+                data.description.includes('<div class=') 
+                  ? { __html: data.description } 
+                  : undefined
+              }
+            >
+              {/* Only render text content if not using dangerouslySetInnerHTML */}
+              {!data.description.includes('<div class=') 
+                ? (data.description || 'Double-click to add a description') 
+                : null
+              }
+            </div>
+          )
+        )}
+        
+        {/* Output handle on right side - Invisible but functional */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          style={{ 
+            background: isQnANode ? '#3b82f6' : '#555', 
+            width: '10px', 
+            height: '10px',
+            zIndex: 100,
+            opacity: 0 // Make invisible while keeping functionality
+          }}
+          id="source"
+        />
+        
+        {/* Floating chat button - only show when hovering and not in other states */}
+        {showChatButton && isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
+          <div 
+            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer"
+            style={{ zIndex: 1000 }}
+          >
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
+              onClick={handleChatButtonClick}
+              title="Ask a follow-up question"
+            >
+              <ChatIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        
+        {/* Display loading indicator when processing */}
+        {loading && (
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2" style={{ zIndex: 1000 }}>
+            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+              Processing...
+            </div>
+          </div>
+        )}
+        
+        {/* Toggle children visibility button */}
+        {data.hasChildren && (
+          <div 
+            className="absolute right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2 cursor-pointer"
+            onClick={handleChildrenToggle}
+            style={{ zIndex: 1001 }}
+            title={data.childrenCollapsed ? "Show children" : "Hide children"}
+          >
+            <div className={`w-5 h-5 bg-gray-200 hover:bg-blue-100 rounded-full flex items-center justify-center border border-gray-300 transition-colors`}>
+              <span className="text-xs font-bold transform translate-y-[-1px]">
+                {data.childrenCollapsed ? '+' : '−'}
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {/* FollowUp Card popup */}
+        {showFollowUpCard && (
+          <FollowUpCard
+            parentNode={{
+              id,
+              title: data.title,
+              description: data.description,
+              parentId: null,
+              level: 0
+            }}
+            basePosition={{ x: 0, y: 0 }}
+            onSave={handleFollowUpSave}
+            onCancel={handleFollowUpCancel}
+          />
+        )}
+      </div>
+    </>
   );
 };
 

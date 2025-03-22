@@ -41,7 +41,32 @@ const MindMapFlow = ({
   onInit: (instance: any) => void;
 }) => {
   const reactFlow = useReactFlow();
+  const [nodesDraggable, setNodesDraggable] = useState(true);
 
+  // Detect when the data-nodedrag attribute is set to false
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.attributeName === 'data-nodedrag') {
+          const nodes = document.querySelectorAll('[data-nodedrag="false"]');
+          setNodesDraggable(nodes.length === 0);
+        }
+      });
+    });
+
+    // Observe the entire react-flow container for attribute changes
+    const reactFlowPane = document.querySelector('.react-flow');
+    if (reactFlowPane) {
+      observer.observe(reactFlowPane, { 
+        attributes: true, 
+        attributeFilter: ['data-nodedrag'],
+        subtree: true // Observe all descendants
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
+  
   useEffect(() => {
     if (reactFlow && nodes.length > 0) {
       // Center view with a slight delay to ensure nodes are properly rendered
@@ -59,6 +84,7 @@ const MindMapFlow = ({
       onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
       onInit={onInit}
+      nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
       fitView
       attributionPosition="bottom-right"
       elementsSelectable={true}
@@ -119,6 +145,42 @@ export default function PaperMap() {
       border-color: #3182CE !important;
       box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.5) !important;
     }
+    
+    /* Resizer styling */
+    .react-flow__resize-control {
+      z-index: 100 !important;
+    }
+    .react-flow__resize-control.handle {
+      background-color: #3b82f6 !important;
+      border: 1px solid white !important;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5) !important;
+    }
+    .react-flow__resize-control.handle-right {
+      cursor: e-resize !important;
+    }
+    .react-flow__resize-control.handle-bottom {
+      cursor: s-resize !important;
+    }
+    .react-flow__resize-control.handle-left {
+      cursor: w-resize !important;
+    }
+    .react-flow__resize-control.handle-top {
+      cursor: n-resize !important;
+    }
+    .react-flow__resize-control.handle-bottom.handle-right {
+      cursor: se-resize !important;
+    }
+    .react-flow__resize-control.handle-bottom.handle-left {
+      cursor: sw-resize !important;
+    }
+    .react-flow__resize-control.handle-top.handle-right {
+      cursor: ne-resize !important;
+    }
+    .react-flow__resize-control.handle-top.handle-left {
+      cursor: nw-resize !important;
+    }
+    
+    /* Dark mode styling */
     .dark-mode .react-flow__node {
       color: #f8fafc;
     }
@@ -243,7 +305,7 @@ export default function PaperMap() {
   }, [collapsedNodes, mindMapData, updateNodeVisibility]);
 
   // Update node data
-  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string}) => {
+  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number}) => {
     // Apply visual feedback for the edited node (like a subtle highlight)
     setNodes((nds) => 
       nds.map((node) => {
@@ -411,7 +473,8 @@ export default function PaperMap() {
         lastCreatedNodeId, // Store reference to this node ID for updates
         hasChildren: false,
         childrenCollapsed: false,
-        toggleChildrenVisibility
+        toggleChildrenVisibility,
+        width: 256 // Default width for new nodes
       },
       style: {
         border: '2px solid #4299e1', // Highlight the new node
