@@ -4,11 +4,12 @@ import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import Uploader from './components/Uploader';
-import DownloadOptions from './components/DownloadOptions';
 import { LoadingIcon } from './components/Icons';
 import MindMapFlow from './components/MindMapFlow';
+import Downloader from './components/Downloader';
 import { useMindMap } from './hooks/useMindMap';
 import { nodeUpdateStyles } from './components/styles';
+import { useState } from 'react';
 
 export default function PaperMap() {
   const {
@@ -25,6 +26,21 @@ export default function PaperMap() {
     handleFileUpload,
     handleResetView
   } = useMindMap();
+
+  const [fileName, setFileName] = useState<string>('mindmap');
+
+  // Helper function to get file base name without extension
+  const getBaseName = (name: string) => {
+    return name.replace(/\.[^/.]+$/, '');
+  };
+
+  // Custom file upload handler that extracts the file name
+  const handleUpload = (file: File) => {
+    // Set the file name (without extension) for downloads
+    setFileName(getBaseName(file.name));
+    // Call the original upload handler
+    handleFileUpload(file);
+  };
   
   return (
     <div className={`flex flex-col h-screen`}>
@@ -32,7 +48,7 @@ export default function PaperMap() {
       <div className={`p-4 bg-gray-50 border-b print:hidden`}>
         <div className="flex items-center gap-4">
           <Uploader 
-            onFileUpload={handleFileUpload} 
+            onFileUpload={handleUpload}
             loading={loading}
             error={error}
           />
@@ -47,15 +63,15 @@ export default function PaperMap() {
               {error}
             </div>
           )}
-          {mindMapData && (
-            <DownloadOptions
-              data={mindMapData}
-              containerRef={reactFlowWrapper}
-              onResetZoom={handleResetView}
-              nodePositions={nodePositions}
-              fileName={mindMapData?.nodes[0]?.title || "papermap"}
-            />
-          )}
+          
+          {/* Download button component */}
+          <Downloader
+            nodes={nodes}
+            mindMapData={mindMapData}
+            reactFlowWrapper={reactFlowWrapper}
+            reactFlowInstance={reactFlowInstance}
+            fileName={fileName}
+          />
         </div>
       </div>
       

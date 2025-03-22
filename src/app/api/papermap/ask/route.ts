@@ -49,12 +49,12 @@ export async function POST(req: NextRequest) {
         const requestData = await req.json();
         const { pdfData, nodeContext, question } = requestData;
         
-        console.log('API received question:', question);
-        console.log('Node context:', {
-            title: nodeContext?.title,
-            description: nodeContext?.description?.substring(0, 50) + '...'
-        });
-        console.log('PDF data length:', pdfData?.length || 0);
+        // console.log('API received question:', question);
+        // console.log('Node context:', {
+        //     title: nodeContext?.title,
+        //     description: nodeContext?.description?.substring(0, 50) + '...'
+        // });
+        // console.log('PDF data length:', pdfData?.length || 0);
         
         if (!pdfData || !nodeContext || !question) {
             console.error('Missing required data:', {
@@ -89,7 +89,7 @@ User Question: ${question}
 
 Please provide a detailed answer to this question based on the content of the paper.`;
 
-        console.log('Sending prompt to Gemini API');
+        // console.log('Sending prompt to Gemini API');
         
         // Send the message with the PDF data and the context/question
         const response = await chat.sendMessage([
@@ -106,7 +106,7 @@ Please provide a detailed answer to this question based on the content of the pa
         const result = await response.response.text();
         const parsedResult = JSON.parse(result);
         
-        console.log('Received answer from Gemini API, length:', parsedResult.answer?.length || 0);
+        // console.log('Received answer from Gemini API, length:', parsedResult.answer?.length || 0);
 
         return new Response(JSON.stringify(parsedResult), {
             headers: { 'Content-Type': 'application/json' },
