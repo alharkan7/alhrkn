@@ -1,0 +1,99 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import ReactFlow, { 
+  Node, 
+  Edge, 
+  Background, 
+  Controls, 
+  MiniMap, 
+  useReactFlow
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import CustomNode from './CustomNode';
+
+// Node types for ReactFlow
+const nodeTypes = {
+  custom: CustomNode,
+};
+
+interface MindMapFlowProps {
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange: any;
+  onEdgesChange: any;
+  onInit: (instance: any) => void;
+}
+
+const MindMapFlow = ({ 
+  nodes, 
+  edges, 
+  onNodesChange, 
+  onEdgesChange, 
+  onInit,
+}: MindMapFlowProps) => {
+  const reactFlow = useReactFlow();
+  const [nodesDraggable, setNodesDraggable] = useState(true);
+
+  // Detect when the data-nodedrag attribute is set to false
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.attributeName === 'data-nodedrag') {
+          const nodes = document.querySelectorAll('[data-nodedrag="false"]');
+          setNodesDraggable(nodes.length === 0);
+        }
+      });
+    });
+
+    // Observe the entire react-flow container for attribute changes
+    const reactFlowPane = document.querySelector('.react-flow');
+    if (reactFlowPane) {
+      observer.observe(reactFlowPane, { 
+        attributes: true, 
+        attributeFilter: ['data-nodedrag'],
+        subtree: true // Observe all descendants
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
+  
+  useEffect(() => {
+    if (reactFlow && nodes.length > 0) {
+      // Center view with a slight delay to ensure nodes are properly rendered
+      setTimeout(() => {
+        reactFlow.fitView({ padding: 0.4, duration: 800 });
+      }, 200);
+    }
+  }, [reactFlow, nodes.length]);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={nodeTypes}
+      onInit={onInit}
+      nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
+      fitView
+      attributionPosition="bottom-right"
+      elementsSelectable={true}
+      zoomOnScroll={true}
+      defaultEdgeOptions={{
+        type: 'bezier',
+        style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
+        animated: false
+      }}
+      className={`mindmap-container`}
+      style={{ width: '100%', height: '100%' }}
+    >
+      <Controls className="print:hidden" />
+      <MiniMap className="print:hidden" />
+      <Background color='#f8fafc' gap={24} size={1} />
+    </ReactFlow>
+  );
+};
+
+export default MindMapFlow; 

@@ -40,7 +40,6 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    - Include specific numbers, measurements, and results
    - Explain causality and implications directly
    - Connect findings to the field's broader context
-   - Use the language of the paper
 
 5. Example Structure:
    {
@@ -56,7 +55,8 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    - Focus on what IS rather than what was studied
    - Emphasize concrete results and their meaning
    - Connect each point to fundamental scientific principles
-   
+   - Use the language of the paper. For example, if the paper is in German, not in English, provide your response in German.
+
 7. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
 
 // Define the schema using the proper Schema structure
