@@ -2,6 +2,17 @@ import { Node, Edge } from 'reactflow';
 import dagre from '@dagrejs/dagre';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, NodePosition } from './MindMapTypes';
 
+// Define sticky note colors - should match the ones in CustomNode.tsx
+const STICKY_NOTE_COLORS = [
+  { border: '#f9a825' }, // Yellow
+  { border: '#8e24aa' }, // Purple
+  { border: '#e53935' }, // Red
+  { border: '#43a047' }, // Green
+  { border: '#d81b60' }, // Pink
+  { border: '#1976d2' }, // Blue
+  { border: '#fb8c00' }, // Orange
+];
+
 /**
  * Creates an optimized layout for the mind map using dagre layout algorithm
  * @param data MindMap data containing nodes and their relationships
@@ -59,6 +70,33 @@ export const createMindMapLayout = (
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   
+  // Calculate node levels (column number)
+  const nodeLevels: Record<string, number> = {};
+  
+  // First, get root nodes (nodes without parents)
+  const rootNodes = data.nodes.filter(node => !node.parentId).map(node => node.id);
+  
+  // Set root nodes to level 0
+  rootNodes.forEach(nodeId => {
+    nodeLevels[nodeId] = 0;
+  });
+  
+  // Traverse graph to set level for each node
+  const assignLevels = (nodeId: string, level: number) => {
+    nodeLevels[nodeId] = level;
+    
+    // Assign level + 1 to all children
+    const children = parentToChildren[nodeId] || [];
+    children.forEach(childId => {
+      assignLevels(childId, level + 1);
+    });
+  };
+  
+  // Start level assignment from all root nodes
+  rootNodes.forEach(nodeId => {
+    assignLevels(nodeId, 0);
+  });
+  
   data.nodes.forEach(node => {
     const nodeWithPosition = dagreGraph.node(node.id);
     
@@ -67,6 +105,9 @@ export const createMindMapLayout = (
     
     // Check if this node has children
     const hasChildren = !!parentToChildren[node.id]?.length;
+    
+    // Get node level (column number)
+    const columnLevel = nodeLevels[node.id] || 0;
     
     // Create ReactFlow node with position from dagre
     nodes.push({
@@ -84,13 +125,11 @@ export const createMindMapLayout = (
         expanded: isQnANode, // Set expanded to true for QnA nodes
         hasChildren: hasChildren, // Pass if this node has children
         width: nodeWidth, // Default width for nodes
-        pageNumber: node.pageNumber // Pass the page number from the API response
+        pageNumber: node.pageNumber, // Pass the page number from the API response
+        columnLevel: columnLevel // Add column level for coloring
       },
+      // Only set zIndex to ensure proper layering
       style: {
-        border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',
-        backgroundColor: isQnANode ? '#eff6ff' : '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         zIndex: 100,
       },
       className: 'node-card'
@@ -100,6 +139,12 @@ export const createMindMapLayout = (
   // Create edges in a separate loop to ensure all nodes exist
   data.nodes.forEach(node => {
     if (node.parentId) {
+      // Get the parent node's column level for color coordination
+      const parentLevel = nodeLevels[node.parentId] || 0;
+      const parentColorIndex = parentLevel % STICKY_NOTE_COLORS.length;
+      const edgeColor = STICKY_NOTE_COLORS[parentColorIndex].border;
+      
+      // Create a smooth bezier curve with simplified styling
       edges.push({
         id: `e-${node.parentId}-${node.id}`,
         source: node.parentId,
@@ -108,10 +153,10 @@ export const createMindMapLayout = (
         targetHandle: 'target',
         type: 'bezier',
         style: { 
-          stroke: '#3182CE', 
+          stroke: edgeColor, 
           strokeWidth: 2, 
-          strokeOpacity: 1, 
-          zIndex: 1000 
+          strokeOpacity: 0.6,
+          zIndex: 50
         },
         animated: false,
         className: 'mindmap-edge'

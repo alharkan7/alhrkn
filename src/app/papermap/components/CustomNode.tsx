@@ -21,10 +21,43 @@ interface CustomNodeProps {
     width?: number; // Width of the node
     pageNumber?: number; // Page number in the PDF
     openPdfViewer?: (pageNumber: number) => void; // Function to open PDF viewer
+    columnLevel?: number; // Column level for color assignment
   };
   id: string;
   selected?: boolean; // Add selected prop
 }
+
+// Define sticky note colors based on column level
+const STICKY_NOTE_COLORS = [
+  { bg: '#fff9c4', border: '#f9a825', shadow: 'rgba(249, 168, 37, 0.4)' }, // Yellow
+  { bg: '#e1bee7', border: '#8e24aa', shadow: 'rgba(142, 36, 170, 0.4)' }, // Purple
+  { bg: '#ffcdd2', border: '#e53935', shadow: 'rgba(229, 57, 53, 0.4)' },  // Red
+  { bg: '#c8e6c9', border: '#43a047', shadow: 'rgba(67, 160, 71, 0.4)' },  // Green
+  { bg: '#f8bbd0', border: '#d81b60', shadow: 'rgba(216, 27, 96, 0.4)' },  // Pink
+  { bg: '#bbdefb', border: '#1976d2', shadow: 'rgba(25, 118, 210, 0.4)' }, // Blue
+  { bg: '#ffe0b2', border: '#fb8c00', shadow: 'rgba(251, 140, 0, 0.4)' },  // Orange
+];
+
+// Simplified sticky note CSS - removed texture, optimized for performance
+const STICKY_NOTE_CSS = `
+  .sticky-note {
+    position: relative;
+    overflow: visible;
+  }
+  
+  .sticky-note-fold {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 20px 20px;
+    border-color: transparent transparent transparent transparent;
+    opacity: 0.5;
+    border-bottom-right-radius: 4px;
+  }
+`;
 
 // Custom node component
 const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
@@ -50,6 +83,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
 
+  // Get color based on column level (default to first color if level not provided)
+  const columnLevel = data.columnLevel || 0;
+  const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
+  const nodeColor = STICKY_NOTE_COLORS[colorIndex];
+
+  // Determine random slight rotation for sticky note effect (-2 to 2 degrees)
+  const [rotation] = useState(() => (Math.random() * 4 - 2).toFixed(1));
+  
   // Debug logging
   useEffect(() => {
     console.log(`CustomNode ${id} rendering with addFollowUpNode:`, data.addFollowUpNode ? 'available' : 'not available');
@@ -441,6 +482,20 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     }
   }, [id, data.pageNumber, data.openPdfViewer, isHovering, loading, editingTitle, editingDescription, showFollowUpCard]);
 
+  // Add optimized sticky note style to document - only once
+  useEffect(() => {
+    // Check if style already exists to prevent duplicates
+    const existingStyle = document.getElementById('sticky-note-style');
+    if (!existingStyle) {
+      const styleEl = document.createElement('style');
+      styleEl.id = 'sticky-note-style';
+      styleEl.textContent = STICKY_NOTE_CSS;
+      document.head.appendChild(styleEl);
+    }
+    
+    // No need to clean up since we're sharing a single style element across all nodes
+  }, []);
+
   return (
     <>
       {/* Add NodeResizer component - only visible when selected */}
@@ -493,15 +548,23 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       />
       
       <div 
-        className={`p-4 rounded-lg border-2 shadow-md relative group ${isQnANode ? 'bg-blue-50' : 'bg-white'}`}
+        className="p-4 rounded-lg shadow-md relative group sticky-note"
         style={{ 
-          borderColor: isResizing ? '#3b82f6' : selected ? '#3182CE' : isQnANode ? '#bfdbfe' : '#e2e8f0',
+          backgroundColor: nodeColor.bg,
+          borderColor: isResizing ? '#3b82f6' : selected ? '#3182CE' : nodeColor.border,
+          borderWidth: '1px',
+          borderStyle: 'solid',
           width: `${width}px`,
           height: 'auto',
           minHeight: 'fit-content',
-          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s',
+          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s, transform 0.2s',
           userSelect: isResizing ? 'none' : 'auto',
-          boxShadow: selected ? '0 0 0 2px rgba(49, 130, 206, 0.5)' : '0 2px 5px rgba(0, 0, 0, 0.1)'
+          boxShadow: selected 
+            ? '0 0 0 2px rgba(49, 130, 206, 0.5)' 
+            : `0 5px 10px ${nodeColor.shadow}, 2px 2px 4px rgba(0, 0, 0, 0.1)`,
+          transform: `rotate(${rotation}deg)`,
+          zIndex: selected || isHovering ? 1001 : 'auto',
+          transformOrigin: 'center',
         }}
         ref={nodeRef}
         onMouseEnter={() => {
@@ -513,11 +576,19 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           setShowChatButton(false);
         }}
       >
+        {/* Paper fold effect - bottom right corner */}
+        {/* <div 
+          className="sticky-note-fold" 
+          style={{ 
+            borderBottomColor: nodeColor.border,
+          }}
+        /> */}
+        
         {/* Input handle on left side */}
         <Handle
           type="target"
           position={Position.Left}
-          style={{ background: isQnANode ? '#3b82f6' : '#555', width: '10px', height: '10px', opacity: 0 }}
+          style={{ background: nodeColor.border, width: '10px', height: '10px', opacity: 0 }}
           id="target"
         />
         
@@ -542,7 +613,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             />
           ) : (
             <h3 
-              className={`font-bold text-lg mb-2 cursor-text ${isQnANode ? 'text-blue-800' : ''}`}
+              className="font-bold text-lg mb-2 cursor-text"
+              style={{ color: nodeColor.border }}
               onDoubleClick={handleTitleDoubleClick}
             >
               {data.title}
@@ -612,7 +684,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           type="source"
           position={Position.Right}
           style={{ 
-            background: isQnANode ? '#3b82f6' : '#555', 
+            background: nodeColor.border, 
             width: '10px', 
             height: '10px',
             zIndex: 100,
@@ -629,22 +701,22 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           >
             {showChatButton && (
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
+                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8"
                 onClick={handleChatButtonClick}
                 title="Ask a follow-up question"
               >
-                <ChatIcon className="h-4 w-4" />
+                <ChatIcon className="h-5 w-5" />
               </button>
             )}
             
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
-                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md transition-all"
+                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8"
                 onClick={handleDocumentButtonClick}
                 title={`View page ${data.pageNumber} in the PDF`}
               >
-                <DocumentIcon className="h-4 w-4 m-0" />
+                <DocumentIcon className="h-5 w-5" />
               </button>
             )}
           </div>
