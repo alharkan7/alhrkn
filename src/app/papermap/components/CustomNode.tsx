@@ -11,7 +11,7 @@ interface CustomNodeProps {
   data: { 
     title: string; 
     description: string; 
-    updateNodeData?: (id: string, newData: {title?: string; description?: string; width?: number}) => void;
+    updateNodeData?: (id: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number}) => void;
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
     nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
@@ -210,6 +210,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       
       console.log('Created placeholder node with ID:', createdNodeId);
       
+      // After the placeholder node is created, update it to include the pageNumber from the parent node
+      if (data.updateNodeData && data.pageNumber) {
+        console.log(`Applying parent pageNumber ${data.pageNumber} to QnA node:`, createdNodeId);
+        // Preserve the pageNumber from the parent node
+        data.updateNodeData(createdNodeId, { pageNumber: data.pageNumber });
+      }
+      
       // Start fetching the answer
       console.log('Sending question to API:', question);
       
@@ -251,7 +258,12 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       // Update the existing node with the actual answer
       if (data.updateNodeData) {
         console.log('Updating node with actual answer:', createdNodeId);
-        data.updateNodeData(createdNodeId, { description: result.answer });
+        // Preserve pageNumber when updating the node with the answer
+        data.updateNodeData(createdNodeId, { 
+          description: result.answer,
+          // Add pageNumber in case it wasn't added earlier
+          pageNumber: data.pageNumber 
+        });
       } else {
         console.error('Cannot update node: updateNodeData function not available');
       }
@@ -261,7 +273,9 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       // If there's already a node with loading state, update it with error message
       if (data.updateNodeData && data.lastCreatedNodeId) {
         data.updateNodeData(data.lastCreatedNodeId, { 
-          description: "Error: Could not generate an answer. Please try again."
+          description: "Error: Could not generate an answer. Please try again.",
+          // Also preserve pageNumber when updating with error message
+          pageNumber: data.pageNumber
         });
       }
     } finally {

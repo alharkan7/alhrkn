@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
         
         // Debug: Check if Gemini provided any page numbers
         const nodesWithPageNumbers = parsedResult.nodes.filter((node: any) => node.pageNumber != null);
-        console.log(`DEBUG: Gemini provided ${nodesWithPageNumbers.length} out of ${parsedResult.nodes.length} nodes with page numbers`);
+        // console.log(`DEBUG: Gemini provided ${nodesWithPageNumbers.length} out of ${parsedResult.nodes.length} nodes with page numbers`);
         
         // Validate the structure
         const validatedResult = validateMindmapStructure(parsedResult);
@@ -293,8 +293,8 @@ export async function POST(req: NextRequest) {
         
         // Debug: Verify all nodes now have page numbers
         const finalNodesWithPageNumbers = processedResult.nodes.filter((node: any) => node.pageNumber != null);
-        console.log(`DEBUG: After processing, ${finalNodesWithPageNumbers.length} out of ${processedResult.nodes.length} nodes have page numbers`);
-        console.log('DEBUG: Sample node with page number:', processedResult.nodes[0]);
+        // console.log(`DEBUG: After processing, ${finalNodesWithPageNumbers.length} out of ${processedResult.nodes.length} nodes have page numbers`);
+        // console.log('DEBUG: Sample node with page number:', processedResult.nodes[0]);
 
         return new Response(JSON.stringify(processedResult), {
             headers: { 'Content-Type': 'application/json' },
