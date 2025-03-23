@@ -4,7 +4,7 @@ import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
-import { ChatIcon } from './Icons';
+import { ChatIcon, DocumentIcon } from './Icons';
 
 // Node component props type
 interface CustomNodeProps {
@@ -19,6 +19,8 @@ interface CustomNodeProps {
     childrenCollapsed?: boolean; // Whether children are collapsed
     toggleChildrenVisibility?: (nodeId: string) => void; // Function to toggle children visibility
     width?: number; // Width of the node
+    pageNumber?: number; // Page number in the PDF
+    openPdfViewer?: (pageNumber: number) => void; // Function to open PDF viewer
   };
   id: string;
   selected?: boolean; // Add selected prop
@@ -150,9 +152,16 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     });
   };
 
-  const handleChatButtonClick = () => {
+  const handleChatButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setShowFollowUpCard(true);
-    setShowChatButton(false);
+  };
+
+  const handleDocumentButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.openPdfViewer && data.pageNumber) {
+      data.openPdfViewer(data.pageNumber);
+    }
   };
 
   const handleChildrenToggle = (e: React.MouseEvent) => {
@@ -191,7 +200,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       }
       
       // Create a placeholder node immediately with loading state
-      const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Generating answer...</div>';
+      const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Answering...</div>';
       
       // Generate a unique ID for the new node to reference it later
       const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -399,6 +408,25 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     };
   }, [id, updateNodeInternals, width, expanded]);
 
+  useEffect(() => {
+    console.log(`Node ${id}: pageNumber=${data.pageNumber}, openPdfViewer=${!!data.openPdfViewer}`);
+  }, [id, data.pageNumber, data.openPdfViewer]);
+
+  // Add debug logging for document button visibility conditions
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Node ${id} document button conditions:`, { 
+        pageNumber: data.pageNumber, 
+        hasOpenPdfFn: !!data.openPdfViewer,
+        isHovering,
+        loading,
+        editingTitle,
+        editingDescription,
+        showFollowUpCard
+      });
+    }
+  }, [id, data.pageNumber, data.openPdfViewer, isHovering, loading, editingTitle, editingDescription, showFollowUpCard]);
+
   return (
     <>
       {/* Add NodeResizer component - only visible when selected */}
@@ -579,19 +607,32 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           id="source"
         />
         
-        {/* Floating chat button - only show when hovering and not in other states */}
-        {showChatButton && isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
+        {/* Floating chat and document buttons - only show when hovering and not in other states */}
+        {isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
           <div 
-            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer"
+            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer flex space-x-2"
             style={{ zIndex: 1000 }}
           >
-            <button
-              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
-              onClick={handleChatButtonClick}
-              title="Ask a follow-up question"
-            >
-              <ChatIcon className="h-4 w-4" />
-            </button>
+            {showChatButton && (
+              <button
+                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all"
+                onClick={handleChatButtonClick}
+                title="Ask a follow-up question"
+              >
+                <ChatIcon className="h-4 w-4" />
+              </button>
+            )}
+            
+            {/* Document icon button - show only if pageNumber is available */}
+            {data.pageNumber && data.openPdfViewer && (
+              <button
+                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md transition-all"
+                onClick={handleDocumentButtonClick}
+                title={`View page ${data.pageNumber} in the PDF`}
+              >
+                <DocumentIcon className="h-4 w-4 m-0" />
+              </button>
+            )}
           </div>
         )}
         

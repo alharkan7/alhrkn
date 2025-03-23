@@ -83,7 +83,8 @@ export const createMindMapLayout = (
         nodeType: node.type, // Pass the node type
         expanded: isQnANode, // Set expanded to true for QnA nodes
         hasChildren: hasChildren, // Pass if this node has children
-        width: nodeWidth // Default width for nodes
+        width: nodeWidth, // Default width for nodes
+        pageNumber: node.pageNumber // Pass the page number from the API response
       },
       style: {
         border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',

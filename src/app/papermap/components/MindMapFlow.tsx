@@ -23,6 +23,7 @@ interface MindMapFlowProps {
   onNodesChange: any;
   onEdgesChange: any;
   onInit: (instance: any) => void;
+  openPdfViewer?: (pageNumber: number) => void;
 }
 
 const MindMapFlow = ({ 
@@ -31,9 +32,26 @@ const MindMapFlow = ({
   onNodesChange, 
   onEdgesChange, 
   onInit,
+  openPdfViewer,
 }: MindMapFlowProps) => {
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
+
+  // Enhance nodes with PDF viewer capability
+  const enhancedNodes = nodes.map(node => {
+    // Log the node data to check if pageNumber exists
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Node ${node.id}: pageNumber=${node.data.pageNumber}, hasOpenPdf=${!!openPdfViewer}`);
+    }
+    
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        openPdfViewer // Pass the openPdfViewer function to all nodes
+      }
+    };
+  });
 
   // Detect when the data-nodedrag attribute is set to false
   useEffect(() => {
@@ -70,7 +88,7 @@ const MindMapFlow = ({
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={enhancedNodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}

@@ -15,7 +15,9 @@ export interface MindMapNode {
   description: string;
   parentId: string | null;
   level: number;
-  type?: 'regular' | 'qna'; // Optional type for QnA nodes
+  pageNumber?: number; // Page number in the PDF
+  type?: 'regular' | 'qna'; // Type of node (regular or Q&A)
+  children?: MindMapNode[]; // For hierarchical structure visualization
   visible?: boolean; // Whether the node is visible (used for collapsed children)
   width?: number; // Optional width of the node
 }

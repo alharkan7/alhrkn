@@ -468,9 +468,19 @@ export function useMindMap() {
       setMindMapData(data);
       
       console.log('API Response:', data);
+      // Debug: Check if page numbers exist in the API response
+      const nodesWithPageNumbers = data.nodes.filter((node: MindMapNode) => node.pageNumber != null);
+      console.log(`CLIENT: API returned ${nodesWithPageNumbers.length} out of ${data.nodes.length} nodes with page numbers`);
+      if (nodesWithPageNumbers.length > 0) {
+        console.log('CLIENT: Sample node with page number:', nodesWithPageNumbers[0]);
+      }
       
       // Convert MindMap data to ReactFlow elements using dagre-based layout
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
+      
+      // Debug: Check if page numbers were preserved in the flow nodes
+      const flowNodesWithPageNumbers = flowNodes.filter(node => node.data.pageNumber != null);
+      console.log(`CLIENT: Layout conversion preserved ${flowNodesWithPageNumbers.length} out of ${flowNodes.length} nodes with page numbers`);
       
       // Create a map of parent to children for checking if nodes have children
       const parentToChildren: Record<string, boolean> = {};
@@ -488,9 +498,15 @@ export function useMindMap() {
           addFollowUpNode: stableAddFollowUpNode, // Use the stable function
           hasChildren: !!parentToChildren[node.id],
           childrenCollapsed: false,
-          toggleChildrenVisibility
+          toggleChildrenVisibility,
+          // Preserve pageNumber if it exists in the data
+          pageNumber: node.data.pageNumber
         }
       }));
+      
+      // Debug: Check if page numbers still exist after adding other props
+      const finalNodesWithPageNumbers = nodesWithFollowUp.filter(node => node.data.pageNumber != null);
+      console.log(`CLIENT: Final nodes have ${finalNodesWithPageNumbers.length} out of ${nodesWithFollowUp.length} with page numbers`);
       
       console.log('Setting nodes:', nodesWithFollowUp.length);
       console.log('Setting edges:', flowEdges.length);
@@ -536,19 +552,25 @@ export function useMindMap() {
       
       // Update all nodes with the current addFollowUpNode function
       setNodes(currentNodes => 
-        currentNodes.map(node => ({
-          ...node,
-          data: {
-            ...node.data,
-            addFollowUpNode: stableAddFollowUpNode, // Use the stable function
-            hasChildren: !!parentToChildren[node.id],
-            childrenCollapsed: collapsedNodes.has(node.id),
-            toggleChildrenVisibility
-          }
-        }))
+        currentNodes.map(node => {
+          // Find the corresponding node in the mindMapData to get its pageNumber
+          const mindMapNode = mindMapData.nodes.find(n => n.id === node.id);
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              addFollowUpNode: stableAddFollowUpNode, // Use the stable function
+              hasChildren: !!parentToChildren[node.id],
+              childrenCollapsed: collapsedNodes.has(node.id),
+              toggleChildrenVisibility,
+              // Preserve pageNumber from mindMapData if available
+              pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : mindMapNode?.pageNumber
+            }
+          };
+        })
       );
     }
-  }, [mindMapData, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility, setNodes]);
+  }, [mindMapData, nodes.length, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility]);
 
   // Reset zoom and center the view
   const handleResetView = useCallback(() => {

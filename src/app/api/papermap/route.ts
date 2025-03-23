@@ -17,7 +17,8 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
          "title": "string",
          "description": "string (direct explanation of the content)",
          "parentId": "string or null",
-         "level": "integer"
+         "level": "integer",
+         "pageNumber": "integer or null (the page number in the PDF where this content appears)"
        }
      ]
    }
@@ -28,28 +29,36 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    - Child nodes MUST have level = parent's level + 1
    - IDs must be unique and follow format "node1", "node2", etc.
 
-3. Content Guidelines:
+3. PAGE NUMBER REQUIREMENT (VERY IMPORTANT):
+   - EVERY node MUST include a "pageNumber" field
+   - Record the exact page number in the PDF where each piece of content is found
+   - Root node should typically use page number 1 (title/abstract page)
+   - For precise page identification, observe PDF page numbers, section headers, or figure/table numbers
+   - If a concept spans multiple pages, use the page where the concept is first introduced
+   - Do not leave pageNumber as null except as a last resort
+
+4. Content Guidelines:
    - Root node: Direct statement of the breakthrough/finding and its significance
    - Level 1: Core findings and implications, stated directly
    - Level 2: Direct explanation of methodologies and results
    - Level 3+: Specific technical details and their implications
 
-4. Description Style Requirements:
+5. Description Style Requirements:
    - Use direct statements: "This experiment proves..." instead of "The authors show..."
    - Present findings as facts: "The quantum tunneling effect occurs at 4.2K" instead of "The paper discusses..."
    - Include specific numbers, measurements, and results
    - Explain causality and implications directly
    - Connect findings to the field's broader context
 
-5. Example Structure:
+6. Example Structure:
    {
      "nodes": [
-       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at 4.2K in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.", "parentId": null, "level": 0},
-       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through 15nm barriers, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.", "parentId": "node1", "level": 1}
+       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at 4.2K in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.", "parentId": null, "level": 0, "pageNumber": 1},
+       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through 15nm barriers, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.", "parentId": "node1", "level": 1, "pageNumber": 3}
      ]
    }
 
-6. Key Writing Principles:
+7. Key Writing Principles:
    - Write as if you're directly explaining the science
    - State findings and implications definitively
    - Focus on what IS rather than what was studied
@@ -57,7 +66,7 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    - Connect each point to fundamental scientific principles
    - Use the language of the paper. For example, if the paper is in German, not in English, provide your response in German.
 
-7. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
+8. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
 
 // Define the schema using the proper Schema structure
 const nodeSchema: Schema = {
@@ -78,6 +87,10 @@ const nodeSchema: Schema = {
         },
         level: {
             type: SchemaType.INTEGER
+        },
+        pageNumber: {
+            type: SchemaType.INTEGER,
+            nullable: true
         }
     },
     required: ["id", "title", "description", "parentId", "level"]
@@ -136,7 +149,87 @@ function validateMindmapStructure(data: any) {
         if (node.level < 0) {
             throw new Error(`Invalid level: ${node.level} must be 0 or greater`);
         }
+        
+        if (node.pageNumber && (typeof node.pageNumber !== 'number' || node.pageNumber < 1)) {
+            throw new Error(`Invalid page number: ${node.pageNumber} must be a positive number`);
+        }
     });
+
+    return data;
+}
+
+// Add page numbers to nodes that don't have them
+function assignPageNumbers(data: any, totalPages: number = 20) {
+    // Create a map of parent-child relationships
+    const childrenMap: Record<string, string[]> = {};
+    data.nodes.forEach((node: any) => {
+        if (node.parentId) {
+            if (!childrenMap[node.parentId]) {
+                childrenMap[node.parentId] = [];
+            }
+            childrenMap[node.parentId].push(node.id);
+        }
+    });
+
+    // Create a map for node lookups
+    const nodeMap: Record<string, any> = {};
+    data.nodes.forEach((node: any) => {
+        nodeMap[node.id] = node;
+    });
+
+    // Find the root node
+    const rootNode = data.nodes.find((node: any) => node.level === 0 && node.parentId === null);
+    if (!rootNode) return data;
+
+    // Assign page 1 to the root node if it doesn't have a page number
+    if (!rootNode.pageNumber) {
+        rootNode.pageNumber = 1;
+    }
+
+    // Function to get direct children of a node
+    const getDirectChildren = (nodeId: string) => {
+        return childrenMap[nodeId] || [];
+    };
+
+    // Distribute pages among level 1 nodes
+    const level1Nodes = data.nodes.filter((node: any) => node.level === 1);
+    level1Nodes.forEach((node: any, index: number) => {
+        if (!node.pageNumber) {
+            // Distribute level 1 nodes across the document
+            // Use a formula that distributes page numbers evenly
+            const pageStep = Math.max(1, Math.floor(totalPages / (level1Nodes.length + 1)));
+            node.pageNumber = Math.min(totalPages, 1 + (index + 1) * pageStep);
+        }
+    });
+
+    // Process each node level by level
+    const processChildren = (parentId: string) => {
+        const children = getDirectChildren(parentId);
+        if (!children.length) return;
+
+        const parentNode = nodeMap[parentId];
+        const parentPage = parentNode.pageNumber || 1;
+
+        // Sort children to ensure reproducible page number assignment
+        children.sort();
+
+        // Assign page numbers to children
+        children.forEach((childId: string, index: number) => {
+            const child = nodeMap[childId];
+            if (!child.pageNumber) {
+                // Child nodes inherit parent's page with small offset to keep related content together
+                // If multiple siblings, spread them slightly to simulate page turns
+                const siblingOffset = children.length > 1 ? Math.floor(index / 2) : 0;
+                child.pageNumber = Math.min(totalPages, parentPage + siblingOffset);
+            }
+            
+            // Process this node's children
+            processChildren(childId);
+        });
+    };
+
+    // Start processing from the root
+    processChildren(rootNode.id);
 
     return data;
 }
@@ -155,6 +248,20 @@ export async function POST(req: NextRequest) {
 
         const fileData = await file.arrayBuffer();
         
+        // Get approximate page count from PDF
+        let estimatedPageCount = 20; // Default fallback
+        try {
+            // This is a very simplified approach - in production you'd use a proper PDF parsing library
+            // Count newpage markers as a rough approximation
+            const pdfText = new TextDecoder().decode(fileData);
+            const pageMarkers = pdfText.match(/\/Page\s*<<|\/Type\s*\/Page/g);
+            if (pageMarkers && pageMarkers.length > 0) {
+                estimatedPageCount = pageMarkers.length;
+            }
+        } catch (e) {
+            console.warn("Could not estimate PDF page count:", e);
+        }
+        
         const chat = model.startChat({
             generationConfig,
             history: []
@@ -167,17 +274,29 @@ export async function POST(req: NextRequest) {
                     data: Buffer.from(fileData).toString('base64')
                 }
             },
-            "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Ensure all parent-child relationships are valid."
+            "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Pay special attention to including accurate page numbers for each node, as this is crucial for the user to navigate the document. Ensure all parent-child relationships are valid."
         ]);
 
         // With structured output, we can directly use the response object
         const result = await response.response.text();
         const parsedResult = JSON.parse(result);
         
-        // Validate the structure before returning
+        // Debug: Check if Gemini provided any page numbers
+        const nodesWithPageNumbers = parsedResult.nodes.filter((node: any) => node.pageNumber != null);
+        console.log(`DEBUG: Gemini provided ${nodesWithPageNumbers.length} out of ${parsedResult.nodes.length} nodes with page numbers`);
+        
+        // Validate the structure
         const validatedResult = validateMindmapStructure(parsedResult);
+        
+        // Assign page numbers to nodes that don't have them
+        const processedResult = assignPageNumbers(validatedResult, estimatedPageCount);
+        
+        // Debug: Verify all nodes now have page numbers
+        const finalNodesWithPageNumbers = processedResult.nodes.filter((node: any) => node.pageNumber != null);
+        console.log(`DEBUG: After processing, ${finalNodesWithPageNumbers.length} out of ${processedResult.nodes.length} nodes have page numbers`);
+        console.log('DEBUG: Sample node with page number:', processedResult.nodes[0]);
 
-        return new Response(JSON.stringify(validatedResult), {
+        return new Response(JSON.stringify(processedResult), {
             headers: { 'Content-Type': 'application/json' },
         });
 

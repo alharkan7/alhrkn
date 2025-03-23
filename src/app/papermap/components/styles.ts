@@ -70,4 +70,26 @@ export const nodeUpdateStyles = `
   .dark-mode .react-flow__edge path {
     stroke: #64748b;
   }
+`;
+
+// Animation for PDF viewer opening from the right
+export const pdfViewerAnimationStyles = `
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out forwards;
+  }
+`;
+
+// Combined styles for use in the page component
+export const combinedStyles = `
+  ${nodeUpdateStyles}
+  ${pdfViewerAnimationStyles}
 `; 
