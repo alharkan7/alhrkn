@@ -134,8 +134,20 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   };
 
   const toggleExpanded = () => {
-    setExpanded(!expanded);
     setShowInfo(false);
+    
+    // Update node size immediately to prepare for animation
+    updateNodeInternals(id);
+    
+    // Toggle expanded state after a small delay to ensure proper animation start
+    requestAnimationFrame(() => {
+      setExpanded(!expanded);
+      
+      // Update node internals after animation completes
+      setTimeout(() => {
+        updateNodeInternals(id);
+      }, 250); // Match the transition duration (0.2s) with some buffer
+    });
   };
 
   const handleChatButtonClick = () => {
@@ -292,6 +304,32 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       .react-flow__node.react-flow__node-custom {
         height: auto !important;
         overflow: visible !important;
+      }
+      
+      /* Animation for description */
+      .node-description-wrapper {
+        overflow: hidden;
+        transition: height 0.2s ease-in-out;
+        height: auto;
+      }
+      
+      .node-description-wrapper.collapsed {
+        height: 0;
+      }
+      
+      .node-description-content {
+        transform-origin: top;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+      
+      .node-description-content.expanded {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+      
+      .node-description-content.collapsed {
+        transform: scaleY(0);
+        opacity: 0;
       }
     `;
     document.head.appendChild(style);
@@ -481,43 +519,50 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         
         {showInfo && <InfoTip content={data.description} />}
         
-        {/* Only show description when expanded */}
-        {expanded && !showInfo && (
-          editingDescription ? (
-            <textarea
-              ref={descriptionRef}
-              value={descriptionValue}
-              onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
-              onBlur={handleDescriptionBlur}
-              onKeyDown={(e) => handleKeyDown(e, 'description')}
-              className="w-full text-sm resize-none overflow-hidden"
-              style={{ 
-                outline: 'none', 
-                border: 'none',
-                padding: 0,
-                minHeight: '2rem',
-                background: 'transparent',
-                boxShadow: 'none'
-              }}
-            />
-          ) : (
+        {/* Description container - always rendered but with animation */}
+        {!showInfo && (
+          <div className={`node-description-wrapper ${!expanded ? 'collapsed' : ''}`}>
             <div 
-              className="text-sm cursor-text" 
-              onDoubleClick={handleDescriptionDoubleClick}
-              dangerouslySetInnerHTML={
-                // Check if the description contains HTML for loading animation
-                data.description.includes('<div class=') 
-                  ? { __html: data.description } 
-                  : undefined
-              }
+              className={`node-description-content ${expanded ? 'expanded' : 'collapsed'}`}
+              onTransitionEnd={() => updateNodeInternals(id)}
             >
-              {/* Only render text content if not using dangerouslySetInnerHTML */}
-              {!data.description.includes('<div class=') 
-                ? (data.description || 'Double-click to add a description') 
-                : null
-              }
+              {editingDescription ? (
+                <textarea
+                  ref={descriptionRef}
+                  value={descriptionValue}
+                  onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
+                  onBlur={handleDescriptionBlur}
+                  onKeyDown={(e) => handleKeyDown(e, 'description')}
+                  className="w-full text-sm resize-none overflow-hidden"
+                  style={{ 
+                    outline: 'none', 
+                    border: 'none',
+                    padding: 0,
+                    minHeight: '2rem',
+                    background: 'transparent',
+                    boxShadow: 'none'
+                  }}
+                />
+              ) : (
+                <div 
+                  className="text-sm cursor-text" 
+                  onDoubleClick={handleDescriptionDoubleClick}
+                  dangerouslySetInnerHTML={
+                    // Check if the description contains HTML for loading animation
+                    data.description.includes('<div class=') 
+                      ? { __html: data.description } 
+                      : undefined
+                  }
+                >
+                  {/* Only render text content if not using dangerouslySetInnerHTML */}
+                  {!data.description.includes('<div class=') 
+                    ? (data.description || 'Double-click to add a description') 
+                    : null
+                  }
+                </div>
+              )}
             </div>
-          )
+          </div>
         )}
         
         {/* Output handle on right side - Invisible but functional */}
