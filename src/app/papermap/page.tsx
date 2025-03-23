@@ -80,7 +80,7 @@ export default function PaperMap() {
     <div className={`flex flex-col h-screen`}>
       <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
       <div className={`p-4 bg-gray-50 border-b print:hidden`}>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <Uploader 
             onFileUpload={handleUpload}
             loading={loading}
