@@ -1,8 +1,9 @@
 import { Node, Edge } from 'reactflow';
+import dagre from '@dagrejs/dagre';
 import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, NodePosition } from './MindMapTypes';
 
 /**
- * Creates an optimized layout for the mind map using tree layout algorithm
+ * Creates an optimized layout for the mind map using dagre layout algorithm
  * @param data MindMap data containing nodes and their relationships
  * @param updateNodeCallback Callback function to update node data
  * @returns ReactFlow nodes and edges
@@ -11,12 +12,20 @@ export const createMindMapLayout = (
   data: MindMapData, 
   updateNodeCallback: (nodeId: string, newData: {title?: string; description?: string; width?: number}) => void
 ): { nodes: Node[]; edges: Edge[] } => {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-  
-  // Maps to store nodes by level and their calculated sizes
-  const levelNodes: { [key: number]: MindMapNode[] } = {};
-  
+  // Initialize dagre graph
+  const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  const nodeWidth = 256; // Default node width
+  const nodeHeight = 100; // Approximate node height
+
+  // Set graph direction (LR = left to right)
+  dagreGraph.setGraph({ 
+    rankdir: 'LR',
+    nodesep: 80, // Vertical spacing between nodes in the same rank
+    ranksep: COLUMN_WIDTH, // Horizontal spacing between ranks/levels
+    align: 'UL', // Align nodes by their upper-left corners
+    ranker: 'network-simplex' // Use network simplex algorithm for layout
+  });
+
   // Create a map of parent to children IDs for checking if nodes have children
   const parentToChildren: Record<string, string[]> = {};
   data.nodes.forEach(node => {
@@ -28,73 +37,62 @@ export const createMindMapLayout = (
     }
   });
   
-  // First, group nodes by their level
+  // Add nodes to dagre graph
   data.nodes.forEach(node => {
-    if (!levelNodes[node.level]) {
-      levelNodes[node.level] = [];
-    }
-    levelNodes[node.level].push(node);
+    dagreGraph.setNode(node.id, { 
+      width: nodeWidth, 
+      height: nodeHeight 
+    });
   });
   
-  // Calculate y coordinates for each level
-  const yPositions: { [key: string]: number } = {};
+  // Add edges to dagre graph
+  data.nodes.forEach(node => {
+    if (node.parentId) {
+      dagreGraph.setEdge(node.parentId, node.id);
+    }
+  });
   
-  // Process each level from 0 to max level
-  Object.keys(levelNodes).sort((a, b) => Number(a) - Number(b)).forEach(levelStr => {
-    const level = Number(levelStr);
-    const nodesInLevel = levelNodes[level];
+  // Run the layout algorithm
+  dagre.layout(dagreGraph);
+  
+  // Map nodes with positions from dagre
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  
+  data.nodes.forEach(node => {
+    const nodeWithPosition = dagreGraph.node(node.id);
     
-    // Process each node in the current level
-    nodesInLevel.forEach((node, index) => {
-      // If it's the root node (level 0), place it at the center
-      if (level === 0) {
-        yPositions[node.id] = 0;
-      } else {
-        // For non-root nodes, calculate position based on parent and siblings
-        // Get parent node's position
-        const parentY = yPositions[node.parentId || ''] || 0;
-        
-        // Count how many siblings this node has with the same parent
-        const siblings = nodesInLevel.filter(n => n.parentId === node.parentId);
-        const siblingIndex = siblings.findIndex(n => n.id === node.id);
-        
-        // Calculate position - place the node below its parent, adjusted for siblings
-        const offset = siblingIndex - (siblings.length - 1) / 2;
-        yPositions[node.id] = parentY + (offset * NODE_VERTICAL_SPACING);
-      }
-      
-      // Determine if this is a QnA node
-      const isQnANode = node.type === 'qna';
-      
-      // Check if this node has children
-      const hasChildren = !!parentToChildren[node.id]?.length;
-      
-      // Create ReactFlow node
-      nodes.push({
-        id: node.id,
-        type: 'custom',
-        position: { 
-          x: level * COLUMN_WIDTH, 
-          y: yPositions[node.id]
-        },
-        data: { 
-          title: node.title,
-          description: node.description,
-          updateNodeData: updateNodeCallback,
-          nodeType: node.type, // Pass the node type
-          expanded: isQnANode, // Set expanded to true for QnA nodes
-          hasChildren: hasChildren, // Pass if this node has children
-          width: 256 // Default width for nodes
-        },
-        style: {
-          border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',
-          backgroundColor: isQnANode ? '#eff6ff' : '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          zIndex: 100,
-        },
-        className: 'node-card'
-      });
+    // Determine if this is a QnA node
+    const isQnANode = node.type === 'qna';
+    
+    // Check if this node has children
+    const hasChildren = !!parentToChildren[node.id]?.length;
+    
+    // Create ReactFlow node with position from dagre
+    nodes.push({
+      id: node.id,
+      type: 'custom',
+      position: { 
+        x: nodeWithPosition.x - nodeWidth / 2, 
+        y: nodeWithPosition.y - nodeHeight / 2
+      },
+      data: { 
+        title: node.title,
+        description: node.description,
+        updateNodeData: updateNodeCallback,
+        nodeType: node.type, // Pass the node type
+        expanded: isQnANode, // Set expanded to true for QnA nodes
+        hasChildren: hasChildren, // Pass if this node has children
+        width: nodeWidth // Default width for nodes
+      },
+      style: {
+        border: isQnANode ? '2px solid #bfdbfe' : '2px solid #e2e8f0',
+        backgroundColor: isQnANode ? '#eff6ff' : '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        zIndex: 100,
+      },
+      className: 'node-card'
     });
   });
   

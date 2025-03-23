@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState } from 'reactflow';
-import { MindMapData, NodePosition, MindMapNode } from '../components/MindMapTypes';
+import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../components/MindMapTypes';
 import { createMindMapLayout, updateMindMapLayout } from '../components/MindMapLayout';
 
 export function useMindMap() {
@@ -246,35 +246,21 @@ export function useMindMap() {
       return updatedData;
     });
     
-    // Get parent node position
+    // Instead of manually positioning, use dagre to calculate position
+    // First, collect all existing nodes in the same level as this new node
+    const allNodesAtLevel = nodes.filter(node => {
+      const nodeData = mindMapData.nodes.find(n => n.id === node.id);
+      return nodeData && nodeData.level === parentNode.level + 1;
+    });
+
+    // Parent node position
     const parentPos = parentFlowNode.position;
     
-    // Calculate position for the new node
-    // Find how many siblings this node has to calculate vertical offset
-    const siblings = mindMapData.nodes.filter(n => n.parentId === parentId);
-    
-    // Calculate appropriate vertical offset
-    let verticalOffset = 0;
-    
-    if (siblings.length === 0) {
-      // First child should be aligned with parent
-      verticalOffset = 0;
-    } else {
-      // Place below existing siblings
-      verticalOffset = siblings.length * 160; // NODE_VERTICAL_SPACING
-    }
-    
+    // Default position before dagre calculation (will be properly positioned later)
     const newNodePosition = { 
-      x: parentPos.x + 550, // COLUMN_WIDTH
-      y: parentPos.y + verticalOffset
+      x: parentPos.x + COLUMN_WIDTH, 
+      y: parentPos.y
     };
-    
-    console.log('New node position:', {
-      newNodePosition,
-      parentPos,
-      siblingCount: siblings.length,
-      verticalOffset
-    });
     
     // Store the ID of the last created node in all nodes' data for reference in async operations
     const lastCreatedNodeId = newNodeId;
@@ -382,15 +368,50 @@ export function useMindMap() {
       );
     }, 2000);
     
-    // Fit view after a longer delay to ensure the new node is properly rendered
+    // After node is added, recalculate positions with dagre
     setTimeout(() => {
-      if (reactFlowInstance.current) {
-        console.log('Fitting view to include new node');
-        reactFlowInstance.current.fitView({ 
-          padding: 0.4, 
-          duration: 800,
-          includeHiddenNodes: false,
+      // Re-run dagre to layout all nodes and prevent overlaps
+      if (mindMapData && mindMapData.nodes.length > 1) {
+        // Create a new layout with the updated data
+        import('../components/MindMapLayout').then(({ createMindMapLayout }) => {
+          const { nodes: newNodes } = createMindMapLayout(
+            { nodes: mindMapData.nodes }, 
+            updateNodeData
+          );
+          
+          // Apply the new positions but keep the same data
+          setNodes(currentNodes => {
+            return currentNodes.map(node => {
+              const newLayoutNode = newNodes.find(n => n.id === node.id);
+              if (newLayoutNode) {
+                return {
+                  ...node,
+                  position: newLayoutNode.position
+                };
+              }
+              return node;
+            });
+          });
+          
+          // After layout is complete, fit view
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({ 
+              padding: 0.4, 
+              duration: 800,
+              includeHiddenNodes: false,
+            });
+          }
         });
+      } else {
+        // Fit view after a longer delay to ensure the new node is properly rendered
+        if (reactFlowInstance.current) {
+          console.log('Fitting view to include new node');
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false,
+          });
+        }
       }
     }, 500);
     
@@ -448,7 +469,7 @@ export function useMindMap() {
       
       console.log('API Response:', data);
       
-      // Convert MindMap data to ReactFlow elements
+      // Convert MindMap data to ReactFlow elements using dagre-based layout
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
       
       // Create a map of parent to children for checking if nodes have children
@@ -476,6 +497,17 @@ export function useMindMap() {
       
       setNodes(nodesWithFollowUp);
       setEdges(flowEdges);
+      
+      // After nodes are set, ensure we fit view
+      setTimeout(() => {
+        if (reactFlowInstance.current) {
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false
+          });
+        }
+      }, 100);
     } catch (err: any) {
       console.error('Error uploading file:', err);
       setError(err.message || 'Failed to analyze the paper');
