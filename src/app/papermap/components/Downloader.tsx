@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { DownloadIcon, ChevronDownIcon } from './Icons';
+import { getNodesBounds, getTransformForBounds } from 'reactflow';
 
 interface DownloaderProps {
   nodes: any[];
@@ -36,36 +37,63 @@ const Downloader: React.FC<DownloaderProps> = ({
   }, []);
 
   // Helper function to prepare the flow for image export
-  const prepareExport = () => {
+  const prepareExport = (exportType: 'image' | 'pdf') => {
     if (!reactFlowInstance.current || !nodes.length || !reactFlowWrapper.current) return null;
 
-    // First fit the view to ensure everything is visible
-    reactFlowInstance.current.fitView({ padding: 0.2 });
-
-    // Return the viewport element
-    return reactFlowWrapper.current!.querySelector('.react-flow__viewport') as HTMLElement;
-  };
-
-  // Download as JPEG
-  const downloadAsJpeg = () => {
-    const reactFlowNode = prepareExport();
-    if (!reactFlowNode) return;
-
-    // Small delay to ensure the view is updated
-    setTimeout(() => {
-      toJpeg(reactFlowNode, {
-        quality: 0.95,
-        backgroundColor: '#f8fafc',
+    // Calculate bounds for all nodes - using nodes passed through props
+    const nodesBounds = getNodesBounds(nodes);
+    
+    // Add some padding to the bounds
+    const padding = 50;
+    const imageWidth = nodesBounds.width + padding * 2;
+    const imageHeight = nodesBounds.height + padding * 2;
+    
+    // Calculate transform to ensure all nodes are visible
+    const transform = getTransformForBounds(
+      nodesBounds,
+      imageWidth,
+      imageHeight,
+      0.5, // minZoom
+      2    // maxZoom
+    );
+    
+    // Get the viewport element for export
+    const viewportElement = reactFlowWrapper.current!.querySelector('.react-flow__viewport') as HTMLElement;
+    
+    // Return necessary information
+    return {
+      viewportElement,
+      exportOptions: {
+        width: imageWidth,
+        height: imageHeight,
         style: {
-          width: '100%',
-          height: '100%'
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+          transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
         },
-        filter: (node) => {
+        filter: (node: any) => {
           return (
             !node.classList?.contains('react-flow__minimap') &&
             !node.classList?.contains('react-flow__controls')
           );
         }
+      }
+    };
+  };
+
+  // Download as JPEG
+  const downloadAsJpeg = () => {
+    const exportData = prepareExport('image');
+    if (!exportData) return;
+
+    const { viewportElement, exportOptions } = exportData;
+
+    // Small delay to ensure the view is updated
+    setTimeout(() => {
+      toJpeg(viewportElement, {
+        quality: 0.95,
+        backgroundColor: '#f8fafc',
+        ...exportOptions
       })
         .then((dataUrl) => {
           const a = document.createElement('a');
@@ -83,24 +111,17 @@ const Downloader: React.FC<DownloaderProps> = ({
 
   // Download as PNG with transparent background
   const downloadAsPng = () => {
-    const reactFlowNode = prepareExport();
-    if (!reactFlowNode) return;
+    const exportData = prepareExport('image');
+    if (!exportData) return;
+
+    const { viewportElement, exportOptions } = exportData;
 
     // Small delay to ensure the view is updated
     setTimeout(() => {
-      toPng(reactFlowNode, {
+      toPng(viewportElement, {
         quality: 1,
         backgroundColor: 'transparent',
-        style: {
-          width: '100%',
-          height: '100%'
-        },
-        filter: (node) => {
-          return (
-            !node.classList?.contains('react-flow__minimap') &&
-            !node.classList?.contains('react-flow__controls')
-          );
-        }
+        ...exportOptions
       })
         .then((dataUrl) => {
           const a = document.createElement('a');
@@ -118,24 +139,17 @@ const Downloader: React.FC<DownloaderProps> = ({
 
   // Download as PDF
   const downloadAsPdf = () => {
-    const reactFlowNode = prepareExport();
-    if (!reactFlowNode) return;
+    const exportData = prepareExport('pdf');
+    if (!exportData) return;
+
+    const { viewportElement, exportOptions } = exportData;
 
     // Small delay to ensure the view is updated
     setTimeout(() => {
-      toPng(reactFlowNode, {
+      toPng(viewportElement, {
         quality: 1,
         backgroundColor: '#ffffff',
-        style: {
-          width: '100%',
-          height: '100%'
-        },
-        filter: (node) => {
-          return (
-            !node.classList?.contains('react-flow__minimap') &&
-            !node.classList?.contains('react-flow__controls')
-          );
-        }
+        ...exportOptions
       })
         .then((dataUrl) => {
           // Create PDF with dimensions based on the image
@@ -143,7 +157,7 @@ const Downloader: React.FC<DownloaderProps> = ({
           img.src = dataUrl;
 
           img.onload = () => {
-            // Use image dimensions instead of A4 paper size
+            // Use image dimensions for PDF
             const pdf = new jsPDF({
               orientation: img.width > img.height ? 'landscape' : 'portrait',
               unit: 'px',
