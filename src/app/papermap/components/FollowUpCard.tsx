@@ -48,8 +48,16 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center" 
-      style={{ zIndex: 9999, backgroundColor: 'rgba(0, 0, 0, 0.25)' }}
+      className="fixed" 
+      style={{ 
+        zIndex: 9999, 
+        top: 0,
+        left: 0,
+        // This will prevent clicks outside the card from propagating
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none'
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onCancel();
@@ -58,12 +66,13 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
       <Draggable 
         handle=".follow-up-handle" 
         nodeRef={dragRef as React.RefObject<HTMLElement>}
+        defaultPosition={{ x: basePosition.x + 20, y: basePosition.y - 100 }}
         bounds="parent"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div 
           ref={dragRef}
-          className="follow-up-card" 
+          className="follow-up-card absolute" 
           style={{ 
             width: '360px',
             pointerEvents: 'auto',
@@ -77,6 +86,17 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
         >
           <div className="follow-up-handle p-3 font-medium text-sm text-blue-600 flex justify-between cursor-move border-b border-gray-100 bg-gray-50">
             <span>Ask a Question</span>
+            <button 
+              className="text-gray-400 hover:text-gray-600 focus:outline-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel();
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
           </div>
           <div className="p-4">
             <input
@@ -112,15 +132,6 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               </button>
             </div>
             <div className="flex justify-end mt-4 space-x-2 text-sm">
-              <button 
-                className="px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancel();
-                }}
-              >
-                Cancel
-              </button>
               <button 
                 className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!question.trim()}

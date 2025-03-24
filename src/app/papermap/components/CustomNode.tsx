@@ -88,9 +88,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
   const nodeColor = STICKY_NOTE_COLORS[colorIndex];
 
-  // Determine random slight rotation for sticky note effect (-2 to 2 degrees)
-  const [rotation] = useState(() => (Math.random() * 4 - 2).toFixed(1));
-  
   // Debug logging
   useEffect(() => {
     console.log(`CustomNode ${id} rendering with addFollowUpNode:`, data.addFollowUpNode ? 'available' : 'not available');
@@ -557,12 +554,11 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           width: `${width}px`,
           height: 'auto',
           minHeight: 'fit-content',
-          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s, transform 0.2s',
+          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s',
           userSelect: isResizing ? 'none' : 'auto',
           boxShadow: selected 
             ? '0 0 0 2px rgba(49, 130, 206, 0.5)' 
             : `0 5px 10px ${nodeColor.shadow}, 2px 2px 4px rgba(0, 0, 0, 0.1)`,
-          transform: `rotate(${rotation}deg)`,
           zIndex: selected || isHovering ? 1001 : 'auto',
           transformOrigin: 'center',
         }}
@@ -701,7 +697,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           >
             {showChatButton && (
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8"
+                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
                 onClick={handleChatButtonClick}
                 title="Ask a follow-up question"
               >
@@ -712,7 +708,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
-                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8"
+                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
                 onClick={handleDocumentButtonClick}
                 title={`View page ${data.pageNumber} in the PDF`}
               >
@@ -757,7 +753,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               parentId: null,
               level: 0
             }}
-            basePosition={{ x: 0, y: 0 }}
+            basePosition={{ x: (data.width || 250) + 20, y: 100 }}
             onSave={handleFollowUpSave}
             onCancel={handleFollowUpCancel}
           />
