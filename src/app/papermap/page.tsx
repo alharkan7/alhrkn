@@ -23,7 +23,9 @@ export default function PaperMap() {
     onNodesChange,
     onEdgesChange,
     handleFileUpload,
-    handleResetView
+    handleResetView,
+    loadExampleMindMap,
+    pdfUrl
   } = useMindMap();
 
   const [fileName, setFileName] = useState<string>('mindmap');
@@ -89,6 +91,7 @@ export default function PaperMap() {
         reactFlowInstance={reactFlowInstance}
         fileName={fileName}
         onFileUpload={handleUpload}
+        loadExampleMindMap={loadExampleMindMap}
       />
       
       <div className="flex-grow" ref={reactFlowWrapper}>
@@ -109,6 +112,7 @@ export default function PaperMap() {
       {/* PDF Viewer */}
       <PdfViewer
         pdfBase64={pdfBase64}
+        pdfUrl={pdfUrl}
         isOpen={isPdfViewerOpen}
         onClose={closePdfViewer}
         initialPage={currentPdfPage}

@@ -6,6 +6,7 @@ interface PdfViewerProps {
   isOpen: boolean;
   onClose: () => void;
   initialPage?: number;
+  pdfUrl?: string | null;
 }
 
 // Dynamically import react-pdf with SSR disabled
@@ -15,7 +16,7 @@ const PDFViewer = dynamic<PdfViewerProps>(
 );
 
 // Memoize the component to prevent unnecessary re-renders
-const PdfViewer = memo(({ pdfBase64, isOpen, onClose, initialPage }: PdfViewerProps) => {
+const PdfViewer = memo(({ pdfBase64, pdfUrl, isOpen, onClose, initialPage }: PdfViewerProps) => {
   // Simply pass props to the dynamically loaded component
   if (!isOpen) return null;
   
@@ -24,6 +25,7 @@ const PdfViewer = memo(({ pdfBase64, isOpen, onClose, initialPage }: PdfViewerPr
   
   return <PDFViewer 
     pdfBase64={pdfBase64} 
+    pdfUrl={pdfUrl}
     isOpen={isOpen} 
     onClose={onClose} 
     initialPage={validatedInitialPage} 

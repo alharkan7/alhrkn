@@ -1,5 +1,5 @@
 // Constants for layout calculation
-export const COLUMN_WIDTH = 550; // The horizontal spacing between node columns
+export const COLUMN_WIDTH = 300; // The horizontal spacing between node columns
 export const NODE_VERTICAL_SPACING = 160; // The vertical spacing between nodes
 
 // Node position type

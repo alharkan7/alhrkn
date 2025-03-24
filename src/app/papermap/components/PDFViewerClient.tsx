@@ -14,9 +14,16 @@ interface PDFViewerClientProps {
   isOpen: boolean;
   onClose: () => void;
   initialPage?: number;
+  pdfUrl?: string | null;
 }
 
-const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, onClose, initialPage = 1 }) => {
+const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ 
+  pdfBase64, 
+  pdfUrl, 
+  isOpen, 
+  onClose, 
+  initialPage = 1 
+}) => {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(initialPage);
   const [scale, setScale] = useState<number>(1.0);
@@ -47,11 +54,18 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, on
 
   // Memoize the file prop to prevent unnecessary reloads
   const memoizedFile = useMemo(() => {
+    // If URL is provided, use it
+    if (pdfUrl) {
+      return pdfUrl;
+    }
+    
+    // Otherwise use binary data if available
     if (pdfBytes) {
       return { data: pdfBytes };
     }
+    
     return null;
-  }, [pdfBytes]);
+  }, [pdfBytes, pdfUrl]);
 
   // Memoize the options prop to prevent unnecessary reloads
   const memoizedOptions = useMemo(() => ({
@@ -173,7 +187,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, on
 
         {/* PDF Document */}
         <div className="flex justify-center p-4">
-          {pdfBytes ? (
+          {memoizedFile ? (
             <Document
               file={memoizedFile}
               onLoadSuccess={onDocumentLoadSuccess}

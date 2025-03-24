@@ -15,6 +15,7 @@ interface TopBarProps {
   reactFlowInstance: RefObject<any>;
   fileName: string;
   onFileUpload: (file: File) => void;
+  loadExampleMindMap?: () => void;
 }
 
 export default function TopBar({
@@ -25,7 +26,8 @@ export default function TopBar({
   reactFlowWrapper,
   reactFlowInstance,
   fileName,
-  onFileUpload
+  onFileUpload,
+  loadExampleMindMap
 }: TopBarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -61,9 +63,9 @@ export default function TopBar({
               </div>
             )}
 
-            {!loading && !error && fileName !== 'mindmap' && (
+            {!loading && !error && (
               <div className="text-muted-foreground truncate">
-                {fileName}
+                {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
               </div>
             )}
           </div>
@@ -90,6 +92,7 @@ export default function TopBar({
         }}
         loading={loading}
         error={error}
+        loadExampleMindMap={loadExampleMindMap}
       />
     </>
   );

@@ -13,6 +13,7 @@ interface SidebarProps {
   onFileUpload: (file: File) => void;
   loading: boolean;
   error: string | null;
+  loadExampleMindMap?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -20,7 +21,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose, 
   onFileUpload, 
   loading, 
-  error 
+  error,
+  loadExampleMindMap
 }) => {
   const [isRendered, setIsRendered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -143,6 +145,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const handleLoadExample = () => {
+    if (loadExampleMindMap) {
+      loadExampleMindMap();
+      onClose();
+    }
+  };
+
   if (!isRendered) return null;
 
   return (
@@ -186,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <XIcon className="h-5 w-5" />
                   </Button>
-                  <p className="font-medium">{file.name}</p>
+                  <p className="font-medium truncate max-w-full px-4">{file.name}</p>
                 </div>
               ) : (
                 <div>
@@ -248,6 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {error}
             </div>
           )}
+
         </div>
 
         <div className="mt-auto px-4 mb-6">
@@ -255,7 +265,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             trigger={
               <Button variant="neutral" className="w-full flex items-center justify-center gap-2">
                 <Menu className="h-4 w-4" />
-                <span>Apps</span>
+                <span>More Apps</span>
               </Button>
             }
           />
