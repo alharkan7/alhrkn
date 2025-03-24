@@ -12,7 +12,7 @@ export default function PapermapLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <main className="container">
+      <main className="w-full">
         {children}
       </main>
     </div>

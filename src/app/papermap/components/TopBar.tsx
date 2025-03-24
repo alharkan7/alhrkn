@@ -31,20 +31,21 @@ export default function TopBar({
   return (
     <>
       <div className="p-4 bg-gray-50 border-b print:hidden">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           {/* Left side - New button */}
           <div>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md flex items-center text-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-md flex items-center text-sm"
+              title="New Mindmap"
             >
-              <PlusIcon className="h-4 w-4 mr-1.5" />
-              <span>New</span>
+              <PlusIcon className="h-4 w-4" />
+              <span className="ml-1.5 sm:inline hidden">New</span>
             </button>
           </div>
           
           {/* Center - Status messages */}
-          <div className="flex-1 text-center">
+          <div className="flex-1 text-center min-w-0">
             {loading && (
               <div className="flex items-center justify-center text-blue-600">
                 <LoadingIcon className="h-4 w-4 animate-spin mr-2" />
@@ -59,7 +60,7 @@ export default function TopBar({
             )}
 
             {!loading && !error && fileName !== 'mindmap' && (
-              <div className="text-gray-600">
+              <div className="text-gray-600 truncate">
                 {fileName}
               </div>
             )}

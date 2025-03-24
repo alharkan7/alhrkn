@@ -196,11 +196,12 @@ const Downloader: React.FC<DownloaderProps> = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md flex items-center text-sm"
+        className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-md flex items-center text-sm"
         onClick={() => setShowDropdown(!showDropdown)}
+        title="Download"
       >
-        <DownloadIcon className="mr-1.5 text-white h-4 w-4" />
-        <span>Download</span>
+        <DownloadIcon className="h-4 w-4" />
+        <span className="ml-1.5 sm:inline hidden">Download</span>
       </button>
 
       {showDropdown && (
