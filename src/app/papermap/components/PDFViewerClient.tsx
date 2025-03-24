@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { XIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon } from './Icons';
 
 // Set the worker source for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -90,81 +91,71 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, on
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black bg-opacity-30" 
+      <div
+        className="absolute inset-0 bg-black bg-opacity-30"
         onClick={onClose}
       />
-      
+
       {/* PDF Viewer */}
-      <div 
+      <div
         ref={containerRef}
         className="relative bg-white w-full md:w-2/3 lg:w-1/2 h-full overflow-auto shadow-xl animate-slide-in-right"
       >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white border-b flex justify-between items-center p-3 shadow-sm">
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={onClose}
               className="p-2 rounded-full hover:bg-gray-100"
               title="Close"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
+              <XIcon className="h-5 w-5" />
             </button>
-            
+
             <div className="text-sm">
               Page {pageNumber} of {numPages || '?'}
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <button 
+            <button
               onClick={() => changePage(-1)}
               disabled={pageNumber <= 1}
               className={`p-2 rounded-full ${pageNumber <= 1 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Previous page"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
+              <ChevronLeftIcon className="h-5 w-5" />
             </button>
-            
-            <button 
+
+            <button
               onClick={() => changePage(1)}
               disabled={numPages !== null && pageNumber >= numPages}
               className={`p-2 rounded-full ${numPages !== null && pageNumber >= numPages ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Next page"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
+              <ChevronRightIcon className="h-5 w-5" />
             </button>
-            
-            <button 
+
+            <button
               onClick={zoomOut}
               disabled={scale <= 0.5}
               className={`p-2 rounded-full ${scale <= 0.5 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Zoom out"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-              </svg>
+              <MinusIcon className="h-5 w-5" />
             </button>
-            
-            <button 
+
+            <button
               onClick={zoomIn}
               disabled={scale >= 3.0}
               className={`p-2 rounded-full ${scale >= 3.0 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Zoom in"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
+              <PlusIcon className="h-5 w-5" />
             </button>
           </div>
         </div>
-        
+
         {/* PDF Document */}
         <div className="flex justify-center p-4">
           {pdfBytes ? (
@@ -183,8 +174,8 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, on
                 </div>
               }
             >
-              <Page 
-                pageNumber={pageNumber} 
+              <Page
+                pageNumber={pageNumber}
                 scale={scale}
                 loading={
                   <div className="flex justify-center items-center h-40">

@@ -1,4 +1,4 @@
-import { LoadingIcon } from './Icons';
+import { LoadingIcon, PlusIcon } from './Icons';
 import Downloader from './Downloader';
 import { RefObject, useState } from 'react';
 import { Node } from 'reactflow';
@@ -32,32 +32,41 @@ export default function TopBar({
     <>
       <div className="p-4 bg-gray-50 border-b print:hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          {/* Left side - New button */}
+          <div>
             <button
               onClick={() => setSidebarOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md flex items-center text-sm"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>New Mindmap</span>
+              <PlusIcon className="h-4 w-4 mr-1.5" />
+              <span>New</span>
             </button>
-            
+          </div>
+          
+          {/* Center - Status messages */}
+          <div className="flex-1 text-center">
             {loading && (
-              <div className="flex items-center text-blue-600">
-                <LoadingIcon className="animate-spin mr-2" />
-                <span>Analyzing paper...</span>
+              <div className="flex items-center justify-center text-blue-600">
+                <LoadingIcon className="h-4 w-4 animate-spin mr-2" />
+                <span>Creating Mindmap...</span>
               </div>
             )}
+
             {error && (
               <div className="text-red-500">
                 {error}
               </div>
             )}
+
+            {!loading && !error && fileName !== 'mindmap' && (
+              <div className="text-gray-600">
+                {fileName}
+              </div>
+            )}
           </div>
           
-          {/* Download button positioned on the right */}
-          <div className="md:ml-auto">
+          {/* Right side - Download button */}
+          <div>
             <Downloader
               nodes={nodes}
               mindMapData={mindMapData}
