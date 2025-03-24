@@ -4,6 +4,7 @@ import { RefObject, useState } from 'react';
 import { Node } from 'reactflow';
 import { MindMapData } from './MindMapTypes';
 import Sidebar from './Sidebar';
+import { Button } from "@/components/ui/button";
 
 interface TopBarProps {
   loading: boolean;
@@ -30,37 +31,38 @@ export default function TopBar({
 
   return (
     <>
-      <div className="p-4 bg-gray-50 border-b print:hidden">
+      <div className="p-2 bg-muted/50 print:hidden">
         <div className="flex items-center justify-between gap-4">
           {/* Left side - New button */}
           <div>
-            <button
+            <Button
               onClick={() => setSidebarOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-md flex items-center text-sm"
+              variant="default"
+              className="flex items-center"
               title="New Mindmap"
             >
               <PlusIcon className="h-4 w-4" />
-              <span className="ml-1.5 sm:inline hidden">New</span>
-            </button>
+              <span className="sm:inline hidden">New</span>
+            </Button>
           </div>
           
           {/* Center - Status messages */}
           <div className="flex-1 text-center min-w-0">
             {loading && (
-              <div className="flex items-center justify-center text-blue-600">
+              <div className="flex items-center justify-center text-primary">
                 <LoadingIcon className="h-4 w-4 animate-spin mr-2" />
                 <span>Creating Mindmap...</span>
               </div>
             )}
 
             {error && (
-              <div className="text-red-500">
+              <div className="text-destructive">
                 {error}
               </div>
             )}
 
             {!loading && !error && fileName !== 'mindmap' && (
-              <div className="text-gray-600 truncate">
+              <div className="text-muted-foreground truncate">
                 {fileName}
               </div>
             )}

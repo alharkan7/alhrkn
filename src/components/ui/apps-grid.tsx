@@ -97,7 +97,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
         <div className="mt-2 pt-3 border-t border-border">
           <Button
             variant="neutral"
-            className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
+            className="w-full flex items-center justify-start gap-2 text-xs"
             onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
           >
             <Mail className='mr-1 ml-2' />

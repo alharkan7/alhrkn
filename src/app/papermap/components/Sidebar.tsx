@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LoadingIcon, XIcon } from './Icons';
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AppsGrid } from "@/components/ui/apps-grid";
+import { Menu } from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -23,6 +29,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
+  const { theme, setTheme } = useTheme();
+  const currentYear = new Date().getFullYear();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset states when sidebar opens
   useEffect(() => {
@@ -138,101 +147,139 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex transition-opacity duration-300 ease-in-out"
+      className="fixed inset-0 bg-black/50 z-50 flex transition-opacity duration-300 ease-in-out"
       style={{ opacity: isAnimating ? 1 : 0 }}
       onClick={(e) => {
-        // Close when clicking the overlay background
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
       <div 
-        className={`w-80 bg-white h-full shadow-lg p-6 transform transition-transform duration-300 ease-in-out ${isAnimating ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`w-80 bg-card h-full shadow-lg flex flex-col transform transition-transform duration-300 ease-in-out ${isAnimating ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">New Mindmap</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <XIcon className="h-6 w-6" />
-          </button>
+        <div className="p-6 flex-1">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-card-foreground">New Mindmap</h2>
+            <Button
+              variant="default"
+              size="icon"
+              onClick={onClose}
+            >
+              <XIcon className="h-6 w-6" />
+            </Button>
+          </div>
+
+          <div className="mb-6">
+            <div 
+              className={`border-2 border-dashed rounded-base p-8 text-center mb-4 relative ${file ? 'border-primary bg-primary/10' : 'border-border'}`}
+              onDrop={handleFileDrop}
+              onDragOver={handleDragOver}
+            >
+              {file ? (
+                <div className="text-primary">
+                  <Button
+                    variant="neutral"
+                    size="icon"
+                    onClick={() => setFile(null)}
+                    className="absolute top-2 right-2"
+                  >
+                    <XIcon className="h-5 w-5" />
+                  </Button>
+                  <p className="font-medium">{file.name}</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-muted-foreground">Drop your PDF file here</p>
+                  <p className="text-muted-foreground text-sm mt-1">or</p>
+                  <Button
+                    variant="default"
+                    className="mt-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Browse Files
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <div className="text-muted-foreground mb-2 text-center">- OR -</div>
+              <label className="block text-sm font-medium text-card-foreground mb-1">Enter PDF URL</label>
+              <Input
+                type="text"
+                value={url}
+                onChange={handleUrlChange}
+                disabled={!!file}
+                placeholder="https://example.com/paper.pdf"
+                className={file ? 'bg-muted text-muted-foreground' : ''}
+              />
+              {urlError && (
+                <div className="text-destructive text-sm mt-1">
+                  {urlError}
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={handleGenerate}
+              disabled={loading || urlLoading || (!file && !url.trim())}
+              variant={loading || urlLoading || (!file && !url.trim()) ? "neutral" : "default"}
+              className="w-full"
+            >
+              {loading || urlLoading ? (
+                <>
+                  <LoadingIcon className="animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate"
+              )}
+            </Button>
+          </div>
+
+          {error && (
+            <div className="text-destructive text-sm mt-4 p-3 bg-destructive/10 rounded-base">
+              {error}
+            </div>
+          )}
         </div>
 
-        <div className="mb-6">
-          <div 
-            className={`border-2 border-dashed rounded-lg p-8 text-center mb-4 relative ${file ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-            onDrop={handleFileDrop}
-            onDragOver={handleDragOver}
-          >
-            {file ? (
-              <div className="text-blue-600">
-                <button
-                  onClick={() => setFile(null)}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-                >
-                  <XIcon className="h-5 w-5" />
-                </button>
-                <p className="font-medium">{file.name}</p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-gray-500">Drop your PDF file here</p>
-                <p className="text-gray-400 text-sm mt-1">or</p>
-                <label className="mt-2 inline-block px-3 py-1.5 bg-blue-600 text-white rounded-md cursor-pointer text-sm">
-                  Browse Files
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-
-          <div className="mb-4">
-            <div className="text-gray-500 mb-2 text-center">- OR -</div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Enter PDF URL</label>
-            <input
-              type="text"
-              value={url}
-              onChange={handleUrlChange}
-              disabled={!!file}
-              placeholder="https://example.com/paper.pdf"
-              className={`w-full px-3 py-2 border rounded-md ${file ? 'bg-gray-100 text-gray-400' : ''}`}
-            />
-            {urlError && (
-              <div className="text-red-500 text-sm mt-1">
-                {urlError}
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleGenerate}
-            disabled={loading || urlLoading || (!file && !url.trim())}
-            className={`w-full px-3 py-1.5 rounded-md text-white text-sm ${
-              loading || urlLoading || (!file && !url.trim()) 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {loading || urlLoading ? (
-              <span className="flex items-center justify-center">
-                <LoadingIcon className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
-                Generating...
-              </span>
-            ) : (
-              "Generate"
-            )}
-          </button>
+        <div className="mt-auto px-4 mb-6">
+          <AppsGrid
+            trigger={
+              <Button variant="neutral" className="w-full flex items-center justify-center gap-2">
+                <Menu className="h-4 w-4" />
+                <span>Apps</span>
+              </Button>
+            }
+          />
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm mt-4 p-3 bg-red-50 rounded-md">
-            {error}
-          </div>
-        )}
+        <footer className="py-1 text-center text-sm text-muted-foreground pb-3">
+          <p className="flex flex-wrap items-center justify-center relative">
+            <span className="flex-grow flex items-center justify-center">
+              &copy; {currentYear}&nbsp;
+            </span>
+            <Button
+              variant="default"
+              size="icon"
+              className="absolute right-2 rounded-full -top-4"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+          </p>
+        </footer>
       </div>
     </div>
   );

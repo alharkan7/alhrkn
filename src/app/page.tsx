@@ -94,7 +94,7 @@ export default function ChatPage() {
                         <div className="flex justify-end pt-1 pr-2">
                             <Button
                                 variant="neutral"
-                                className="flex items-center justify-start text-xs text-muted-foreground hover:text-foreground"
+                                className="flex items-center justify-start text-xs"
                                 onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
                             >
                                 <Mail className='' />

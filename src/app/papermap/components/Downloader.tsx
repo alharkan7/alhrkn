@@ -3,6 +3,7 @@ import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { DownloadIcon, ImageIcon, DocumentIcon, CodeIcon } from './Icons';
 import { getNodesBounds, getTransformForBounds } from 'reactflow';
+import { Button } from "@/components/ui/button";
 
 interface DownloaderProps {
   nodes: any[];
@@ -195,21 +196,22 @@ const Downloader: React.FC<DownloaderProps> = ({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button
-        className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-md flex items-center text-sm"
+      <Button
+        variant="default"
+        className="flex items-center"
         onClick={() => setShowDropdown(!showDropdown)}
         title="Download"
       >
         <DownloadIcon className="h-4 w-4" />
-        <span className="ml-1.5 sm:inline hidden">Download</span>
-      </button>
+        <span className="sm:inline hidden">Download</span>
+      </Button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-30 bg-white rounded-md shadow-lg z-10">
+        <div className="absolute right-0 mt-2 w-[calc(100%)] bg-card rounded-base shadow-lg z-10 border border-border">
           <ul className="py-1">
             <li key="jpeg">
               <button
-                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-blue-100"
+                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsJpeg();
                   setShowDropdown(false);
@@ -223,7 +225,7 @@ const Downloader: React.FC<DownloaderProps> = ({
             </li>
             <li key="png">
               <button
-                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-blue-100"
+                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsPng();
                   setShowDropdown(false);
@@ -237,21 +239,21 @@ const Downloader: React.FC<DownloaderProps> = ({
             </li>
             <li key="pdf">
               <button
-                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-blue-100"
+                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsPdf();
                   setShowDropdown(false);
                 }}
               >
                 <div className="flex items-center">
-                  <DocumentIcon className="h-5 w-5 mr-2 text-gray-500" />
+                  <DocumentIcon className="h-5 w-5 mr-2 text-muted-foreground" />
                   PDF
                 </div>
               </button>
             </li>
             <li key="json">
               <button
-                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-blue-100"
+                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsJSON();
                   setShowDropdown(false);
