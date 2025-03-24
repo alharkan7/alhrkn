@@ -101,7 +101,7 @@ export function ChatInput({
                                 <Button
                                     type="button"
                                     onClick={() => handleFileClick('file')}
-                                    className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                    className="shrink-0 p-2 transition-colors disabled:opacity-50"
                                     disabled={isLoading || !!file}
                                     aria-label="Attach file"
                                 >
@@ -110,7 +110,7 @@ export function ChatInput({
                                 <Button
                                     type="button"
                                     onClick={() => handleFileClick('image')}
-                                    className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                    className="shrink-0 p-2 transition-colors disabled:opacity-50"
                                     disabled={isLoading || !!file}
                                     aria-label="Attach image"
                                 >
@@ -119,7 +119,7 @@ export function ChatInput({
                             </div>
                             <Button
                                 type="submit"
-                                className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                className="shrink-0 p-2 transition-colors disabled:opacity-50"
                                 disabled={isLoading || (!input.trim() && (!file || !file.uploaded))}
                                 aria-label="Send message"
                             >

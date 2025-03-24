@@ -51,11 +51,22 @@ const STICKY_NOTE_CSS = `
     right: 0;
     width: 0;
     height: 0;
-    border-style: solid;
-    border-width: 0 0 20px 20px;
-    border-color: transparent transparent transparent transparent;
+    border: 0 solid transparent;
+    border-bottom: 20px solid transparent;
+    border-left: 20px solid transparent;
     opacity: 0.5;
     border-bottom-right-radius: 4px;
+  }
+  
+  /* Fix for mobile browsers */
+  .react-flow__handle {
+    border: none !important;
+  }
+  
+  /* Ensure reactflow handle styles have priority */
+  .react-flow__handle.source,
+  .react-flow__handle.target {
+    border: none !important;
   }
 `;
 
@@ -197,8 +208,10 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   const handleDocumentButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (data.openPdfViewer && data.pageNumber) {
-      data.openPdfViewer(data.pageNumber);
+    if (data.openPdfViewer) {
+      // Ensure pageNumber is valid, default to page 1 if not
+      const pageToOpen = data.pageNumber && data.pageNumber > 0 ? data.pageNumber : 1;
+      data.openPdfViewer(pageToOpen);
     }
   };
 
@@ -493,6 +506,41 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     // No need to clean up since we're sharing a single style element across all nodes
   }, []);
 
+  // Ensure border styles are consistent to prevent conflicts
+  useEffect(() => {
+    if (!nodeRef.current) return;
+
+    // Function to ensure consistent border styles
+    const ensureConsistentStyles = () => {
+      const nodeElement = nodeRef.current;
+      if (!nodeElement) return;
+      
+      // Ensure the parent ReactFlow node has consistent border style
+      const reactFlowNode = nodeElement.closest('.react-flow__node');
+      if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
+        if (reactFlowNode.style.borderColor && !reactFlowNode.style.border) {
+          // If borderColor is set without border, fix it
+          const color = reactFlowNode.style.borderColor;
+          reactFlowNode.style.border = `2px solid ${color}`;
+          reactFlowNode.style.borderColor = '';
+        }
+      }
+    };
+
+    // Run once on mount and whenever relevant props change
+    ensureConsistentStyles();
+
+    // Set up a MutationObserver to watch for style changes
+    const observer = new MutationObserver(ensureConsistentStyles);
+    observer.observe(nodeRef.current, { 
+      attributes: true, 
+      attributeFilter: ['style'], 
+      subtree: true 
+    });
+
+    return () => observer.disconnect();
+  }, [id, width, selected, isResizing]);
+
   return (
     <>
       {/* Add NodeResizer component - only visible when selected */}
@@ -537,9 +585,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           opacity: 0.5
         }}
         lineStyle={{
-          borderWidth: '0',
-          borderColor: 'transparent',
-          borderStyle: 'none',
+          border: '0 transparent none',
           zIndex: 1002
         }}
       />
@@ -548,13 +594,15 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         className="p-4 rounded-lg shadow-md relative group sticky-note"
         style={{ 
           backgroundColor: nodeColor.bg,
-          borderColor: isResizing ? '#3b82f6' : selected ? '#3182CE' : nodeColor.border,
-          borderWidth: '1px',
-          borderStyle: 'solid',
+          border: isResizing 
+            ? '1px solid #3b82f6' 
+            : selected 
+              ? '1px solid #3182CE' 
+              : `1px solid ${nodeColor.border}`,
           width: `${width}px`,
           height: 'auto',
           minHeight: 'fit-content',
-          transition: isResizing ? 'none' : 'border-color 0.3s, box-shadow 0.3s',
+          transition: isResizing ? 'none' : 'border 0.3s, box-shadow 0.3s',
           userSelect: isResizing ? 'none' : 'auto',
           boxShadow: selected 
             ? '0 0 0 2px rgba(49, 130, 206, 0.5)' 
@@ -576,7 +624,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* <div 
           className="sticky-note-fold" 
           style={{ 
-            borderBottomColor: nodeColor.border,
+            borderBottom: `20px solid ${nodeColor.border}`,
           }}
         /> */}
         
@@ -584,7 +632,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         <Handle
           type="target"
           position={Position.Left}
-          style={{ background: nodeColor.border, width: '10px', height: '10px', opacity: 0 }}
+          style={{ 
+            background: nodeColor.border, 
+            width: '10px', 
+            height: '10px', 
+            opacity: 0,
+            border: 'none'
+          }}
           id="target"
         />
         
@@ -684,7 +738,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             width: '10px', 
             height: '10px',
             zIndex: 100,
-            opacity: 0 // Make invisible while keeping functionality
+            opacity: 0, // Make invisible while keeping functionality
+            border: 'none'
           }}
           id="source"
         />

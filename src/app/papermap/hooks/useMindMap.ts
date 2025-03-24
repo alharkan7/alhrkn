@@ -144,7 +144,9 @@ export function useMindMap() {
             },
             style: {
               ...node.style,
-              borderColor: node.data.nodeType === 'qna' ? '#bfdbfe' : '#4299e1', // Keep QnA styling if it's a QnA node
+              border: node.data.nodeType === 'qna' 
+                ? '2px solid #bfdbfe' 
+                : '2px solid #4299e1', // Keep QnA styling if it's a QnA node
               boxShadow: '0 0 0 3px rgba(66, 153, 225, 0.5)',
             },
             className: 'node-card updating' // Add updating class for transition effect
@@ -164,7 +166,7 @@ export function useMindMap() {
               ...node,
               style: {
                 ...node.style,
-                borderColor: isQnA ? '#bfdbfe' : '#e2e8f0', // Keep QnA styling
+                border: isQnA ? '2px solid #bfdbfe' : '2px solid #4299e1', // Keep QnA styling
                 backgroundColor: isQnA ? '#eff6ff' : '#ffffff', // Keep QnA background
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
               },

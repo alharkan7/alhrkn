@@ -111,7 +111,6 @@ const MindMapFlow = ({
       style={{ width: '100%', height: '100%' }}
     >
       <Controls className="print:hidden" />
-      {/* <MiniMap className="print:hidden" /> */}
       <Background color='#f8fafc' gap={24} size={1} />
     </ReactFlow>
   );

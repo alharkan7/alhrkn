@@ -207,60 +207,60 @@ const Downloader: React.FC<DownloaderProps> = ({
       </Button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-[calc(100%)] bg-card rounded-base shadow-lg z-10 border border-border">
+        <div className="absolute right-0 mt-2 w-[100px] bg-card rounded-md shadow-lg z-10 border border-border">
           <ul className="py-1">
             <li key="jpeg">
               <button
-                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsJpeg();
                   setShowDropdown(false);
                 }}
               >
                 <div className="flex items-center">
-                  <ImageIcon className="mr-2" />
+                  <ImageIcon className="mr-2 h-4 w-4" />
                   JPEG
                 </div>
               </button>
             </li>
             <li key="png">
               <button
-                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsPng();
                   setShowDropdown(false);
                 }}
               >
                 <div className="flex items-center">
-                  <ImageIcon className="mr-2" />
+                  <ImageIcon className="mr-2 h-4 w-4" />
                   PNG
                 </div>
               </button>
             </li>
             <li key="pdf">
               <button
-                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsPdf();
                   setShowDropdown(false);
                 }}
               >
                 <div className="flex items-center">
-                  <DocumentIcon className="h-5 w-5 mr-2 text-muted-foreground" />
+                  <DocumentIcon className="h-4 w-4 mr-2" />
                   PDF
                 </div>
               </button>
             </li>
             <li key="json">
               <button
-                className="block w-full text-left px-2 py-2 text-card-foreground hover:bg-muted"
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
                 onClick={() => {
                   downloadAsJSON();
                   setShowDropdown(false);
                 }}
               >
                 <div className="flex items-center">
-                  <CodeIcon className="mr-2" />
+                  <CodeIcon className="mr-2 h-4 w-4" />
                   JSON
                 </div>
               </button>

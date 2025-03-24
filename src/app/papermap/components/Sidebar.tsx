@@ -162,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-card-foreground">New Mindmap</h2>
             <Button
-              variant="default"
+              variant="neutral"
               size="icon"
               onClick={onClose}
             >
@@ -190,8 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               ) : (
                 <div>
-                  <p className="text-muted-foreground">Drop your PDF file here</p>
-                  <p className="text-muted-foreground text-sm mt-1">or</p>
+                  <p className="text-muted-foreground">Drop your file here</p>
                   <Button
                     variant="default"
                     className="mt-2"
@@ -211,8 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="mb-4">
-              <div className="text-muted-foreground mb-2 text-center">- OR -</div>
-              <label className="block text-sm font-medium text-card-foreground mb-1">Enter PDF URL</label>
+              <label className="block text-sm font-medium text-card-foreground mb-1">Or Enter a URL</label>
               <Input
                 type="text"
                 value={url}

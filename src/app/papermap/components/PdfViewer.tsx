@@ -19,7 +19,15 @@ const PdfViewer = memo(({ pdfBase64, isOpen, onClose, initialPage }: PdfViewerPr
   // Simply pass props to the dynamically loaded component
   if (!isOpen) return null;
   
-  return <PDFViewer pdfBase64={pdfBase64} isOpen={isOpen} onClose={onClose} initialPage={initialPage} />;
+  // Ensure initialPage is a valid positive number
+  const validatedInitialPage = initialPage && initialPage > 0 ? initialPage : 1;
+  
+  return <PDFViewer 
+    pdfBase64={pdfBase64} 
+    isOpen={isOpen} 
+    onClose={onClose} 
+    initialPage={validatedInitialPage} 
+  />;
 });
 
 // Add display name for React DevTools

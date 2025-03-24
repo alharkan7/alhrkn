@@ -65,7 +65,9 @@ export default function PaperMap() {
   
   // Function to open PDF viewer at a specific page
   const openPdfViewer = useCallback((pageNumber: number) => {
-    setCurrentPdfPage(pageNumber);
+    // Ensure pageNumber is valid, default to page 1 if invalid
+    const validPage = pageNumber && pageNumber > 0 ? pageNumber : 1;
+    setCurrentPdfPage(validPage);
     setIsPdfViewerOpen(true);
   }, []);
   

@@ -61,15 +61,30 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ pdfBase64, isOpen, on
 
   // Update page number when initialPage prop changes
   useEffect(() => {
-    if (initialPage && initialPage <= (numPages || Infinity)) {
-      setPageNumber(initialPage);
+    if (initialPage && numPages) {
+      // Check if initialPage is valid (between 1 and numPages)
+      if (initialPage >= 1 && initialPage <= numPages) {
+        setPageNumber(initialPage);
+      } else {
+        // Fallback to page 1 if initialPage is invalid
+        console.warn(`Invalid page number requested: ${initialPage}. Falling back to page 1.`);
+        setPageNumber(1);
+      }
     }
   }, [initialPage, numPages]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    if (initialPage && initialPage <= numPages) {
-      setPageNumber(initialPage);
+    
+    // Check if initialPage is valid when document loads
+    if (initialPage) {
+      if (initialPage >= 1 && initialPage <= numPages) {
+        setPageNumber(initialPage);
+      } else {
+        // Fallback to page 1 if initialPage is invalid
+        console.warn(`Invalid page number requested: ${initialPage}. Falling back to page 1.`);
+        setPageNumber(1);
+      }
     }
   };
 
