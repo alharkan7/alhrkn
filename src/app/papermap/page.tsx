@@ -105,6 +105,7 @@ export default function PaperMap() {
               reactFlowInstance.current = instance;
             }}
             openPdfViewer={openPdfViewer}
+            loading={loading}
           />
         </ReactFlowProvider>
       </div>

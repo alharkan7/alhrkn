@@ -11,6 +11,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
+import { LoadingIcon } from './Icons';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -27,6 +28,7 @@ interface MindMapFlowProps {
   onEdgesChange: any;
   onInit: (instance: any) => void;
   openPdfViewer?: (pageNumber: number) => void;
+  loading?: boolean;
 }
 
 const MindMapFlow = ({ 
@@ -36,6 +38,7 @@ const MindMapFlow = ({
   onEdgesChange, 
   onInit,
   openPdfViewer,
+  loading = false,
 }: MindMapFlowProps) => {
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
@@ -89,30 +92,40 @@ const MindMapFlow = ({
     }
   }, [reactFlow, nodes.length]);
 
+  const showLoadingIndicator = loading || nodes.length === 0;
+
   return (
-    <ReactFlow
-      nodes={enhancedNodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={nodeTypes}
-      onInit={onInit}
-      nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
-      fitView
-      proOptions={proOptions}
-      elementsSelectable={true}
-      zoomOnScroll={true}
-      defaultEdgeOptions={{
-        type: 'bezier',
-        style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
-        animated: false
-      }}
-      className={`mindmap-container`}
-      style={{ width: '100%', height: '100%' }}
-    >
-      <Controls className="print:hidden" />
-      <Background color='#f8fafc' gap={24} size={1} />
-    </ReactFlow>
+    <div className="relative w-full h-full">
+      <ReactFlow
+        nodes={enhancedNodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        onInit={onInit}
+        nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
+        fitView
+        proOptions={proOptions}
+        elementsSelectable={true}
+        zoomOnScroll={true}
+        defaultEdgeOptions={{
+          type: 'bezier',
+          style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
+          animated: false
+        }}
+        className={`mindmap-container`}
+        style={{ width: '100%', height: '100%' }}
+      >
+        <Controls className="print:hidden" />
+        <Background color='#f8fafc' gap={24} size={1} />
+      </ReactFlow>
+      
+      {showLoadingIndicator && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <LoadingIcon className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      )}
+    </div>
   );
 };
 
