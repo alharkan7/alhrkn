@@ -3,14 +3,12 @@
 import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import Uploader from './components/Uploader';
-import { LoadingIcon } from './components/Icons';
 import MindMapFlow from './components/MindMapFlow';
-import Downloader from './components/Downloader';
 import PdfViewer from './components/PdfViewer';
+import TopBar from './components/TopBar';
 import { useMindMap } from './hooks/useMindMap';
 import { combinedStyles } from './components/styles';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export default function PaperMap() {
   const {
@@ -79,35 +77,17 @@ export default function PaperMap() {
   return (
     <div className={`flex flex-col h-screen`}>
       <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
-      <div className={`p-4 bg-gray-50 border-b print:hidden`}>
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <Uploader 
-            onFileUpload={handleUpload}
-            loading={loading}
-            error={error}
-          />
-          {loading && (
-            <div className="flex items-center text-blue-600">
-              <LoadingIcon className="animate-spin mr-2" />
-              <span>Analyzing paper...</span>
-            </div>
-          )}
-          {error && (
-            <div className="text-red-500">
-              {error}
-            </div>
-          )}
-          
-          {/* Download button component */}
-          <Downloader
-            nodes={nodes}
-            mindMapData={mindMapData}
-            reactFlowWrapper={reactFlowWrapper}
-            reactFlowInstance={reactFlowInstance}
-            fileName={fileName}
-          />
-        </div>
-      </div>
+
+      <TopBar
+        loading={loading}
+        error={error}
+        nodes={nodes}
+        mindMapData={mindMapData}
+        reactFlowWrapper={reactFlowWrapper}
+        reactFlowInstance={reactFlowInstance}
+        fileName={fileName}
+        onFileUpload={handleUpload}
+      />
       
       <div className="flex-grow" ref={reactFlowWrapper}>
         <ReactFlowProvider>

@@ -17,6 +17,9 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
+// Pro options to remove attribution
+const proOptions = { hideAttribution: true };
+
 interface MindMapFlowProps {
   nodes: Node[];
   edges: Edge[];
@@ -96,7 +99,7 @@ const MindMapFlow = ({
       onInit={onInit}
       nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
       fitView
-      attributionPosition="bottom-right"
+      proOptions={proOptions}
       elementsSelectable={true}
       zoomOnScroll={true}
       defaultEdgeOptions={{
@@ -108,7 +111,7 @@ const MindMapFlow = ({
       style={{ width: '100%', height: '100%' }}
     >
       <Controls className="print:hidden" />
-      <MiniMap className="print:hidden" />
+      {/* <MiniMap className="print:hidden" /> */}
       <Background color='#f8fafc' gap={24} size={1} />
     </ReactFlow>
   );
