@@ -712,7 +712,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                 onClick={handleDocumentButtonClick}
                 title={`View page ${data.pageNumber} in the PDF`}
               >
-                <DocumentIcon className="h-5 w-5" />
+                <DocumentIcon className="h-6 w-6 text-gray-500" />
               </button>
             )}
           </div>
