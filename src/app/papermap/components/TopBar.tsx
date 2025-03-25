@@ -78,14 +78,14 @@ export default function TopBar({
                 onClick={handleFileNameClick}
                 title={openPdfViewer ? "Click to open PDF" : ""}
               >
-                <div className="truncate pr-6">
-                  {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
-                </div>
                 {openPdfViewer && (
-                  <div className="absolute right-0 top-1/2 transform -translate-y-1/2 text-gray-500 group-hover:text-blue-600">
-                    <FileText className="h-5 w-5" />
+                  <div className="group-hover:text-blue-600 mr-2">
+                    <FileText className="h-4 w-4" />
                   </div>
                 )}
+                <div className="truncate">
+                  {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
+                </div>
               </div>
             )}
           </div>
