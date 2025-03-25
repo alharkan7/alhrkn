@@ -64,7 +64,12 @@ export default function TopBar({
 
             {error && (
               <div className="text-destructive">
-                {error}
+                {error.includes("[GoogleGenerativeAI Error]") 
+                  ? "AI service unavailable. Please try again later." 
+                  : error.length > 60 
+                    ? `${error.substring(0, 60)}...` 
+                    : error
+                }
               </div>
             )}
 

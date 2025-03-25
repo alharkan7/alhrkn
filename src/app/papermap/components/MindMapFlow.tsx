@@ -127,7 +127,7 @@ const MindMapFlow = () => {
       </ReactFlow>
       
       {showLoadingIndicator && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/15 backdrop-blur-xs">
           <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
         </div>
       )}
