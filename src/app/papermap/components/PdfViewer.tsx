@@ -1,33 +1,35 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { memo } from 'react';
 import dynamic from 'next/dynamic';
-
-interface PdfViewerProps {
-  pdfBase64: string | null;
-  isOpen: boolean;
-  onClose: () => void;
-  initialPage?: number;
-  pdfUrl?: string | null;
-}
+import { usePdfViewerContext } from '../context';
 
 // Dynamically import react-pdf with SSR disabled
-const PDFViewer = dynamic<PdfViewerProps>(
+const PDFViewer = dynamic(
   () => import('./PDFViewerClient'),
   { ssr: false }
 );
 
 // Memoize the component to prevent unnecessary re-renders
-const PdfViewer = memo(({ pdfBase64, pdfUrl, isOpen, onClose, initialPage }: PdfViewerProps) => {
+const PdfViewer = memo(() => {
+  const { 
+    pdfBase64, 
+    pdfUrl, 
+    isPdfViewerOpen, 
+    closePdfViewer, 
+    currentPdfPage
+  } = usePdfViewerContext();
+  
   // Simply pass props to the dynamically loaded component
-  if (!isOpen) return null;
+  if (!isPdfViewerOpen) return null;
   
   // Ensure initialPage is a valid positive number
-  const validatedInitialPage = initialPage && initialPage > 0 ? initialPage : 1;
+  const validatedInitialPage = currentPdfPage && currentPdfPage > 0 ? currentPdfPage : 1;
   
+  // If we have pdfBase64, it takes precedence over pdfUrl
   return <PDFViewer 
     pdfBase64={pdfBase64} 
     pdfUrl={pdfUrl}
-    isOpen={isOpen} 
-    onClose={onClose} 
+    isOpen={isPdfViewerOpen} 
+    onClose={closePdfViewer} 
     initialPage={validatedInitialPage} 
   />;
 });

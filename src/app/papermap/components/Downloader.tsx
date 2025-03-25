@@ -4,22 +4,15 @@ import { jsPDF } from 'jspdf';
 import { Download,FileImage, FileText, Braces } from 'lucide-react';
 import { getNodesBounds, getTransformForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
+import { useMindMapContext, usePdfViewerContext } from '../context';
 
 interface DownloaderProps {
-  nodes: any[];
-  mindMapData: any;
-  reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
-  reactFlowInstance: React.MutableRefObject<any>;
-  fileName: string;
+  // No props needed anymore as we'll use context
 }
 
-const Downloader: React.FC<DownloaderProps> = ({
-  nodes,
-  mindMapData,
-  reactFlowWrapper,
-  reactFlowInstance,
-  fileName,
-}) => {
+export default function Downloader({}: DownloaderProps) {
+  const { nodes, mindMapData, reactFlowWrapper, reactFlowInstance } = useMindMapContext();
+  const { fileName } = usePdfViewerContext();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -270,6 +263,4 @@ const Downloader: React.FC<DownloaderProps> = ({
       )}
     </div>
   );
-};
-
-export default Downloader; 
+} 

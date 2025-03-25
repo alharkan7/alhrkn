@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import ReactFlow, { 
-  Node, 
-  Edge, 
   Background, 
   Controls, 
-  MiniMap, 
   useReactFlow
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
 import { LoaderCircle } from 'lucide-react';
+import { useMindMapContext, usePdfViewerContext } from '../context';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -21,25 +19,18 @@ const nodeTypes = {
 // Pro options to remove attribution
 const proOptions = { hideAttribution: true };
 
-interface MindMapFlowProps {
-  nodes: Node[];
-  edges: Edge[];
-  onNodesChange: any;
-  onEdgesChange: any;
-  onInit: (instance: any) => void;
-  openPdfViewer?: (pageNumber: number) => void;
-  loading?: boolean;
-}
-
-const MindMapFlow = ({ 
-  nodes, 
-  edges, 
-  onNodesChange, 
-  onEdgesChange, 
-  onInit,
-  openPdfViewer,
-  loading = false,
-}: MindMapFlowProps) => {
+const MindMapFlow = () => {
+  const { 
+    nodes, 
+    edges, 
+    onNodesChange, 
+    onEdgesChange, 
+    reactFlowInstance,
+    loading
+  } = useMindMapContext();
+  
+  const { openPdfViewer } = usePdfViewerContext();
+  
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
 
@@ -114,7 +105,9 @@ const MindMapFlow = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        onInit={onInit}
+        onInit={(instance) => {
+          reactFlowInstance.current = instance;
+        }}
         nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
         proOptions={proOptions}
         elementsSelectable={true}

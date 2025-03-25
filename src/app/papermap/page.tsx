@@ -8,9 +8,11 @@ import PdfViewer from './components/PdfViewer';
 import TopBar from './components/TopBar';
 import { useMindMap } from './hooks/useMindMap';
 import { combinedStyles } from './styles';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
+import { MindMapProvider, PdfViewerProvider, UIStateProvider } from './context';
 
 export default function PaperMap() {
+  // Get all the mindmap related state and functions from the hook
   const {
     loading,
     error,
@@ -27,97 +29,44 @@ export default function PaperMap() {
     pdfUrl
   } = useMindMap();
 
-  const [fileName, setFileName] = useState<string>('mindmap');
-  // Store PDF data as base64 string instead of ArrayBuffer
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
-  const [isPdfViewerOpen, setIsPdfViewerOpen] = useState<boolean>(false);
-  const [currentPdfPage, setCurrentPdfPage] = useState<number>(1);
-
-  // Helper function to get file base name without extension
-  const getBaseName = (name: string) => {
-    return name.replace(/\.[^/.]+$/, '');
+  // Prepare context values
+  const mindMapContextValue = {
+    loading,
+    error,
+    mindMapData,
+    nodes,
+    edges,
+    reactFlowWrapper,
+    reactFlowInstance,
+    onNodesChange,
+    onEdgesChange,
+    handleFileUpload,
+    handleResetView,
+    loadExampleMindMap
   };
 
-  // Custom file upload handler that extracts the file name and stores PDF data
-  const handleUpload = useCallback(async (file: File) => {
-    // Set the file name (without extension) for downloads
-    setFileName(getBaseName(file.name));
-    
-    // Store the PDF data for viewing
-    try {
-      // Read the file as an ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
-      
-      // Convert ArrayBuffer to base64 string for reliable storage
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      bytes.forEach(byte => binary += String.fromCharCode(byte));
-      const base64 = btoa(binary);
-      
-      // Store base64 string instead of ArrayBuffer
-      setPdfBase64(base64);
-    } catch (error) {
-      console.error("Failed to read PDF file:", error);
-    }
-    
-    // Call the original upload handler
-    handleFileUpload(file);
-  }, [handleFileUpload]);
-  
-  // Function to open PDF viewer at a specific page
-  const openPdfViewer = useCallback((pageNumber: number) => {
-    // Ensure pageNumber is valid, default to page 1 if invalid
-    const validPage = pageNumber && pageNumber > 0 ? pageNumber : 1;
-    setCurrentPdfPage(validPage);
-    setIsPdfViewerOpen(true);
-  }, []);
-  
-  // Function to close PDF viewer
-  const closePdfViewer = useCallback(() => {
-    setIsPdfViewerOpen(false);
-  }, []);
-  
   return (
-    <div className={`flex flex-col h-screen`}>
-      <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
+    <UIStateProvider initialLoading={loading} initialError={error}>
+      <MindMapProvider value={mindMapContextValue}>
+        <PdfViewerProvider initialPdfUrl={pdfUrl} initialFileName={'mindmap'}>
+          <div className={`flex flex-col h-screen`}>
+            <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
-      <TopBar
-        loading={loading}
-        error={error}
-        nodes={nodes}
-        mindMapData={mindMapData}
-        reactFlowWrapper={reactFlowWrapper}
-        reactFlowInstance={reactFlowInstance}
-        fileName={fileName}
-        onFileUpload={handleUpload}
-        loadExampleMindMap={loadExampleMindMap}
-        openPdfViewer={openPdfViewer}
-      />
-      
-      <div className="flex-grow" ref={reactFlowWrapper}>
-        <ReactFlowProvider>
-          <MindMapFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onInit={(instance) => {
-              reactFlowInstance.current = instance;
-            }}
-            openPdfViewer={openPdfViewer}
-            loading={loading}
-          />
-        </ReactFlowProvider>
-      </div>
-      
-      {/* PDF Viewer */}
-      <PdfViewer
-        pdfBase64={pdfBase64}
-        pdfUrl={pdfUrl}
-        isOpen={isPdfViewerOpen}
-        onClose={closePdfViewer}
-        initialPage={currentPdfPage}
-      />
-    </div>
+            <TopBar 
+              onFileUpload={handleFileUpload}
+            />
+            
+            <div className="flex-grow" ref={reactFlowWrapper}>
+              <ReactFlowProvider>
+                <MindMapFlow />
+              </ReactFlowProvider>
+            </div>
+            
+            {/* PDF Viewer */}
+            <PdfViewer />
+          </div>
+        </PdfViewerProvider>
+      </MindMapProvider>
+    </UIStateProvider>
   );
 }

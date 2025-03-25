@@ -1,43 +1,39 @@
 import { LoaderCircle, Plus, FileText } from 'lucide-react';
 import Downloader from './Downloader';
-import { RefObject, useState } from 'react';
-import { Node } from 'reactflow';
-import { MindMapData } from '../types';
+import { useCallback } from 'react';
 import Sidebar from './Sidebar';
 import { Button } from "@/components/ui/button";
+import { useMindMapContext, usePdfViewerContext, useUIStateContext } from '../context';
 
 interface TopBarProps {
-  loading: boolean;
-  error: string | null;
-  nodes: Node[];
-  mindMapData: MindMapData | null;
-  reactFlowWrapper: RefObject<HTMLDivElement | null>;
-  reactFlowInstance: RefObject<any>;
-  fileName: string;
   onFileUpload: (file: File) => void;
-  loadExampleMindMap?: () => void;
-  openPdfViewer?: (pageNumber: number) => void;
 }
 
 export default function TopBar({
-  loading,
-  error,
-  nodes,
-  mindMapData,
-  reactFlowWrapper,
-  reactFlowInstance,
-  fileName,
-  onFileUpload,
-  loadExampleMindMap,
-  openPdfViewer
+  onFileUpload
 }: TopBarProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Get state from contexts
+  const { 
+    loading, 
+    error, 
+    loadExampleMindMap 
+  } = useMindMapContext();
+  
+  const { fileName, openPdfViewer, handlePdfFile } = usePdfViewerContext();
+  const { sidebarOpen, setSidebarOpen } = useUIStateContext();
+
+  // Custom file upload handler
+  const handleUpload = useCallback(async (file: File) => {
+    // Process the PDF file for viewing
+    await handlePdfFile(file);
+    
+    // Call original handler for mind map generation
+    onFileUpload(file);
+  }, [onFileUpload, handlePdfFile]);
 
   // Function to handle file name click and open PDF viewer
   const handleFileNameClick = () => {
-    if (openPdfViewer && (fileName !== 'mindmap' || loadExampleMindMap)) {
-      openPdfViewer(1); // Open to the first page
-    }
+    openPdfViewer(1); // Open to the first page
   };
 
   return (
@@ -74,15 +70,13 @@ export default function TopBar({
 
             {!loading && !error && (
               <div 
-                className={`font-extrabold text-primary relative inline-flex items-center max-w-full ${openPdfViewer ? 'cursor-pointer hover:text-blue-600 group' : ''}`}
+                className={`font-extrabold text-primary relative inline-flex items-center max-w-full cursor-pointer hover:text-blue-600 group`}
                 onClick={handleFileNameClick}
-                title={openPdfViewer ? "Click to open PDF" : ""}
+                title="Click to open PDF"
               >
-                {openPdfViewer && (
-                  <div className="group-hover:text-blue-600 mr-2">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                )}
+                <div className="group-hover:text-blue-600 mr-2">
+                  <FileText className="h-4 w-4" />
+                </div>
                 <div className="truncate">
                   {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
                 </div>
@@ -92,13 +86,7 @@ export default function TopBar({
           
           {/* Right side - Download button */}
           <div>
-            <Downloader
-              nodes={nodes}
-              mindMapData={mindMapData}
-              reactFlowWrapper={reactFlowWrapper}
-              reactFlowInstance={reactFlowInstance}
-              fileName={fileName}
-            />
+            <Downloader />
           </div>
         </div>
       </div>
@@ -107,7 +95,7 @@ export default function TopBar({
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onFileUpload={(file) => {
-          onFileUpload(file);
+          handleUpload(file);
           setSidebarOpen(false);
         }}
         loading={loading}
