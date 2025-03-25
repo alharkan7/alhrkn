@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { DownloadIcon, ImageIcon, DocumentIcon, CodeIcon } from './Icons';
+import { Download,FileImage, FileText, Braces } from 'lucide-react';
 import { getNodesBounds, getTransformForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
 
@@ -202,7 +202,7 @@ const Downloader: React.FC<DownloaderProps> = ({
         onClick={() => setShowDropdown(!showDropdown)}
         title="Download"
       >
-        <DownloadIcon className="h-4 w-4" />
+        <Download className="h-4 w-4" />
         <span className="sm:inline hidden">Download</span>
       </Button>
 
@@ -218,7 +218,7 @@ const Downloader: React.FC<DownloaderProps> = ({
                 }}
               >
                 <div className="flex items-center">
-                  <ImageIcon className="mr-2 h-4 w-4" />
+                  <FileImage className="mr-2 h-4 w-4" />
                   JPEG
                 </div>
               </button>
@@ -232,7 +232,7 @@ const Downloader: React.FC<DownloaderProps> = ({
                 }}
               >
                 <div className="flex items-center">
-                  <ImageIcon className="mr-2 h-4 w-4" />
+                  <FileImage className="mr-2 h-4 w-4" />
                   PNG
                 </div>
               </button>
@@ -246,7 +246,7 @@ const Downloader: React.FC<DownloaderProps> = ({
                 }}
               >
                 <div className="flex items-center">
-                  <DocumentIcon className="h-4 w-4 mr-2" />
+                  <FileText className="h-4 w-4 mr-2" />
                   PDF
                 </div>
               </button>
@@ -260,7 +260,7 @@ const Downloader: React.FC<DownloaderProps> = ({
                 }}
               >
                 <div className="flex items-center">
-                  <CodeIcon className="mr-2 h-4 w-4" />
+                  <Braces className="mr-2 h-4 w-4" />
                   JSON
                 </div>
               </button>

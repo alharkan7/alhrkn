@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MindMapNode } from './MindMapTypes';
-import { XIcon } from './Icons';
+import { X } from 'lucide-react';
 
 interface FollowUpCardProps {
   parentNode: MindMapNode;
@@ -143,7 +143,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               onCancel();
             }}
           >
-            <XIcon className="h-5 w-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <div className="p-4">

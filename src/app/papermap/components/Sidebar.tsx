@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LoadingIcon, XIcon } from './Icons';
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
-import { Menu } from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -175,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               size="icon"
               onClick={onClose}
             >
-              <XIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </Button>
           </div>
 
@@ -193,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => setFile(null)}
                     className="absolute top-2 right-2"
                   >
-                    <XIcon className="h-5 w-5" />
+                    <X className="h-5 w-5" />
                   </Button>
                   <p className="font-medium truncate max-w-full px-4">{file.name}</p>
                 </div>
@@ -243,7 +241,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               {loading || urlLoading ? (
                 <>
-                  <LoadingIcon className="animate-spin" />
+                  <LoaderCircle className="animate-spin" />
                   Generating...
                 </>
               ) : (

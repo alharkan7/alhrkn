@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { XIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PlusIcon } from './Icons';
+import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 
 // Set the worker source for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -31,6 +31,27 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
 
   // Store a safe copy of the PDF data
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+
+  // Set initial scale based on device width
+  useEffect(() => {
+    const setInitialScale = () => {
+      // Check if we're on a mobile device (using window width as a proxy)
+      const isMobile = window.innerWidth < 768; // 768px is a common breakpoint for mobile
+      
+      if (isMobile) {
+        setScale(1); // Start with a smaller scale on mobile
+      }
+    };
+
+    setInitialScale();
+    
+    // Re-calculate when window is resized
+    window.addEventListener('resize', setInitialScale);
+    
+    return () => {
+      window.removeEventListener('resize', setInitialScale);
+    };
+  }, []);
 
   // Convert base64 to binary data when it changes
   useEffect(() => {
@@ -100,6 +121,23 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
         setPageNumber(1);
       }
     }
+    
+    // Adjust scale to fit container width after a short delay to ensure rendering is complete
+    setTimeout(() => {
+      const container = containerRef.current;
+      const pdfPage = container?.querySelector('.react-pdf__Page');
+      
+      if (container && pdfPage) {
+        const containerWidth = container.clientWidth - 40; // Subtract padding
+        const pageWidth = (pdfPage as HTMLElement).clientWidth;
+        
+        if (pageWidth > containerWidth) {
+          // Calculate the ratio to make the page fit within the container
+          const newScale = (containerWidth / pageWidth) * scale;
+          setScale(Math.max(newScale, 0.5)); // Don't go below 0.5
+        }
+      }
+    }, 100);
   };
 
   const changePage = (offset: number) => {
@@ -131,14 +169,14 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
         className="relative bg-white w-full md:w-2/3 lg:w-1/2 h-full overflow-auto shadow-xl animate-slide-in-right"
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b flex justify-between items-center p-3 shadow-sm">
+        <div className="sticky top-0 z-10 bg-white flex justify-between items-center p-3 shadow-sm">
           <div className="flex items-center space-x-4">
             <button
               onClick={onClose}
               className="p-2 rounded-full hover:bg-gray-100"
               title="Close"
             >
-              <XIcon className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
 
             <div className="text-sm">
@@ -153,7 +191,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               className={`p-2 rounded-full ${pageNumber <= 1 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Previous page"
             >
-              <ChevronLeftIcon className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
 
             <button
@@ -162,7 +200,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               className={`p-2 rounded-full ${numPages !== null && pageNumber >= numPages ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Next page"
             >
-              <ChevronRightIcon className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5" />
             </button>
 
             <button
@@ -171,7 +209,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               className={`p-2 rounded-full ${scale <= 0.5 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Zoom out"
             >
-              <MinusIcon className="h-5 w-5" />
+              <Minus className="h-5 w-5" />
             </button>
 
             <button
@@ -180,7 +218,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               className={`p-2 rounded-full ${scale >= 3.0 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
               title="Zoom in"
             >
-              <PlusIcon className="h-5 w-5" />
+              <Plus className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -211,7 +249,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
                   </div>
                 }
-                renderTextLayer={true}
+                renderTextLayer={false}
                 renderAnnotationLayer={true}
               />
             </Document>

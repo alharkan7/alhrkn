@@ -4,15 +4,15 @@ import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
-import { ChatIcon, DocumentIcon } from './Icons';
 import ReactMarkdown from 'react-markdown';
+import { MessageCircle, FileText } from 'lucide-react';
 
 // Node component props type
 interface CustomNodeProps {
-  data: { 
-    title: string; 
-    description: string; 
-    updateNodeData?: (id: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number}) => void;
+  data: {
+    title: string;
+    description: string;
+    updateNodeData?: (id: string, newData: { title?: string; description?: string; width?: number; pageNumber?: number }) => void;
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
     nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
@@ -180,13 +180,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [width, setWidth] = useState(data.width || 256); // Default width 256px (64*4)
   const [isResizing, setIsResizing] = useState(false);
-  
+
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const reactFlow = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
-  
+
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
 
@@ -272,7 +272,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
     // Update the text value
     setter(e.target.value);
-    
+
     // Auto-adjust height with a small delay to ensure proper calculation
     requestAnimationFrame(() => {
       e.target.style.height = '0';
@@ -282,14 +282,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   const toggleExpanded = () => {
     setShowInfo(false);
-    
+
     // Update node size immediately to prepare for animation
     updateNodeInternals(id);
-    
+
     // Toggle expanded state after a small delay to ensure proper animation start
     requestAnimationFrame(() => {
       setExpanded(!expanded);
-      
+
       // Update node internals after animation completes
       setTimeout(() => {
         updateNodeInternals(id);
@@ -328,16 +328,16 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const handleFollowUpSave = async (parentId: string, question: string) => {
     console.log('handleFollowUpSave called with:', { parentId, question });
     console.log('addFollowUpNode function available:', !!data.addFollowUpNode);
-    
+
     if (!data.addFollowUpNode) {
       console.error('addFollowUpNode function not provided to node');
       alert('Error: Could not create follow-up node. Missing function reference.');
       return;
     }
-    
+
     // Hide the card immediately
     setShowFollowUpCard(false);
-    
+
     try {
       // Get the base64 encoded PDF data from localStorage
       const pdfData = localStorage.getItem('pdfData');
@@ -345,34 +345,34 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         console.error('PDF data not found in localStorage');
         throw new Error('PDF data not found');
       }
-      
+
       // Create a placeholder node immediately with loading state
       const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Answering...</div>';
-      
+
       // Generate a unique ID for the new node to reference it later
       const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Create the node with loading state
       const createdNodeId = data.addFollowUpNode(id, question, loadingMessage, nodeId);
-      
+
       console.log('Created placeholder node with ID:', createdNodeId);
-      
+
       // After the placeholder node is created, update it to include the pageNumber from the parent node
       if (data.updateNodeData && data.pageNumber) {
         console.log(`Applying parent pageNumber ${data.pageNumber} to QnA node:`, createdNodeId);
         // Preserve the pageNumber from the parent node
         data.updateNodeData(createdNodeId, { pageNumber: data.pageNumber });
       }
-      
+
       // Start fetching the answer
       console.log('Sending question to API:', question);
-      
+
       // Prepare node context
       const nodeContext = {
         title: data.title,
         description: data.description
       };
-      
+
       // Send request to API
       const response = await fetch('/api/papermap/ask', {
         method: 'POST',
@@ -385,41 +385,41 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           question
         })
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API error:', response.status, errorText);
         throw new Error(`Failed to get answer: ${response.status}`);
       }
-      
+
       const result = await response.json();
       console.log('API response received:', {
         answerLength: result.answer ? result.answer.length : 0,
         answerPreview: result.answer ? result.answer.substring(0, 50) + '...' : 'No answer'
       });
-      
+
       if (!result.answer) {
         throw new Error('API response contained no answer');
       }
-      
+
       // Update the existing node with the actual answer
       if (data.updateNodeData) {
         console.log('Updating node with actual answer:', createdNodeId);
         // Preserve pageNumber when updating the node with the answer
-        data.updateNodeData(createdNodeId, { 
+        data.updateNodeData(createdNodeId, {
           description: result.answer,
           // Add pageNumber in case it wasn't added earlier
-          pageNumber: data.pageNumber 
+          pageNumber: data.pageNumber
         });
       } else {
         console.error('Cannot update node: updateNodeData function not available');
       }
-      
+
     } catch (error) {
       console.error('Error getting answer:', error);
       // If there's already a node with loading state, update it with error message
       if (data.updateNodeData && data.lastCreatedNodeId) {
-        data.updateNodeData(data.lastCreatedNodeId, { 
+        data.updateNodeData(data.lastCreatedNodeId, {
           description: "Error: Could not generate an answer. Please try again.",
           // Also preserve pageNumber when updating with error message
           pageNumber: data.pageNumber
@@ -503,7 +503,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       }
     `;
     document.head.appendChild(style);
-    
+
     // Clean up
     return () => {
       document.head.removeChild(style);
@@ -513,19 +513,19 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   // Use MutationObserver to detect content height changes and update node
   useEffect(() => {
     if (!nodeRef.current) return;
-    
+
     const observer = new MutationObserver(() => {
       // Force node update when content changes
       updateNodeInternals(id);
     });
-    
+
     observer.observe(nodeRef.current, {
       attributes: true,
       childList: true,
       subtree: true,
       characterData: true
     });
-    
+
     return () => observer.disconnect();
   }, [id, updateNodeInternals]);
 
@@ -537,16 +537,16 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     const syncNodeSize = () => {
       const nodeElement = nodeRef.current;
       if (!nodeElement) return;
-      
+
       // Force a reflow to ensure accurate measurements
       void nodeElement.offsetHeight;
-      
+
       // Get actual content height
       const contentHeight = nodeElement.getBoundingClientRect().height;
-      
+
       // Update ReactFlow node dimensions
       updateNodeInternals(id);
-      
+
       // Access parent ReactFlow node if possible and update its height
       const reactFlowNode = nodeElement.closest('.react-flow__node');
       if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
@@ -556,14 +556,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
     // Sync node size initially
     syncNodeSize();
-    
+
     // Sync node size after resize and when content changes
     const resizeObserver = new ResizeObserver(() => {
       syncNodeSize();
     });
-    
+
     resizeObserver.observe(nodeRef.current);
-    
+
     return () => {
       resizeObserver.disconnect();
     };
@@ -576,8 +576,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   // Add debug logging for document button visibility conditions
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Node ${id} document button conditions:`, { 
-        pageNumber: data.pageNumber, 
+      console.log(`Node ${id} document button conditions:`, {
+        pageNumber: data.pageNumber,
         hasOpenPdfFn: !!data.openPdfViewer,
         isHovering,
         loading,
@@ -598,7 +598,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       styleEl.textContent = STICKY_NOTE_CSS;
       document.head.appendChild(styleEl);
     }
-    
+
     // No need to clean up since we're sharing a single style element across all nodes
   }, []);
 
@@ -610,7 +610,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     const ensureConsistentStyles = () => {
       const nodeElement = nodeRef.current;
       if (!nodeElement) return;
-      
+
       // Ensure the parent ReactFlow node has consistent border style
       const reactFlowNode = nodeElement.closest('.react-flow__node');
       if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
@@ -628,10 +628,10 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
     // Set up a MutationObserver to watch for style changes
     const observer = new MutationObserver(ensureConsistentStyles);
-    observer.observe(nodeRef.current, { 
-      attributes: true, 
-      attributeFilter: ['style'], 
-      subtree: true 
+    observer.observe(nodeRef.current, {
+      attributes: true,
+      attributeFilter: ['style'],
+      subtree: true
     });
 
     return () => observer.disconnect();
@@ -640,14 +640,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   return (
     <>
       {/* Add NodeResizer component - only visible when selected */}
-      <NodeResizer 
+      <NodeResizer
         minWidth={200}
         minHeight={50}
         isVisible={selected}
         onResizeStart={() => setIsResizing(true)}
         onResize={(e, { width, height }) => {
           setWidth(width);
-          
+
           // Update node internals during resize to ensure height recalculates
           requestAnimationFrame(() => {
             // Access parent ReactFlow node and update its dimensions
@@ -664,7 +664,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         onResizeEnd={(e, params) => {
           setIsResizing(false);
           onResize(e, params);
-          
+
           // Update node internals after resize completes
           setTimeout(() => {
             updateNodeInternals(id);
@@ -685,23 +685,23 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           zIndex: 1002
         }}
       />
-      
-      <div 
+
+      <div
         className={`p-4 rounded-lg shadow-md relative group sticky-note ${showFollowUpCard ? 'active-with-followup' : ''}`}
-        style={{ 
+        style={{
           backgroundColor: nodeColor.bg,
-          border: isResizing 
-            ? '1px solid #3b82f6' 
-            : selected 
-              ? '1px solid #3182CE' 
+          border: isResizing
+            ? '1px solid #3b82f6'
+            : selected
+              ? '1px solid #3182CE'
               : `1px solid ${nodeColor.border}`,
           width: `${width}px`,
           height: 'auto',
           minHeight: 'fit-content',
           transition: isResizing ? 'none' : 'border 0.3s, box-shadow 0.3s',
           userSelect: isResizing ? 'none' : 'auto',
-          boxShadow: selected 
-            ? '0 0 0 2px rgba(49, 130, 206, 0.5)' 
+          boxShadow: selected
+            ? '0 0 0 2px rgba(49, 130, 206, 0.5)'
             : `0 5px 10px ${nodeColor.shadow}, 2px 2px 4px rgba(0, 0, 0, 0.1)`,
           zIndex: selected || isHovering || showFollowUpCard ? 1001 : 'auto',
           transformOrigin: 'center',
@@ -716,21 +716,21 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           setShowChatButton(false);
         }}
       >
-        
+
         {/* Input handle on left side */}
         <Handle
           type="target"
           position={Position.Left}
-          style={{ 
-            background: nodeColor.border, 
-            width: '10px', 
-            height: '10px', 
+          style={{
+            background: nodeColor.border,
+            width: '10px',
+            height: '10px',
             opacity: 0,
             border: 'none'
           }}
           id="target"
         />
-        
+
         <div className="flex justify-between items-start">
           {editingTitle ? (
             <textarea
@@ -740,8 +740,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               onBlur={handleTitleBlur}
               onKeyDown={(e) => handleKeyDown(e, 'title')}
               className="font-bold text-lg mb-2 w-full resize-none overflow-hidden"
-              style={{ 
-                outline: 'none', 
+              style={{
+                outline: 'none',
                 border: 'none',
                 padding: 0,
                 minHeight: '1.5rem',
@@ -751,7 +751,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               rows={1}
             />
           ) : (
-            <h3 
+            <h3
               className="font-bold text-lg mb-2 cursor-text"
               style={{ color: nodeColor.border }}
               onDoubleClick={handleTitleDoubleClick}
@@ -760,7 +760,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </h3>
           )}
           <div className="flex ml-2 flex-shrink-0">
-            <button 
+            <button
               className="text-gray-500 hover:text-blue-500"
               onClick={toggleExpanded}
               title={expanded ? "Collapse" : "Expand"}
@@ -769,13 +769,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </button>
           </div>
         </div>
-        
+
         {showInfo && <InfoTip content={data.description} />}
-        
+
         {/* Description container - always rendered but with animation */}
         {!showInfo && (
           <div className={`node-description-wrapper ${!expanded ? 'collapsed' : ''}`}>
-            <div 
+            <div
               className={`node-description-content ${expanded ? 'expanded' : 'collapsed'}`}
               onTransitionEnd={() => updateNodeInternals(id)}
             >
@@ -788,8 +788,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                     onBlur={handleDescriptionBlur}
                     onKeyDown={(e) => handleKeyDown(e, 'description')}
                     className="w-full text-sm resize-none overflow-hidden font-mono"
-                    style={{ 
-                      outline: 'none', 
+                    style={{
+                      outline: 'none',
                       border: 'none',
                       padding: 0,
                       minHeight: '2rem',
@@ -803,8 +803,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                   </div>
                 </div>
               ) : (
-                <div 
-                  className="text-sm cursor-text" 
+                <div
+                  className="text-sm cursor-text"
                   onDoubleClick={handleDescriptionDoubleClick}
                 >
                   {/* Render loading animation if description contains HTML */}
@@ -823,14 +823,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </div>
           </div>
         )}
-        
+
         {/* Output handle on right side - Invisible but functional */}
         <Handle
           type="source"
           position={Position.Right}
-          style={{ 
-            background: nodeColor.border, 
-            width: '10px', 
+          style={{
+            background: nodeColor.border,
+            width: '10px',
             height: '10px',
             zIndex: 100,
             opacity: 0, // Make invisible while keeping functionality
@@ -838,23 +838,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           }}
           id="source"
         />
-        
+
         {/* Floating chat and document buttons - only show when hovering and not in other states */}
         {isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
-          <div 
+          <div
             className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer flex space-x-2"
             style={{ zIndex: 1000 }}
           >
-            {showChatButton && (
-              <button
-                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
-                onClick={handleChatButtonClick}
-                title="Ask a follow-up question"
-              >
-                <ChatIcon className="h-5 w-5" />
-              </button>
-            )}
-            
+
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
@@ -862,12 +853,23 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                 onClick={handleDocumentButtonClick}
                 title={`View page ${data.pageNumber} in the PDF`}
               >
-                <DocumentIcon className="h-6 w-6 text-gray-500" />
+                <FileText className="h-6 w-6 text-gray-500" />
               </button>
             )}
+
+            {showChatButton && (
+              <button
+                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
+                onClick={handleChatButtonClick}
+                title="Ask a follow-up question"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </button>
+            )}
+
           </div>
         )}
-        
+
         {/* Display loading indicator when processing */}
         {loading && (
           <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2" style={{ zIndex: 1000 }}>
@@ -876,10 +878,10 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </div>
           </div>
         )}
-        
+
         {/* Toggle children visibility button */}
         {data.hasChildren && (
-          <div 
+          <div
             className="absolute right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2 cursor-pointer"
             onClick={handleChildrenToggle}
             style={{ zIndex: 1001 }}
@@ -892,7 +894,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </div>
           </div>
         )}
-        
+
         {/* FollowUp Card popup */}
         {showFollowUpCard && (
           <FollowUpCard

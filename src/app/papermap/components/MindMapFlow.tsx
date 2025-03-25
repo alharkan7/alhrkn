@@ -11,7 +11,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
-import { LoadingIcon } from './Icons';
+import { LoaderCircle } from 'lucide-react';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -119,6 +119,8 @@ const MindMapFlow = ({
         proOptions={proOptions}
         elementsSelectable={true}
         zoomOnScroll={true}
+        minZoom={0.2} // Set the minimum zoom level (max zoom-out)
+        maxZoom={4} // Set the maximum zoom level (max zoom-in)
         defaultEdgeOptions={{
           type: 'bezier',
           style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
@@ -133,7 +135,7 @@ const MindMapFlow = ({
       
       {showLoadingIndicator && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <LoadingIcon className="h-12 w-12 animate-spin text-primary" />
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
         </div>
       )}
     </div>

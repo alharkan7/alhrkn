@@ -92,6 +92,7 @@ export default function PaperMap() {
         fileName={fileName}
         onFileUpload={handleUpload}
         loadExampleMindMap={loadExampleMindMap}
+        openPdfViewer={openPdfViewer}
       />
       
       <div className="flex-grow" ref={reactFlowWrapper}>
