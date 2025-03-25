@@ -152,7 +152,7 @@ export default function Downloader({}: DownloaderProps) {
     // Small delay to ensure the view is updated
     setTimeout(() => {
       toPng(viewportElement, {
-        quality: 1,
+        quality: 0.8, // Reduced quality for better compression
         backgroundColor: isDarkMode ? '#020817' : '#ffffff',
         ...exportOptions
       })
@@ -162,15 +162,22 @@ export default function Downloader({}: DownloaderProps) {
           img.src = dataUrl;
 
           img.onload = () => {
-            // Use image dimensions for PDF
+            // Convert pixel dimensions to points (1/72 inch)
+            // 1 pixel = 1/96 inch, 1 point = 1/72 inch
+            // Therefore, 1 pixel = 72/96 points ≈ 0.75 points
+            const pointsPerPixel = 72/96;
+            const widthInPoints = img.width * pointsPerPixel;
+            const heightInPoints = img.height * pointsPerPixel;
+
+            // Create PDF with point-based dimensions
             const pdf = new jsPDF({
               orientation: img.width > img.height ? 'landscape' : 'portrait',
-              unit: 'px',
-              format: [img.width, img.height]
+              unit: 'pt',
+              format: [widthInPoints, heightInPoints]
             });
 
-            // Add the image at full size
-            pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height);
+            // Add the image with compression
+            pdf.addImage(dataUrl, 'PNG', 0, 0, widthInPoints, heightInPoints, undefined, 'FAST');
             pdf.save(`${fileName}_mindmap.pdf`);
           };
         })

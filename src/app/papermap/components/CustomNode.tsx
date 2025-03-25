@@ -5,7 +5,7 @@ import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, FileText } from 'lucide-react';
+import { MessageCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { STICKY_NOTE_COLORS, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
 
 // Node component props type
@@ -586,13 +586,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               {data.title}
             </h3>
           )}
-          <div className="flex ml-2 flex-shrink-0">
+          <div className="flex flex-shrink-0">
             <button
-              className="text-gray-500 hover:text-blue-500"
+              className="mt-1 font-bold text-gray-800"
               onClick={toggleExpanded}
               title={expanded ? "Collapse" : "Expand"}
             >
-              {expanded ? "▲" : "▼"}
+              {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
             </button>
           </div>
         </div>

@@ -305,6 +305,80 @@ export const nodeAnimationStyles = `
   }
 `;
 
+// Follow-up card animation styles
+export const followUpCardStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes scaleIn {
+    from { 
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to { 
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+`;
+
+// ReactFlow theme styles
+export const reactFlowStyles = `
+  /* Ensure ReactFlow node positioning */
+  .react-flow__node {
+    z-index: 10;
+  }
+  
+  .react-flow__edge {
+    z-index: 5;
+  }
+
+  /* Theme-aware background dots */
+  .react-flow__background {
+    background-color: var(--background);
+  }
+  
+  .react-flow__background-dots {
+    background-color: var(--muted);
+  }
+
+  /* Theme-aware controls */
+  .react-flow__controls {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius);
+  }
+
+  .react-flow__controls-button {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    color: var(--foreground);
+  }
+
+  /* Round the first and last buttons */
+  .react-flow__controls-button:first-child {
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+  }
+
+  .react-flow__controls-button:last-child {
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+    border-bottom: none;
+  }
+
+  .react-flow__controls-button:hover {
+    background: var(--muted);
+  }
+
+  .react-flow__controls-button svg {
+    fill: var(--foreground);
+  }
+`;
+
 // Combined styles for use in the page component
 export const combinedStyles = `
   ${nodeUpdateStyles}
@@ -312,4 +386,6 @@ export const combinedStyles = `
   ${draggableStyles}
   ${stickyNoteStyles}
   ${nodeAnimationStyles}
+  ${followUpCardStyles}
+  ${reactFlowStyles}
 `; 

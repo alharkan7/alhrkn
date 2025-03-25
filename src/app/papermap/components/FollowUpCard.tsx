@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MindMapNode } from '../types';
 import { X } from 'lucide-react';
+import { followUpCardStyles } from '../styles/styles';
 
 interface FollowUpCardProps {
   parentNode: MindMapNode;
@@ -117,23 +118,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <style jsx global>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          
-          @keyframes scaleIn {
-            from { 
-              transform: scale(0.95);
-              opacity: 0;
-            }
-            to { 
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-        `}</style>
+        <style jsx global>{followUpCardStyles}</style>
         <div className="p-3 font-medium text-sm text-primary flex justify-between border-b border-border bg-muted/50">
           <span>Ask a Question</span>
           <button 

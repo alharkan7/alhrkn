@@ -284,7 +284,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               className="absolute right-2 rounded-full -top-4"
               onClick={() => {
                 const html = document.documentElement;
-                const isDark = html.classList.contains('dark');
                 html.classList.toggle('dark');
               }}
             >

@@ -10,6 +10,7 @@ import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
 import { LoaderCircle } from 'lucide-react';
 import { useMindMapContext, usePdfViewerContext } from '../context';
+import { reactFlowStyles } from '../styles/styles';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -93,25 +94,7 @@ const MindMapFlow = () => {
   return (
     <div className="relative w-full h-full">
       {/* Keep only essential styles, portal handles the FollowUpCard positioning */}
-      <style jsx global>{`
-        /* Ensure ReactFlow node positioning */
-        .react-flow__node {
-          z-index: 10;
-        }
-        
-        .react-flow__edge {
-          z-index: 5;
-        }
-
-        /* Theme-aware background dots */
-        .react-flow__background {
-          background-color: var(--background);
-        }
-        
-        .react-flow__background-dots {
-          background-color: var(--muted);
-        }
-      `}</style>
+      <style jsx global>{reactFlowStyles}</style>
       
       <ReactFlow
         nodes={enhancedNodes}

@@ -2,19 +2,24 @@
 
 import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useEffect } from 'react';
+import { useTheme } from 'next-themes';
 
 import MindMapFlow from './components/MindMapFlow';
 import PdfViewer from './components/PdfViewer';
 import TopBar from './components/TopBar';
 import { useMindMap } from './hooks/useMindMap';
 import { combinedStyles } from './styles';
-import { useState } from 'react';
 import { MindMapProvider, PdfViewerProvider, UIStateProvider } from './context';
-import { useTheme } from 'next-themes';
 
 export default function PaperMap() {
-  const { theme } = useTheme();
-  
+  const { setTheme } = useTheme();
+
+  // Force light theme on mount
+  useEffect(() => {
+    setTheme('light');
+  }, [setTheme]);
+
   // Get all the mindmap related state and functions from the hook
   const {
     loading,
@@ -52,7 +57,7 @@ export default function PaperMap() {
     <UIStateProvider initialLoading={loading} initialError={error}>
       <MindMapProvider value={mindMapContextValue}>
         <PdfViewerProvider initialPdfUrl={pdfUrl} initialFileName={'mindmap'}>
-          <div className={`flex flex-col h-screen ${theme === 'dark' ? 'dark' : ''}`}>
+          <div className="flex flex-col h-screen">
             <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
             <TopBar 
