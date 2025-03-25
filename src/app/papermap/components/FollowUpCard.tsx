@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MindMapNode } from './MindMapTypes';
+import { MindMapNode } from '../types';
 import { X } from 'lucide-react';
 
 interface FollowUpCardProps {

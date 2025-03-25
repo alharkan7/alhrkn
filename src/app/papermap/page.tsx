@@ -7,7 +7,7 @@ import MindMapFlow from './components/MindMapFlow';
 import PdfViewer from './components/PdfViewer';
 import TopBar from './components/TopBar';
 import { useMindMap } from './hooks/useMindMap';
-import { combinedStyles } from './components/styles';
+import { combinedStyles } from './styles';
 import { useState, useCallback } from 'react';
 
 export default function PaperMap() {
@@ -17,7 +17,6 @@ export default function PaperMap() {
     mindMapData,
     nodes,
     edges,
-    nodePositions,
     reactFlowWrapper,
     reactFlowInstance,
     onNodesChange,

@@ -107,8 +107,30 @@ export const pdfViewerAnimationStyles = `
   }
 `;
 
+// Draggable elements styling moved from globals.css
+export const draggableStyles = `
+  /* Draggable elements */
+  .react-draggable {
+    user-select: none;
+  }
+
+  .react-draggable-dragging {
+    z-index: 100 !important;
+    cursor: grabbing !important;
+  }
+
+  .drag-handle {
+    cursor: grab;
+  }
+
+  .no-drag {
+    cursor: pointer;
+  }
+`;
+
 // Combined styles for use in the page component
 export const combinedStyles = `
   ${nodeUpdateStyles}
   ${pdfViewerAnimationStyles}
+  ${draggableStyles}
 `; 

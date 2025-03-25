@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
-import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../components/MindMapTypes';
-import { createMindMapLayout, updateMindMapLayout } from '../components/MindMapLayout';
+import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
+import { createMindMapLayout, updateMindMapLayout } from '../types';
 
 // Example mindmap data and PDF URL
 const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
@@ -109,12 +109,6 @@ export function useMindMap() {
     console.error("addFollowUpNode called before initialization");
     return customNodeId || '';
   });
-
-  // Check if a node has children
-  const hasChildren = useCallback((nodeId: string) => {
-    if (!mindMapData) return false;
-    return mindMapData.nodes.some(node => node.parentId === nodeId);
-  }, [mindMapData]);
   
   // Get all descendant node IDs (recursive)
   const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
@@ -463,7 +457,7 @@ export function useMindMap() {
       // Re-run dagre to layout all nodes and prevent overlaps
       if (mindMapData && mindMapData.nodes.length > 1) {
         // Create a new layout with the updated data - only to get position for the new node
-        import('../components/MindMapLayout').then(({ createMindMapLayout, updateMindMapLayout }) => {
+        import('../types').then(({ createMindMapLayout, updateMindMapLayout }) => {
           // First try to use current node positions if they're being tracked
           let updatedNodes;
           

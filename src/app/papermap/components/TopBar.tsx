@@ -2,7 +2,7 @@ import { LoaderCircle, Plus, FileText } from 'lucide-react';
 import Downloader from './Downloader';
 import { RefObject, useState } from 'react';
 import { Node } from 'reactflow';
-import { MindMapData } from './MindMapTypes';
+import { MindMapData } from '../types';
 import Sidebar from './Sidebar';
 import { Button } from "@/components/ui/button";
 
