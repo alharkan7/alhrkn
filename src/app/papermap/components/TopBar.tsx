@@ -24,6 +24,7 @@ export default function TopBar({
 
   // Custom file upload handler
   const handleUpload = useCallback(async (file: File) => {
+    // Clear any previous errors
     // Process the PDF file for viewing
     await handlePdfFile(file);
     

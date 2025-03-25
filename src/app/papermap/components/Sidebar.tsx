@@ -95,6 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleGenerate = async () => {
     if (file) {
       onFileUpload(file);
+      onClose();
       return;
     }
     
@@ -179,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="mb-6">
             <div 
-              className={`border-2 border-dashed rounded-base p-8 text-center mb-4 relative ${file ? 'border-primary bg-primary/10' : 'border-border'}`}
+              className={`border-2 bg-muted/50 rounded-base p-8 text-center mb-4 relative ${file ? 'border-primary bg-primary/10' : 'border-border'}`}
               onDrop={handleFileDrop}
               onDragOver={handleDragOver}
             >
@@ -193,7 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <X className="h-5 w-5" />
                   </Button>
-                  <p className="font-medium truncate max-w-full px-4">{file.name}</p>
+                  <p className="font-medium text-sm break-words max-w-full px-6" style={{ wordBreak: 'break-all' }}>{file.name.replace(/_/g, '_\u200B')}</p>
                 </div>
               ) : (
                 <div>
@@ -217,7 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-card-foreground mb-1">Or Enter a URL</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Or Enter a URL</label>
               <Input
                 type="text"
                 value={url}
@@ -252,13 +253,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           {error && (
             <div className="text-destructive text-sm mt-4 p-3 bg-destructive/10 rounded-base">
-              {error}
+              {error.includes("[GoogleGenerativeAI Error]") 
+                ? "AI service unavailable. Please try again later." 
+                : error.length > 60 
+                  ? `${error.substring(0, 60)}...` 
+                  : error
+              }
             </div>
           )}
 
         </div>
 
-        <div className="mt-auto px-4 mb-6">
+        <div className="mt-auto px-6 mb-6">
           <AppsGrid
             trigger={
               <Button variant="neutral" className="w-full flex items-center justify-center gap-2">

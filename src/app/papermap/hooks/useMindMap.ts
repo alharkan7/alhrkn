@@ -623,7 +623,7 @@ export function useMindMap() {
   // Handle file upload
   const handleFileUpload = async (file: File) => {
     setLoading(true);
-    setError(null);
+    setError(null); // Clear any previous error message
     setPdfUrl(null); // Clear the example PDF URL when new file is uploaded
     
     try {

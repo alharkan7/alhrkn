@@ -1,6 +1,6 @@
 import { Node, Edge } from 'reactflow';
 import dagre from '@dagrejs/dagre';
-import { MindMapData, MindMapNode, COLUMN_WIDTH, NODE_VERTICAL_SPACING, NodePosition } from './MindMapTypes';
+import { MindMapData, COLUMN_WIDTH, NodePosition } from './MindMapTypes';
 
 // Define sticky note colors - should match the ones in CustomNode.tsx
 const STICKY_NOTE_COLORS = [
