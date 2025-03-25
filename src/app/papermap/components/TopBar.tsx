@@ -64,7 +64,7 @@ export default function TopBar({
             )}
 
             {!loading && !error && (
-              <div className="text-muted-foreground truncate">
+              <div className="font-extrabold text-primary truncate">
                 {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
               </div>
             )}

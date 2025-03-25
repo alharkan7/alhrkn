@@ -15,7 +15,7 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
        {
          "id": "string",
          "title": "string",
-         "description": "string (direct explanation of the content)",
+         "description": "string (direct explanation of the content using markdown formatting)",
          "parentId": "string or null",
          "level": "integer",
          "pageNumber": "integer or null (the page number in the PDF where this content appears)"
@@ -49,12 +49,21 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
    - Include specific numbers, measurements, and results
    - Explain causality and implications directly
    - Connect findings to the field's broader context
+   - USE MARKDOWN FORMATTING in descriptions for better readability:
+     * Use **bold** for key findings and important terms
+     * Use *italics* for emphasis
+     * Use bullet points for lists of related points
+     * Use numbered lists for sequential information
+     * Use \`code blocks\` for mathematical equations or formulas
+     * Use > blockquotes for direct definitions or key statements
+     * Include tables using markdown table syntax where appropriate for comparing data
+     * Use markdown headings sparingly and only when needed to organize very long descriptions
 
 6. Example Structure:
    {
      "nodes": [
-       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at 4.2K in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.", "parentId": null, "level": 0, "pageNumber": 1},
-       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through 15nm barriers, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.", "parentId": "node1", "level": 1, "pageNumber": 3}
+       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at **4.2K** in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.\n\n> The tunneling effect operates outside conventional theoretical boundaries.\n\nThe mathematical model is described by: \`E = hf - Φ\`, where:\n- E is the electron energy\n- h is Planck's constant\n- f is frequency\n- Φ is the work function", "parentId": null, "level": 0, "pageNumber": 1},
+       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through **15nm barriers**, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.\n\n*Key findings:*\n1. Tunneling occurs across previously impossible distances\n2. Current remains stable at multiple temperature points\n3. Effect is reproducible in various copper-oxide materials", "parentId": "node1", "level": 1, "pageNumber": 3}
      ]
    }
 

@@ -199,7 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               ) : (
                 <div>
-                  <p className="text-muted-foreground">Drop your file here</p>
+                  <p className="text-muted-foreground text-sm">Drop your file here</p>
                   <Button
                     variant="default"
                     className="mt-2"

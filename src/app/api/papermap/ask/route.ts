@@ -18,9 +18,18 @@ const SYSTEM_PROMPT = `You are a leading expert in the field analyzing this rese
 6. DO NOT make up information not present in the paper.
 7. Structure your response in a JSON format as follows:
    {
-     "answer": "Your detailed answer to the question"
+     "answer": "Your detailed answer to the question using markdown formatting"
    }
-8. Provide a comprehensive answer that fully addresses the question.`;
+8. Provide a comprehensive answer that fully addresses the question.
+9. Use markdown formatting in your answer for better readability:
+   - Use **bold** for key findings and important terms
+   - Use *italics* for emphasis
+   - Use bullet points for lists of related points
+   - Use numbered lists for sequential information
+   - Use \`code blocks\` for mathematical equations or formulas
+   - Use > blockquotes for direct definitions or key statements
+   - Include tables using markdown syntax where appropriate for comparing data
+   - Use markdown headings sparingly and only when needed to organize very long answers`;
 
 // Define schema for structured output
 const responseSchema: Schema = {

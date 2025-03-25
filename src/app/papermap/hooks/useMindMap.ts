@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Node, Edge, useNodesState, useEdgesState } from 'reactflow';
+import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../components/MindMapTypes';
 import { createMindMapLayout, updateMindMapLayout } from '../components/MindMapLayout';
 
@@ -462,38 +462,73 @@ export function useMindMap() {
     setTimeout(() => {
       // Re-run dagre to layout all nodes and prevent overlaps
       if (mindMapData && mindMapData.nodes.length > 1) {
-        // Create a new layout with the updated data
-        import('../components/MindMapLayout').then(({ createMindMapLayout }) => {
-          const { nodes: newNodes } = createMindMapLayout(
-            { nodes: mindMapData.nodes }, 
-            updateNodeData
-          );
+        // Create a new layout with the updated data - only to get position for the new node
+        import('../components/MindMapLayout').then(({ createMindMapLayout, updateMindMapLayout }) => {
+          // First try to use current node positions if they're being tracked
+          let updatedNodes;
           
-          // Apply the new positions but keep the same data
-          setNodes(currentNodes => {
-            return currentNodes.map(node => {
-              const newLayoutNode = newNodes.find(n => n.id === node.id);
-              if (newLayoutNode) {
-                return {
-                  ...node,
-                  position: newLayoutNode.position
-                };
-              }
-              return node;
+          if (Object.keys(nodePositions).length > 0) {
+            // We have tracked positions, use them to calculate layout
+            console.log('Using tracked node positions');
+            
+            // Get layout for new node
+            const { nodes: layoutNodes } = createMindMapLayout(
+              { nodes: mindMapData.nodes },
+              updateNodeData
+            );
+            
+            // Find position for new node only
+            const newNodeLayout = layoutNodes.find(n => n.id === newNodeId);
+            
+            // Apply positions: Keep existing nodes where they are, position new node
+            setNodes(currentNodes => {
+              return currentNodes.map(node => {
+                if (node.id === newNodeId && newNodeLayout) {
+                  // Position the new node using the layout
+                  return {
+                    ...node,
+                    position: newNodeLayout.position
+                  };
+                } else if (nodePositions[node.id]) {
+                  // Use tracked positions for existing nodes
+                  return {
+                    ...node,
+                    position: nodePositions[node.id]
+                  };
+                }
+                // Fall back to current position
+                return node;
+              });
             });
-          });
-          
-          // After layout is complete, fit view
-          if (reactFlowInstance.current) {
-            reactFlowInstance.current.fitView({ 
-              padding: 0.4, 
-              duration: 800,
-              includeHiddenNodes: false,
+          } else {
+            // No tracked positions, fall back to only updating the new node
+            const { nodes: newNodes } = createMindMapLayout(
+              { nodes: mindMapData.nodes }, 
+              updateNodeData
+            );
+            
+            // Apply the new position only to the newly created node, preserve existing node positions
+            setNodes(currentNodes => {
+              return currentNodes.map(node => {
+                // Only update the position of the newly created node
+                if (node.id === newNodeId) {
+                  const newLayoutNode = newNodes.find(n => n.id === newNodeId);
+                  if (newLayoutNode) {
+                    return {
+                      ...node,
+                      position: newLayoutNode.position
+                    };
+                  }
+                }
+                // Keep existing positions for all other nodes
+                return node;
+              });
             });
           }
         });
       } else {
-        // Fit view after a longer delay to ensure the new node is properly rendered
+        // Comment out or remove fitView call to maintain user's view
+        /*
         if (reactFlowInstance.current) {
           console.log('Fitting view to include new node');
           reactFlowInstance.current.fitView({ 
@@ -502,6 +537,7 @@ export function useMindMap() {
             includeHiddenNodes: false,
           });
         }
+        */
       }
     }, 500);
     
@@ -514,6 +550,34 @@ export function useMindMap() {
     // Update the ref with the latest implementation that has access to current state
     addFollowUpNodeRef.current = addFollowUpNode;
   });
+  
+  // Create an effect to track node position changes
+  useEffect(() => {
+    // This effect updates nodePositions whenever nodes are dragged
+    if (reactFlowInstance.current) {
+      const updateNodePositionsAfterDrag = () => {
+        const currentNodes = reactFlowInstance.current.getNodes();
+        const positions: Record<string, NodePosition> = {};
+        currentNodes.forEach((node: { id: string; position: NodePosition }) => {
+          positions[node.id] = node.position;
+        });
+        console.log('Node positions updated after drag');
+        setNodePositions(positions);
+      };
+      
+      // Add event listener for node drag end
+      const reactFlowElement = document.querySelector('.react-flow');
+      if (reactFlowElement) {
+        reactFlowElement.addEventListener('mouseup', updateNodePositionsAfterDrag);
+        reactFlowElement.addEventListener('touchend', updateNodePositionsAfterDrag);
+        
+        return () => {
+          reactFlowElement.removeEventListener('mouseup', updateNodePositionsAfterDrag);
+          reactFlowElement.removeEventListener('touchend', updateNodePositionsAfterDrag);
+        };
+      }
+    }
+  }, [reactFlowInstance]);
   
   // Create a stable function that always calls the latest implementation
   const stableAddFollowUpNode = useCallback((parentId: string, question: string, answer: string, customNodeId?: string) => {
@@ -681,12 +745,18 @@ export function useMindMap() {
       });
       
       // Update all nodes with the current addFollowUpNode function
+      // Preserve positions of existing nodes when updating
       setNodes(currentNodes => 
         currentNodes.map(node => {
           // Find the corresponding node in the mindMapData to get its pageNumber
           const mindMapNode = mindMapData.nodes.find(n => n.id === node.id);
+          
+          // Preserve node's current position if it exists in nodePositions
+          const position = nodePositions[node.id] || node.position;
+          
           return {
             ...node,
+            position, // Preserve position
             data: {
               ...node.data,
               addFollowUpNode: stableAddFollowUpNode, // Use the stable function
@@ -700,7 +770,7 @@ export function useMindMap() {
         })
       );
     }
-  }, [mindMapData, nodes.length, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility]);
+  }, [mindMapData, nodes.length, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility, nodePositions]);
 
   // Reset zoom and center the view
   const handleResetView = useCallback(() => {
@@ -761,6 +831,30 @@ export function useMindMap() {
     }
   }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, toggleChildrenVisibility]);
 
+  // Customize onNodesChange to track positions after node drags
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    // Call the original onNodesChange
+    onNodesChange(changes);
+    
+    // After position changes, update the nodePositions state
+    const positionChanges = changes.filter(
+      (change): change is NodePositionChange => change.type === 'position' && change.position !== undefined
+    );
+    
+    if (positionChanges.length > 0) {
+      // Update positions for the dragged nodes
+      setNodePositions(prev => {
+        const newPositions = { ...prev };
+        positionChanges.forEach(change => {
+          if (change.position) {
+            newPositions[change.id] = change.position;
+          }
+        });
+        return newPositions;
+      });
+    }
+  }, [onNodesChange]);
+
   return {
     loading,
     error,
@@ -770,7 +864,7 @@ export function useMindMap() {
     nodePositions,
     reactFlowWrapper,
     reactFlowInstance,
-    onNodesChange,
+    onNodesChange: handleNodesChange,
     onEdgesChange,
     handleFileUpload,
     addFollowUpNode: addFollowUpNodeRef.current,

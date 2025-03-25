@@ -90,12 +90,24 @@ const MindMapFlow = ({
         reactFlow.fitView({ padding: 0.4, duration: 800 });
       }, 200);
     }
-  }, [reactFlow, nodes.length]);
+  }, [reactFlow]); // Only depend on reactFlow, not nodes.length
 
   const showLoadingIndicator = loading || nodes.length === 0;
 
   return (
     <div className="relative w-full h-full">
+      {/* Keep only essential styles, portal handles the FollowUpCard positioning */}
+      <style jsx global>{`
+        /* Ensure ReactFlow node positioning */
+        .react-flow__node {
+          z-index: 10;
+        }
+        
+        .react-flow__edge {
+          z-index: 5;
+        }
+      `}</style>
+      
       <ReactFlow
         nodes={enhancedNodes}
         edges={edges}
@@ -104,7 +116,6 @@ const MindMapFlow = ({
         nodeTypes={nodeTypes}
         onInit={onInit}
         nodesDraggable={nodesDraggable} // Use the state to control whether nodes are draggable
-        fitView
         proOptions={proOptions}
         elementsSelectable={true}
         zoomOnScroll={true}
