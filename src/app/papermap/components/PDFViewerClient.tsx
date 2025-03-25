@@ -2,8 +2,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+// Import the CSS files from node_modules
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+// Import the CSS files from the package itself
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 
 // Set the worker source for react-pdf
@@ -166,20 +170,20 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
       {/* PDF Viewer */}
       <div
         ref={containerRef}
-        className="relative bg-white w-full md:w-2/3 lg:w-1/2 h-full overflow-auto shadow-xl animate-slide-in-right"
+        className="relative bg-background w-full md:w-2/3 lg:w-1/2 h-full overflow-auto shadow-xl animate-slide-in-right"
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white flex justify-between items-center p-3 shadow-sm">
+        <div className="sticky top-0 z-10 bg-background border-b flex justify-between items-center p-3 shadow-sm">
           <div className="flex items-center space-x-4">
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100"
+              className="p-2 rounded-full hover:bg-muted text-foreground"
               title="Close"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="text-sm">
+            <div className="text-sm text-foreground">
               Page {pageNumber} of {numPages || '?'}
             </div>
           </div>
@@ -188,7 +192,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             <button
               onClick={() => changePage(-1)}
               disabled={pageNumber <= 1}
-              className={`p-2 rounded-full ${pageNumber <= 1 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-full ${pageNumber <= 1 ? 'text-muted-foreground' : 'text-foreground hover:bg-muted'}`}
               title="Previous page"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -197,7 +201,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             <button
               onClick={() => changePage(1)}
               disabled={numPages !== null && pageNumber >= numPages}
-              className={`p-2 rounded-full ${numPages !== null && pageNumber >= numPages ? 'text-gray-300' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-full ${numPages !== null && pageNumber >= numPages ? 'text-muted-foreground' : 'text-foreground hover:bg-muted'}`}
               title="Next page"
             >
               <ChevronRight className="h-5 w-5" />
@@ -206,7 +210,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             <button
               onClick={zoomOut}
               disabled={scale <= 0.5}
-              className={`p-2 rounded-full ${scale <= 0.5 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-full ${scale <= 0.5 ? 'text-muted-foreground' : 'text-foreground hover:bg-muted'}`}
               title="Zoom out"
             >
               <Minus className="h-5 w-5" />
@@ -215,7 +219,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             <button
               onClick={zoomIn}
               disabled={scale >= 3.0}
-              className={`p-2 rounded-full ${scale >= 3.0 ? 'text-gray-300' : 'hover:bg-gray-100'}`}
+              className={`p-2 rounded-full ${scale >= 3.0 ? 'text-muted-foreground' : 'text-foreground hover:bg-muted'}`}
               title="Zoom in"
             >
               <Plus className="h-5 w-5" />
@@ -224,7 +228,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
         </div>
 
         {/* PDF Document */}
-        <div className="flex justify-center p-4">
+        <div className="flex justify-center p-4 bg-background">
           {memoizedFile ? (
             <Document
               file={memoizedFile}
@@ -232,11 +236,11 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               options={memoizedOptions}
               loading={
                 <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               }
               error={
-                <div className="text-red-500 p-4">
+                <div className="text-destructive p-4">
                   Failed to load PDF. Please try again.
                 </div>
               }
@@ -246,7 +250,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
                 scale={scale}
                 loading={
                   <div className="flex justify-center items-center h-40">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
                 }
                 renderTextLayer={false}
@@ -254,7 +258,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               />
             </Document>
           ) : (
-            <div className="text-gray-500 p-4">
+            <div className="text-muted-foreground p-4">
               No PDF document is loaded.
             </div>
           )}
