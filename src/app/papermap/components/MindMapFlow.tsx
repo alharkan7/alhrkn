@@ -10,7 +10,6 @@ import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
 import { LoaderCircle } from 'lucide-react';
 import { useMindMapContext, usePdfViewerContext } from '../context';
-import { useTheme } from 'next-themes';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -31,7 +30,6 @@ const MindMapFlow = () => {
   } = useMindMapContext();
   
   const { openPdfViewer } = usePdfViewerContext();
-  const { theme } = useTheme();
   
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
@@ -85,13 +83,10 @@ const MindMapFlow = () => {
     }
   }, [reactFlow]); // Only depend on reactFlow, not nodes.length
 
-  // Set background color based on theme
-  const bgColor = theme === 'dark' ? '#334155' : '#CBD5E1'; // Using a darker slate color for light theme
+  // Set background color based on CSS variables
+  const bgColor = 'var(--background)';
   const dotSize = 1.5; // Slightly larger dots for better visibility
   const dotGap = 24;
-  
-  // Add a class to the container based on the current theme for CSS styling
-  const containerClass = `mindmap-container ${theme === 'dark' ? 'dark-mode' : ''}`;
 
   const showLoadingIndicator = loading || nodes.length === 0;
 
@@ -106,6 +101,15 @@ const MindMapFlow = () => {
         
         .react-flow__edge {
           z-index: 5;
+        }
+
+        /* Theme-aware background dots */
+        .react-flow__background {
+          background-color: var(--background);
+        }
+        
+        .react-flow__background-dots {
+          background-color: var(--muted);
         }
       `}</style>
       
@@ -129,7 +133,7 @@ const MindMapFlow = () => {
           style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
           animated: false
         }}
-        className={containerClass}
+        className="mindmap-container"
         style={{ width: '100%', height: '100%' }}
       >
         <Controls className="print:hidden" />

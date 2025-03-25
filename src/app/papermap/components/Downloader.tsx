@@ -53,6 +53,9 @@ export default function Downloader({}: DownloaderProps) {
     
     // Get the viewport element for export
     const viewportElement = reactFlowWrapper.current!.querySelector('.react-flow__viewport') as HTMLElement;
+
+    // Check if dark mode is active
+    const isDarkMode = document.documentElement.classList.contains('dark');
     
     // Return necessary information
     return {
@@ -64,6 +67,7 @@ export default function Downloader({}: DownloaderProps) {
           width: `${imageWidth}px`,
           height: `${imageHeight}px`,
           transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+          background: exportType === 'image' ? 'transparent' : isDarkMode ? '#020817' : '#ffffff',
         },
         filter: (node: any) => {
           return (
@@ -81,12 +85,13 @@ export default function Downloader({}: DownloaderProps) {
     if (!exportData) return;
 
     const { viewportElement, exportOptions } = exportData;
+    const isDarkMode = document.documentElement.classList.contains('dark');
 
     // Small delay to ensure the view is updated
     setTimeout(() => {
       toJpeg(viewportElement, {
         quality: 0.95,
-        backgroundColor: '#f8fafc',
+        backgroundColor: isDarkMode ? '#020817' : '#ffffff',
         ...exportOptions
       })
         .then((dataUrl) => {
@@ -109,13 +114,18 @@ export default function Downloader({}: DownloaderProps) {
     if (!exportData) return;
 
     const { viewportElement, exportOptions } = exportData;
+    const isDarkMode = document.documentElement.classList.contains('dark');
 
     // Small delay to ensure the view is updated
     setTimeout(() => {
       toPng(viewportElement, {
         quality: 1,
         backgroundColor: 'transparent',
-        ...exportOptions
+        ...exportOptions,
+        style: {
+          ...exportOptions.style,
+          background: 'transparent',
+        }
       })
         .then((dataUrl) => {
           const a = document.createElement('a');
@@ -137,12 +147,13 @@ export default function Downloader({}: DownloaderProps) {
     if (!exportData) return;
 
     const { viewportElement, exportOptions } = exportData;
+    const isDarkMode = document.documentElement.classList.contains('dark');
 
     // Small delay to ensure the view is updated
     setTimeout(() => {
       toPng(viewportElement, {
         quality: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: isDarkMode ? '#020817' : '#ffffff',
         ...exportOptions
       })
         .then((dataUrl) => {

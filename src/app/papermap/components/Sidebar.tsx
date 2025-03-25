@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTheme } from "next-themes";
-import { Menu, Moon, Sun, LoaderCircle, X } from "lucide-react";
+import { LayoutGrid, Moon, Sun, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
@@ -29,7 +28,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
-  const { theme, setTheme } = useTheme();
   const currentYear = new Date().getFullYear();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -268,7 +266,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <AppsGrid
             trigger={
               <Button variant="neutral" className="w-full flex items-center justify-center gap-2">
-                <Menu className="h-4 w-4" />
+                <LayoutGrid className="h-4 w-4" />
                 <span>More Apps</span>
               </Button>
             }
@@ -284,7 +282,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               variant="default"
               size="icon"
               className="absolute right-2 rounded-full -top-4"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => {
+                const html = document.documentElement;
+                const isDark = html.classList.contains('dark');
+                html.classList.toggle('dark');
+              }}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

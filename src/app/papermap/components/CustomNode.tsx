@@ -676,21 +676,21 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
-                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
+                className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleDocumentButtonClick}
                 title={`View page ${data.pageNumber} in the PDF`}
               >
-                <FileText className="h-6 w-6" />
+                <FileText className="h-6 w-6 text-foreground" />
               </button>
             )}
 
             {showChatButton && (
               <button
-                className="bg-white hover:outline outline-1.5 outline-gray-500 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-gray-200"
+                className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleChatButtonClick}
                 title="Ask a follow-up question"
               >
-                <MessageCircle className="h-5 w-5" />
+                <MessageCircle className="h-5 w-5 text-foreground" />
               </button>
             )}
 
@@ -714,8 +714,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             style={{ zIndex: 1001 }}
             title={data.childrenCollapsed ? "Show children" : "Hide children"}
           >
-            <div className={`w-5 h-5 bg-gray-200 hover:bg-blue-100 rounded-full flex items-center justify-center border border-gray-300 transition-colors`}>
-              <span className="text-xs font-bold transform translate-y-[-1px]">
+            <div className={`w-5 h-5 bg-muted rounded-full flex items-center justify-center border border-border dark:bg-slate-800 dark:border-slate-700 transition-colors`}>
+              <span className="text-xs font-bold">
                 {data.childrenCollapsed ? '+' : '−'}
               </span>
             </div>

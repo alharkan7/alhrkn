@@ -108,10 +108,10 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           width: '360px',
           pointerEvents: 'auto',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-          backgroundColor: 'white',
+          backgroundColor: 'var(--card)',
           borderRadius: '8px',
           overflow: 'hidden',
-          border: '1px solid rgba(59, 130, 246, 0.5)',
+          border: '1px solid var(--border)',
           position: 'relative',
           animation: 'scaleIn 0.2s ease-out forwards'
         }}
@@ -134,10 +134,10 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
             }
           }
         `}</style>
-        <div className="p-3 font-medium text-sm text-blue-600 flex justify-between border-b border-gray-100 bg-gray-50">
+        <div className="p-3 font-medium text-sm text-primary flex justify-between border-b border-border bg-muted/50">
           <span>Ask a Question</span>
           <button 
-            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="text-muted-foreground hover:text-foreground focus:outline-none"
             onClick={(e) => {
               e.stopPropagation();
               onCancel();
@@ -150,7 +150,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           <input
             ref={inputRef}
             type="text"
-            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
             placeholder="Type your question here..."
             value={question}
             onChange={handleInputChange}
@@ -160,7 +160,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           />
           <div className="flex flex-wrap gap-2 mt-3">
             <button 
-              className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
               onClick={(e) => {
                 e.stopPropagation();
                 setQuestion("Give an example");
@@ -170,7 +170,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               Give an example
             </button>
             <button 
-              className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
               onClick={(e) => {
                 e.stopPropagation();
                 setQuestion("Add more details");
@@ -182,7 +182,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           </div>
           <div className="flex justify-end mt-4 space-x-2 text-sm">
             <button 
-              className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!question.trim()}
               onClick={(e) => {
                 e.stopPropagation();

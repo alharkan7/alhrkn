@@ -101,7 +101,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
             onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
           >
             <Mail className='mr-1 ml-2' />
-            Contact / Request an App
+            Contact / Email
           </Button>
         </div>
       </PopoverContent>
