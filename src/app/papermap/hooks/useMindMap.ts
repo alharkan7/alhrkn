@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
-import { createMindMapLayout, updateMindMapLayout, LayoutOptions, LAYOUT_PRESETS, DEFAULT_LAYOUT_OPTIONS } from '../types';
+import { createMindMapLayout, updateMindMapLayout, LayoutOptions, LAYOUT_PRESETS, DEFAULT_LAYOUT_OPTIONS, getDefaultLayoutIndex } from '../types';
 
 // Example mindmap data and PDF URL
 const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
@@ -142,8 +142,17 @@ export function useMindMap() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useRef<any>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(EXAMPLE_PDF_URL); // Initialize with example PDF URL
-  const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0); // Current layout index
+  
+  // Initialize with a default value first for SSR
+  const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0);
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex]; // Current layout options
+  
+  // Update layout based on device type after mounting on client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentLayoutIndex(getDefaultLayoutIndex());
+    }
+  }, []);
   
   // Create a ref to hold the latest addFollowUpNode implementation
   const addFollowUpNodeRef = useRef<(parentId: string, question: string, answer: string, customNodeId?: string) => string>((parentId, question, answer, customNodeId) => {
@@ -711,17 +720,28 @@ export function useMindMap() {
     
     try {
       console.log('Creating layout for example mindmap');
-      // Process the example data
-      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(EXAMPLE_MINDMAP, updateNodeData);
+      // Get current layout options based on device/screen size
+      const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
+      console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
+      
+      // Generate layout with enhanced positioning algorithm
+      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
+        EXAMPLE_MINDMAP, 
+        updateNodeData, 
+        currentLayoutOptions
+      );
       
       // Add the addFollowUpNode function to all nodes' data
+      // Ensure each node has the correct layout direction explicitly set
       const nodesWithFollowUp = flowNodes.map(node => ({
         ...node,
         data: {
           ...node.data,
           addFollowUpNode: stableAddFollowUpNode,
-          deleteNode: stableDeleteNode, // Add deleteNode function
-          toggleChildrenVisibility
+          deleteNode: stableDeleteNode,
+          toggleChildrenVisibility,
+          // Explicitly set layoutDirection here rather than letting it be inherited later
+          layoutDirection: currentLayoutOptions.direction
         }
       }));
       
@@ -745,7 +765,7 @@ export function useMindMap() {
     } finally {
       setLoading(false);
     }
-  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility]);
+  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex]);
 
   // Fetch example PDF data on initial load if using example mindmap
   useEffect(() => {
@@ -877,16 +897,28 @@ export function useMindMap() {
             setMindMapData(mindmapData);
             
             console.log('Creating flow from mindmap data');
-            const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(mindmapData, updateNodeData);
+            // Get current layout options based on device/screen size
+            const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
+            console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
+            
+            // Generate the initial layout with enhanced positioning
+            const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
+              mindmapData, 
+              updateNodeData,
+              currentLayoutOptions // This will use proper level-based layout now
+            );
             
             // Add the addFollowUpNode function to all nodes' data
+            // Ensure each node has the correct layout direction set
             const nodesWithFollowUp = flowNodes.map(node => ({
               ...node,
               data: {
                 ...node.data,
                 addFollowUpNode: stableAddFollowUpNode,
-                deleteNode: stableDeleteNode, // Add deleteNode function
-                toggleChildrenVisibility
+                deleteNode: stableDeleteNode, 
+                toggleChildrenVisibility,
+                // Explicitly set layoutDirection here rather than letting it be inherited later
+                layoutDirection: currentLayoutOptions.direction 
               }
             }));
             
@@ -968,7 +1000,9 @@ export function useMindMap() {
               childrenCollapsed: collapsedNodes.has(node.id),
               toggleChildrenVisibility,
               // Preserve pageNumber from mindMapData if available
-              pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : mindMapNode?.pageNumber
+              pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : mindMapNode?.pageNumber,
+              // Preserve layoutDirection if it exists
+              layoutDirection: node.data.layoutDirection
             }
           };
         })
@@ -1023,6 +1057,7 @@ export function useMindMap() {
       }
       
       try {
+        // Generate the layout with enhanced positioning algorithm
         const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
           mindMapData,
           updateNodeData,
@@ -1030,13 +1065,16 @@ export function useMindMap() {
         );
         
         // Add the addFollowUpNode function to all nodes' data
+        // Ensure each node has the correct layout direction explicitly set
         const nodesWithFollowUp = flowNodes.map(node => ({
           ...node,
           data: {
             ...node.data,
             addFollowUpNode: stableAddFollowUpNode,
-            deleteNode: stableDeleteNode, // Add deleteNode function
-            toggleChildrenVisibility
+            deleteNode: stableDeleteNode,
+            toggleChildrenVisibility,
+            // Explicitly set layoutDirection to ensure correct handle positioning
+            layoutDirection: nextLayout.direction
           }
         }));
         
@@ -1071,16 +1109,29 @@ export function useMindMap() {
   useEffect(() => {
     if (mindMapData && nodes.length === 0) {
       console.log('Creating initial flow from mindMapData');
-      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(mindMapData, updateNodeData);
+      
+      // Get the current layout options based on device/screen size
+      const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
+      console.log(`Using initial layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
+      
+      // Generate the initial layout with enhanced positioning algorithm
+      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
+        mindMapData, 
+        updateNodeData, 
+        currentLayoutOptions
+      );
       
       // Add the addFollowUpNode function to all nodes' data
+      // Ensure each node has the correct layout direction explicitly set
       const nodesWithFunctions = flowNodes.map(node => ({
         ...node,
         data: {
           ...node.data,
           addFollowUpNode: stableAddFollowUpNode,
-          deleteNode: stableDeleteNode, // Add deleteNode function
-          toggleChildrenVisibility
+          deleteNode: stableDeleteNode,
+          toggleChildrenVisibility,
+          // Explicitly set layoutDirection to ensure correct handle positioning
+          layoutDirection: currentLayoutOptions.direction
         }
       }));
       
@@ -1098,7 +1149,7 @@ export function useMindMap() {
         }
       }, 100);
     }
-  }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility]);
+  }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex]);
 
   // Customize onNodesChange to track positions after node drags
   const handleNodesChange = useCallback((changes: NodeChange[]) => {

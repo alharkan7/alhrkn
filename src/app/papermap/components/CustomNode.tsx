@@ -63,16 +63,18 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   
   // Determine handle positions based on layout direction
   const isHorizontalFlow = !data.layoutDirection || data.layoutDirection === 'LR' || data.layoutDirection === 'RL';
+  console.log(`Node ${id} layout flow: ${isHorizontalFlow ? 'horizontal' : 'vertical'}, direction: ${data.layoutDirection || 'undefined'}`);
   const sourcePosition = isHorizontalFlow ? Position.Right : Position.Bottom;
   const targetPosition = isHorizontalFlow ? Position.Left : Position.Top;
 
   // Debug logging
   useEffect(() => {
     console.log(`CustomNode ${id} rendering with addFollowUpNode:`, data.addFollowUpNode ? 'available' : 'not available');
+    console.log(`CustomNode ${id} rendering with layoutDirection:`, data.layoutDirection || 'undefined');
     if (isQnANode) {
       console.log(`Node ${id} is a QnA node`);
     }
-  }, [id, data.addFollowUpNode, isQnANode]);
+  }, [id, data.addFollowUpNode, isQnANode, data.layoutDirection]);
 
   // Update local state when data from parent changes
   useEffect(() => {

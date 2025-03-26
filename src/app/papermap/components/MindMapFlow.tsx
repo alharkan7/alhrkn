@@ -37,10 +37,31 @@ const MindMapFlow = () => {
   
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
   // Get current layout direction from the layout preset
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex];
   const currentLayoutDirection = currentLayout.direction;
+
+  // Set isClient to true when component mounts on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Common breakpoint for mobile
+    };
+    
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
 
   // Enhance nodes with PDF viewer capability and layout direction
   const enhancedNodes = nodes.map(node => {
@@ -54,7 +75,8 @@ const MindMapFlow = () => {
       data: {
         ...node.data,
         openPdfViewer, // Pass the openPdfViewer function to all nodes
-        layoutDirection: currentLayoutDirection // Pass the current layout direction
+        // Only set layoutDirection if it doesn't already exist to avoid overriding initial value
+        ...(node.data.layoutDirection ? {} : { layoutDirection: currentLayoutDirection })
       }
     };
   });
@@ -135,7 +157,7 @@ const MindMapFlow = () => {
       {/* Layout Switcher Button */}
       <div 
         className="fixed bottom-4 right-4 z-20 flex flex-col gap-3 print:hidden"
-        title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
+        {...(isClient ? { title: `Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}` } : {})}
       >
         <button
           onClick={cycleLayout}

@@ -26,8 +26,25 @@ export const LAYOUT_PRESETS: LayoutOptions[] = [
   }
 ];
 
-// Default layout option (first preset)
-export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = LAYOUT_PRESETS[0];
+// Get default layout index based on screen size
+export const getDefaultLayoutIndex = (): number => {
+  // Check if window is defined (client-side) safely
+  const isBrowser = typeof window !== 'undefined';
+  
+  // Only check window.innerWidth on the client
+  if (isBrowser) {
+    // Use Top to Bottom for mobile (index 1)
+    if (window.innerWidth < 768) {
+      return 1; // TB layout
+    }
+  }
+  
+  // Default to Left to Right for desktop (index 0) or server-side rendering
+  return 0; // LR layout
+};
+
+// Default layout option is now determined by device type
+export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = LAYOUT_PRESETS[0]; // This is a fallback
 
 // Define sticky note colors - should match the ones in CustomNode.tsx
 const STICKY_NOTE_COLORS = [
@@ -61,17 +78,6 @@ export const createMindMapLayout = (
   const nodeWidth = 256; // Default node width
   const nodeHeight = 150; // Increased node height for better spacing
 
-  // Set graph direction and options based on provided layoutOptions
-  dagreGraph.setGraph({ 
-    rankdir: layoutOptions.direction,
-    nodesep: 100, // Increased vertical spacing between nodes in the same rank
-    ranksep: COLUMN_WIDTH, // Horizontal spacing between ranks/levels
-    align: layoutOptions.align, // Alignment based on layout options
-    ranker: layoutOptions.ranker, // Ranker algorithm based on layout options
-    marginx: 50, // Add margin on the left and right
-    marginy: 50  // Add margin on the top and bottom
-  });
-
   // Create a map of parent to children IDs for checking if nodes have children
   const parentToChildren: Record<string, string[]> = {};
   data.nodes.forEach(node => {
@@ -83,42 +89,7 @@ export const createMindMapLayout = (
     }
   });
   
-  // Add nodes to dagre graph
-  data.nodes.forEach(node => {
-    // Adjust node height based on title and description length
-    let adjustedHeight = nodeHeight;
-    
-    // Add more height for longer descriptions
-    if (node.description && node.description.length > 200) {
-      adjustedHeight += 50;
-    } else if (node.description && node.description.length > 100) {
-      adjustedHeight += 25;
-    }
-    
-    dagreGraph.setNode(node.id, { 
-      width: nodeWidth, 
-      height: adjustedHeight,
-      label: node.title // Set label for debugging
-    });
-  });
-  
-  // Add edges to dagre graph
-  data.nodes.forEach(node => {
-    if (node.parentId) {
-      dagreGraph.setEdge(node.parentId, node.id);
-    }
-  });
-  
-  // Run the layout algorithm
-  try {
-    console.log('Running dagre layout with', data.nodes.length, 'nodes');
-    dagre.layout(dagreGraph);
-    console.log('Dagre layout completed');
-  } catch (error) {
-    console.error('Error in dagre layout:', error);
-  }
-  
-  // Calculate node levels (column number)
+  // Calculate node levels (column number) - Do this BEFORE setting up dagre
   const nodeLevels: Record<string, number> = {};
   
   // First, get root nodes (nodes without parents)
@@ -145,117 +116,134 @@ export const createMindMapLayout = (
     assignLevels(nodeId, 0);
   });
   
+  // Set graph direction and options based on provided layoutOptions
+  dagreGraph.setGraph({ 
+    rankdir: layoutOptions.direction,
+    nodesep: 100, // Increased vertical spacing between nodes in the same rank
+    ranksep: COLUMN_WIDTH, // Horizontal spacing between ranks/levels
+    align: layoutOptions.align, // Alignment based on layout options
+    ranker: layoutOptions.ranker, // Ranker algorithm based on layout options
+    marginx: 50, // Add margin on the left and right
+    marginy: 50  // Add margin on the top and bottom
+  });
+  
+  // Add nodes to dagre graph with hierarchy constraints
+  data.nodes.forEach(node => {
+    // Adjust node height based on title and description length
+    let adjustedHeight = nodeHeight;
+    
+    // Add more height for longer descriptions
+    if (node.description && node.description.length > 200) {
+      adjustedHeight += 50;
+    } else if (node.description && node.description.length > 100) {
+      adjustedHeight += 25;
+    }
+    
+    // Get node level (will be used for rank constraint)
+    const level = nodeLevels[node.id] || 0;
+    
+    dagreGraph.setNode(node.id, { 
+      width: nodeWidth, 
+      height: adjustedHeight,
+      label: node.title, // Set label for debugging
+      rank: level // Explicitly set rank based on hierarchy level
+    });
+  });
+  
+  // Add edges to dagre graph
+  data.nodes.forEach(node => {
+    if (node.parentId) {
+      dagreGraph.setEdge(node.parentId, node.id);
+    }
+  });
+  
+  // Run the layout algorithm
+  try {
+    console.log('Running dagre layout with', data.nodes.length, 'nodes');
+    dagre.layout(dagreGraph);
+    console.log('Dagre layout completed');
+  } catch (error) {
+    console.error('Error in dagre layout:', error);
+  }
+  
   // Map nodes with positions from dagre
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   
-  // Manually position nodes by level if dagre fails
-  const manuallyPositionNodes = () => {
-    console.log('Manually positioning nodes as fallback');
-    
-    // Group nodes by level
-    const nodesByLevel: Record<number, string[]> = {};
-    
-    data.nodes.forEach(node => {
-      const level = nodeLevels[node.id] || 0;
-      if (!nodesByLevel[level]) {
-        nodesByLevel[level] = [];
-      }
-      nodesByLevel[level].push(node.id);
-    });
-    
-    // Position nodes by level
-    Object.entries(nodesByLevel).forEach(([levelStr, nodeIds]) => {
-      const level = parseInt(levelStr);
-      const horizontalPosition = level * COLUMN_WIDTH;
-      
-      nodeIds.forEach((nodeId, index) => {
-        const verticalPosition = index * 200; // 200px vertical spacing
-        
-        // Find the node data
-        const nodeData = data.nodes.find(n => n.id === nodeId);
-        if (nodeData) {
-          nodes.push({
-            id: nodeId,
-            type: 'custom',
-            position: { 
-              x: horizontalPosition, 
-              y: verticalPosition
-            },
-            data: { 
-              title: nodeData.title,
-              description: nodeData.description,
-              updateNodeData: updateNodeCallback,
-              nodeType: nodeData.type, // Pass the node type
-              expanded: nodeData.type === 'qna', // Set expanded to true for QnA nodes
-              hasChildren: !!parentToChildren[nodeId]?.length, // Pass if this node has children
-              width: nodeWidth, // Default width for nodes
-              pageNumber: nodeData.pageNumber, // Pass the page number from the API response
-              columnLevel: level // Add column level for coloring
-            },
-            style: {
-              zIndex: 100,
-            },
-            className: 'node-card'
-          });
-        }
-      });
-    });
-  };
+  // Use dagre positions for all nodes
+  let allNodesPositioned = true;
   
-  // Try to use dagre positions, fall back to manual positioning
-  let dagreSucceeded = true;
-  
-  data.nodes.forEach(node => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    
-    // Check if dagre properly positioned this node
-    if (!nodeWithPosition || typeof nodeWithPosition.x !== 'number' || typeof nodeWithPosition.y !== 'number') {
-      console.warn(`Dagre failed to position node ${node.id}`);
-      dagreSucceeded = false;
-      return;
+  // Process nodes in order of their levels to ensure proper positioning
+  // Sort nodes by level for reliable processing order
+  const nodesByLevel: Record<number, string[]> = {};
+  Object.entries(nodeLevels).forEach(([nodeId, level]) => {
+    if (!nodesByLevel[level]) {
+      nodesByLevel[level] = [];
     }
-    
-    // Determine if this is a QnA node
-    const isQnANode = node.type === 'qna';
-    
-    // Check if this node has children
-    const hasChildren = !!parentToChildren[node.id]?.length;
-    
-    // Get node level (column number)
-    const columnLevel = nodeLevels[node.id] || 0;
-    
-    // Create ReactFlow node with position from dagre
-    nodes.push({
-      id: node.id,
-      type: 'custom',
-      position: { 
-        x: nodeWithPosition.x - nodeWidth / 2, 
-        y: nodeWithPosition.y - nodeWithPosition.height / 2
-      },
-      data: { 
-        title: node.title,
-        description: node.description,
-        updateNodeData: updateNodeCallback,
-        nodeType: node.type, // Pass the node type
-        expanded: isQnANode, // Set expanded to true for QnA nodes
-        hasChildren: hasChildren, // Pass if this node has children
-        width: nodeWidth, // Default width for nodes
-        pageNumber: node.pageNumber, // Pass the page number from the API response
-        columnLevel: columnLevel // Add column level for coloring
-      },
-      // Only set zIndex to ensure proper layering
-      style: {
-        zIndex: 100,
-      },
-      className: 'node-card'
-    });
+    nodesByLevel[level].push(nodeId);
   });
   
-  // If dagre failed to position all nodes, use manual positioning instead
-  if (!dagreSucceeded) {
-    nodes.length = 0; // Clear nodes array
-    manuallyPositionNodes();
+  // Process nodes level by level
+  const maxLevel = Math.max(...Object.keys(nodesByLevel).map(Number));
+  for (let level = 0; level <= maxLevel; level++) {
+    const nodesAtLevel = nodesByLevel[level] || [];
+    
+    // Process nodes at this level
+    nodesAtLevel.forEach(nodeId => {
+      const node = data.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      
+      const nodeWithPosition = dagreGraph.node(nodeId);
+      
+      // Check if dagre properly positioned this node
+      if (!nodeWithPosition || typeof nodeWithPosition.x !== 'number' || typeof nodeWithPosition.y !== 'number') {
+        console.warn(`Dagre failed to position node ${nodeId}`);
+        allNodesPositioned = false;
+        return;
+      }
+      
+      // Determine if this is a QnA node
+      const isQnANode = node.type === 'qna';
+      
+      // Check if this node has children
+      const hasChildren = !!parentToChildren[nodeId]?.length;
+      
+      // Get node level (column number)
+      const columnLevel = nodeLevels[nodeId] || 0;
+      
+      // Use the level for consistent positioning
+      // Create ReactFlow node with position from dagre
+      nodes.push({
+        id: nodeId,
+        type: 'custom',
+        position: { 
+          x: nodeWithPosition.x - nodeWidth / 2, 
+          y: nodeWithPosition.y - nodeWithPosition.height / 2
+        },
+        data: { 
+          title: node.title,
+          description: node.description,
+          updateNodeData: updateNodeCallback,
+          nodeType: node.type, // Pass the node type
+          expanded: isQnANode, // Set expanded to true for QnA nodes
+          hasChildren: hasChildren, // Pass if this node has children
+          width: nodeWidth, // Default width for nodes
+          pageNumber: node.pageNumber, // Pass the page number from the API response
+          columnLevel: columnLevel, // Add column level for coloring
+          layoutDirection: layoutOptions.direction // Pass the layout direction to the node data
+        },
+        // Only set zIndex to ensure proper layering
+        style: {
+          zIndex: 100,
+        },
+        className: 'node-card'
+      });
+    });
+  }
+  
+  // If not all nodes were positioned, log error but continue with what we have
+  if (!allNodesPositioned) {
+    console.error('Some nodes could not be positioned by dagre');
   }
   
   // Create edges in a separate loop to ensure all nodes exist

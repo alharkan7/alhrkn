@@ -241,10 +241,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               {loading || urlLoading ? (
                 <>
                   <LoaderCircle className="animate-spin" />
-                  Generating...
+                  Creating...
                 </>
               ) : (
-                "Generate"
+                "Create"
               )}
             </Button>
           </div>
