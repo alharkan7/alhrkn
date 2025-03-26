@@ -811,15 +811,25 @@ export function useMindMap() {
           } catch (error) {
             console.error('Error processing PDF:', error);
             setError(error instanceof Error ? error.message : 'Unknown error');
+          } finally {
+            // Make sure to set loading to false no matter what
             setLoading(false);
           }
+        } else {
+          setError('Failed to read file data');
+          setLoading(false);
         }
       };
+      
+      reader.onerror = () => {
+        setError('Error reading the file');
+        setLoading(false);
+      };
+      
       reader.readAsDataURL(file);
     } catch (err: any) {
       console.error('Error uploading file:', err);
       setError(err.message || 'Failed to analyze the paper');
-    } finally {
       setLoading(false);
     }
   };
