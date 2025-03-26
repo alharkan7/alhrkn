@@ -162,13 +162,11 @@ export function FormExpenses({
             <SelectContent>
               <SelectItem value="TRUE">
                 <div className="flex items-center">
-                  <Check className="mr-2 h-4 w-4" />
                   <span>Yes</span>
                 </div>
               </SelectItem>
               <SelectItem value="FALSE">
                 <div className="flex items-center">
-                  <X className="mr-2 h-4 w-4" />
                   <span>No</span>
                 </div>
               </SelectItem>

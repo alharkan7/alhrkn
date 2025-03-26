@@ -258,7 +258,7 @@ export default function FinanceTrackerPage() {
 
       {showInfoModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          className="fixed inset-0 z-50 flex items-center justify-center"
           onClick={() => setShowInfoModal(false)}
         >
           <Card
@@ -268,7 +268,7 @@ export default function FinanceTrackerPage() {
             <CardHeader>
               <CardTitle className="text-xl text-center">About this (Demo) App</CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground space-y-4">
+            <CardContent className="space-y-4">
               <p>
                 This app saves your data directly to Google Sheets <b>so that you own your data</b> and can manage it yourself.
               </p>
@@ -278,7 +278,7 @@ export default function FinanceTrackerPage() {
                   href="https://github.com/alharkan7/simple-expense-tracker"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/90 underline"
+                  className="underline"
                 >
                   fork the repository
                 </a> and deploy it to Vercel.
