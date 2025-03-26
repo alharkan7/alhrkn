@@ -233,16 +233,14 @@ export default function JapaneseFlashcardsPage() {
               <Button
                 variant={selectedType === "Hiragana" ? "default" : "neutral"}
                 onClick={() => setSelectedType("Hiragana")}
-                className={`rounded-full font-bold ${selectedType === "Hiragana" ? "text-primary-foreground" : "text-muted-foreground"
-                  }`}
+                className={`rounded-full font-bold`}
               >
                 Hiragana
               </Button>
               <Button
                 variant={selectedType === "Katakana" ? "default" : "neutral"}
                 onClick={() => setSelectedType("Katakana")}
-                className={`rounded-full font-bold ${selectedType === "Katakana" ? "text-primary-foreground" : "text-muted-foreground"
-                  }`}
+                className={`rounded-full font-bold`}
               >
                 Katakana
               </Button>
@@ -261,7 +259,7 @@ export default function JapaneseFlashcardsPage() {
                 }}
                 className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
               >
-                <ChevronUp className="h-5 w-5 text-secondary-foreground/50" />
+                <ChevronUp className="h-5 w-5" />
               </Button>
             </div>
 
@@ -314,7 +312,7 @@ export default function JapaneseFlashcardsPage() {
                 }}
                 className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
               >
-                <ChevronDown className="h-5 w-5 text-secondary-foreground/50" />
+                <ChevronDown className="h-5 w-5" />
               </Button>
             </div>
 

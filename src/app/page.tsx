@@ -163,7 +163,7 @@ export default function ChatPage() {
                                                 }
                                             }}
                                         >
-                                            <Icon className="!size-5 text-foreground" />
+                                            <Icon className="!size-5" />
                                             <div className="w-full h-8 flex items-start">
                                                 <span className="text-xs font-medium line-clamp-2 text-center whitespace-normal break-words w-full px-2">{app.name}</span>
                                             </div>
