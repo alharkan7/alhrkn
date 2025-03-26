@@ -150,6 +150,11 @@ export function useMindMap() {
     console.error("addFollowUpNode called before initialization");
     return customNodeId || '';
   });
+
+  // Add deleteNode reference 
+  const deleteNodeRef = useRef<(nodeId: string) => void>((nodeId) => {
+    console.error("deleteNode called before initialization");
+  });
   
   // Get all descendant node IDs (recursive)
   const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
@@ -400,6 +405,7 @@ export function useMindMap() {
         description: answer,
         updateNodeData,
         addFollowUpNode,
+        deleteNode: stableDeleteNode, // Add deleteNode function
         nodeType: 'qna', // Set the nodeType for QnA nodes
         expanded: true, // Set expanded to true for QnA nodes
         lastCreatedNodeId, // Store reference to this node ID for updates
@@ -609,10 +615,11 @@ export function useMindMap() {
     return newNodeId;
   };
   
-  // Always update the reference
+  // Always update the references
   useEffect(() => {
     // Update the ref with the latest implementation that has access to current state
     addFollowUpNodeRef.current = addFollowUpNode;
+    deleteNodeRef.current = deleteNode;
   });
   
   // Create an effect to track node position changes
@@ -649,6 +656,13 @@ export function useMindMap() {
     // Always call the latest implementation from the ref
     const nodeId = addFollowUpNodeRef.current(parentId, question, answer, customNodeId);
     return nodeId || customNodeId || ''; // Ensure we always return a string
+  }, []);
+
+  // Create a stable function for deleteNode
+  const stableDeleteNode = useCallback((nodeId: string) => {
+    console.log('Stable deleteNode called, delegating to current implementation');
+    // Always call the latest implementation from the ref
+    deleteNodeRef.current(nodeId);
   }, []);
 
   // Function to load example mindmap
@@ -706,6 +720,7 @@ export function useMindMap() {
         data: {
           ...node.data,
           addFollowUpNode: stableAddFollowUpNode,
+          deleteNode: stableDeleteNode, // Add deleteNode function
           toggleChildrenVisibility
         }
       }));
@@ -730,7 +745,7 @@ export function useMindMap() {
     } finally {
       setLoading(false);
     }
-  }, [updateNodeData, stableAddFollowUpNode, toggleChildrenVisibility]);
+  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility]);
 
   // Fetch example PDF data on initial load if using example mindmap
   useEffect(() => {
@@ -870,6 +885,7 @@ export function useMindMap() {
               data: {
                 ...node.data,
                 addFollowUpNode: stableAddFollowUpNode,
+                deleteNode: stableDeleteNode, // Add deleteNode function
                 toggleChildrenVisibility
               }
             }));
@@ -922,7 +938,7 @@ export function useMindMap() {
   // Force update node handlers when mindMapData changes
   useEffect(() => {
     if (mindMapData && nodes.length > 0) {
-      console.log('Updating addFollowUpNode references due to mindMapData change');
+      console.log('Updating node function references due to mindMapData change');
       
       // Create a map of parent to children for checking if nodes have children
       const parentToChildren: Record<string, boolean> = {};
@@ -932,8 +948,7 @@ export function useMindMap() {
         }
       });
       
-      // Update all nodes with the current addFollowUpNode function
-      // Preserve positions of existing nodes when updating
+      // Update all nodes with the current functions
       setNodes(currentNodes => 
         currentNodes.map(node => {
           // Find the corresponding node in the mindMapData to get its pageNumber
@@ -948,6 +963,7 @@ export function useMindMap() {
             data: {
               ...node.data,
               addFollowUpNode: stableAddFollowUpNode, // Use the stable function
+              deleteNode: stableDeleteNode, // Add deleteNode function
               hasChildren: !!parentToChildren[node.id],
               childrenCollapsed: collapsedNodes.has(node.id),
               toggleChildrenVisibility,
@@ -958,7 +974,7 @@ export function useMindMap() {
         })
       );
     }
-  }, [mindMapData, nodes.length, stableAddFollowUpNode, collapsedNodes, toggleChildrenVisibility, nodePositions]);
+  }, [mindMapData, nodes.length, stableAddFollowUpNode, stableDeleteNode, collapsedNodes, toggleChildrenVisibility, nodePositions]);
 
   // Reset zoom and center the view
   const handleResetView = useCallback(() => {
@@ -1019,6 +1035,7 @@ export function useMindMap() {
           data: {
             ...node.data,
             addFollowUpNode: stableAddFollowUpNode,
+            deleteNode: stableDeleteNode, // Add deleteNode function
             toggleChildrenVisibility
           }
         }));
@@ -1048,7 +1065,7 @@ export function useMindMap() {
         console.error('Error applying new layout:', error);
       }
     }
-  }, [currentLayoutIndex, mindMapData, stableAddFollowUpNode, toggleChildrenVisibility, updateNodeData]);
+  }, [currentLayoutIndex, mindMapData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, updateNodeData]);
 
   // Effect to create initial flow when mindMapData is set
   useEffect(() => {
@@ -1057,16 +1074,17 @@ export function useMindMap() {
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(mindMapData, updateNodeData);
       
       // Add the addFollowUpNode function to all nodes' data
-      const nodesWithFollowUp = flowNodes.map(node => ({
+      const nodesWithFunctions = flowNodes.map(node => ({
         ...node,
         data: {
           ...node.data,
           addFollowUpNode: stableAddFollowUpNode,
+          deleteNode: stableDeleteNode, // Add deleteNode function
           toggleChildrenVisibility
         }
       }));
       
-      setNodes(nodesWithFollowUp);
+      setNodes(nodesWithFunctions);
       setEdges(flowEdges);
       
       // Fit view after nodes are set
@@ -1080,7 +1098,7 @@ export function useMindMap() {
         }
       }, 100);
     }
-  }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, toggleChildrenVisibility]);
+  }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility]);
 
   // Customize onNodesChange to track positions after node drags
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
@@ -1106,6 +1124,127 @@ export function useMindMap() {
     }
   }, [onNodesChange]);
 
+  // Delete a node and its connected edges
+  const deleteNode = useCallback((nodeId: string) => {
+    console.log(`Deleting node: ${nodeId}`);
+    
+    // Remove the node from the nodes state
+    setNodes(currentNodes => currentNodes.filter(node => node.id !== nodeId));
+    
+    // Remove all edges connected to this node (both incoming and outgoing)
+    setEdges(currentEdges => currentEdges.filter(edge => 
+      edge.source !== nodeId && edge.target !== nodeId
+    ));
+    
+    // Also update the mindMapData state
+    if (mindMapData) {
+      // Find the node to determine if it has children
+      const nodeToDelete = mindMapData.nodes.find(node => node.id === nodeId);
+      const childNodes = nodeToDelete ? mindMapData.nodes.filter(node => node.parentId === nodeId) : [];
+      
+      // Get the parent of the deleted node (if any)
+      const parentNodeId = nodeToDelete?.parentId;
+      
+      // Update the mindMapData by removing the node
+      setMindMapData(prevData => {
+        if (!prevData) return null;
+        
+        // Create new nodes array without the deleted node
+        let updatedNodes = prevData.nodes.filter(node => node.id !== nodeId);
+        
+        // Check if parent still has other children
+        const parentHasOtherChildren = updatedNodes.some(
+          node => node.parentId === parentNodeId && node.id !== nodeId
+        );
+        
+        // For any child nodes, either orphan them or reconnect to grandparent
+        if (childNodes.length > 0 && parentNodeId) {
+          // Reconnect children to grandparent
+          updatedNodes = updatedNodes.map(node => {
+            if (node.parentId === nodeId) {
+              return {
+                ...node,
+                parentId: parentNodeId
+              };
+            }
+            return node;
+          });
+          
+          // Update the edges in ReactFlow to reflect these changes
+          childNodes.forEach(childNode => {
+            // Create a unique edge ID by including a timestamp
+            const uniqueEdgeId = `e-${parentNodeId}-${childNode.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Create new edge from grandparent to child
+            const newEdge = {
+              id: uniqueEdgeId,
+              source: parentNodeId,
+              target: childNode.id,
+              sourceHandle: 'source',
+              targetHandle: 'target',
+              type: 'bezier',
+              style: { 
+                stroke: '#3182CE', 
+                strokeWidth: 2, 
+                strokeOpacity: 1, 
+                zIndex: 1000 
+              },
+              animated: false,
+              className: 'mindmap-edge'
+            };
+            
+            // Add the new edge
+            setEdges(currentEdges => [...currentEdges, newEdge]);
+          });
+        }
+        
+        return {
+          ...prevData,
+          nodes: updatedNodes
+        };
+      });
+      
+      // Update any nodes that need to have their hasChildren property updated
+      if (parentNodeId) {
+        setNodes(currentNodes => {
+          return currentNodes.map(node => {
+            if (node.id === parentNodeId) {
+              // Check if parent still has other children
+              const parentStillHasChildren = currentNodes.some(n => 
+                n.id !== nodeId && 
+                n.data.parentId === parentNodeId
+              );
+              
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  hasChildren: parentStillHasChildren
+                }
+              };
+            }
+            return node;
+          });
+        });
+      }
+    }
+    
+    // Handle collapsed nodes state if necessary
+    setCollapsedNodes(prev => {
+      const newCollapsed = new Set(prev);
+      if (newCollapsed.has(nodeId)) {
+        newCollapsed.delete(nodeId);
+      }
+      return newCollapsed;
+    });
+    
+    // After deletion, run node visibility update
+    setTimeout(() => {
+      updateNodeVisibility();
+    }, 50);
+    
+  }, [mindMapData, updateNodeVisibility]);
+
   return {
     loading,
     error,
@@ -1119,6 +1258,7 @@ export function useMindMap() {
     onEdgesChange,
     handleFileUpload,
     addFollowUpNode: addFollowUpNodeRef.current,
+    deleteNode: stableDeleteNode, // Add deleteNode to the returned object
     handleResetView,
     loadExampleMindMap, // Expose the function to load example mindmap
     pdfUrl, // Expose the PDF URL
