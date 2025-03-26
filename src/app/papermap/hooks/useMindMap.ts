@@ -660,8 +660,33 @@ export function useMindMap() {
     
     // Fetch and store the example PDF data in localStorage
     fetchAndStorePdfData(EXAMPLE_PDF_URL)
-      .then(() => {
+      .then(async () => {
         console.log('Example PDF data successfully stored in localStorage');
+        
+        // Initialize a session with the example PDF data
+        const pdfData = localStorage.getItem('pdfData');
+        if (pdfData) {
+          try {
+            // Initialize a session for the example PDF
+            const sessionResponse = await fetch('/api/papermap/initialize', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ pdfData })
+            });
+            
+            if (sessionResponse.ok) {
+              const { sessionId, sessionData } = await sessionResponse.json();
+              // Store session data
+              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
+              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
+              console.log('Session initialized for example PDF follow-up questions');
+            }
+          } catch (error) {
+            console.error('Failed to initialize session for example PDF:', error);
+          }
+        }
       })
       .catch((error) => {
         console.error('Failed to store example PDF:', error);
@@ -713,7 +738,60 @@ export function useMindMap() {
       if (!existingPdfData) {
         console.log('Example mindmap is loaded but PDF data not in localStorage, fetching it now');
         fetchAndStorePdfData(EXAMPLE_PDF_URL)
+          .then(async () => {
+            // Initialize a session with the example PDF data when app first loads
+            const pdfData = localStorage.getItem('pdfData');
+            if (pdfData) {
+              try {
+                // Initialize a session for the example PDF
+                const sessionResponse = await fetch('/api/papermap/initialize', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ pdfData })
+                });
+                
+                if (sessionResponse.ok) {
+                  const { sessionId, sessionData } = await sessionResponse.json();
+                  // Store session data
+                  if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
+                  if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
+                  console.log('Session automatically initialized for example PDF on first load');
+                }
+              } catch (error) {
+                console.error('Failed to initialize session for example PDF on first load:', error);
+              }
+            }
+          })
           .catch(error => console.error('Error pre-loading example PDF:', error));
+      } else {
+        // If PDF data exists but no session, initialize session
+        const sessionId = localStorage.getItem('pdfSessionId');
+        const sessionData = localStorage.getItem('pdfSessionData');
+        
+        if ((!sessionId || !sessionData) && existingPdfData) {
+          console.log('PDF data exists but missing session data, initializing session');
+          fetch('/api/papermap/initialize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pdfData: existingPdfData })
+          })
+            .then(response => {
+              if (response.ok) {
+                return response.json();
+              }
+              throw new Error('Failed to initialize session');
+            })
+            .then(({ sessionId, sessionData }) => {
+              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
+              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
+              console.log('Session initialized for existing example PDF data');
+            })
+            .catch(error => console.error('Error initializing session:', error));
+        }
       }
     }
   }, [mindMapData, pdfUrl]);
