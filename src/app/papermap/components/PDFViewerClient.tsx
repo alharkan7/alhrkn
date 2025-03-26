@@ -166,15 +166,29 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
       window.open(pdfUrl, '_blank');
     } 
     // If we have base64 data, create a blob and open it
-    else if (pdfBytes) {
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-      
-      // Clean up the blob URL after opening (not immediately to ensure it opens)
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-      }, 1000);
+    else if (pdfBase64) {
+      try {
+        // Convert base64 to binary array
+        const binary = atob(pdfBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        
+        // Create blob with the correct MIME type
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Open in new tab
+        window.open(blobUrl, '_blank');
+        
+        // Clean up the blob URL after opening (not immediately to ensure it opens)
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 1000);
+      } catch (error) {
+        console.error('Error opening PDF:', error);
+      }
     }
   };
 

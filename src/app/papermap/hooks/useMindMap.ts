@@ -388,8 +388,8 @@ export function useMindMap() {
     
     // Default position before dagre calculation (will be properly positioned later)
     const newNodePosition = { 
-      x: parentPos.x + COLUMN_WIDTH, 
-      y: parentPos.y
+      x: parentPos.x + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? 0 : COLUMN_WIDTH), 
+      y: parentPos.y + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? COLUMN_WIDTH : 0)
     };
     
     // Store the ID of the last created node in all nodes' data for reference in async operations
@@ -555,8 +555,8 @@ export function useMindMap() {
                       return {
                         ...node,
                         position: {
-                          x: parentNode.position.x + COLUMN_WIDTH,
-                          y: parentNode.position.y + 100
+                          x: parentNode.position.x + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? 0 : COLUMN_WIDTH),
+                          y: parentNode.position.y + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? COLUMN_WIDTH : 100)
                         }
                       };
                     }
