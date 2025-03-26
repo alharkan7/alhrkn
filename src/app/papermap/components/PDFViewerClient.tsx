@@ -8,7 +8,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 // Import the CSS files from the package itself
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { X, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Minus, Plus, SquareArrowOutUpRight } from 'lucide-react';
 
 // Set the worker source for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -159,6 +159,25 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
     setScale(prev => Math.max(prev - 0.2, 0.5));
   };
 
+  // Function to open PDF in native viewer
+  const openInNativeViewer = () => {
+    // If we have a URL, open it in a new tab
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    } 
+    // If we have base64 data, create a blob and open it
+    else if (pdfBytes) {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      
+      // Clean up the blob URL after opening (not immediately to ensure it opens)
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
@@ -206,6 +225,8 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             >
               <ChevronRight className="h-5 w-5" />
             </button>
+            
+            <div className="h-6 mx-1 border-r border-muted-foreground/30"></div>
 
             <button
               onClick={zoomOut}
@@ -223,6 +244,17 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
               title="Zoom in"
             >
               <Plus className="h-5 w-5" />
+            </button>
+            
+            <div className="h-6 mx-1 border-r border-muted-foreground/30"></div>
+            
+            <button
+              onClick={openInNativeViewer}
+              disabled={!memoizedFile}
+              className={`p-2 rounded-full ${!memoizedFile ? 'text-muted-foreground' : 'text-foreground hover:bg-muted'}`}
+              title="Open in native viewer"
+            >
+              <SquareArrowOutUpRight className="h-5 w-5" />
             </button>
           </div>
         </div>

@@ -8,7 +8,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
-import { LoaderCircle, Layout } from 'lucide-react';
+import { LoaderCircle, Network } from 'lucide-react';
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import { reactFlowStyles } from '../styles/styles';
 import { LAYOUT_PRESETS } from '../types';
@@ -129,14 +129,14 @@ const MindMapFlow = () => {
       >
         {/* Layout Switcher Button */}
         <div 
-          className="absolute bottom-[80px] right-6 z-10 flex flex-col gap-3 print:hidden"
+          className="absolute bottom-[15px] right-4 z-10 flex flex-col gap-3 print:hidden"
           title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
         >
           <button
             onClick={cycleLayout}
             className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
           >
-            <Layout size={16} className="text-gray-700 dark:text-gray-300" />
+            <Network size={16} className="text-gray-700 dark:text-gray-300" />
           </button>
         </div>
         
