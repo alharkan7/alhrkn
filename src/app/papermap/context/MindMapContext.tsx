@@ -3,6 +3,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Node, Edge, NodeChange, EdgeChange, ReactFlowInstance } from 'reactflow';
 import { MindMapData } from '../types';
+import { LayoutOptions } from '../types';
 
 interface MindMapContextType {
   // State
@@ -13,6 +14,7 @@ interface MindMapContextType {
   edges: Edge[];
   reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
   reactFlowInstance: React.RefObject<ReactFlowInstance>;
+  currentLayoutIndex: number;
   
   // Operations
   onNodesChange: (changes: NodeChange[]) => void;
@@ -20,6 +22,7 @@ interface MindMapContextType {
   handleFileUpload: (file: File) => void;
   handleResetView: () => void;
   loadExampleMindMap: () => void;
+  cycleLayout: () => void;
 }
 
 const MindMapContext = createContext<MindMapContextType | undefined>(undefined);

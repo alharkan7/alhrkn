@@ -8,9 +8,10 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Layout } from 'lucide-react';
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import { reactFlowStyles } from '../styles/styles';
+import { LAYOUT_PRESETS } from '../types';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -27,15 +28,21 @@ const MindMapFlow = () => {
     onNodesChange, 
     onEdgesChange, 
     reactFlowInstance,
-    loading
+    loading,
+    currentLayoutIndex,
+    cycleLayout
   } = useMindMapContext();
   
   const { openPdfViewer } = usePdfViewerContext();
   
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
+  
+  // Get current layout direction from the layout preset
+  const currentLayout = LAYOUT_PRESETS[currentLayoutIndex];
+  const currentLayoutDirection = currentLayout.direction;
 
-  // Enhance nodes with PDF viewer capability
+  // Enhance nodes with PDF viewer capability and layout direction
   const enhancedNodes = nodes.map(node => {
     // Log the node data to check if pageNumber exists
     if (process.env.NODE_ENV === 'development') {
@@ -46,7 +53,8 @@ const MindMapFlow = () => {
       ...node,
       data: {
         ...node.data,
-        openPdfViewer // Pass the openPdfViewer function to all nodes
+        openPdfViewer, // Pass the openPdfViewer function to all nodes
+        layoutDirection: currentLayoutDirection // Pass the current layout direction
       }
     };
   });
@@ -119,6 +127,19 @@ const MindMapFlow = () => {
         className="mindmap-container"
         style={{ width: '100%', height: '100%' }}
       >
+        {/* Layout Switcher Button */}
+        <div 
+          className="absolute bottom-[80px] right-6 z-10 flex flex-col gap-3 print:hidden"
+          title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
+        >
+          <button
+            onClick={cycleLayout}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
+          >
+            <Layout size={16} className="text-gray-700 dark:text-gray-300" />
+          </button>
+        </div>
+        
         <Controls className="print:hidden" />
         <Background color={bgColor} gap={dotGap} size={dotSize} />
       </ReactFlow>

@@ -2,6 +2,33 @@ import { Node, Edge } from 'reactflow';
 import dagre from '@dagrejs/dagre';
 import { MindMapData, COLUMN_WIDTH, NodePosition } from './MindMapTypes';
 
+// Define layout options type
+export type LayoutOptions = {
+  direction: 'LR' | 'TB' | 'RL' | 'BT';
+  ranker: 'network-simplex' | 'tight-tree' | 'longest-path';
+  align: 'UL' | 'UR' | 'DL' | 'DR';
+  name: string; // Display name for the layout
+};
+
+// Define available layout presets
+export const LAYOUT_PRESETS: LayoutOptions[] = [
+  {
+    direction: 'LR',
+    ranker: 'network-simplex',
+    align: 'DL',
+    name: 'Left to Right'
+  },
+  {
+    direction: 'TB',
+    ranker: 'network-simplex',
+    align: 'DL',
+    name: 'Top to Bottom'
+  }
+];
+
+// Default layout option (first preset)
+export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = LAYOUT_PRESETS[0];
+
 // Define sticky note colors - should match the ones in CustomNode.tsx
 const STICKY_NOTE_COLORS = [
   { border: '#f9a825' }, // Yellow
@@ -17,11 +44,13 @@ const STICKY_NOTE_COLORS = [
  * Creates an optimized layout for the mind map using dagre layout algorithm
  * @param data MindMap data containing nodes and their relationships
  * @param updateNodeCallback Callback function to update node data
+ * @param layoutOptions Options for the layout algorithm
  * @returns ReactFlow nodes and edges
  */
 export const createMindMapLayout = (
   data: MindMapData, 
-  updateNodeCallback: (nodeId: string, newData: {title?: string; description?: string; width?: number}) => void
+  updateNodeCallback: (nodeId: string, newData: {title?: string; description?: string; width?: number}) => void,
+  layoutOptions: LayoutOptions = DEFAULT_LAYOUT_OPTIONS
 ): { nodes: Node[]; edges: Edge[] } => {
   // Initialize dagre graph
   const dagreGraph = new dagre.graphlib.Graph();
@@ -32,13 +61,13 @@ export const createMindMapLayout = (
   const nodeWidth = 256; // Default node width
   const nodeHeight = 150; // Increased node height for better spacing
 
-  // Set graph direction and options (LR = left to right)
+  // Set graph direction and options based on provided layoutOptions
   dagreGraph.setGraph({ 
-    rankdir: 'LR',
+    rankdir: layoutOptions.direction,
     nodesep: 100, // Increased vertical spacing between nodes in the same rank
     ranksep: COLUMN_WIDTH, // Horizontal spacing between ranks/levels
-    align: 'UL', // Align nodes by their upper-left corners
-    ranker: 'network-simplex', // Use network simplex algorithm for layout
+    align: layoutOptions.align, // Alignment based on layout options
+    ranker: layoutOptions.ranker, // Ranker algorithm based on layout options
     marginx: 50, // Add margin on the left and right
     marginy: 50  // Add margin on the top and bottom
   });

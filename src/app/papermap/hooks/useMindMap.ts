@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
-import { createMindMapLayout, updateMindMapLayout } from '../types';
+import { createMindMapLayout, updateMindMapLayout, LayoutOptions, LAYOUT_PRESETS, DEFAULT_LAYOUT_OPTIONS } from '../types';
 
 // Example mindmap data and PDF URL
 const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
@@ -142,6 +142,8 @@ export function useMindMap() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useRef<any>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(EXAMPLE_PDF_URL); // Initialize with example PDF URL
+  const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0); // Current layout index
+  const currentLayout = LAYOUT_PRESETS[currentLayoutIndex]; // Current layout options
   
   // Create a ref to hold the latest addFollowUpNode implementation
   const addFollowUpNodeRef = useRef<(parentId: string, question: string, answer: string, customNodeId?: string) => string>((parentId, question, answer, customNodeId) => {
@@ -985,6 +987,69 @@ export function useMindMap() {
     }
   }, [mindMapData, nodes, setNodes]);
 
+  // Function to cycle through layout options
+  const cycleLayout = useCallback(() => {
+    // Calculate the next layout index
+    const nextLayoutIndex = (currentLayoutIndex + 1) % LAYOUT_PRESETS.length;
+    setCurrentLayoutIndex(nextLayoutIndex);
+    
+    // Only apply new layout if mindMapData exists
+    if (mindMapData) {
+      // Create a new layout with the next layout preset
+      const nextLayout = LAYOUT_PRESETS[nextLayoutIndex];
+      const isChangingOrientation = 
+        (LAYOUT_PRESETS[currentLayoutIndex].direction === 'LR' || LAYOUT_PRESETS[currentLayoutIndex].direction === 'RL') !==
+        (nextLayout.direction === 'LR' || nextLayout.direction === 'RL');
+        
+      console.log(`Switching layout to: ${nextLayout.name} (${nextLayout.direction})`);
+      if (isChangingOrientation) {
+        console.log('Orientation changed: Repositioning handles and buttons');
+      }
+      
+      try {
+        const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
+          mindMapData,
+          updateNodeData,
+          nextLayout
+        );
+        
+        // Add the addFollowUpNode function to all nodes' data
+        const nodesWithFollowUp = flowNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            addFollowUpNode: stableAddFollowUpNode,
+            toggleChildrenVisibility
+          }
+        }));
+        
+        // Update nodes and edges with the new layout
+        setNodes(nodesWithFollowUp);
+        setEdges(flowEdges);
+        
+        // Reset node positions tracker since we've applied a completely new layout
+        const newPositions: Record<string, NodePosition> = {};
+        nodesWithFollowUp.forEach(node => {
+          newPositions[node.id] = node.position;
+        });
+        setNodePositions(newPositions);
+        
+        // Center the view
+        setTimeout(() => {
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({
+              padding: 0.4,
+              duration: 800,
+              includeHiddenNodes: false
+            });
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error applying new layout:', error);
+      }
+    }
+  }, [currentLayoutIndex, mindMapData, stableAddFollowUpNode, toggleChildrenVisibility, updateNodeData]);
+
   // Effect to create initial flow when mindMapData is set
   useEffect(() => {
     if (mindMapData && nodes.length === 0) {
@@ -1056,6 +1121,9 @@ export function useMindMap() {
     addFollowUpNode: addFollowUpNodeRef.current,
     handleResetView,
     loadExampleMindMap, // Expose the function to load example mindmap
-    pdfUrl // Expose the PDF URL
+    pdfUrl, // Expose the PDF URL
+    currentLayoutIndex,
+    setCurrentLayoutIndex,
+    cycleLayout
   };
 } 

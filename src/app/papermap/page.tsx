@@ -34,7 +34,9 @@ export default function PaperMap() {
     handleFileUpload,
     handleResetView,
     loadExampleMindMap,
-    pdfUrl
+    pdfUrl,
+    currentLayoutIndex,
+    cycleLayout
   } = useMindMap();
 
   // Prepare context values
@@ -50,7 +52,9 @@ export default function PaperMap() {
     onEdgesChange,
     handleFileUpload,
     handleResetView,
-    loadExampleMindMap
+    loadExampleMindMap,
+    currentLayoutIndex,
+    cycleLayout
   };
 
   return (

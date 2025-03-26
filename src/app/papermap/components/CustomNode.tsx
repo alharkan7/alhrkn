@@ -25,6 +25,7 @@ interface CustomNodeProps {
     pageNumber?: number; // Page number in the PDF
     openPdfViewer?: (pageNumber: number) => void; // Function to open PDF viewer
     columnLevel?: number; // Column level for color assignment
+    layoutDirection?: 'LR' | 'TB' | 'RL' | 'BT'; // Current layout direction
   };
   id: string;
   selected?: boolean; // Add selected prop
@@ -57,6 +58,11 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const columnLevel = data.columnLevel || 0;
   const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
   const nodeColor = STICKY_NOTE_COLORS[colorIndex];
+  
+  // Determine handle positions based on layout direction
+  const isHorizontalFlow = !data.layoutDirection || data.layoutDirection === 'LR' || data.layoutDirection === 'RL';
+  const sourcePosition = isHorizontalFlow ? Position.Right : Position.Bottom;
+  const targetPosition = isHorizontalFlow ? Position.Left : Position.Top;
 
   // Debug logging
   useEffect(() => {
@@ -486,7 +492,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Input handle on left side */}
         <Handle
           type="target"
-          position={Position.Left}
+          position={targetPosition}
           style={{
             background: nodeColor.border,
             width: '10px',
@@ -593,7 +599,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Output handle on right side - Invisible but functional */}
         <Handle
           type="source"
-          position={Position.Right}
+          position={sourcePosition}
           style={{
             background: nodeColor.border,
             width: '10px',
@@ -608,7 +614,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Floating chat and document buttons - only show when hovering and not in other states */}
         {isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
           <div
-            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 cursor-pointer flex space-x-2"
+            className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-2' : 'flex-col space-y-2'}`}
             style={{ zIndex: 1000 }}
           >
 
@@ -638,7 +644,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
         {/* Display loading indicator when processing */}
         {loading && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2" style={{ zIndex: 1000 }}>
+          <div className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'}`} style={{ zIndex: 1000 }}>
             <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
               Processing...
             </div>
@@ -648,7 +654,9 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Toggle children visibility button */}
         {data.hasChildren && (
           <div
-            className="absolute right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2 cursor-pointer"
+            className={`absolute ${isHorizontalFlow 
+              ? 'right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2' 
+              : 'bottom-0 left-1/2 transform translate-y-[10px] -translate-x-1/2'} cursor-pointer`}
             onClick={handleChildrenToggle}
             style={{ zIndex: 1001 }}
             title={data.childrenCollapsed ? "Show children" : "Hide children"}
