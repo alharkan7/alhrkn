@@ -94,6 +94,7 @@ const MindMapFlow = () => {
 
   // Set background color based on CSS variables
   const bgColor = 'var(--background)';
+  const dotColor = 'var(--foreground-muted, #94a3b8)'; // Add a foreground color with fallback
   const dotSize = 1.5; // Slightly larger dots for better visibility
   const dotGap = 24;
 
@@ -125,7 +126,7 @@ const MindMapFlow = () => {
           animated: false
         }}
         className="mindmap-container"
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', background: bgColor }}
       >
         {/* Layout Switcher Button */}
         <div 
@@ -141,7 +142,7 @@ const MindMapFlow = () => {
         </div>
         
         <Controls className="print:hidden" />
-        <Background color={bgColor} gap={dotGap} size={dotSize} />
+        <Background color={dotColor} gap={dotGap} size={dotSize} />
       </ReactFlow>
       
       {showLoadingIndicator && (
