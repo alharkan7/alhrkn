@@ -128,22 +128,22 @@ const MindMapFlow = () => {
         className="mindmap-container"
         style={{ width: '100%', height: '100%', background: bgColor }}
       >
-        {/* Layout Switcher Button */}
-        <div 
-          className="absolute bottom-[70px] md:bottom-[20px] right-3 z-10 flex flex-col gap-3 print:hidden"
-          title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
-        >
-          <button
-            onClick={cycleLayout}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
-          >
-            <Network size={16} className="text-gray-700 dark:text-gray-300" />
-          </button>
-        </div>
-        
         <Controls className="print:hidden" />
         <Background color={dotColor} gap={dotGap} size={dotSize} />
       </ReactFlow>
+      
+      {/* Layout Switcher Button */}
+      <div 
+        className="fixed bottom-4 right-4 z-20 flex flex-col gap-3 print:hidden"
+        title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
+      >
+        <button
+          onClick={cycleLayout}
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
+        >
+          <Network size={16} className="text-gray-700 dark:text-gray-300" />
+        </button>
+      </div>
       
       {showLoadingIndicator && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/15 backdrop-blur-xs">
