@@ -72,7 +72,8 @@ export default function Downloader({}: DownloaderProps) {
         filter: (node: any) => {
           return (
             !node.classList?.contains('react-flow__minimap') &&
-            !node.classList?.contains('react-flow__controls')
+            !node.classList?.contains('react-flow__controls') &&
+            !(node.getAttribute && node.getAttribute('data-exclude-from-export') === 'true')
           );
         }
       }

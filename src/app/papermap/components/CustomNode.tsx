@@ -699,6 +699,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             onClick={handleChildrenToggle}
             style={{ zIndex: 1001 }}
             title={data.childrenCollapsed ? "Show children" : "Hide children"}
+            data-exclude-from-export="true"
           >
             <div className={`w-5 h-5 bg-muted rounded-full flex items-center justify-center border border-border dark:bg-slate-800 dark:border-slate-700 transition-colors`}>
               <span className="text-xs font-bold">
