@@ -110,6 +110,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
           pointerEvents: 'auto',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
           backgroundColor: 'var(--card)',
+          background: 'hsl(var(--card) / 1)',
           borderRadius: '8px',
           overflow: 'hidden',
           border: '1px solid var(--border)',
@@ -119,7 +120,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <style jsx global>{followUpCardStyles}</style>
-        <div className="p-3 font-medium text-sm text-primary flex justify-between border-b border-border bg-muted/50">
+        <div className="py-3 pr-3 pl-4 font-medium text-sm text-primary flex justify-between border-b border-border bg-muted">
           <span>Ask a Question</span>
           <button 
             className="text-muted-foreground hover:text-foreground focus:outline-none"

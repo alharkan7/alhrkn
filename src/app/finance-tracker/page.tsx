@@ -112,7 +112,7 @@ export default function FinanceTrackerPage() {
       <div className="fixed top-0 left-0 right-0 z-50">
         <AppsHeader />
       </div>
-      <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 py-2 px-0">
+      <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 py-2 px-1">
         <div className="max-w-sm mx-auto relative bg-card py-6 px-0 rounded-sm">
 
           <div className="text-center py-6 items-center">
@@ -178,7 +178,7 @@ export default function FinanceTrackerPage() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.2 }}
-                    className="rounded-base shadow-shadow border-2 border-border text-mtext p-0"
+                    className="rounded-lg shadow-shadow border-2 border-border text-mtext p-0"
                   >
                     <FormExpenses
                       date={date}
@@ -206,7 +206,7 @@ export default function FinanceTrackerPage() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.2 }}
-                    className="rounded-base shadow-shadow border-2 border-border text-mtext p-0"
+                    className="rounded-lg shadow-shadow border-2 border-border text-mtext p-0"
                   >
                     <FormIncome
                       date={date}

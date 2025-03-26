@@ -44,7 +44,7 @@ export function FormExpenses({
   handleSubmit,
 }: FormExpensesProps) {
   return (
-    <form className="border shadow-sm hover:shadow-md transition-shadow duration-200 p-6 rounded-lg" onSubmit={handleSubmit}>
+    <form className="shadow-sm hover:shadow-md transition-shadow duration-200 p-6 rounded-lg" onSubmit={handleSubmit}>
       <div className="space-y-2 w-full">
         <div className="relative">
           <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[2rem] text-secondary-foreground/50 font-medium">Rp</span>

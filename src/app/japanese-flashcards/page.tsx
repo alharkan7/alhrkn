@@ -298,7 +298,7 @@ export default function JapaneseFlashcardsPage() {
               </div>
 
               <div className={`absolute bottom-0 left-0 right-0 text-center md:hidden ${(hasTapped && hasSwiped) ? 'hidden' : ''}`}>
-                <span className="text-xs text-muted-foreground">Swipe & Tap</span>
+                <span className="text-xs text-secondary-foreground/50">Swipe & Tap</span>
               </div>
             </Card>
 
