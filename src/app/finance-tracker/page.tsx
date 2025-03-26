@@ -112,7 +112,7 @@ export default function FinanceTrackerPage() {
       <div className="fixed top-0 left-0 right-0 z-50">
         <AppsHeader />
       </div>
-      <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 p-2">
+      <div className="w-full max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/40 py-2 px-0">
         <div className="max-w-sm mx-auto relative bg-card py-6 px-0 rounded-sm">
 
           <div className="text-center py-6 items-center">
@@ -139,7 +139,7 @@ export default function FinanceTrackerPage() {
               </div>
             )}
           </div>
-          <div className="p-4">
+          <div className="py-4 px-0">
             <Tabs
               defaultValue="expense"
               className="w-full"

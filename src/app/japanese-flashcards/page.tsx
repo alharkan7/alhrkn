@@ -222,7 +222,7 @@ export default function JapaneseFlashcardsPage() {
 
   return (
     <>
-      <div className="min-h-screen flex flex-col items-center p-4 bg-background relative">
+      <div className="min-h-screen flex flex-col items-center py-4 px-0 bg-background relative">
         <div className="fixed top-0 left-0 right-0 z-50">
           <AppsHeader />
         </div>
