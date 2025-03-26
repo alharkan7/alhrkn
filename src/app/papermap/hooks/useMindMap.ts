@@ -7,6 +7,12 @@ import { createMindMapLayout, updateMindMapLayout } from '../types';
 
 // Example mindmap data and PDF URL
 const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
+
+// Expose the example PDF URL globally for other components to use
+if (typeof window !== 'undefined') {
+  (window as any).EXAMPLE_PDF_URL = EXAMPLE_PDF_URL;
+}
+
 const EXAMPLE_MINDMAP: MindMapData = {
   "nodes": [
     {
@@ -90,6 +96,39 @@ const EXAMPLE_MINDMAP: MindMapData = {
       "pageNumber": 3
     }
   ]
+};
+
+// Function to fetch and store PDF as base64 in localStorage
+const fetchAndStorePdfData = async (pdfUrl: string) => {
+  try {
+    console.log('Fetching example PDF:', pdfUrl);
+    const response = await fetch(pdfUrl);
+    if (!response.ok) {
+      throw new Error('Failed to fetch example PDF');
+    }
+    
+    const pdfBlob = await response.blob();
+    const reader = new FileReader();
+    
+    return new Promise<void>((resolve, reject) => {
+      reader.onloadend = () => {
+        const base64data = reader.result;
+        if (typeof base64data === 'string') {
+          const base64Content = base64data.split(',')[1];
+          localStorage.setItem('pdfData', base64Content);
+          console.log('Example PDF data stored in localStorage, size:', base64Content.length);
+          resolve();
+        } else {
+          reject(new Error('Failed to convert PDF to base64'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+  } catch (error) {
+    console.error('Error storing example PDF:', error);
+    throw error;
+  }
 };
 
 export function useMindMap() {
@@ -463,61 +502,90 @@ export function useMindMap() {
           
           if (Object.keys(nodePositions).length > 0) {
             // We have tracked positions, use them to calculate layout
-            console.log('Using tracked node positions');
+            console.log('Using tracked node positions for new node');
             
-            // Get layout for new node
-            const { nodes: layoutNodes } = createMindMapLayout(
-              { nodes: mindMapData.nodes },
-              updateNodeData
-            );
-            
-            // Find position for new node only
-            const newNodeLayout = layoutNodes.find(n => n.id === newNodeId);
-            
-            // Apply positions: Keep existing nodes where they are, position new node
-            setNodes(currentNodes => {
-              return currentNodes.map(node => {
-                if (node.id === newNodeId && newNodeLayout) {
-                  // Position the new node using the layout
-                  return {
-                    ...node,
-                    position: newNodeLayout.position
-                  };
-                } else if (nodePositions[node.id]) {
-                  // Use tracked positions for existing nodes
-                  return {
-                    ...node,
-                    position: nodePositions[node.id]
-                  };
-                }
-                // Fall back to current position
-                return node;
-              });
-            });
-          } else {
-            // No tracked positions, fall back to only updating the new node
-            const { nodes: newNodes } = createMindMapLayout(
-              { nodes: mindMapData.nodes }, 
-              updateNodeData
-            );
-            
-            // Apply the new position only to the newly created node, preserve existing node positions
-            setNodes(currentNodes => {
-              return currentNodes.map(node => {
-                // Only update the position of the newly created node
-                if (node.id === newNodeId) {
-                  const newLayoutNode = newNodes.find(n => n.id === newNodeId);
-                  if (newLayoutNode) {
+            try {
+              // Get layout for new node
+              const { nodes: layoutNodes } = createMindMapLayout(
+                { nodes: mindMapData.nodes },
+                updateNodeData
+              );
+              
+              // Find position for new node only
+              const newNodeLayout = layoutNodes.find(n => n.id === newNodeId);
+              
+              // Apply positions: Keep existing nodes where they are, position new node
+              setNodes(currentNodes => {
+                return currentNodes.map(node => {
+                  if (node.id === newNodeId && newNodeLayout) {
+                    // Position the new node using the layout
+                    console.log(`Positioning new node ${newNodeId} at x:${newNodeLayout.position.x}, y:${newNodeLayout.position.y}`);
                     return {
                       ...node,
-                      position: newLayoutNode.position
+                      position: newNodeLayout.position
+                    };
+                  } else if (nodePositions[node.id]) {
+                    // Use tracked positions for existing nodes
+                    return {
+                      ...node,
+                      position: nodePositions[node.id]
                     };
                   }
-                }
-                // Keep existing positions for all other nodes
-                return node;
+                  // Fall back to current position
+                  return node;
+                });
               });
-            });
+            } catch (error) {
+              console.error('Error updating layout for new node:', error);
+              // If there's an error, just position the new node relatively to its parent
+              setNodes(currentNodes => {
+                return currentNodes.map(node => {
+                  if (node.id === newNodeId) {
+                    const parentNode = currentNodes.find(n => n.id === parentId);
+                    if (parentNode) {
+                      // Calculate a position below the parent
+                      return {
+                        ...node,
+                        position: {
+                          x: parentNode.position.x + COLUMN_WIDTH,
+                          y: parentNode.position.y + 100
+                        }
+                      };
+                    }
+                  }
+                  return node;
+                });
+              });
+            }
+          } else {
+            // No tracked positions, fall back to only updating the new node
+            try {
+              const { nodes: newNodes } = createMindMapLayout(
+                { nodes: mindMapData.nodes }, 
+                updateNodeData
+              );
+              
+              // Apply the new position only to the newly created node, preserve existing node positions
+              setNodes(currentNodes => {
+                return currentNodes.map(node => {
+                  // Only update the position of the newly created node
+                  if (node.id === newNodeId) {
+                    const newLayoutNode = newNodes.find(n => n.id === newNodeId);
+                    if (newLayoutNode) {
+                      console.log(`Positioning new node ${newNodeId} with complete layout at x:${newLayoutNode.position.x}, y:${newLayoutNode.position.y}`);
+                      return {
+                        ...node,
+                        position: newLayoutNode.position
+                      };
+                    }
+                  }
+                  // Keep existing positions for all other nodes
+                  return node;
+                });
+              });
+            } catch (error) {
+              console.error('Error in complete layout for new node:', error);
+            }
           }
         });
       } else {
@@ -590,35 +658,65 @@ export function useMindMap() {
     setPdfUrl(EXAMPLE_PDF_URL);
     setError(null);
     
-    // Process the example data
-    const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(EXAMPLE_MINDMAP, updateNodeData);
+    // Fetch and store the example PDF data in localStorage
+    fetchAndStorePdfData(EXAMPLE_PDF_URL)
+      .then(() => {
+        console.log('Example PDF data successfully stored in localStorage');
+      })
+      .catch((error) => {
+        console.error('Failed to store example PDF:', error);
+        setError('Error loading example PDF. Some features may not work.');
+      });
     
-    // Add the addFollowUpNode function to all nodes' data
-    const nodesWithFollowUp = flowNodes.map(node => ({
-      ...node,
-      data: {
-        ...node.data,
-        addFollowUpNode: stableAddFollowUpNode,
-        toggleChildrenVisibility
-      }
-    }));
-    
-    setNodes(nodesWithFollowUp);
-    setEdges(flowEdges);
-    
-    // Fit view after nodes are set
-    setTimeout(() => {
-      if (reactFlowInstance.current) {
-        reactFlowInstance.current.fitView({ 
-          padding: 0.4, 
-          duration: 800,
-          includeHiddenNodes: false
-        });
-      }
-    }, 100);
-    
-    setLoading(false);
+    try {
+      console.log('Creating layout for example mindmap');
+      // Process the example data
+      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(EXAMPLE_MINDMAP, updateNodeData);
+      
+      // Add the addFollowUpNode function to all nodes' data
+      const nodesWithFollowUp = flowNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          addFollowUpNode: stableAddFollowUpNode,
+          toggleChildrenVisibility
+        }
+      }));
+      
+      console.log(`Created example mindmap with ${nodesWithFollowUp.length} nodes and ${flowEdges.length} edges`);
+      setNodes(nodesWithFollowUp);
+      setEdges(flowEdges);
+      
+      // Fit view after nodes are set
+      setTimeout(() => {
+        if (reactFlowInstance.current) {
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false
+          });
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error creating example mindmap layout:', error);
+      setError('Error creating mindmap. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [updateNodeData, stableAddFollowUpNode, toggleChildrenVisibility]);
+
+  // Fetch example PDF data on initial load if using example mindmap
+  useEffect(() => {
+    if (mindMapData === EXAMPLE_MINDMAP && pdfUrl === EXAMPLE_PDF_URL) {
+      // Check if the PDF data is already in localStorage
+      const existingPdfData = localStorage.getItem('pdfData');
+      if (!existingPdfData) {
+        console.log('Example mindmap is loaded but PDF data not in localStorage, fetching it now');
+        fetchAndStorePdfData(EXAMPLE_PDF_URL)
+          .catch(error => console.error('Error pre-loading example PDF:', error));
+      }
+    }
+  }, [mindMapData, pdfUrl]);
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
@@ -663,55 +761,61 @@ export function useMindMap() {
         console.log('CLIENT: Sample node with page number:', nodesWithPageNumbers[0]);
       }
       
-      // Convert MindMap data to ReactFlow elements using dagre-based layout
-      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
-      
-      // Debug: Check if page numbers were preserved in the flow nodes
-      const flowNodesWithPageNumbers = flowNodes.filter(node => node.data.pageNumber != null);
-      console.log(`CLIENT: Layout conversion preserved ${flowNodesWithPageNumbers.length} out of ${flowNodes.length} nodes with page numbers`);
-      
-      // Create a map of parent to children for checking if nodes have children
-      const parentToChildren: Record<string, boolean> = {};
-      data.nodes.forEach((node: MindMapNode) => {
-        if (node.parentId) {
-          parentToChildren[node.parentId] = true;
-        }
-      });
-      
-      // Add the addFollowUpNode function to all nodes' data and mark nodes with children
-      const nodesWithFollowUp = flowNodes.map(node => ({
-        ...node,
-        data: {
-          ...node.data,
-          addFollowUpNode: stableAddFollowUpNode, // Use the stable function
-          hasChildren: !!parentToChildren[node.id],
-          childrenCollapsed: false,
-          toggleChildrenVisibility,
-          // Preserve pageNumber if it exists in the data
-          pageNumber: node.data.pageNumber
-        }
-      }));
-      
-      // Debug: Check if page numbers still exist after adding other props
-      const finalNodesWithPageNumbers = nodesWithFollowUp.filter(node => node.data.pageNumber != null);
-      console.log(`CLIENT: Final nodes have ${finalNodesWithPageNumbers.length} out of ${nodesWithFollowUp.length} with page numbers`);
-      
-      console.log('Setting nodes:', nodesWithFollowUp.length);
-      console.log('Setting edges:', flowEdges.length);
-      
-      setNodes(nodesWithFollowUp);
-      setEdges(flowEdges);
-      
-      // After nodes are set, ensure we fit view
-      setTimeout(() => {
-        if (reactFlowInstance.current) {
-          reactFlowInstance.current.fitView({ 
-            padding: 0.4, 
-            duration: 800,
-            includeHiddenNodes: false
-          });
-        }
-      }, 100);
+      try {
+        console.log('Creating layout for uploaded file mindmap');
+        // Convert MindMap data to ReactFlow elements using dagre-based layout
+        const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
+        
+        // Debug: Check if page numbers were preserved in the flow nodes
+        const flowNodesWithPageNumbers = flowNodes.filter(node => node.data.pageNumber != null);
+        console.log(`CLIENT: Layout conversion preserved ${flowNodesWithPageNumbers.length} out of ${flowNodes.length} nodes with page numbers`);
+        
+        // Create a map of parent to children for checking if nodes have children
+        const parentToChildren: Record<string, boolean> = {};
+        data.nodes.forEach((node: MindMapNode) => {
+          if (node.parentId) {
+            parentToChildren[node.parentId] = true;
+          }
+        });
+        
+        // Add the addFollowUpNode function to all nodes' data and mark nodes with children
+        const nodesWithFollowUp = flowNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            addFollowUpNode: stableAddFollowUpNode, // Use the stable function
+            hasChildren: !!parentToChildren[node.id],
+            childrenCollapsed: false,
+            toggleChildrenVisibility,
+            // Preserve pageNumber if it exists in the data
+            pageNumber: node.data.pageNumber
+          }
+        }));
+        
+        // Debug: Check if page numbers still exist after adding other props
+        const finalNodesWithPageNumbers = nodesWithFollowUp.filter(node => node.data.pageNumber != null);
+        console.log(`CLIENT: Final nodes have ${finalNodesWithPageNumbers.length} out of ${nodesWithFollowUp.length} with page numbers`);
+        
+        console.log('Setting nodes:', nodesWithFollowUp.length);
+        console.log('Setting edges:', flowEdges.length);
+        
+        setNodes(nodesWithFollowUp);
+        setEdges(flowEdges);
+        
+        // After nodes are set, ensure we fit view
+        setTimeout(() => {
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({ 
+              padding: 0.4, 
+              duration: 800,
+              includeHiddenNodes: false
+            });
+          }
+        }, 100);
+      } catch (layoutError) {
+        console.error('Error creating layout:', layoutError);
+        setError('Error in mind map layout. Please try again.');
+      }
     } catch (err: any) {
       console.error('Error uploading file:', err);
       setError(err.message || 'Failed to analyze the paper');

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Handle, Position, useReactFlow, NodeProps, useUpdateNodeInternals } from 'reactflow';
+import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
 import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
@@ -47,7 +47,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
-  const reactFlow = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
   // Check if this is a QnA node
@@ -203,7 +202,19 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
     try {
       // Get the base64 encoded PDF data from localStorage
-      const pdfData = localStorage.getItem('pdfData');
+      let pdfData = localStorage.getItem('pdfData');
+      
+      // If pdfData is not found but we have an example PDF URL, try to fetch and store it
+      if (!pdfData && (window as any).EXAMPLE_PDF_URL) {
+        try {
+          console.log('PDF data not found in localStorage, trying to fetch example PDF');
+          await fetchAndStoreExamplePdf((window as any).EXAMPLE_PDF_URL);
+          pdfData = localStorage.getItem('pdfData');
+        } catch (fetchError) {
+          console.error('Failed to fetch example PDF:', fetchError);
+        }
+      }
+      
       if (!pdfData) {
         console.error('PDF data not found in localStorage');
         throw new Error('PDF data not found');
@@ -291,6 +302,39 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     } finally {
       // Make sure chat button is hidden after processing completes
       setShowChatButton(false);
+    }
+  };
+
+  // Helper function to fetch and store example PDF
+  const fetchAndStoreExamplePdf = async (pdfUrl: string) => {
+    try {
+      console.log('Fetching example PDF:', pdfUrl);
+      const response = await fetch(pdfUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch example PDF');
+      }
+      
+      const pdfBlob = await response.blob();
+      const reader = new FileReader();
+      
+      return new Promise<void>((resolve, reject) => {
+        reader.onloadend = () => {
+          const base64data = reader.result;
+          if (typeof base64data === 'string') {
+            const base64Content = base64data.split(',')[1];
+            localStorage.setItem('pdfData', base64Content);
+            console.log('Example PDF data stored in localStorage, size:', base64Content.length);
+            resolve();
+          } else {
+            reject(new Error('Failed to convert PDF to base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfBlob);
+      });
+    } catch (error) {
+      console.error('Error storing example PDF:', error);
+      throw error;
     }
   };
 
