@@ -129,7 +129,7 @@ const MindMapFlow = () => {
       >
         {/* Layout Switcher Button */}
         <div 
-          className="absolute bottom-[15px] right-4 z-10 flex flex-col gap-3 print:hidden"
+          className="absolute bottom-[70px] right-3 z-10 flex flex-col gap-3 print:hidden"
           title={`Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}`}
         >
           <button

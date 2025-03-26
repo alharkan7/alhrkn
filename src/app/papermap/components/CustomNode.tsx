@@ -5,7 +5,7 @@ import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { STICKY_NOTE_COLORS, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
 import { handleFollowUpSave as handleFollowUpSaveImpl } from './handleFollowUpSave';
 
@@ -184,6 +184,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     e.stopPropagation();
     if (data.toggleChildrenVisibility) {
       data.toggleChildrenVisibility(id);
+    }
+  };
+
+  const handleAddBlankChildNode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data.addFollowUpNode) {
+      // Create a blank child node with placeholder title and default description
+      data.addFollowUpNode(id, 'Double Click to Edit', 'Double-click to add a description', undefined);
     }
   };
 
@@ -614,10 +622,9 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Floating chat and document buttons - only show when hovering and not in other states */}
         {isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
           <div
-            className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-2' : 'flex-col space-y-2'}`}
+            className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-1' : 'flex-col space-y-1'}`}
             style={{ zIndex: 1000 }}
           >
-
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
@@ -629,7 +636,19 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               </button>
             )}
 
+            {/* Add blank child node button - show for all nodes */}
             {showChatButton && (
+              <button
+                className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
+                onClick={handleAddBlankChildNode}
+                title="Add blank child node"
+              >
+                <Plus className="h-5 w-5 text-foreground" />
+              </button>
+            )}
+
+            {/* Chat button for follow-up questions - only show for non-blank nodes */}
+            {showChatButton && data.title !== 'Double Click to Edit' && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleChatButtonClick}
@@ -638,7 +657,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                 <MessageCircle className="h-5 w-5 text-foreground" />
               </button>
             )}
-
           </div>
         )}
 

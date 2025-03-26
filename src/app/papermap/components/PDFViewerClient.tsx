@@ -193,7 +193,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
       >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b flex justify-between items-center p-3 shadow-sm">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             <button
               onClick={onClose}
               className="p-2 rounded-full hover:bg-muted text-foreground"
