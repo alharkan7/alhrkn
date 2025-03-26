@@ -7,6 +7,7 @@ import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
 import { MessageCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { STICKY_NOTE_COLORS, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
+import { handleFollowUpSave as handleFollowUpSaveImpl } from './handleFollowUpSave';
 
 // Node component props type
 interface CustomNodeProps {
@@ -187,124 +188,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     }
   };
 
-  const handleFollowUpSave = async (parentId: string, question: string) => {
-    console.log('handleFollowUpSave called with:', { parentId, question });
-    console.log('addFollowUpNode function available:', !!data.addFollowUpNode);
-
-    if (!data.addFollowUpNode) {
-      console.error('addFollowUpNode function not provided to node');
-      alert('Error: Could not create follow-up node. Missing function reference.');
-      return;
-    }
-
-    // Hide the card immediately
-    setShowFollowUpCard(false);
-
-    try {
-      // Get the base64 encoded PDF data from localStorage
-      let pdfData = localStorage.getItem('pdfData');
-      
-      // If pdfData is not found but we have an example PDF URL, try to fetch and store it
-      if (!pdfData && (window as any).EXAMPLE_PDF_URL) {
-        try {
-          console.log('PDF data not found in localStorage, trying to fetch example PDF');
-          await fetchAndStoreExamplePdf((window as any).EXAMPLE_PDF_URL);
-          pdfData = localStorage.getItem('pdfData');
-        } catch (fetchError) {
-          console.error('Failed to fetch example PDF:', fetchError);
-        }
-      }
-      
-      if (!pdfData) {
-        console.error('PDF data not found in localStorage');
-        throw new Error('PDF data not found');
-      }
-
-      // Create a placeholder node immediately with loading state
-      const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Answering...</div>';
-
-      // Generate a unique ID for the new node to reference it later
-      const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create the node with loading state
-      const createdNodeId = data.addFollowUpNode(id, question, loadingMessage, nodeId);
-
-      console.log('Created placeholder node with ID:', createdNodeId);
-
-      // After the placeholder node is created, update it to include the pageNumber from the parent node
-      if (data.updateNodeData && data.pageNumber) {
-        console.log(`Applying parent pageNumber ${data.pageNumber} to QnA node:`, createdNodeId);
-        // Preserve the pageNumber from the parent node
-        data.updateNodeData(createdNodeId, { pageNumber: data.pageNumber });
-      }
-
-      // Start fetching the answer
-      console.log('Sending question to API:', question);
-
-      // Prepare node context
-      const nodeContext = {
-        title: data.title,
-        description: data.description
-      };
-
-      // Send request to API
-      const response = await fetch('/api/papermap/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pdfData,
-          nodeContext,
-          question
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error:', response.status, errorText);
-        throw new Error(`Failed to get answer: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('API response received:', {
-        answerLength: result.answer ? result.answer.length : 0,
-        answerPreview: result.answer ? result.answer.substring(0, 50) + '...' : 'No answer'
-      });
-
-      if (!result.answer) {
-        throw new Error('API response contained no answer');
-      }
-
-      // Update the existing node with the actual answer
-      if (data.updateNodeData) {
-        console.log('Updating node with actual answer:', createdNodeId);
-        // Preserve pageNumber when updating the node with the answer
-        data.updateNodeData(createdNodeId, {
-          description: result.answer,
-          // Add pageNumber in case it wasn't added earlier
-          pageNumber: data.pageNumber
-        });
-      } else {
-        console.error('Cannot update node: updateNodeData function not available');
-      }
-
-    } catch (error) {
-      console.error('Error getting answer:', error);
-      // If there's already a node with loading state, update it with error message
-      if (data.updateNodeData && data.lastCreatedNodeId) {
-        data.updateNodeData(data.lastCreatedNodeId, {
-          description: "Error: Could not generate an answer. Please try again.",
-          // Also preserve pageNumber when updating with error message
-          pageNumber: data.pageNumber
-        });
-      }
-    } finally {
-      // Make sure chat button is hidden after processing completes
-      setShowChatButton(false);
-    }
-  };
-
   // Helper function to fetch and store example PDF
   const fetchAndStoreExamplePdf = async (pdfUrl: string) => {
     try {
@@ -336,6 +219,18 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       console.error('Error storing example PDF:', error);
       throw error;
     }
+  };
+
+  // Use the imported handleFollowUpSave but bind it to this component's context
+  const handleFollowUpSave = async (parentId: string, question: string) => {
+    return handleFollowUpSaveImpl(
+      id, 
+      question, 
+      data, 
+      setShowFollowUpCard, 
+      setShowChatButton, 
+      fetchAndStoreExamplePdf
+    );
   };
 
   const handleFollowUpCancel = () => {
@@ -685,7 +580,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                     /* Otherwise render description as markdown */
                     <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1">
                       <ReactMarkdown>
-                        {data.description || 'Double-click to add a description'}
+                        {extractMarkdownContent(data.description) || 'Double-click to add a description'}
                       </ReactMarkdown>
                     </div>
                   )}
@@ -783,6 +678,83 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       </div>
     </>
   );
+};
+
+// Add this utility function at the top of the file (after imports)
+const extractMarkdownContent = (content: string): string => {
+  if (!content) return '';
+  
+  // First attempt: Try to directly parse as JSON
+  if (content.trim().startsWith('{') && content.includes('"answer"')) {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.answer) {
+        return parsed.answer;
+      }
+    } catch (e) {
+      console.log('Failed to parse as JSON object, trying other methods');
+    }
+  }
+  
+  // Second attempt: Find JSON by manually locating braces
+  const openBraceIndex = content.indexOf('{');
+  const closeBraceIndex = content.lastIndexOf('}');
+  
+  if (openBraceIndex >= 0 && closeBraceIndex > openBraceIndex) {
+    const potentialJson = content.substring(openBraceIndex, closeBraceIndex + 1);
+    
+    try {
+      const parsed = JSON.parse(potentialJson);
+      if (parsed.answer) {
+        return parsed.answer;
+      }
+    } catch (e) {
+      // Try with unescaped version
+      try {
+        const unescaped = potentialJson
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\');
+        
+        const parsed = JSON.parse(unescaped);
+        if (parsed.answer) {
+          return parsed.answer;
+        }
+      } catch (e2) {
+        console.log('Failed to parse potential JSON with unescaping');
+      }
+    }
+  }
+  
+  // Third attempt: Check if content is just a code block
+  const codeBlockStart = content.indexOf('```');
+  if (codeBlockStart >= 0) {
+    const afterLanguage = content.indexOf('\n', codeBlockStart);
+    const codeBlockEnd = content.indexOf('```', afterLanguage);
+    
+    if (afterLanguage >= 0 && codeBlockEnd > afterLanguage) {
+      const codeContent = content.substring(afterLanguage + 1, codeBlockEnd).trim();
+      
+      // If the code content itself looks like JSON with an answer field, try to parse it
+      if (codeContent.includes('"answer"')) {
+        try {
+          const parsed = JSON.parse(codeContent);
+          if (parsed.answer) {
+            return parsed.answer;
+          }
+        } catch (e) {
+          // Just return the code content if we can't parse it
+          return codeContent;
+        }
+      }
+      
+      return codeContent;
+    }
+  }
+  
+  // Just return the original content if all extraction attempts fail
+  return content;
 };
 
 export default CustomNode; 

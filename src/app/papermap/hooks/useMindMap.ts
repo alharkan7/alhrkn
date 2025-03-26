@@ -728,94 +728,94 @@ export function useMindMap() {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Store the PDF data in localStorage for future API calls
+      // When processing file uploads, add code to initialize a session
+      // Process PDF directly without storing it in localStorage
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64data = reader.result;
         if (typeof base64data === 'string') {
           const base64Content = base64data.split(',')[1];
-          localStorage.setItem('pdfData', base64Content);
-          console.log('PDF data stored in localStorage, size:', base64Content.length);
+          
+          // Clear any previous session data
+          localStorage.removeItem('pdfSessionId');
+          localStorage.removeItem('pdfSessionData');
+          localStorage.removeItem('pdfData'); // Remove any old PDF data if it exists
+          
+          console.log('Processing PDF for mindmap generation, size:', base64Content.length);
+          
+          try {
+            // First, create the mindmap with the API
+            const mindmapResponse = await fetch('/api/papermap', {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (!mindmapResponse.ok) {
+              throw new Error(`Error: ${mindmapResponse.status}`);
+            }
+            
+            const mindmapData = await mindmapResponse.json();
+            
+            // Also initialize a session for follow-up questions
+            const sessionResponse = await fetch('/api/papermap/initialize', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ pdfData: base64Content })
+            });
+            
+            if (sessionResponse.ok) {
+              const { sessionId, sessionData } = await sessionResponse.json();
+              // Store session data but not the PDF itself
+              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
+              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
+              console.log('Session initialized for follow-up questions');
+            }
+            
+            // Process the mindmap regardless of session initialization result
+            if (mindmapData.error) {
+              throw new Error(mindmapData.error);
+            }
+            
+            // Process the mindmap data - existing code here
+            setMindMapData(mindmapData);
+            
+            console.log('Creating flow from mindmap data');
+            const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(mindmapData, updateNodeData);
+            
+            // Add the addFollowUpNode function to all nodes' data
+            const nodesWithFollowUp = flowNodes.map(node => ({
+              ...node,
+              data: {
+                ...node.data,
+                addFollowUpNode: stableAddFollowUpNode,
+                toggleChildrenVisibility
+              }
+            }));
+            
+            setNodes(nodesWithFollowUp);
+            setEdges(flowEdges);
+            
+            // Fit view after nodes are set
+            setTimeout(() => {
+              if (reactFlowInstance.current) {
+                reactFlowInstance.current.fitView({ 
+                  padding: 0.4, 
+                  duration: 800,
+                  includeHiddenNodes: false
+                });
+              }
+            }, 100);
+            
+          } catch (error) {
+            console.error('Error processing PDF:', error);
+            setError(error instanceof Error ? error.message : 'Unknown error');
+            setLoading(false);
+          }
         }
       };
       reader.readAsDataURL(file);
-      
-      const response = await fetch('/api/papermap', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process the paper');
-      }
-      
-      const data = await response.json();
-      setMindMapData(data);
-      
-      console.log('API Response:', data);
-      // Debug: Check if page numbers exist in the API response
-      const nodesWithPageNumbers = data.nodes.filter((node: MindMapNode) => node.pageNumber != null);
-      console.log(`CLIENT: API returned ${nodesWithPageNumbers.length} out of ${data.nodes.length} nodes with page numbers`);
-      if (nodesWithPageNumbers.length > 0) {
-        console.log('CLIENT: Sample node with page number:', nodesWithPageNumbers[0]);
-      }
-      
-      try {
-        console.log('Creating layout for uploaded file mindmap');
-        // Convert MindMap data to ReactFlow elements using dagre-based layout
-        const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(data, updateNodeData);
-        
-        // Debug: Check if page numbers were preserved in the flow nodes
-        const flowNodesWithPageNumbers = flowNodes.filter(node => node.data.pageNumber != null);
-        console.log(`CLIENT: Layout conversion preserved ${flowNodesWithPageNumbers.length} out of ${flowNodes.length} nodes with page numbers`);
-        
-        // Create a map of parent to children for checking if nodes have children
-        const parentToChildren: Record<string, boolean> = {};
-        data.nodes.forEach((node: MindMapNode) => {
-          if (node.parentId) {
-            parentToChildren[node.parentId] = true;
-          }
-        });
-        
-        // Add the addFollowUpNode function to all nodes' data and mark nodes with children
-        const nodesWithFollowUp = flowNodes.map(node => ({
-          ...node,
-          data: {
-            ...node.data,
-            addFollowUpNode: stableAddFollowUpNode, // Use the stable function
-            hasChildren: !!parentToChildren[node.id],
-            childrenCollapsed: false,
-            toggleChildrenVisibility,
-            // Preserve pageNumber if it exists in the data
-            pageNumber: node.data.pageNumber
-          }
-        }));
-        
-        // Debug: Check if page numbers still exist after adding other props
-        const finalNodesWithPageNumbers = nodesWithFollowUp.filter(node => node.data.pageNumber != null);
-        console.log(`CLIENT: Final nodes have ${finalNodesWithPageNumbers.length} out of ${nodesWithFollowUp.length} with page numbers`);
-        
-        console.log('Setting nodes:', nodesWithFollowUp.length);
-        console.log('Setting edges:', flowEdges.length);
-        
-        setNodes(nodesWithFollowUp);
-        setEdges(flowEdges);
-        
-        // After nodes are set, ensure we fit view
-        setTimeout(() => {
-          if (reactFlowInstance.current) {
-            reactFlowInstance.current.fitView({ 
-              padding: 0.4, 
-              duration: 800,
-              includeHiddenNodes: false
-            });
-          }
-        }, 100);
-      } catch (layoutError) {
-        console.error('Error creating layout:', layoutError);
-        setError('Error in mind map layout. Please try again.');
-      }
     } catch (err: any) {
       console.error('Error uploading file:', err);
       setError(err.message || 'Failed to analyze the paper');
