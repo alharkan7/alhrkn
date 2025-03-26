@@ -5,7 +5,7 @@ import '@reactflow/node-resizer/dist/style.css';
 import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { STICKY_NOTE_COLORS, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
 import { handleFollowUpSave as handleFollowUpSaveImpl } from './handleFollowUpSave';
 
@@ -26,6 +26,7 @@ interface CustomNodeProps {
     openPdfViewer?: (pageNumber: number) => void; // Function to open PDF viewer
     columnLevel?: number; // Column level for color assignment
     layoutDirection?: 'LR' | 'TB' | 'RL' | 'BT'; // Current layout direction
+    deleteNode?: (nodeId: string) => void; // Add this line
   };
   id: string;
   selected?: boolean; // Add selected prop
@@ -45,6 +46,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [width, setWidth] = useState(data.width || 256); // Default width 256px (64*4)
   const [isResizing, setIsResizing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -417,6 +419,25 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     return () => observer.disconnect();
   }, [id, width, selected, isResizing]);
 
+  // Add handler for delete button click
+  const handleDeleteButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+  
+  // Add handler for confirming deletion
+  const handleConfirmDelete = () => {
+    if (data.deleteNode) {
+      data.deleteNode(id);
+    }
+    setShowDeleteConfirm(false);
+  };
+  
+  // Add handler for canceling deletion
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
   return (
     <>
       {/* Add NodeResizer component - only visible when selected */}
@@ -700,6 +721,46 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             onSave={handleFollowUpSave}
             onCancel={handleFollowUpCancel}
           />
+        )}
+
+        {/* Delete button - only show when node is selected */}
+        {selected && !showDeleteConfirm && (
+          <div 
+            className="absolute -top-10 left-1/2 transform -translate-x-1/2 cursor-pointer"
+            style={{ zIndex: 1000 }}
+          >
+            <button
+              className="bg-red-100 hover:bg-red-200 hover:outline outline-1.5 outline-red-400 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-red-300 dark:bg-red-900 dark:border-red-700"
+              onClick={handleDeleteButtonClick}
+              title="Delete node"
+            >
+              <Trash2 className="h-5 w-5 text-red-600 dark:text-red-300" />
+            </button>
+          </div>
+        )}
+        
+        {/* Confirmation dialog */}
+        {showDeleteConfirm && (
+          <div 
+            className="absolute -top-24 left-1/2 transform -translate-x-1/2 bg-card p-3 rounded-lg shadow-lg border border-border dark:bg-slate-800 dark:border-slate-700"
+            style={{ zIndex: 1002, minWidth: '200px' }}
+          >
+            <p className="text-sm mb-3 text-center">Are you sure you want to delete this node?</p>
+            <div className="flex justify-center space-x-2">
+              <button
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                onClick={handleConfirmDelete}
+              >
+                Delete
+              </button>
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </>
