@@ -55,13 +55,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
-  
+
   // Check if this is a blank node by title
   const isBlankNode = data.title === 'Double Click to Edit';
 
   // Get color based on node type or column level
   let nodeColor;
-  
+
   if (isBlankNode) {
     // Use white/plain color for blank nodes (created with + button)
     nodeColor = BLANK_NODE_COLOR;
@@ -74,7 +74,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
     nodeColor = STICKY_NOTE_COLORS[colorIndex];
   }
-  
+
   // Determine handle positions based on layout direction
   const isHorizontalFlow = !data.layoutDirection || data.layoutDirection === 'LR' || data.layoutDirection === 'RL';
   console.log(`Node ${id} layout flow: ${isHorizontalFlow ? 'horizontal' : 'vertical'}, direction: ${data.layoutDirection || 'undefined'}`);
@@ -228,10 +228,10 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       if (!response.ok) {
         throw new Error('Failed to fetch example PDF');
       }
-      
+
       const pdfBlob = await response.blob();
       const reader = new FileReader();
-      
+
       return new Promise<void>((resolve, reject) => {
         reader.onloadend = () => {
           const base64data = reader.result;
@@ -256,11 +256,11 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   // Use the imported handleFollowUpSave but bind it to this component's context
   const handleFollowUpSave = async (parentId: string, question: string) => {
     return handleFollowUpSaveImpl(
-      id, 
-      question, 
-      data, 
-      setShowFollowUpCard, 
-      setShowChatButton, 
+      id,
+      question,
+      data,
+      setShowFollowUpCard,
+      setShowChatButton,
       fetchAndStoreExamplePdf
     );
   };
@@ -440,7 +440,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     e.stopPropagation();
     setShowDeleteConfirm(true);
   };
-  
+
   // Add handler for confirming deletion
   const handleConfirmDelete = () => {
     if (data.deleteNode) {
@@ -448,7 +448,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     }
     setShowDeleteConfirm(false);
   };
-  
+
   // Add handler for canceling deletion
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
@@ -661,6 +661,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           <div
             className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-1' : 'flex-col space-y-1'}`}
             style={{ zIndex: 1000 }}
+            data-exclude-from-export="true"
           >
             {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
@@ -709,8 +710,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         {/* Toggle children visibility button */}
         {data.hasChildren && (
           <div
-            className={`absolute ${isHorizontalFlow 
-              ? 'right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2' 
+            className={`absolute ${isHorizontalFlow
+              ? 'right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2'
               : 'bottom-0 left-1/2 transform translate-y-[10px] -translate-x-1/2'} cursor-pointer`}
             onClick={handleChildrenToggle}
             style={{ zIndex: 1001 }}
@@ -742,7 +743,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
         {/* Delete button - only show when node is selected */}
         {selected && !showDeleteConfirm && (
-          <div 
+          <div
             className="absolute -top-10 left-1/2 transform -translate-x-1/2 cursor-pointer"
             style={{ zIndex: 1000 }}
           >
@@ -750,17 +751,19 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
               className="bg-red-100 hover:bg-red-200 hover:outline outline-1.5 outline-red-400 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-red-300 dark:bg-red-900 dark:border-red-700"
               onClick={handleDeleteButtonClick}
               title="Delete node"
+              data-exclude-from-export="true"
             >
               <Trash2 className="h-5 w-5 text-red-600 dark:text-red-300" />
             </button>
           </div>
         )}
-        
+
         {/* Confirmation dialog */}
         {showDeleteConfirm && (
-          <div 
+          <div
             className="absolute -top-24 left-1/2 transform -translate-x-1/2 bg-card p-3 rounded-lg shadow-lg border border-border dark:bg-slate-800 dark:border-slate-700"
             style={{ zIndex: 1002, minWidth: '200px' }}
+            data-exclude-from-export="true"
           >
             <p className="text-sm mb-3 text-center">Are you sure you want to delete this node?</p>
             <div className="flex justify-center space-x-2">
@@ -787,7 +790,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 // Add this utility function at the top of the file (after imports)
 const extractMarkdownContent = (content: string): string => {
   if (!content) return '';
-  
+
   // First attempt: Try to directly parse as JSON
   if (content.trim().startsWith('{') && content.includes('"answer"')) {
     try {
@@ -799,14 +802,14 @@ const extractMarkdownContent = (content: string): string => {
       console.log('Failed to parse as JSON object, trying other methods');
     }
   }
-  
+
   // Second attempt: Find JSON by manually locating braces
   const openBraceIndex = content.indexOf('{');
   const closeBraceIndex = content.lastIndexOf('}');
-  
+
   if (openBraceIndex >= 0 && closeBraceIndex > openBraceIndex) {
     const potentialJson = content.substring(openBraceIndex, closeBraceIndex + 1);
-    
+
     try {
       const parsed = JSON.parse(potentialJson);
       if (parsed.answer) {
@@ -820,7 +823,7 @@ const extractMarkdownContent = (content: string): string => {
           .replace(/\\n/g, '\n')
           .replace(/\\t/g, '\t')
           .replace(/\\\\/g, '\\');
-        
+
         const parsed = JSON.parse(unescaped);
         if (parsed.answer) {
           return parsed.answer;
@@ -830,16 +833,16 @@ const extractMarkdownContent = (content: string): string => {
       }
     }
   }
-  
+
   // Third attempt: Check if content is just a code block
   const codeBlockStart = content.indexOf('```');
   if (codeBlockStart >= 0) {
     const afterLanguage = content.indexOf('\n', codeBlockStart);
     const codeBlockEnd = content.indexOf('```', afterLanguage);
-    
+
     if (afterLanguage >= 0 && codeBlockEnd > afterLanguage) {
       const codeContent = content.substring(afterLanguage + 1, codeBlockEnd).trim();
-      
+
       // If the code content itself looks like JSON with an answer field, try to parse it
       if (codeContent.includes('"answer"')) {
         try {
@@ -852,11 +855,11 @@ const extractMarkdownContent = (content: string): string => {
           return codeContent;
         }
       }
-      
+
       return codeContent;
     }
   }
-  
+
   // Just return the original content if all extraction attempts fail
   return content;
 };
