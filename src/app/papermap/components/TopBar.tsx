@@ -1,4 +1,4 @@
-import { LoaderCircle, Menu, FileText } from 'lucide-react';
+import { LoaderCircle, Menu, FileText, Plus } from 'lucide-react';
 import Downloader from './Downloader';
 import { useCallback } from 'react';
 import Sidebar from './Sidebar';
@@ -49,7 +49,8 @@ export default function TopBar({
               className="flex items-center"
               title="New Mindmap"
             >
-              <Menu className="h-4 w-4" />
+              <span className="sm:hidden"><Plus className="h-4 w-4" /></span>
+              <span className="hidden sm:block"><Menu className="h-4 w-4" /></span>
               <span className="sm:inline hidden">New</span>
             </Button>
           </div>
