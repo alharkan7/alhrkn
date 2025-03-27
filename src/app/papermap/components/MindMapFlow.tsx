@@ -30,7 +30,8 @@ const MindMapFlow = () => {
     reactFlowInstance,
     loading,
     currentLayoutIndex,
-    cycleLayout
+    cycleLayout,
+    mindMapData
   } = useMindMapContext();
   
   const { openPdfViewer } = usePdfViewerContext();
@@ -122,6 +123,26 @@ const MindMapFlow = () => {
 
   const showLoadingIndicator = loading || nodes.length === 0;
 
+  // Add this debug logging
+  useEffect(() => {
+    // When debugging, log the received data state
+    console.log('MindMapFlow received:', { 
+      nodesCount: nodes.length, 
+      edgesCount: edges.length,
+      hasMindMapData: !!mindMapData,
+      loading
+    });
+    
+    // Only show error if mindMapData exists, nodes are empty, not loading,
+    // AND this isn't the initial example data
+    if (mindMapData && 
+        nodes.length === 0 && 
+        !loading && 
+        mindMapData.nodes[0]?.id !== 'node1') { // Check if it's not the example mindmap
+      console.error('Data received but no nodes generated!', mindMapData);
+    }
+  }, [nodes.length, edges.length, mindMapData, loading]);
+
   return (
     <div className="relative w-full h-full">
       {/* Keep only essential styles, portal handles the FollowUpCard positioning */}
@@ -165,7 +186,7 @@ const MindMapFlow = () => {
         >
           <Network 
             size={16} 
-            className={`text-gray-700 dark:text-gray-300 ${currentLayoutDirection === 'TB' ? '-rotate-90' : ''} transition-transform`} 
+            className={`text-gray-700 dark:text-gray-300 ${currentLayoutDirection === 'LR' ? '-rotate-90' : ''} transition-transform`} 
           />
         </button>
       </div>

@@ -26,6 +26,8 @@ export const handleFollowUpSave = async (
     // Get the session ID and session data if available
     let sessionId = localStorage.getItem('pdfSessionId');
     let sessionData = localStorage.getItem('pdfSessionData');
+    // Also get PDF data as fallback
+    let pdfData = localStorage.getItem('pdfData');
     
     // Create a placeholder node immediately with loading state
     const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Answering...</div>';
@@ -67,6 +69,12 @@ export const handleFollowUpSave = async (
     
     if (sessionData) {
       requestBody.sessionData = sessionData;
+    }
+
+    // Include PDF data as fallback if available
+    if (pdfData) {
+      requestBody.pdfData = pdfData;
+      console.log('Including PDF data as fallback');
     }
 
     // Send request to API

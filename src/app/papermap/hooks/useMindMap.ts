@@ -4,99 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
 import { createMindMapLayout, updateMindMapLayout, LayoutOptions, LAYOUT_PRESETS, DEFAULT_LAYOUT_OPTIONS, getDefaultLayoutIndex } from '../types';
-
-// Example mindmap data and PDF URL
-const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
-
-// Expose the example PDF URL globally for other components to use
-if (typeof window !== 'undefined') {
-  (window as any).EXAMPLE_PDF_URL = EXAMPLE_PDF_URL;
-}
-
-const EXAMPLE_MINDMAP: MindMapData = {
-  "nodes": [
-    {
-      "description": "This commencement speech at Stanford University shares three life stories illustrating the importance of trusting intuition, embracing failure, and facing mortality.",
-      "id": "node1",
-      "level": 0,
-      "parentId": null,
-      "title": "Life Lessons from Stanford Commencement Speech",
-      "pageNumber": 1
-    },
-    {
-      "description": "The first story emphasizes connecting seemingly unrelated experiences to discover meaning and purpose in life.  It highlights the unexpected value of a calligraphy class, which later influenced the design of the Macintosh computer.",
-      "id": "node2",
-      "level": 1,
-      "parentId": "node1",
-      "title": "Connecting the Dots: Intuition and Unexpected Value",
-      "pageNumber": 1
-    },
-    {
-      "description": "Dropping out of Reed College after six months allowed the speaker to focus on classes of interest, including calligraphy, which unexpectedly proved crucial years later in the development of the Macintosh.",
-      "id": "node3",
-      "level": 2,
-      "parentId": "node2",
-      "title": "Reed College Dropout and Calligraphy",
-      "pageNumber": 1
-    },
-    {
-      "description": "The calligraphy class taught principles of typography and design that were later incorporated into the Macintosh's design, demonstrating the long-term value of seemingly unrelated experiences.",
-      "id": "node4",
-      "level": 3,
-      "parentId": "node3",
-      "title": "Calligraphy's Influence on Macintosh Design",
-      "pageNumber": 1
-    },
-    {
-      "description": "The second story discusses the speaker's experience of being fired from Apple and how this led to the creation of NeXT and Pixar, emphasizing the importance of resilience and pursuing one's passions.",
-      "id": "node5",
-      "level": 1,
-      "parentId": "node1",
-      "title": "Love and Loss: Resilience and Passion",
-      "pageNumber": 2
-    },
-    {
-      "description": "Being fired from Apple, though initially devastating, allowed the speaker to pursue new ventures, leading to the creation of NeXT and Pixar, and ultimately, a return to Apple.",
-      "id": "node6",
-      "level": 2,
-      "parentId": "node5",
-      "title": "Firing from Apple and Subsequent Successes",
-      "pageNumber": 2
-    },
-    {
-      "description": "The creation of Pixar, which produced the world's first computer-animated feature film, is highlighted as a significant achievement stemming from the experience of being fired from Apple.",
-      "id": "node7",
-      "level": 3,
-      "parentId": "node6",
-      "title": "Pixar's Success and First Computer-Animated Film",
-      "pageNumber": 2
-    },
-    {
-      "description": "The third story focuses on the importance of contemplating one's mortality and how this awareness can guide decision-making, encouraging individuals to prioritize their passions and values.",
-      "id": "node8",
-      "level": 1,
-      "parentId": "node1",
-      "title": "Death: Facing Mortality and Following Your Heart",
-      "pageNumber": 3
-    },
-    {
-      "description": "A personal experience with a cancer diagnosis is shared to emphasize the importance of living each day to the fullest and not wasting time on things that do not matter.",
-      "id": "node9",
-      "level": 2,
-      "parentId": "node8",
-      "title": "Cancer Diagnosis and Life's Priorities",
-      "pageNumber": 3
-    },
-    {
-      "description": "The speech concludes with the message \"Stay Hungry, Stay Foolish,\" urging the graduates to maintain their passion and curiosity throughout their lives.",
-      "id": "node10",
-      "level": 2,
-      "parentId": "node8",
-      "title": "Concluding Message: Stay Hungry, Stay Foolish",
-      "pageNumber": 3
-    }
-  ]
-};
+import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
 
 // Function to fetch and store PDF as base64 in localStorage
 const fetchAndStorePdfData = async (pdfUrl: string) => {
@@ -739,6 +647,7 @@ export function useMindMap() {
   // Function to load example mindmap
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
+    console.log('Loading example mindmap and PDF...');
     
     // Clear all existing data first to prevent storage quota issues
     clearStorage();
@@ -759,37 +668,67 @@ export function useMindMap() {
       .then(async () => {
         console.log('Example PDF data successfully stored in localStorage');
         
-        // Initialize a session with the example PDF data
+        // Verify the PDF data was actually stored
         const pdfData = localStorage.getItem('pdfData');
-        if (pdfData) {
-          try {
-            // Initialize a session for the example PDF
-            const sessionResponse = await fetch('/api/papermap/initialize', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ pdfData })
-            });
-            
-            if (sessionResponse.ok) {
-              const { sessionId, sessionData } = await sessionResponse.json();
-              // Use the safer storage function
-              const stored = safelyStoreSessionData(sessionId, sessionData);
-              if (stored) {
-                console.log('Session initialized for example PDF follow-up questions');
-              } else {
-                setError('Warning: Could not store session data. Some features may be limited.');
-              }
-            }
-          } catch (error) {
-            console.error('Failed to initialize session for example PDF:', error);
+        if (!pdfData) {
+          console.error('Failed to store example PDF data in localStorage');
+          setError('Error: PDF data not stored. Follow-up questions will not work.');
+          return;
+        }
+        
+        console.log(`PDF data stored successfully (${(pdfData.length * 2 / 1024 / 1024).toFixed(2)} MB)`);
+        
+        try {
+          // Initialize a session for the example PDF
+          console.log('Initializing session for example PDF...');
+          const sessionResponse = await fetch('/api/papermap/initialize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pdfData })
+          });
+          
+          if (!sessionResponse.ok) {
+            const errorData = await sessionResponse.text();
+            console.error('Failed to initialize session:', sessionResponse.status, errorData);
+            setError('Warning: Could not initialize session. Follow-up questions may not work.');
+            return;
           }
+          
+          const { sessionId, sessionData } = await sessionResponse.json();
+          
+          if (!sessionId || !sessionData) {
+            console.error('Empty session data returned from API');
+            setError('Warning: Invalid session data. Follow-up questions may not work.');
+            return;
+          }
+          
+          // Use the safer storage function
+          const stored = safelyStoreSessionData(sessionId, sessionData);
+          
+          if (stored) {
+            console.log('Session initialized for example PDF follow-up questions');
+            // Verify the session data was stored correctly
+            const storedSessionId = localStorage.getItem('pdfSessionId');
+            const storedSessionData = localStorage.getItem('pdfSessionData');
+            if (storedSessionId && storedSessionData) {
+              console.log('Session data verified in localStorage');
+            } else {
+              console.error('Session data verification failed');
+              setError('Warning: Session data not properly stored. Follow-up questions may not work.');
+            }
+          } else {
+            setError('Warning: Could not store session data. Follow-up questions may not work.');
+          }
+        } catch (error) {
+          console.error('Failed to initialize session for example PDF:', error);
+          setError('Error initializing session. Follow-up questions may not work.');
         }
       })
       .catch((error) => {
         console.error('Failed to store example PDF:', error);
-        setError('Error loading example PDF. Some features may not work.');
+        setError('Error loading example PDF. Follow-up questions may not work.');
       });
     
     try {
@@ -915,150 +854,76 @@ export function useMindMap() {
   }, [mindMapData, pdfUrl]);
 
   // Handle file upload
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, blobUrl?: string) => {
+    // Clear any previous errors
+    setError(null);
     setLoading(true);
-    setError(null); // Clear any previous error message
-    setPdfUrl(null); // Clear the example PDF URL when new file is uploaded
     
-    // Check file size - if too large, show a warning but still proceed
-    const fileSizeMB = file.size / (1024 * 1024);
-    if (fileSizeMB > 4) {
-      console.warn(`Large file detected (${fileSizeMB.toFixed(2)} MB). This may cause storage issues.`);
-      setError(`Warning: Large file (${fileSizeMB.toFixed(2)} MB). Some features may be limited.`);
-    }
-    
-    // First clear all localStorage to prevent quota issues
+    // Clear any previous data
     clearStorage();
     
-    // Clear any existing nodes and edges
-    setNodes([]);
-    setEdges([]);
-    setNodePositions({});
-    setCollapsedNodes(new Set());
-    
     try {
+      // If a blob URL is provided, use it directly instead of reading the file again
+      const pdfBlobUrl = blobUrl || URL.createObjectURL(file);
+      
+      // Store the PDF URL for later use
+      setPdfUrl(pdfBlobUrl);
+      
+      // Store the file content in localStorage for offline access
+      if (!blobUrl) {
+        // Only read and store the file if not already uploaded to Blob
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+          // Skip localStorage storage if using Blob URL
+          if (typeof reader.result === 'string') {
+            const base64Content = reader.result.split(',')[1];
+            try {
+              localStorage.setItem('pdfData', base64Content);
+            } catch (storageError) {
+              console.warn('Failed to store PDF in localStorage - size may exceed quota.');
+              // Continue without stored PDF - we have Blob URL now
+            }
+          }
+        };
+        
+        reader.readAsDataURL(file);
+      }
+      
+      // Process the file for mindmap generation
       const formData = new FormData();
       formData.append('file', file);
       
-      // When processing file uploads, add code to initialize a session
-      // Process PDF directly without storing it in localStorage
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        if (typeof base64data === 'string') {
-          const base64Content = base64data.split(',')[1];
-          
-          console.log('Processing PDF for mindmap generation, size:', base64Content.length);
-          
-          try {
-            // First, create the mindmap with the API
-            const mindmapResponse = await fetch('/api/papermap', {
-              method: 'POST',
-              body: formData
-            });
-            
-            if (!mindmapResponse.ok) {
-              throw new Error(`Error: ${mindmapResponse.status}`);
-            }
-            
-            const mindMapResult = await mindmapResponse.json();
-            
-            // Also initialize a session for follow-up questions
-            const sessionResponse = await fetch('/api/papermap/initialize', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ pdfData: base64Content })
-            });
-            
-            if (sessionResponse.ok) {
-              const { sessionId, sessionData } = await sessionResponse.json();
-              try {
-                // Use the safer storage function
-                const stored = safelyStoreSessionData(sessionId, sessionData);
-                if (stored) {
-                  console.log('Session initialized for follow-up questions');
-                } else {
-                  setError('Warning: Could not store session data. Some features may be limited.');
-                }
-              } catch (storageError) {
-                console.error('Error storing session data:', storageError);
-                // If we fail to store session data, log but continue with mindmap
-                setError('Warning: Could not store session data. Some features may be limited.');
-              }
-            }
-            
-            // Process the mindmap regardless of session initialization result
-            if (mindMapResult.error) {
-              throw new Error(mindMapResult.error);
-            }
-            
-            // Process the mindmap data - existing code here
-            setMindMapData(mindMapResult);
-            
-            console.log('Creating flow from mindmap data');
-            // Get current layout options based on device/screen size
-            const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
-            console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
-            
-            // Generate the initial layout with enhanced positioning
-            const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
-              mindMapResult, 
-              updateNodeData,
-              currentLayoutOptions // This will use proper level-based layout now
-            );
-            
-            // Add the addFollowUpNode function to all nodes' data
-            // Ensure each node has the correct layout direction set
-            const nodesWithFollowUp = flowNodes.map(node => ({
-              ...node,
-              data: {
-                ...node.data,
-                addFollowUpNode: stableAddFollowUpNode,
-                deleteNode: stableDeleteNode, 
-                toggleChildrenVisibility,
-                // Explicitly set layoutDirection here rather than letting it be inherited later
-                layoutDirection: currentLayoutOptions.direction 
-              }
-            }));
-            
-            setNodes(nodesWithFollowUp);
-            setEdges(flowEdges);
-            
-            // Fit view after nodes are set
-            setTimeout(() => {
-              if (reactFlowInstance.current) {
-                reactFlowInstance.current.fitView({ 
-                  padding: 0.4, 
-                  duration: 800,
-                  includeHiddenNodes: false
-                });
-              }
-            }, 100);
-            
-          } catch (error) {
-            console.error('Error processing PDF:', error);
-            setError(error instanceof Error ? error.message : 'Unknown error');
-          } finally {
-            // Make sure to set loading to false no matter what
-            setLoading(false);
-          }
-        } else {
-          setError('Failed to read file data');
-          setLoading(false);
+      // Call the API to analyze the PDF and generate a mind map
+      const response = await fetch('/api/papermap', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process PDF');
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.mindmap && typeof data.mindmap === 'object') {
+        console.log('Mind map data received:', data.mindmap);
+        
+        // Store the session data in localStorage
+        if (data.sessionId) {
+          safelyStoreSessionData(data.sessionId, JSON.stringify(data.mindmap));
         }
-      };
-      
-      reader.onerror = () => {
-        setError('Error reading the file');
-        setLoading(false);
-      };
-      
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      console.error('Error uploading file:', err);
-      setError(err.message || 'Failed to analyze the paper');
+        
+        // Update the mind map data
+        setMindMapData(data.mindmap);
+      } else {
+        throw new Error('Invalid mind map data received');
+      }
+    } catch (err) {
+      console.error('Error processing PDF:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+    } finally {
       setLoading(false);
     }
   };
@@ -1396,6 +1261,52 @@ export function useMindMap() {
     }, 50);
     
   }, [mindMapData, updateNodeVisibility]);
+
+  // Generate initial nodes and edges whenever mindMapData changes
+  useEffect(() => {
+    if (mindMapData && !loading) {
+      console.log('Generating new flow from updated mindMapData:', mindMapData);
+      
+      // Get current layout options based on device/screen size
+      const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
+      console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
+      
+      // Generate the initial layout with enhanced positioning
+      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
+        mindMapData, 
+        updateNodeData,
+        currentLayoutOptions
+      );
+      
+      // Add the addFollowUpNode function to all nodes' data
+      // Ensure each node has the correct layout direction set
+      const nodesWithFollowUp = flowNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          addFollowUpNode: stableAddFollowUpNode,
+          deleteNode: stableDeleteNode, 
+          toggleChildrenVisibility,
+          // Explicitly set layoutDirection here rather than letting it be inherited later
+          layoutDirection: currentLayoutOptions.direction 
+        }
+      }));
+      
+      setNodes(nodesWithFollowUp);
+      setEdges(flowEdges);
+      
+      // Fit view after nodes are set
+      setTimeout(() => {
+        if (reactFlowInstance.current) {
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false
+          });
+        }
+      }, 100);
+    }
+  }, [mindMapData, currentLayoutIndex, loading, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, setNodes, setEdges]);
 
   return {
     loading,

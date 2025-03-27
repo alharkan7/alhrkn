@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         const file = formData.get('file') as File;
-        
+
         if (!file) {
             return new Response(JSON.stringify({ error: 'PDF file is required' }), {
                 status: 400,
@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
             generationConfig,
             history: []
         });
-
+        
         const response = await chat.sendMessage([
             {
                 inlineData: {
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
             },
             "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Pay special attention to including accurate page numbers for each node, as this is crucial for the user to navigate the document. Ensure all parent-child relationships are valid."
         ]);
-
+        
         // With structured output, we can directly use the response object
         const result = await response.response.text();
         const parsedResult = JSON.parse(result);
@@ -305,10 +305,16 @@ export async function POST(req: NextRequest) {
         // console.log(`DEBUG: After processing, ${finalNodesWithPageNumbers.length} out of ${processedResult.nodes.length} nodes have page numbers`);
         // console.log('DEBUG: Sample node with page number:', processedResult.nodes[0]);
 
-        return new Response(JSON.stringify(processedResult), {
+        // Generate a session ID for follow-up questions
+        const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+
+        return new Response(JSON.stringify({
+            mindmap: processedResult,
+            sessionId
+        }), {
             headers: { 'Content-Type': 'application/json' },
         });
-
+        
     } catch (error) {
         console.error('Error:', error);
         return new Response(JSON.stringify({ 

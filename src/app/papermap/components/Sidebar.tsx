@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
 
-// Define file size limit constant
-const MAX_FILE_SIZE_MB = 4;
+// Define file size limit constant - increased with Vercel Blob
+const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, blobUrl?: string) => void;
   loading: boolean;
   error: string | null;
   loadExampleMindMap?: () => void;
@@ -33,6 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [urlLoading, setUrlLoading] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const currentYear = new Date().getFullYear();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +47,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       setUrlLoading(false);
       setUseUrl(false);
       setFileSizeError(null);
+      setUploadProgress(0);
+      setIsUploading(false);
     }
   }, [isOpen]);
 
@@ -115,10 +119,117 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  // Upload file to Vercel Blob storage
+  const uploadFileToBlob = async (fileToUpload: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      setUploadProgress(10); // Start progress
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+
+      // Upload to our blob API endpoint
+      const response = await fetch('/api/papermap/blob-upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      // Update progress
+      setUploadProgress(70);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload file');
+      }
+
+      const data = await response.json();
+      setUploadProgress(100);
+      
+      return data.url;
+    } catch (error) {
+      console.error('Error uploading to Blob storage:', error);
+      setUrlError(error instanceof Error ? error.message : 'Failed to upload file');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Upload URL content to Vercel Blob storage
+  const uploadUrlToBlob = async (pdfUrl: string): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      setUploadProgress(10); // Start progress
+      
+      // Call our URL-to-blob API endpoint
+      const response = await fetch('/api/papermap/blob-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: pdfUrl }),
+      });
+      
+      // Update progress
+      setUploadProgress(70);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        // Check if it's a size error but doesn't contain details
+        if (errorData.error?.includes('too large') || errorData.error?.includes('size exceeds')) {
+          throw new Error(errorData.error || `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        // For generic errors, assume it might be a file size issue if we get a 400 or 413 status
+        if (response.status === 400 || response.status === 413) {
+          throw new Error(`The PDF file is likely too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        throw new Error(errorData.error || 'Failed to process URL. Please upload the PDF file directly.');
+      }
+      
+      const data = await response.json();
+      setUploadProgress(100);
+      
+      return data.url;
+    } catch (error) {
+      // Don't log to console if it's a file size error to avoid cluttering the console
+      if (!(error instanceof Error && 
+          (error.message.includes('too large') || error.message.includes('size exceeds')))) {
+        console.error('Error processing URL:', error);
+      }
+      
+      // Enhance file size error messages to include limit if not already mentioned
+      if (error instanceof Error) {
+        // Check for generic error messages and replace with helpful size info
+        if (error.message === 'Failed to process URL' || 
+            error.message.includes('Failed to process URL.')) {
+          setUrlError(`The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        else if ((error.message.includes('too large') || error.message.includes('size exceeds')) 
+            && !error.message.includes(`${MAX_FILE_SIZE_MB} MB`)) {
+          setUrlError(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        } else {
+          setUrlError(error.message);
+        }
+      } else {
+        setUrlError(`Failed to process URL. The PDF file may be too large (maximum ${MAX_FILE_SIZE_MB} MB).`);
+      }
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (file) {
-      onFileUpload(file);
-      onClose();
+      // Upload file to Vercel Blob first
+      const blobUrl = await uploadFileToBlob(file);
+      
+      if (blobUrl) {
+        // Pass both the file and the blob URL
+        onFileUpload(file, blobUrl);
+        onClose();
+      }
       return;
     }
     
@@ -137,39 +248,59 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
     
     try {
-      const proxyUrl = `/api/papermap/proxy?url=${encodeURIComponent(url)}`;
-      const response = await fetch(proxyUrl);
+      // Upload URL to Vercel Blob
+      const blobUrl = await uploadUrlToBlob(url);
+      
+      if (!blobUrl) {
+        throw new Error(`Failed to process URL. The PDF file may be too large (maximum ${MAX_FILE_SIZE_MB} MB).`);
+      }
+      
+      // Fetch from our blob URL to create a file object
+      const response = await fetch(blobUrl);
       
       if (!response.ok) {
-        let errorMsg = "Cannot use this URL, please upload the PDF file directly";
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorMsg = errorData.error;
-          }
-        } catch {
-          // If we can't parse the error, use the default message
-        }
-        throw new Error(errorMsg);
+        throw new Error("Failed to retrieve file from storage");
       }
       
       const blob = await response.blob();
       
-      // Check file size for the URL too
-      if (blob.size > MAX_FILE_SIZE_BYTES) {
-        setFileSizeError(`The file at this URL is too large (${(blob.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-        setUrlLoading(false);
-        return;
-      }
-      
+      // Create a File object from the blob
       const fileName = url.split('/').pop() || 'document.pdf';
       const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
       
-      onFileUpload(fileFromUrl);
+      // Pass both the file and blob URL to the handler
+      onFileUpload(fileFromUrl, blobUrl);
+      onClose();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Cannot use this URL, please upload the PDF file directly";
+      // Improved error handling with more specific messages
+      let errorMessage = `The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
+      
+      if (err instanceof Error) {
+        // Handle file size errors consistently with direct uploads
+        if (err.message.includes('too large') || err.message.includes('size exceeds')) {
+          // If the error doesn't include the size limit, add it
+          if (!err.message.includes(`${MAX_FILE_SIZE_MB} MB`)) {
+            errorMessage = `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
+          } else {
+            errorMessage = err.message;
+          }
+        } else if (err.message.includes('not point to a valid PDF')) {
+          errorMessage = "The URL does not point to a valid PDF file";
+        } else if (err.message.includes('Failed to fetch PDF')) {
+          errorMessage = "Could not download the PDF. Please ensure the URL is accessible.";
+        } else if (err.message.includes('Failed to process URL')) {
+          // Keep our default error message about file size
+          errorMessage = `The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+      }
+      
       setUrlError(errorMessage);
-      console.error('Error fetching PDF:', err);
+      // Only log to console if it's not a file size error
+      if (!errorMessage.includes('too large') && !errorMessage.includes('size exceeds')) {
+        console.error('Error fetching PDF:', err);
+      }
     } finally {
       setUrlLoading(false);
     }
@@ -185,6 +316,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Determine if the Create button should be disabled
   const isCreateButtonDisabled = loading || 
                                urlLoading || 
+                               isUploading ||
                                (!file && !url.trim()) || 
                                !!fileSizeError;
 
@@ -281,11 +413,22 @@ const Sidebar: React.FC<SidebarProps> = ({
                 className={file ? 'bg-muted text-muted-foreground' : ''}
               />
               {urlError && (
-                <div className="text-destructive text-sm mt-1">
-                  {urlError}
+                <div className="text-destructive text-sm mt-1 p-3 bg-destructive/10 rounded-base flex items-start">
+                  <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{urlError}</span>
                 </div>
               )}
             </div>
+
+            {/* Upload progress bar */}
+            {isUploading && (
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-4">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+            )}
 
             <Button
               onClick={handleGenerate}
@@ -293,10 +436,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               variant={isCreateButtonDisabled ? "neutral" : "default"}
               className="w-full"
             >
-              {loading || urlLoading ? (
+              {loading || urlLoading || isUploading ? (
                 <>
                   <LoaderCircle className="animate-spin" />
-                  Creating...
+                  {isUploading ? 'Reading...' : 'Mapping...'}
                 </>
               ) : (
                 "Create"

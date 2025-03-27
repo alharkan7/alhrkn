@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext, useUIStateContext } from '../context';
 
 interface TopBarProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, blobUrl?: string) => void;
 }
 
 export default function TopBar({
@@ -23,13 +23,13 @@ export default function TopBar({
   const { sidebarOpen, setSidebarOpen } = useUIStateContext();
 
   // Custom file upload handler
-  const handleUpload = useCallback(async (file: File) => {
+  const handleUpload = useCallback(async (file: File, blobUrl?: string) => {
     // Clear any previous errors
     // Process the PDF file for viewing
-    await handlePdfFile(file);
+    await handlePdfFile(file, blobUrl);
     
     // Call original handler for mind map generation
-    onFileUpload(file);
+    onFileUpload(file, blobUrl);
   }, [onFileUpload, handlePdfFile]);
 
   // Function to handle file name click and open PDF viewer
@@ -66,11 +66,13 @@ export default function TopBar({
 
             {error && (
               <div className="text-destructive">
-                {error.includes("[GoogleGenerativeAI Error]") 
-                  ? "AI service unavailable. Please try again later." 
-                  : error.length > 60 
-                    ? `${error.substring(0, 60)}...` 
-                    : error
+                {error.includes("[GoogleGenerativeAI Error]") && error.includes("exceeds the supported page limit of 1000")
+                  ? "PDF is too large. Please use a document with fewer than 1000 pages."
+                  : error.includes("[GoogleGenerativeAI Error]") 
+                    ? "AI service unavailable. Please try again later." 
+                    : error.length > 60 
+                      ? `${error.substring(0, 60)}...` 
+                      : error
                 }
               </div>
             )}

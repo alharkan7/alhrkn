@@ -16,7 +16,7 @@ interface PdfViewerContextType {
   setFileName: (name: string) => void;
   openPdfViewer: (pageNumber: number) => void;
   closePdfViewer: () => void;
-  handlePdfFile: (file: File) => Promise<void>;
+  handlePdfFile: (file: File, blobUrl?: string) => Promise<void>;
 }
 
 const PdfViewerContext = createContext<PdfViewerContextType | undefined>(undefined);
@@ -47,13 +47,22 @@ export function PdfViewerProvider({
   const [fileName, setFileName] = useState<string>(initialFileName);
 
   // Function to process PDF file
-  const handlePdfFile = useCallback(async (file: File) => {
+  const handlePdfFile = useCallback(async (file: File, blobUrl?: string) => {
     try {
       // Get filename without extension
       const newFileName = file.name.replace(/\.[^/.]+$/, '');
       setFileName(newFileName);
       
-      // Clear any previous URL
+      // If blob URL is provided, use it directly
+      if (blobUrl) {
+        setPdfUrl(blobUrl);
+        // Since we're using the Blob URL, we can clear the base64 data to save memory
+        setPdfBase64(null);
+        console.log('Using Blob URL for PDF:', blobUrl);
+        return;
+      }
+      
+      // Clear any previous URL if not using blob URL
       setPdfUrl(null);
       
       // Read file as ArrayBuffer
