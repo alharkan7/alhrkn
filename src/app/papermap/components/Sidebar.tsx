@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Moon, Sun, LoaderCircle, X } from "lucide-react";
+import { LayoutGrid, Moon, Sun, LoaderCircle, X, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
@@ -166,7 +166,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <div className="p-6 flex-1">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-card-foreground">New Mindmap</h2>
+            <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <Waypoints className="h-5 w-5 mr-1" />
+              New Mindmap
+            </h3>
             <Button
               variant="neutral"
               size="icon"

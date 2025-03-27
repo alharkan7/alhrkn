@@ -6,7 +6,7 @@ import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
 import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import { STICKY_NOTE_COLORS, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
+import { STICKY_NOTE_COLORS, BLANK_NODE_COLOR, ANSWER_NODE_COLOR, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
 import { handleFollowUpSave as handleFollowUpSaveImpl } from './handleFollowUpSave';
 
 // Node component props type
@@ -55,11 +55,25 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
+  
+  // Check if this is a blank node by title
+  const isBlankNode = data.title === 'Double Click to Edit';
 
-  // Get color based on column level (default to first color if level not provided)
-  const columnLevel = data.columnLevel || 0;
-  const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
-  const nodeColor = STICKY_NOTE_COLORS[colorIndex];
+  // Get color based on node type or column level
+  let nodeColor;
+  
+  if (isBlankNode) {
+    // Use white/plain color for blank nodes (created with + button)
+    nodeColor = BLANK_NODE_COLOR;
+  } else if (isQnANode) {
+    // Use light blue color for answer nodes (created with follow-up questions)
+    nodeColor = ANSWER_NODE_COLOR;
+  } else {
+    // Use regular column-based color scheme for other nodes
+    const columnLevel = data.columnLevel || 0;
+    const colorIndex = columnLevel % STICKY_NOTE_COLORS.length;
+    nodeColor = STICKY_NOTE_COLORS[colorIndex];
+  }
   
   // Determine handle positions based on layout direction
   const isHorizontalFlow = !data.layoutDirection || data.layoutDirection === 'LR' || data.layoutDirection === 'RL';

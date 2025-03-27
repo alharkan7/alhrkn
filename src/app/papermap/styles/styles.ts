@@ -139,6 +139,10 @@ export const STICKY_NOTE_COLORS = [
   { bg: '#ffe0b2', border: '#fb8c00', shadow: 'rgba(251, 140, 0, 0.4)' },  // Orange
 ];
 
+// Special node colors
+export const BLANK_NODE_COLOR = { bg: '#ffffff', border: '#000000', shadow: 'rgba(158, 158, 158, 0.4)' }; // White/plain
+export const ANSWER_NODE_COLOR = { bg: '#e3f2fd', border: '#2196f3', shadow: 'rgba(33, 150, 243, 0.4)' }; // Light blue
+
 // Sticky note CSS styles
 export const stickyNoteStyles = `
   .sticky-note {
