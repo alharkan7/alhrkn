@@ -163,7 +163,10 @@ const MindMapFlow = () => {
           onClick={cycleLayout}
           className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
         >
-          <Network size={16} className="text-gray-700 dark:text-gray-300" />
+          <Network 
+            size={16} 
+            className={`text-gray-700 dark:text-gray-300 ${currentLayoutDirection === 'TB' ? '-rotate-90' : ''} transition-transform`} 
+          />
         </button>
       </div>
       
