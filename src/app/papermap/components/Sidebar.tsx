@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Moon, Sun, LoaderCircle, X, Waypoints } from "lucide-react";
+import { LayoutGrid, Moon, Sun, LoaderCircle, X, Waypoints, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
+
+// Define file size limit constant
+const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       setUrlError(null);
       setUrlLoading(false);
       setUseUrl(false);
+      setFileSizeError(null);
     }
   }, [isOpen]);
 
@@ -56,11 +62,27 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [isOpen]);
 
+  // Check if file size is within limits
+  const checkFileSize = (file: File): boolean => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setFileSizeError(`File is too large (${(file.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+      return false;
+    }
+    setFileSizeError(null);
+    return true;
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      setUrl('');
+      if (checkFileSize(selectedFile)) {
+        setFile(selectedFile);
+        setUrl('');
+      } else {
+        setFile(null);
+        // Keep the file selected in the input for better UX
+        event.target.value = '';
+      }
     }
   };
 
@@ -71,8 +93,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (event.dataTransfer.files?.length) {
       const droppedFile = event.dataTransfer.files[0];
       if (droppedFile.type === 'application/pdf') {
-        setFile(droppedFile);
-        setUrl('');
+        if (checkFileSize(droppedFile)) {
+          setFile(droppedFile);
+          setUrl('');
+        }
       }
     }
   };
@@ -85,6 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(event.target.value);
     setUrlError(null);
+    setFileSizeError(null);
     if (event.target.value) {
       setFile(null);
     }
@@ -129,6 +154,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
       
       const blob = await response.blob();
+      
+      // Check file size for the URL too
+      if (blob.size > MAX_FILE_SIZE_BYTES) {
+        setFileSizeError(`The file at this URL is too large (${(blob.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        setUrlLoading(false);
+        return;
+      }
+      
       const fileName = url.split('/').pop() || 'document.pdf';
       const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
       
@@ -148,6 +181,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       onClose();
     }
   };
+
+  // Determine if the Create button should be disabled
+  const isCreateButtonDisabled = loading || 
+                               urlLoading || 
+                               (!file && !url.trim()) || 
+                               !!fileSizeError;
 
   if (!isRendered) return null;
 
@@ -190,12 +229,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <Button
                     variant="neutral"
                     size="icon"
-                    onClick={() => setFile(null)}
+                    onClick={() => {
+                      setFile(null);
+                      setFileSizeError(null);
+                    }}
                     className="absolute top-2 right-2"
                   >
                     <X className="h-5 w-5" />
                   </Button>
                   <p className="font-medium text-sm break-words max-w-full px-6" style={{ wordBreak: 'break-all' }}>{file.name.replace(/_/g, '_\u200B')}</p>
+                  <p className="text-xs mt-1 text-muted-foreground">
+                    {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
                 </div>
               ) : (
                 <div>
@@ -218,6 +263,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
 
+            {fileSizeError && (
+              <div className="text-destructive text-sm mb-4 p-3 bg-destructive/10 rounded-base flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <span>{fileSizeError}</span>
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="block text-xs font-medium text-muted-foreground mb-1">Or Enter a URL</label>
               <Input
@@ -237,8 +289,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             <Button
               onClick={handleGenerate}
-              disabled={loading || urlLoading || (!file && !url.trim())}
-              variant={loading || urlLoading || (!file && !url.trim()) ? "neutral" : "default"}
+              disabled={isCreateButtonDisabled}
+              variant={isCreateButtonDisabled ? "neutral" : "default"}
               className="w-full"
             >
               {loading || urlLoading ? (
@@ -250,6 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 "Create"
               )}
             </Button>
+
           </div>
 
           {error && (
