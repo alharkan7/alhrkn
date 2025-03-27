@@ -629,7 +629,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                     <div dangerouslySetInnerHTML={{ __html: data.description }} />
                   ) : (
                     /* Otherwise render description as markdown */
-                    <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1">
+                    <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                       <ReactMarkdown>
                         {extractMarkdownContent(data.description) || 'Double-click to add a description'}
                       </ReactMarkdown>
