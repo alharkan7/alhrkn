@@ -115,9 +115,23 @@ const fetchAndStorePdfData = async (pdfUrl: string) => {
         const base64data = reader.result;
         if (typeof base64data === 'string') {
           const base64Content = base64data.split(',')[1];
-          localStorage.setItem('pdfData', base64Content);
-          console.log('Example PDF data stored in localStorage, size:', base64Content.length);
-          resolve();
+          try {
+            // Check size of data before storing
+            const sizeInMB = (base64Content.length * 2) / (1024 * 1024);
+            console.log(`PDF data size: ${sizeInMB.toFixed(2)} MB`);
+            
+            // Clear existing storage first 
+            clearStorage();
+            
+            // Store the PDF data
+            localStorage.setItem('pdfData', base64Content);
+            console.log('Example PDF data stored in localStorage');
+            resolve();
+          } catch (storageError) {
+            console.error('Failed to store PDF data in localStorage:', storageError);
+            // Resolve anyway so the app can continue without storage
+            resolve();
+          }
         } else {
           reject(new Error('Failed to convert PDF to base64'));
         }
@@ -129,6 +143,54 @@ const fetchAndStorePdfData = async (pdfUrl: string) => {
     console.error('Error storing example PDF:', error);
     throw error;
   }
+};
+
+// Function to safely store session data with error handling
+const safelyStoreSessionData = (sessionId: string, sessionData: string) => {
+  try {
+    // Check size of session data
+    const sessionSizeInKB = (sessionData.length * 2) / 1024;
+    console.log(`Session data size: ${sessionSizeInKB.toFixed(2)} KB`);
+    
+    // Store the data
+    if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
+    if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
+    return true;
+  } catch (storageError) {
+    console.error('Error storing session data:', storageError);
+    return false;
+  }
+};
+
+/**
+ * Clear all localStorage items related to PDF and session data
+ * 
+ * This function is important to prevent QuotaExceededError when creating new mindmaps.
+ * The error occurs because the combined size of PDF data and session data can exceed
+ * the localStorage quota (typically 5-10MB). By clearing old data before adding new data,
+ * we ensure there's enough space available.
+ */
+const clearStorage = () => {
+  // Remove all known storage keys related to the PDF and sessions
+  localStorage.removeItem('pdfData');
+  localStorage.removeItem('pdfSessionId');
+  localStorage.removeItem('pdfSessionData');
+  
+  // Try to remove any other app-related data that might exist
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.startsWith('pdf') || key.includes('session') || key.includes('mindmap'))) {
+      keysToRemove.push(key);
+    }
+  }
+  
+  // Remove identified keys
+  keysToRemove.forEach(key => {
+    localStorage.removeItem(key);
+  });
+  
+  console.log('All PDF and session data cleared from localStorage');
 };
 
 export function useMindMap() {
@@ -678,10 +740,19 @@ export function useMindMap() {
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
     
+    // Clear all existing data first to prevent storage quota issues
+    clearStorage();
+    
     // Reset to example data
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
     setError(null);
+    
+    // Clear any existing flow state
+    setNodes([]);
+    setEdges([]);
+    setNodePositions({});
+    setCollapsedNodes(new Set());
     
     // Fetch and store the example PDF data in localStorage
     fetchAndStorePdfData(EXAMPLE_PDF_URL)
@@ -703,10 +774,13 @@ export function useMindMap() {
             
             if (sessionResponse.ok) {
               const { sessionId, sessionData } = await sessionResponse.json();
-              // Store session data
-              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
-              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
-              console.log('Session initialized for example PDF follow-up questions');
+              // Use the safer storage function
+              const stored = safelyStoreSessionData(sessionId, sessionData);
+              if (stored) {
+                console.log('Session initialized for example PDF follow-up questions');
+              } else {
+                setError('Warning: Could not store session data. Some features may be limited.');
+              }
             }
           } catch (error) {
             console.error('Failed to initialize session for example PDF:', error);
@@ -791,10 +865,13 @@ export function useMindMap() {
                 
                 if (sessionResponse.ok) {
                   const { sessionId, sessionData } = await sessionResponse.json();
-                  // Store session data
-                  if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
-                  if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
-                  console.log('Session automatically initialized for example PDF on first load');
+                  // Use safelyStoreSessionData instead of direct localStorage.setItem
+                  const stored = safelyStoreSessionData(sessionId, sessionData);
+                  if (stored) {
+                    console.log('Session automatically initialized for example PDF on first load');
+                  } else {
+                    console.warn('Failed to store session data, but continuing with example mindmap');
+                  }
                 }
               } catch (error) {
                 console.error('Failed to initialize session for example PDF on first load:', error);
@@ -823,9 +900,13 @@ export function useMindMap() {
               throw new Error('Failed to initialize session');
             })
             .then(({ sessionId, sessionData }) => {
-              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
-              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
-              console.log('Session initialized for existing example PDF data');
+              // Use safelyStoreSessionData instead of direct localStorage.setItem
+              const stored = safelyStoreSessionData(sessionId, sessionData);
+              if (stored) {
+                console.log('Session initialized for existing example PDF data');
+              } else {
+                console.warn('Failed to store session data, but continuing with example mindmap');
+              }
             })
             .catch(error => console.error('Error initializing session:', error));
         }
@@ -839,6 +920,22 @@ export function useMindMap() {
     setError(null); // Clear any previous error message
     setPdfUrl(null); // Clear the example PDF URL when new file is uploaded
     
+    // Check file size - if too large, show a warning but still proceed
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 4) {
+      console.warn(`Large file detected (${fileSizeMB.toFixed(2)} MB). This may cause storage issues.`);
+      setError(`Warning: Large file (${fileSizeMB.toFixed(2)} MB). Some features may be limited.`);
+    }
+    
+    // First clear all localStorage to prevent quota issues
+    clearStorage();
+    
+    // Clear any existing nodes and edges
+    setNodes([]);
+    setEdges([]);
+    setNodePositions({});
+    setCollapsedNodes(new Set());
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -850,11 +947,6 @@ export function useMindMap() {
         const base64data = reader.result;
         if (typeof base64data === 'string') {
           const base64Content = base64data.split(',')[1];
-          
-          // Clear any previous session data
-          localStorage.removeItem('pdfSessionId');
-          localStorage.removeItem('pdfSessionData');
-          localStorage.removeItem('pdfData'); // Remove any old PDF data if it exists
           
           console.log('Processing PDF for mindmap generation, size:', base64Content.length);
           
@@ -869,7 +961,7 @@ export function useMindMap() {
               throw new Error(`Error: ${mindmapResponse.status}`);
             }
             
-            const mindmapData = await mindmapResponse.json();
+            const mindMapResult = await mindmapResponse.json();
             
             // Also initialize a session for follow-up questions
             const sessionResponse = await fetch('/api/papermap/initialize', {
@@ -882,19 +974,28 @@ export function useMindMap() {
             
             if (sessionResponse.ok) {
               const { sessionId, sessionData } = await sessionResponse.json();
-              // Store session data but not the PDF itself
-              if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
-              if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
-              console.log('Session initialized for follow-up questions');
+              try {
+                // Use the safer storage function
+                const stored = safelyStoreSessionData(sessionId, sessionData);
+                if (stored) {
+                  console.log('Session initialized for follow-up questions');
+                } else {
+                  setError('Warning: Could not store session data. Some features may be limited.');
+                }
+              } catch (storageError) {
+                console.error('Error storing session data:', storageError);
+                // If we fail to store session data, log but continue with mindmap
+                setError('Warning: Could not store session data. Some features may be limited.');
+              }
             }
             
             // Process the mindmap regardless of session initialization result
-            if (mindmapData.error) {
-              throw new Error(mindmapData.error);
+            if (mindMapResult.error) {
+              throw new Error(mindMapResult.error);
             }
             
             // Process the mindmap data - existing code here
-            setMindMapData(mindmapData);
+            setMindMapData(mindMapResult);
             
             console.log('Creating flow from mindmap data');
             // Get current layout options based on device/screen size
@@ -903,7 +1004,7 @@ export function useMindMap() {
             
             // Generate the initial layout with enhanced positioning
             const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
-              mindmapData, 
+              mindMapResult, 
               updateNodeData,
               currentLayoutOptions // This will use proper level-based layout now
             );
