@@ -49,14 +49,126 @@ const generationConfig: GenerationConfig = {
     responseSchema: responseSchema
 };
 
+// Helper function to fetch PDF data from a Blob URL
+async function fetchPdfFromBlobUrl(blobUrl: string): Promise<string | null> {
+    try {
+        console.log('Fetching PDF from Blob URL for initialization:', blobUrl);
+        
+        // Special handling for the example PDF in the public directory
+        if (blobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
+            console.log('Detected local example PDF URL from public folder for initialization');
+            
+            // For the local PDF in the public folder, we need to use the absolute URL
+            let finalPdfUrl = blobUrl;
+            if (blobUrl.startsWith('/')) {
+                // In production environment, use the full URL from VERCEL_URL env var
+                // In development, use localhost:3000
+                const baseUrl = process.env.VERCEL_URL 
+                    ? `https://${process.env.VERCEL_URL}` 
+                    : process.env.NODE_ENV === 'development' 
+                        ? 'http://localhost:3000' 
+                        : '';
+                        
+                finalPdfUrl = `${baseUrl}${blobUrl}`;
+                console.log('Using absolute URL for local PDF in public folder for initialization:', finalPdfUrl);
+            }
+            
+            try {
+                // Set proper headers for fetch request
+                const headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'application/pdf',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                };
+                
+                console.log('Attempting to fetch local PDF with absolute URL:', finalPdfUrl);
+                const response = await fetch(finalPdfUrl, { 
+                    headers,
+                    cache: 'no-store'
+                });
+                
+                if (!response.ok) {
+                    console.error(`Failed to fetch local PDF for initialization: Status ${response.status}, ${response.statusText}`);
+                    throw new Error(`Failed to fetch local PDF: ${response.status}`);
+                }
+                
+                console.log('✅ Successfully fetched local PDF from public folder for initialization, status:', response.status);
+                const arrayBuffer = await response.arrayBuffer();
+                console.log('PDF data size:', arrayBuffer.byteLength, 'bytes');
+                
+                // Convert ArrayBuffer to base64 on the server using Buffer
+                const buffer = Buffer.from(arrayBuffer);
+                const base64Content = buffer.toString('base64');
+                console.log('✅ Successfully converted PDF to base64 for initialization, length:', base64Content.length);
+                return base64Content;
+            } catch (error) {
+                console.error('❌ Error fetching local PDF for initialization:', error);
+                throw error; // Rethrow to be handled by the main try/catch
+            }
+        }
+        
+        // Handle external PDFs
+        if (blobUrl.startsWith('http') && !blobUrl.includes(process.env.VERCEL_URL || 'localhost')) {
+            console.log('Detected external PDF URL for initialization:', blobUrl);
+            
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/pdf',
+                'Accept-Language': 'en-US,en;q=0.9'
+            };
+            
+            const response = await fetch(blobUrl, { headers });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch external PDF: ${response.status} ${response.statusText}`);
+            }
+            
+            console.log('Successfully fetched external PDF for initialization, size:', response.headers.get('content-length'));
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Content = buffer.toString('base64');
+            return base64Content;
+        }
+        
+        // Normal case for standard URLs
+        console.log('Fetching PDF from standard URL for initialization:', blobUrl);
+        const response = await fetch(blobUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch PDF from URL for initialization: ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64Content = buffer.toString('base64');
+        return base64Content;
+    } catch (error) {
+        console.error('Error fetching PDF from URL for initialization:', error);
+        return null;
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Get the request data
         const requestData = await req.json();
-        const { pdfData } = requestData;
+        const { pdfData, blobUrl } = requestData;
         
-        if (!pdfData) {
-            return new Response(JSON.stringify({ error: 'Missing PDF data' }), {
+        // Handle different cases for PDF data
+        let pdfBase64 = pdfData;
+        
+        // If we don't have direct PDF data but have a blob URL, fetch the PDF
+        if (!pdfBase64 && blobUrl) {
+            console.log('No PDF data provided but Blob URL available, fetching PDF from Blob for initialization...');
+            pdfBase64 = await fetchPdfFromBlobUrl(blobUrl);
+            if (pdfBase64) {
+                console.log('Successfully fetched PDF from Blob URL for initialization');
+            }
+        }
+        
+        if (!pdfBase64) {
+            return new Response(JSON.stringify({ error: 'Missing PDF data and no valid Blob URL provided' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -79,7 +191,7 @@ export async function POST(req: NextRequest) {
             {
                 inlineData: {
                     mimeType: "application/pdf",
-                    data: pdfData
+                    data: pdfBase64
                 }
             },
             "Please confirm that you've processed this PDF and are ready to answer questions about it. Return your confirmation in the required format."

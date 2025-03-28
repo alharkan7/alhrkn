@@ -255,10 +255,18 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   // Use the imported handleFollowUpSave but bind it to this component's context
   const handleFollowUpSave = async (parentId: string, question: string) => {
+    if (!data.addFollowUpNode) {
+      console.error('Cannot create follow-up: addFollowUpNode function not available');
+      return '';
+    }
+    
     return handleFollowUpSaveImpl(
       id,
       question,
-      data,
+      {
+        ...data,
+        addFollowUpNode: data.addFollowUpNode
+      },
       setShowFollowUpCard,
       setShowChatButton,
       fetchAndStoreExamplePdf

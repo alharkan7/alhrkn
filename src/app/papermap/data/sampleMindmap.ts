@@ -1,7 +1,7 @@
 import { MindMapData } from '../types';
 
-// Example PDF URL
-export const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf'; // This should be placed in your public folder
+// Example PDF URL - using the local file in the public folder
+export const EXAMPLE_PDF_URL = '/Steve_Jobs_Stanford_Commencement_Speech_2015.pdf';
 
 // Expose the example PDF URL globally for other components to use
 if (typeof window !== 'undefined') {

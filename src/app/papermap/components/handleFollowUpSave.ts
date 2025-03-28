@@ -3,24 +3,21 @@
  * Using session-based approach for PDF context
  */
 export const handleFollowUpSave = async (
-  id: string, 
-  question: string, 
-  data: any,
+  id: string,
+  question: string,
+  data: {
+    title: string;
+    description: string;
+    addFollowUpNode: (id: string, question: string, answer: string, customNodeId?: string) => string;
+    updateNodeData?: (id: string, data: any) => void;
+    pageNumber?: number;
+  },
   setShowFollowUpCard: (show: boolean) => void,
   setShowChatButton: (show: boolean) => void,
   fetchAndStoreExamplePdf: (url: string) => Promise<void>
 ) => {
-  console.log('handleFollowUpSave called with:', { id, question });
-  console.log('addFollowUpNode function available:', !!data.addFollowUpNode);
-
-  if (!data.addFollowUpNode) {
-    console.error('addFollowUpNode function not provided to node');
-    alert('Error: Could not create follow-up node. Missing function reference.');
-    return;
-  }
-
-  // Hide the card immediately
-  setShowFollowUpCard(false);
+  console.log(`Processing follow-up question for node ${id}: ${question}`);
+  console.log(`Context: ${data.title} (page ${data.pageNumber || 'unknown'})`);
 
   try {
     // Get the session ID and session data if available
@@ -28,6 +25,27 @@ export const handleFollowUpSave = async (
     let sessionData = localStorage.getItem('pdfSessionData');
     // Also get PDF data as fallback
     let pdfData = localStorage.getItem('pdfData');
+    // Get blob URL if available
+    let blobUrl = localStorage.getItem('pdfBlobUrl');
+    
+    // Log the state of stored data
+    console.log('Stored data found in localStorage:', {
+      hasSessionId: !!sessionId,
+      hasSessionData: !!sessionData, 
+      hasPdfData: !!pdfData,
+      hasBlobUrl: !!blobUrl,
+      blobUrlPreview: blobUrl ? `${blobUrl.substring(0, 50)}...` : 'none'
+    });
+    
+    // Check if this is the example mindmap - detect by URL referencing Steve Jobs speech
+    const isExampleMindmap = 
+      blobUrl && 
+      blobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf');
+    
+    // Log if we're dealing with the example mindmap
+    if (isExampleMindmap) {
+      console.log('Detected example mindmap with local PDF file:', blobUrl);
+    }
     
     // Create a placeholder node immediately with loading state
     const loadingMessage = '<div class="flex items-center justify-center py-4"><div class="animate-pulse flex space-x-2"><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div><div class="h-2 w-2 bg-blue-400 rounded-full"></div></div></div><div class="text-sm text-gray-500 text-center">Answering...</div>';
@@ -47,8 +65,53 @@ export const handleFollowUpSave = async (
       data.updateNodeData(createdNodeId, { pageNumber: data.pageNumber });
     }
 
-    // Start fetching the answer
-    console.log('Sending question to API:', question);
+    // If we don't have a session yet, initialize one with the PDF
+    if (isExampleMindmap && (!sessionId || !sessionData)) {
+      console.log('No existing session for example mindmap, initializing new session...');
+      try {
+        // Prepare request body with PDF data or URL
+        const initRequestBody: Record<string, any> = {};
+        
+        // Include Blob URL as preferred method
+        if (blobUrl) {
+          initRequestBody.blobUrl = blobUrl;
+          console.log('Including example mindmap Blob URL in initialization request');
+        }
+        
+        // Include PDF data as fallback if available
+        if (pdfData) {
+          initRequestBody.pdfData = pdfData;
+          console.log('Including PDF data as fallback in initialization request');
+        }
+        
+        const initResponse = await fetch('/api/papermap/initialize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(initRequestBody)
+        });
+        
+        if (initResponse.ok) {
+          const initData = await initResponse.json();
+          sessionId = initData.sessionId;
+          sessionData = initData.sessionData;
+          
+          // Store the session data in localStorage
+          if (initData.sessionId && initData.sessionData) {
+            localStorage.setItem('pdfSessionId', initData.sessionId);
+            localStorage.setItem('pdfSessionData', initData.sessionData);
+            console.log('Successfully initialized new session for follow-up question:', initData.sessionId);
+          } else {
+            console.warn('Received incomplete session data from initialization');
+          }
+        } else {
+          console.error('Failed to initialize session:', await initResponse.text());
+        }
+      } catch (initError) {
+        console.error('Error initializing session:', initError);
+      }
+    }
 
     // Prepare node context
     const nodeContext = {
@@ -71,13 +134,28 @@ export const handleFollowUpSave = async (
       requestBody.sessionData = sessionData;
     }
 
-    // Include PDF data as fallback if available
-    if (pdfData) {
+    // Include PDF data if available (but not for example mindmap where we use Blob URL)
+    if (pdfData && !isExampleMindmap) {
       requestBody.pdfData = pdfData;
-      console.log('Including PDF data as fallback');
+      console.log('Including PDF data in request');
+    }
+
+    // Include blob URL in the request if available
+    if (blobUrl) {
+      requestBody.blobUrl = blobUrl;
+      console.log('Including Blob URL in request:', blobUrl);
     }
 
     // Send request to API
+    console.log('Sending follow-up question to API with requestBody:', {
+      hasSessionId: !!requestBody.sessionId,
+      hasSessionData: !!requestBody.sessionData,
+      hasPdfData: !!requestBody.pdfData,
+      blobUrl: requestBody.blobUrl,
+      questionLength: question.length,
+      nodeContextTitle: nodeContext.title
+    });
+    
     const response = await fetch('/api/papermap/ask', {
       method: 'POST',
       headers: {
@@ -115,38 +193,47 @@ export const handleFollowUpSave = async (
     // If the answer looks like a JSON string (rather than markdown), try to parse it
     if (answerContent.trim().startsWith('{') && answerContent.includes('"answer"')) {
       try {
-        const parsed = JSON.parse(answerContent);
-        if (parsed.answer) {
-          answerContent = parsed.answer;
+        const parsedAnswer = JSON.parse(answerContent);
+        if (parsedAnswer.answer) {
+          answerContent = parsedAnswer.answer;
         }
       } catch (e) {
-        console.log('Answer was not JSON format, using as-is');
+        console.warn('Failed to parse answer as JSON, using raw response');
       }
     }
-
-    // Update the existing node with the actual answer
+    
+    // Update the node with the actual answer
+    console.log(`Updating node ${createdNodeId} with answer, length: ${answerContent.length}`);
+    
     if (data.updateNodeData) {
-      console.log('Updating node with actual answer:', createdNodeId);
-      // Preserve pageNumber when updating the node with the answer
-      data.updateNodeData(createdNodeId, {
+      data.updateNodeData(createdNodeId, { 
         description: answerContent,
-        // Add pageNumber in case it wasn't added earlier
-        pageNumber: data.pageNumber
+        loading: false 
       });
-    } else {
-      console.error('Cannot update node: updateNodeData function not available');
     }
 
+    return createdNodeId;
   } catch (error) {
-    console.error('Error getting answer:', error);
-    // If there's already a node with loading state, update it with error message
-    if (data.updateNodeData && data.lastCreatedNodeId) {
-      data.updateNodeData(data.lastCreatedNodeId, {
-        description: "Error: Could not generate an answer. Please try again.",
-        // Also preserve pageNumber when updating with error message
-        pageNumber: data.pageNumber
+    console.error('Error handling follow-up question:', error);
+    
+    // Create error node with error message
+    const errorMessage = `<div class="text-red-500">Error: Failed to get an answer. Please try again or reload the page.</div>`;
+    
+    // Generate a unique ID for the error node
+    const errorNodeId = `error-node-${Date.now()}`;
+    
+    // Create the error node
+    const createdNodeId = data.addFollowUpNode(id, question, errorMessage, errorNodeId);
+    
+    // Update the node with error styling if possible
+    if (data.updateNodeData) {
+      data.updateNodeData(errorNodeId, { 
+        description: errorMessage,
+        loading: false 
       });
     }
+
+    return createdNodeId;
   } finally {
     // Make sure chat button is hidden after processing completes
     setShowChatButton(false);

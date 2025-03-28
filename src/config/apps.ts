@@ -1,4 +1,4 @@
-import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Network, Feather } from 'lucide-react'
+import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -16,7 +16,7 @@ export const apps: AppConfig[] = [
   },
   {
     name: 'Papermap',
-    icon: Network,
+    icon: Waypoints,
     slug: 'papermap',
     description: 'Turn any PDF into Interactive Mindmap with AI',
   },

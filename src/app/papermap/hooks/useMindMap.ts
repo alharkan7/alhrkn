@@ -15,6 +15,10 @@ const fetchAndStorePdfData = async (pdfUrl: string) => {
       throw new Error('Failed to fetch example PDF');
     }
     
+    // Store the PDF URL as a blob URL in localStorage for follow-up questions
+    localStorage.setItem('pdfBlobUrl', pdfUrl);
+    console.log('Stored PDF URL in localStorage as pdfBlobUrl:', pdfUrl);
+    
     const pdfBlob = await response.blob();
     const reader = new FileReader();
     
@@ -116,6 +120,13 @@ export function useMindMap() {
   // Initialize with a default value first for SSR
   const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0);
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex]; // Current layout options
+  
+  // Store example PDF URL in localStorage immediately on component mount
+  useEffect(() => {
+    // Ensure pdfBlobUrl is set for the example PDF immediately
+    localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+    console.log('Stored initial example PDF URL in localStorage on mount:', EXAMPLE_PDF_URL);
+  }, []);
   
   // Update layout based on device type after mounting on client
   useEffect(() => {
@@ -657,6 +668,10 @@ export function useMindMap() {
     setPdfUrl(EXAMPLE_PDF_URL);
     setError(null);
     
+    // Store the example PDF URL in localStorage for follow-up questions
+    localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+    console.log('Stored example PDF URL in localStorage:', EXAMPLE_PDF_URL);
+    
     // Clear any existing flow state
     setNodes([]);
     setEdges([]);
@@ -686,7 +701,10 @@ export function useMindMap() {
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pdfData })
+            body: JSON.stringify({ 
+              pdfData,
+              blobUrl: EXAMPLE_PDF_URL // Also include the blob URL for direct access
+            })
           });
           
           if (!sessionResponse.ok) {
@@ -785,36 +803,50 @@ export function useMindMap() {
     if (mindMapData === EXAMPLE_MINDMAP && pdfUrl === EXAMPLE_PDF_URL) {
       // Check if the PDF data is already in localStorage
       const existingPdfData = localStorage.getItem('pdfData');
+      const existingSessionId = localStorage.getItem('pdfSessionId');
+      const existingSessionData = localStorage.getItem('pdfSessionData');
+      
+      // Make sure to set the blobUrl in localStorage even if it's not set elsewhere
+      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+      
+      // Skip further initialization if we already have session data for the example PDF
+      if (existingSessionId && existingSessionData) {
+        console.log('Example PDF already has initialized session data');
+        return;
+      }
+      
       if (!existingPdfData) {
         console.log('Example mindmap is loaded but PDF data not in localStorage, fetching it now');
         fetchAndStorePdfData(EXAMPLE_PDF_URL)
           .then(async () => {
             // Initialize a session with the example PDF data when app first loads
             const pdfData = localStorage.getItem('pdfData');
-            if (pdfData) {
-              try {
-                // Initialize a session for the example PDF
-                const sessionResponse = await fetch('/api/papermap/initialize', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ pdfData })
-                });
-                
-                if (sessionResponse.ok) {
-                  const { sessionId, sessionData } = await sessionResponse.json();
-                  // Use safelyStoreSessionData instead of direct localStorage.setItem
-                  const stored = safelyStoreSessionData(sessionId, sessionData);
-                  if (stored) {
-                    console.log('Session automatically initialized for example PDF on first load');
-                  } else {
-                    console.warn('Failed to store session data, but continuing with example mindmap');
-                  }
+            
+            try {
+              // Initialize a session for the example PDF using both pdfData and blobUrl
+              const sessionResponse = await fetch('/api/papermap/initialize', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                  pdfData,
+                  blobUrl: EXAMPLE_PDF_URL, // Always include the blob URL
+                })
+              });
+              
+              if (sessionResponse.ok) {
+                const { sessionId, sessionData } = await sessionResponse.json();
+                // Use safelyStoreSessionData instead of direct localStorage.setItem
+                const stored = safelyStoreSessionData(sessionId, sessionData);
+                if (stored) {
+                  console.log('Session automatically initialized for example PDF on first load');
+                } else {
+                  console.warn('Failed to store session data, but continuing with example mindmap');
                 }
-              } catch (error) {
-                console.error('Failed to initialize session for example PDF on first load:', error);
               }
+            } catch (error) {
+              console.error('Failed to initialize session for example PDF on first load:', error);
             }
           })
           .catch(error => console.error('Error pre-loading example PDF:', error));
@@ -830,7 +862,10 @@ export function useMindMap() {
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pdfData: existingPdfData })
+            body: JSON.stringify({ 
+              pdfData: existingPdfData,
+              blobUrl: EXAMPLE_PDF_URL, // Also include the blob URL here
+            })
           })
             .then(response => {
               if (response.ok) {
@@ -868,6 +903,12 @@ export function useMindMap() {
       
       // Store the PDF URL for later use
       setPdfUrl(pdfBlobUrl);
+      
+      // Store the blob URL in localStorage for follow-up questions
+      if (blobUrl) {
+        localStorage.setItem('pdfBlobUrl', blobUrl);
+        console.log('Stored PDF Blob URL in localStorage:', blobUrl);
+      }
       
       // Store the file content in localStorage for offline access
       if (!blobUrl) {

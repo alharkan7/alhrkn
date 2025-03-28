@@ -75,12 +75,122 @@ async function recreateChatSession(sessionData: any): Promise<ChatSession | null
     }
 }
 
+// Helper function to fetch PDF data from a Blob URL
+async function fetchPdfFromBlobUrl(blobUrl: string): Promise<string | null> {
+    try {
+        console.log('Fetching PDF from Blob URL:', blobUrl);
+        
+        // Special handling for the example PDF in the public directory
+        if (blobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
+            console.log('Detected local example PDF URL from public folder');
+            
+            // For the local PDF in the public folder, we need to use the absolute URL
+            let finalPdfUrl = blobUrl;
+            if (blobUrl.startsWith('/')) {
+                // In production environment, use the full URL from VERCEL_URL env var
+                // In development, use localhost:3000
+                const baseUrl = process.env.VERCEL_URL 
+                    ? `https://${process.env.VERCEL_URL}` 
+                    : process.env.NODE_ENV === 'development' 
+                        ? 'http://localhost:3000' 
+                        : '';
+                        
+                finalPdfUrl = `${baseUrl}${blobUrl}`;
+                console.log('Using absolute URL for local PDF in public folder:', finalPdfUrl);
+            }
+            
+            try {
+                // Set proper headers for fetch request
+                const headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'application/pdf',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                };
+                
+                console.log('Attempting to fetch local PDF with absolute URL:', finalPdfUrl);
+                const response = await fetch(finalPdfUrl, { 
+                    headers,
+                    cache: 'no-store'
+                });
+                
+                if (!response.ok) {
+                    console.error(`Failed to fetch local PDF: Status ${response.status}, ${response.statusText}`);
+                    throw new Error(`Failed to fetch local PDF: ${response.status}`);
+                }
+                
+                console.log('✅ Successfully fetched local PDF from public folder, status:', response.status);
+                const arrayBuffer = await response.arrayBuffer();
+                console.log('PDF data size:', arrayBuffer.byteLength, 'bytes');
+                
+                // Convert ArrayBuffer to base64 on the server using Buffer
+                const buffer = Buffer.from(arrayBuffer);
+                const base64Content = buffer.toString('base64');
+                console.log('✅ Successfully converted PDF to base64, length:', base64Content.length);
+                return base64Content;
+            } catch (error) {
+                console.error('❌ Error fetching local PDF:', error);
+                throw error; // Rethrow to be handled by the main try/catch
+            }
+        }
+        
+        // Handle external URLs similarly using Buffer instead of FileReader
+        if (blobUrl.startsWith('http') && !blobUrl.includes(process.env.VERCEL_URL || 'localhost')) {
+            console.log('Detected external PDF URL:', blobUrl);
+            
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/pdf',
+                'Accept-Language': 'en-US,en;q=0.9'
+            };
+            
+            const response = await fetch(blobUrl, { headers });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch external PDF: ${response.status} ${response.statusText}`);
+            }
+            
+            console.log('Successfully fetched external PDF, size:', response.headers.get('content-length'));
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Content = buffer.toString('base64');
+            return base64Content;
+        }
+        
+        // Normal case for standard URLs
+        console.log('Fetching PDF from standard URL:', blobUrl);
+        const response = await fetch(blobUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64Content = buffer.toString('base64');
+        return base64Content;
+    } catch (error) {
+        console.error('Error fetching PDF from URL:', error);
+        return null;
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Get the request data
         const requestData = await req.json();
-        const { sessionId, sessionData, pdfData, nodeContext, question } = requestData;
+        const { sessionId, sessionData, pdfData, blobUrl, nodeContext, question } = requestData;
         
+        console.log('API received follow-up question request with:', { 
+            hasSessionId: !!sessionId,
+            hasSessionData: !!sessionData,
+            hasPdfData: !!pdfData,
+            hasBlobUrl: !!blobUrl,
+            blobUrlPreview: blobUrl ? `${blobUrl.substring(0, 50)}...` : 'none',
+            hasNodeContext: !!nodeContext,
+            questionLength: question ? question.length : 0
+        });
+
         // Try to recreate chat from session data if provided
         let chat = null;
         
@@ -101,8 +211,26 @@ export async function POST(req: NextRequest) {
             }
         }
         
-        // If no session data or recreation failed, fall back to one-time mode
-        if (!chat && pdfData) {
+        // Handle different cases for PDF data
+        let pdfBase64 = pdfData;
+        
+        // If we don't have direct PDF data but have a blob URL, fetch the PDF
+        if (!pdfBase64 && blobUrl) {
+            console.log('No PDF data provided but Blob URL available, fetching PDF from Blob...');
+            try {
+                pdfBase64 = await fetchPdfFromBlobUrl(blobUrl);
+                if (pdfBase64) {
+                    console.log('✅ Successfully fetched PDF from Blob URL, base64 length:', pdfBase64.length);
+                } else {
+                    console.error('❌ Failed to fetch PDF from Blob URL - null result returned');
+                }
+            } catch (fetchError) {
+                console.error('❌ Error fetching PDF from Blob URL:', fetchError);
+            }
+        }
+        
+        // If no session data or recreation failed, fall back to one-time mode with PDF data
+        if (!chat && pdfBase64) {
             console.log('No valid session data, falling back to one-time PDF processing');
             
             // Create a model with the system instruction
@@ -119,6 +247,7 @@ export async function POST(req: NextRequest) {
         }
         
         if (!chat) {
+            console.error('❌ No valid chat session could be created - missing both session data and PDF data');
             return new Response(JSON.stringify({ 
                 error: 'No valid session data or PDF data provided',
                 answer: "I couldn't access the document. Please reload the page and try again."
@@ -129,6 +258,7 @@ export async function POST(req: NextRequest) {
         }
         
         if (!nodeContext || !question) {
+            console.error('❌ Missing required data: nodeContext or question');
             return new Response(JSON.stringify({ 
                 error: 'Missing node context or question',
                 answer: "The question is missing required information. Please try again."
@@ -147,23 +277,39 @@ User Question: ${question}
 
 Please provide a detailed answer to this question based on the content of the paper.`;
 
+        console.log('Sending prompt to Gemini with prompt length:', userPrompt.length);
+        
         // Send the message to the chat session
         let response;
         
-        if (pdfData && !sessionData) {
+        if (pdfBase64 && !sessionData) {
             // If using one-time mode with no session, include PDF
-            response = await chat.sendMessage([
-                {
-                    inlineData: {
-                        mimeType: "application/pdf",
-                        data: pdfData
-                    }
-                },
-                userPrompt
-            ]);
+            console.log('Using one-time mode with PDF data, PDF base64 length:', pdfBase64.length);
+            try {
+                response = await chat.sendMessage([
+                    {
+                        inlineData: {
+                            mimeType: "application/pdf",
+                            data: pdfBase64
+                        }
+                    },
+                    userPrompt
+                ]);
+                console.log('✅ Received response from Gemini in one-time mode');
+            } catch (aiError) {
+                console.error('❌ Error from Gemini API in one-time mode:', aiError);
+                throw aiError;
+            }
         } else {
             // For session-based approach, just send the prompt
-            response = await chat.sendMessage(userPrompt);
+            console.log('Using session-based approach with existing chat history');
+            try {
+                response = await chat.sendMessage(userPrompt);
+                console.log('✅ Received response from Gemini in session mode');
+            } catch (aiError) {
+                console.error('❌ Error from Gemini API in session mode:', aiError);
+                throw aiError;
+            }
         }
 
         // Get the updated chat history
@@ -188,6 +334,8 @@ Please provide a detailed answer to this question based on the content of the pa
             if (!parsedResult.answer) {
                 console.warn('Response missing answer field:', result);
                 parsedResult = { answer: "Sorry, I couldn't generate a proper response. Please try again." };
+            } else {
+                console.log('✅ Successfully parsed JSON response with answer field, answer length:', parsedResult.answer.length);
             }
         } catch (jsonError) {
             console.error('Failed to parse response as JSON:', jsonError);
@@ -208,7 +356,7 @@ Please provide a detailed answer to this question based on the content of the pa
         });
 
     } catch (error) {
-        console.error('Error in API route:', error);
+        console.error('❌ Error in API route:', error);
         return new Response(JSON.stringify({ 
             error: error instanceof Error ? error.message : 'Internal server error',
             answer: "I'm sorry, I couldn't process this request. Please try again later."
