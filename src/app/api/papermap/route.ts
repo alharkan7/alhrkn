@@ -286,9 +286,32 @@ export async function POST(req: NextRequest) {
             "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Pay special attention to including accurate page numbers for each node, as this is crucial for the user to navigate the document. Ensure all parent-child relationships are valid."
         ]);
         
-        // With structured output, we can directly use the response object
+        // Check if the response contains error information
+        if (response.response.promptFeedback?.blockReason) {
+            throw new Error(`[GoogleGenerativeAI Error] Content blocked: ${response.response.promptFeedback.blockReason}`);
+        }
+        
+        // Get the text response
         const result = await response.response.text();
-        const parsedResult = JSON.parse(result);
+        
+        // Try to parse the result as JSON with error handling
+        let parsedResult;
+        try {
+            parsedResult = JSON.parse(result);
+            
+            // Check if the parsed result has the expected structure
+            if (!parsedResult.nodes || !Array.isArray(parsedResult.nodes)) {
+                throw new Error('Invalid response format: expected a "nodes" array');
+            }
+        } catch (parseError) {
+            // Log the problematic response for debugging
+            console.error('Failed to parse Gemini response as JSON:', {
+                error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+                responsePreview: result.substring(0, 200) // Log first 200 chars of response
+            });
+            
+            throw new Error(`Failed to parse Gemini response as JSON. The model may have returned an error or invalid format. ${parseError instanceof Error ? parseError.message : ''}`);
+        }
         
         // Debug: Check if Gemini provided any page numbers
         const nodesWithPageNumbers = parsedResult.nodes.filter((node: any) => node.pageNumber != null);
