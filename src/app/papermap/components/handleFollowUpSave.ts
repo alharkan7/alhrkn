@@ -18,6 +18,9 @@ export const handleFollowUpSave = async (
 ) => {
   console.log(`Processing follow-up question for node ${id}: ${question}`);
   console.log(`Context: ${data.title} (page ${data.pageNumber || 'unknown'})`);
+  
+  // Hide the follow-up card immediately
+  setShowFollowUpCard(false);
 
   try {
     // Get the session ID and session data if available
