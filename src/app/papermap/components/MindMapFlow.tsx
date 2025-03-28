@@ -108,10 +108,10 @@ const MindMapFlow = () => {
   
   useEffect(() => {
     if (reactFlow && nodes.length > 0) {
-      // Center view with a slight delay to ensure nodes are properly rendered
-      setTimeout(() => {
-        reactFlow.fitView({ padding: 0.4, duration: 800 });
-      }, 200);
+      // Remove the automatic fitView call to maintain user's view
+      // setTimeout(() => {
+      //   reactFlow.fitView({ padding: 0.4, duration: 800 });
+      // }, 200);
     }
   }, [reactFlow]); // Only depend on reactFlow, not nodes.length
 

@@ -586,18 +586,6 @@ export function useMindMap() {
             }
           }
         });
-      } else {
-        // Comment out or remove fitView call to maintain user's view
-        /*
-        if (reactFlowInstance.current) {
-          console.log('Fitting view to include new node');
-          reactFlowInstance.current.fitView({ 
-            padding: 0.4, 
-            duration: 800,
-            includeHiddenNodes: false,
-          });
-        }
-        */
       }
     }, 500);
     
@@ -967,6 +955,17 @@ export function useMindMap() {
     } finally {
       setLoading(false);
     }
+    
+    // Fit view after nodes are set
+    setTimeout(() => {
+      if (reactFlowInstance.current) {
+        reactFlowInstance.current.fitView({ 
+          padding: 0.4, 
+          duration: 800,
+          includeHiddenNodes: false
+        });
+      }
+    }, 100);
   };
 
   // Update node visibility when collapsed nodes or mindMapData change
@@ -1336,18 +1335,20 @@ export function useMindMap() {
       setNodes(nodesWithFollowUp);
       setEdges(flowEdges);
       
-      // Fit view after nodes are set
-      setTimeout(() => {
-        if (reactFlowInstance.current) {
-          reactFlowInstance.current.fitView({ 
-            padding: 0.4, 
-            duration: 800,
-            includeHiddenNodes: false
-          });
-        }
-      }, 100);
+      // Only fit view if this is an initial load (nodes.length was 0) or layout change
+      if (nodes.length === 0) {
+        setTimeout(() => {
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({ 
+              padding: 0.4, 
+              duration: 800,
+              includeHiddenNodes: false
+            });
+          }
+        }, 100);
+      }
     }
-  }, [mindMapData, currentLayoutIndex, loading, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, setNodes, setEdges]);
+  }, [mindMapData, currentLayoutIndex, loading, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
 
   return {
     loading,
