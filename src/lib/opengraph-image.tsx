@@ -14,8 +14,8 @@ export async function generateOpenGraphImage({
 }: OpenGraphImageProps) {
   const spaceGroteskFont = await loadSpaceGroteskFont()
   
-  // Get favicon using fetch - this works in edge runtime
-  let faviconSrc = null
+  // Get favicon path - don't attempt to fetch it directly
+  let faviconPath = ''
   
   try {
     // For local development and production
@@ -23,8 +23,8 @@ export async function generateOpenGraphImage({
       ? `https://${process.env.VERCEL_URL}` 
       : 'http://localhost:3000'
     
-    // In Edge runtime, we can use a direct URL to the favicon
-    faviconSrc = `${baseUrl}/favicon.ico`
+    // Just set the path, don't fetch
+    faviconPath = `${baseUrl}/favicon.ico`
   } catch (error) {
     console.error('Error setting favicon path:', error)
   }
@@ -40,22 +40,12 @@ export async function generateOpenGraphImage({
           flexDirection: 'column',
           alignItems: 'flex-start',
           justifyContent: 'flex-start',
-          background: 'linear-gradient(to right, white, white, #ff65a3, #ffcb57)',
-          padding: '40px',
+          background: 'linear-gradient(135deg, white 0%, white 60%, #ff65a3 80%, #ffcb57 100%)',
+          padding: '100px',
           position: 'relative',
           fontFamily: '"Space Grotesk"',
         }}
       >
-        {/* Logo */}
-        {faviconSrc && (
-          <img
-            src={faviconSrc}
-            width={40}
-            height={40}
-            style={{ marginBottom: '100px' }}
-            alt="Logo"
-          />
-        )}
         
         <h1
           style={{
