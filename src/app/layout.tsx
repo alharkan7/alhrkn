@@ -10,23 +10,26 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
 });
 
+const title = "Ask Al"
+const description = "Experimental AI Apps"
+
 export const metadata: Metadata = {
-  title: "Ask Al",
-  description: "Experimental AI Apps by @alhrkn",
+  title: title,
+  description: description,
   icons: {
     icon: '/favicon.ico',
   },
   openGraph: {
-    title: "Ask Al",
-    description: "Experimental AI Apps by @alhrkn",
+    title: title,
+    description: description,
     type: "website",
     locale: "en_US",
-    siteName: "Ask Al",
+    siteName: title,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ask Al",
-    description: "Experimental AI Apps by @alhrkn",
+    title: title,
+    description: description,
     creator: "@alhrkn",
   },
 }

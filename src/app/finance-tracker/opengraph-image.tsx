@@ -5,7 +5,7 @@ import { metadata } from './layout'
 export const runtime = 'edge'
 
 // Image metadata
-export const alt = 'Papermap - Experimental AI Apps'
+export const alt = 'Finance Tracker - Experimental AI Apps'
 export const size = {
   width: 1200,
   height: 630,
@@ -17,6 +17,6 @@ export default async function Image() {
   return generateOpenGraphImage({
     title: metadata.title as string,
     description: metadata.description as string,
-    path: 'papermap'
+    path: 'finance-tracker'
   })
 } 
