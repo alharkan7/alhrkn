@@ -4,7 +4,7 @@ import { ImageResponse } from '@vercel/og'
 export const runtime = 'edge'
 
 // Image metadata
-export const alt = 'Ask Al - Experimental AI Apps by @alhrkn'
+export const alt = 'Ask Al - Experimental AI Apps'
 export const size = {
   width: 1200,
   height: 630,
@@ -90,7 +90,7 @@ export default async function Image() {
                 textAlign: 'center',
               }}
             >
-              Experimental AI Apps by @alhrkn
+              Experimental AI Apps
             </p>
           </div>
         </div>
