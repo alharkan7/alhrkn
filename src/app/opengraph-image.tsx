@@ -13,11 +13,6 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image() {
-  // Font
-  const interBold = fetch(
-    new URL('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap', import.meta.url)
-  ).then((res) => res.arrayBuffer())
-
   return new ImageResponse(
     (
       <div
@@ -31,7 +26,7 @@ export default async function Image() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: '"Space Grotesk"',
+          fontFamily: 'sans-serif',
         }}
       >
         <div 
@@ -66,14 +61,6 @@ export default async function Image() {
     ),
     {
       ...size,
-      fonts: [
-        {
-          name: 'Space Grotesk',
-          data: await interBold,
-          style: 'normal',
-          weight: 700,
-        },
-      ],
     }
   )
 } 
