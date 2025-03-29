@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from '@vercel/og'
 
 // Route segment config
 export const runtime = 'edge'
@@ -17,16 +17,16 @@ export default async function Image() {
     (
       <div
         style={{
-          fontSize: 72,
-          background: 'linear-gradient(to bottom right, #000000, #1e40af)',
-          color: 'white',
-          width: '100%',
           height: '100%',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'sans-serif',
+          background: 'linear-gradient(to bottom right, #000000, #1e40af)',
+          color: 'white',
+          fontSize: 32,
+          fontWeight: 600,
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -40,8 +40,7 @@ export default async function Image() {
           zIndex: 0,
         }} />
         
-        {/* Content container */}
-        <div 
+        <div
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -68,26 +67,42 @@ export default async function Image() {
             </svg>
           </div>
           
-          <h1 
-            style={{ 
-              fontSize: '80px', 
-              margin: '0',
-              color: 'white',
-              letterSpacing: '-0.025em',
-              textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            Ask Al
-          </h1>
-          <p style={{ 
-            fontSize: '32px', 
-            marginTop: '16px', 
-            color: '#e5e7eb',
-            textAlign: 'center',
-            maxWidth: '600px',
-          }}>
-            Experimental AI Apps by @alhrkn
-          </p>
+            <h1
+              style={{
+                fontSize: 70,
+                fontWeight: 800,
+                margin: 0,
+                marginTop: 10,
+                color: 'white',
+                lineHeight: 1.1,
+                letterSpacing: '-0.05em',
+                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              Ask Al
+            </h1>
+            <p
+              style={{
+                fontSize: 28,
+                color: '#e5e7eb',
+                margin: 0,
+                marginTop: 10,
+                lineHeight: 1.5,
+                textAlign: 'center',
+                maxWidth: 500,
+              }}
+            >
+              Experimental AI Apps by @alhrkn
+            </p>
+          </div>
         </div>
         
         {/* Twitter handle/username */}
@@ -108,7 +123,8 @@ export default async function Image() {
       </div>
     ),
     {
-      ...size,
+      width: 1200,
+      height: 630,
     }
   )
 } 
