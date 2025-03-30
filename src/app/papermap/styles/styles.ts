@@ -1,7 +1,7 @@
 export const nodeUpdateStyles = `
   @keyframes node-updated {
-    0% { border: 2px solid #4299e1; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5); }
-    100% { border: 2px solid #e2e8f0; box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1); }
+    0% { border: 2px solid #4299e1; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.3); }
+    100% { border: 2px solid #e2e8f0; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); }
   }
   .node-card {
     /* Remove global transition to avoid lag during dragging */
@@ -18,8 +18,8 @@ export const nodeUpdateStyles = `
     outline: none;
   }
   .react-flow__node.selected .node-card {
-    border: 2px solid #3182CE !important;
-    box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.5) !important;
+    border: 2px solid #4299E1 !important;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.3) !important;
   }
   
   /* Resizer styling */
@@ -27,7 +27,7 @@ export const nodeUpdateStyles = `
     z-index: 100 !important;
   }
   .react-flow__resize-control.handle {
-    background-color: #3b82f6 !important;
+    background-color: #4299E1 !important;
     border: 1px solid white !important;
   }
   .react-flow__resize-control.handle-right {
@@ -79,6 +79,8 @@ export const nodeUpdateStyles = `
   }
   .dark-mode .react-flow__edge path {
     stroke: #64748b;
+    stroke-opacity: 0.75;
+    stroke-width: 1.5;
   }
   .dark-mode .react-flow__controls {
     background: rgba(30, 41, 59, 0.9) !important;
@@ -130,24 +132,25 @@ export const draggableStyles = `
 
 // Colors for sticky notes based on column level
 export const STICKY_NOTE_COLORS = [
-  { bg: '#fff9c4', border: '#f9a825', shadow: 'rgba(249, 168, 37, 0.4)' }, // Yellow
-  { bg: '#e1bee7', border: '#8e24aa', shadow: 'rgba(142, 36, 170, 0.4)' }, // Purple
-  { bg: '#ffcdd2', border: '#e53935', shadow: 'rgba(229, 57, 53, 0.4)' },  // Red
-  { bg: '#c8e6c9', border: '#43a047', shadow: 'rgba(67, 160, 71, 0.4)' },  // Green
-  { bg: '#f8bbd0', border: '#d81b60', shadow: 'rgba(216, 27, 96, 0.4)' },  // Pink
-  { bg: '#bbdefb', border: '#1976d2', shadow: 'rgba(25, 118, 210, 0.4)' }, // Blue
-  { bg: '#ffe0b2', border: '#fb8c00', shadow: 'rgba(251, 140, 0, 0.4)' },  // Orange
+  { bg: '#EBF8FF', border: '#3182CE', shadow: 'rgba(49, 130, 206, 0.2)' }, // Bright blue
+  { bg: '#E6FFFA', border: '#319795', shadow: 'rgba(49, 151, 149, 0.2)' }, // Teal
+  { bg: '#E9E3FF', border: '#6B46C1', shadow: 'rgba(107, 70, 193, 0.2)' }, // Purple
+  { bg: '#EDFDFD', border: '#0987A0', shadow: 'rgba(9, 135, 160, 0.2)' },  // Cyan
+  { bg: '#EBF4FF', border: '#4C51BF', shadow: 'rgba(76, 81, 191, 0.2)' },  // Indigo
+  { bg: '#F0FFF4', border: '#38A169', shadow: 'rgba(56, 161, 105, 0.2)' }, // Green
+  { bg: '#E6F7FF', border: '#0C74D6', shadow: 'rgba(12, 116, 214, 0.2)' }, // Vivid blue
 ];
 
 // Special node colors
 export const BLANK_NODE_COLOR = { bg: '#ffffff', border: '#000000', shadow: 'rgba(158, 158, 158, 0.4)' }; // White/plain
-export const ANSWER_NODE_COLOR = { bg: '#e3f2fd', border: '#2196f3', shadow: 'rgba(33, 150, 243, 0.4)' }; // Light blue
+export const ANSWER_NODE_COLOR = { bg: '#F0F9FF', border: '#63B3ED', shadow: 'rgba(66, 153, 225, 0.15)' }; // Very light blue
 
 // Sticky note CSS styles
 export const stickyNoteStyles = `
   .sticky-note {
     position: relative;
     overflow: visible;
+    border-radius: 8px;
   }
   
   .sticky-note-fold {
@@ -157,10 +160,10 @@ export const stickyNoteStyles = `
     width: 0;
     height: 0;
     border: 0 solid transparent;
-    border-bottom: 20px solid transparent;
-    border-left: 20px solid transparent;
-    opacity: 0.5;
-    border-bottom-right-radius: 4px;
+    border-bottom: 15px solid transparent;
+    border-left: 15px solid transparent;
+    opacity: 0.4;
+    border-bottom-right-radius: 8px;
   }
   
   /* Fix for mobile browsers */
@@ -339,6 +342,19 @@ export const reactFlowStyles = `
     z-index: 5;
   }
 
+  /* Edge styling */
+  .react-flow__edge path {
+    stroke-linecap: round;
+    transition: stroke 0.2s, stroke-width 0.2s, stroke-opacity 0.2s;
+  }
+
+  .react-flow__edge.selected path,
+  .react-flow__edge:focus path,
+  .react-flow__edge:hover path {
+    stroke-opacity: 1;
+    stroke-width: 2px;
+  }
+
   /* Theme-aware background dots */
   .react-flow__background {
     background-color: var(--background);
@@ -352,25 +368,27 @@ export const reactFlowStyles = `
   .react-flow__controls {
     background: var(--card);
     border: 1px solid var(--border);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
   }
 
   .react-flow__controls-button {
     background: var(--card);
     border-bottom: 1px solid var(--border);
     color: var(--foreground);
+    transition: background 0.2s ease;
   }
 
   /* Round the first and last buttons */
   .react-flow__controls-button:first-child {
-    border-top-left-radius: var(--radius);
-    border-top-right-radius: var(--radius);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
   }
 
   .react-flow__controls-button:last-child {
-    border-bottom-left-radius: var(--radius);
-    border-bottom-right-radius: var(--radius);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
     border-bottom: none;
   }
 

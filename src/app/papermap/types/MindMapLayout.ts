@@ -46,15 +46,15 @@ export const getDefaultLayoutIndex = (): number => {
 // Default layout option is now determined by device type
 export const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = LAYOUT_PRESETS[0]; // This is a fallback
 
-// Define sticky note colors - should match the ones in CustomNode.tsx
-const STICKY_NOTE_COLORS = [
-  { border: '#f9a825' }, // Yellow
-  { border: '#8e24aa' }, // Purple
-  { border: '#e53935' }, // Red
-  { border: '#43a047' }, // Green
-  { border: '#d81b60' }, // Pink
-  { border: '#1976d2' }, // Blue
-  { border: '#fb8c00' }, // Orange
+// Modern edge colors for consistent connection styling
+const EDGE_COLORS = [
+  '#3182CE', // Bright blue
+  '#319795', // Teal
+  '#6B46C1', // Purple
+  '#0987A0', // Cyan
+  '#4C51BF', // Indigo
+  '#38A169', // Green
+  '#0C74D6', // Vivid blue
 ];
 
 /**
@@ -251,8 +251,8 @@ export const createMindMapLayout = (
     if (node.parentId) {
       // Get the parent node's column level for color coordination
       const parentLevel = nodeLevels[node.parentId] || 0;
-      const parentColorIndex = parentLevel % STICKY_NOTE_COLORS.length;
-      const edgeColor = STICKY_NOTE_COLORS[parentColorIndex].border;
+      const parentColorIndex = parentLevel % EDGE_COLORS.length;
+      const edgeColor = EDGE_COLORS[parentColorIndex];
       
       // Create a smooth bezier curve with simplified styling
       edges.push({
@@ -264,8 +264,8 @@ export const createMindMapLayout = (
         type: 'bezier',
         style: { 
           stroke: edgeColor, 
-          strokeWidth: 2, 
-          strokeOpacity: 0.6,
+          strokeWidth: 1.5, 
+          strokeOpacity: 0.7,
           zIndex: 50
         },
         animated: false,

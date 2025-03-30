@@ -423,9 +423,9 @@ export function useMindMap() {
       targetHandle: 'target',
       type: 'bezier',
       style: { 
-        stroke: '#3182CE', 
-        strokeWidth: 2, 
-        strokeOpacity: 1, 
+        stroke: '#3182CE', // Bright blue that matches our palette
+        strokeWidth: 1.5, 
+        strokeOpacity: 0.8, 
         zIndex: 1000 
       },
       animated: false,
@@ -1186,9 +1186,9 @@ export function useMindMap() {
               targetHandle: 'target',
               type: 'bezier',
               style: { 
-                stroke: '#3182CE', 
-                strokeWidth: 2, 
-                strokeOpacity: 1, 
+                stroke: '#3182CE', // Bright blue that matches our palette
+                strokeWidth: 1.5, 
+                strokeOpacity: 0.8, 
                 zIndex: 1000 
               },
               animated: false,

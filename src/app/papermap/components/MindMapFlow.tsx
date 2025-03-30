@@ -165,7 +165,13 @@ const MindMapFlow = () => {
         maxZoom={4} // Set the maximum zoom level (max zoom-in)
         defaultEdgeOptions={{
           type: 'bezier',
-          style: { stroke: '#3182CE', strokeWidth: 2, zIndex: 1000 },
+          style: { 
+            stroke: '#3182CE', 
+            strokeWidth: 1.5, 
+            strokeOpacity: 0.8,
+            strokeDasharray: '0',
+            zIndex: 1000 
+          },
           animated: false
         }}
         className="mindmap-container"
