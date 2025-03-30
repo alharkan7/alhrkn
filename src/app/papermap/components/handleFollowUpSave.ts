@@ -69,8 +69,9 @@ export const handleFollowUpSave = async (
     }
 
     // If we don't have a session yet, initialize one with the PDF
-    if (isExampleMindmap && (!sessionId || !sessionData)) {
-      console.log('No existing session for example mindmap, initializing new session...');
+    // Do this for ANY PDF, not just the example mindmap
+    if (!sessionId || !sessionData) {
+      console.log('No existing session, initializing new session...');
       try {
         // Prepare request body with PDF data or URL
         const initRequestBody: Record<string, any> = {};
@@ -78,7 +79,7 @@ export const handleFollowUpSave = async (
         // Include Blob URL as preferred method
         if (blobUrl) {
           initRequestBody.blobUrl = blobUrl;
-          console.log('Including example mindmap Blob URL in initialization request');
+          console.log('Including Blob URL in initialization request');
         }
         
         // Include PDF data as fallback if available
@@ -87,29 +88,34 @@ export const handleFollowUpSave = async (
           console.log('Including PDF data as fallback in initialization request');
         }
         
-        const initResponse = await fetch('/api/papermap/initialize', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(initRequestBody)
-        });
-        
-        if (initResponse.ok) {
-          const initData = await initResponse.json();
-          sessionId = initData.sessionId;
-          sessionData = initData.sessionData;
+        // Only proceed if we have either PDF data or blob URL
+        if (Object.keys(initRequestBody).length > 0) {
+          const initResponse = await fetch('/api/papermap/initialize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(initRequestBody)
+          });
           
-          // Store the session data in localStorage
-          if (initData.sessionId && initData.sessionData) {
-            localStorage.setItem('pdfSessionId', initData.sessionId);
-            localStorage.setItem('pdfSessionData', initData.sessionData);
-            console.log('Successfully initialized new session for follow-up question:', initData.sessionId);
+          if (initResponse.ok) {
+            const initData = await initResponse.json();
+            sessionId = initData.sessionId;
+            sessionData = initData.sessionData;
+            
+            // Store the session data in localStorage
+            if (initData.sessionId && initData.sessionData) {
+              localStorage.setItem('pdfSessionId', initData.sessionId);
+              localStorage.setItem('pdfSessionData', initData.sessionData);
+              console.log('Successfully initialized new session for follow-up question:', initData.sessionId);
+            } else {
+              console.warn('Received incomplete session data from initialization');
+            }
           } else {
-            console.warn('Received incomplete session data from initialization');
+            console.error('Failed to initialize session:', await initResponse.text());
           }
         } else {
-          console.error('Failed to initialize session:', await initResponse.text());
+          console.error('Cannot initialize session: No PDF data or Blob URL available');
         }
       } catch (initError) {
         console.error('Error initializing session:', initError);
@@ -131,14 +137,17 @@ export const handleFollowUpSave = async (
     // Include session data if available
     if (sessionId) {
       requestBody.sessionId = sessionId;
+      console.log('Including sessionId in request');
     }
     
     if (sessionData) {
       requestBody.sessionData = sessionData;
+      console.log('Including sessionData in request');
     }
 
-    // Include PDF data if available (but not for example mindmap where we use Blob URL)
-    if (pdfData && !isExampleMindmap) {
+    // Include PDF data if available - do this for ANY PDF since the server can handle
+    // deciding whether to use it based on session state
+    if (pdfData) {
       requestBody.pdfData = pdfData;
       console.log('Including PDF data in request');
     }
@@ -177,8 +186,31 @@ export const handleFollowUpSave = async (
     
     // Save updated session data if returned from the API
     if (result.updatedSessionData) {
-      localStorage.setItem('pdfSessionData', result.updatedSessionData);
-      console.log('Updated session data in localStorage');
+      try {
+        // Store the updated session data
+        localStorage.setItem('pdfSessionData', result.updatedSessionData);
+        
+        // Store the session ID if included in the response
+        if (result.sessionId) {
+          localStorage.setItem('pdfSessionId', result.sessionId);
+          console.log('Updated both sessionData and sessionId in localStorage');
+        } else {
+          // Extract and store the session ID if it exists in the updated data
+          try {
+            const parsedSessionData = JSON.parse(result.updatedSessionData);
+            if (parsedSessionData.id) {
+              localStorage.setItem('pdfSessionId', parsedSessionData.id);
+              console.log('Updated both sessionData and sessionId (extracted from data)');
+            } else {
+              console.log('Updated sessionData in localStorage (no ID found)');
+            }
+          } catch (parseError) {
+            console.warn('Could not parse updatedSessionData to extract ID:', parseError);
+          }
+        }
+      } catch (storageError) {
+        console.error('Failed to save updated session data to localStorage:', storageError);
+      }
     }
     
     console.log('API response received:', {

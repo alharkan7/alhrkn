@@ -282,9 +282,14 @@ Please provide a detailed answer to this question based on the content of the pa
         // Send the message to the chat session
         let response;
         
-        if (pdfBase64 && !sessionData) {
-            // If using one-time mode with no session, include PDF
-            console.log('Using one-time mode with PDF data, PDF base64 length:', pdfBase64.length);
+        // Check if this is a new chat without history - if so, we need to include the PDF
+        // regardless of whether we're using session data or not
+        const hasHistory = await chat.getHistory().then(history => history.length > 1);
+        console.log(`Chat ${hasHistory ? 'has existing history' : 'is NEW with no history'}`);
+        
+        if (!hasHistory && pdfBase64) {
+            // For a new chat with no history, ALWAYS include the PDF inline
+            console.log('Using one-time mode with PDF data (new chat), PDF base64 length:', pdfBase64.length);
             try {
                 response = await chat.sendMessage([
                     {
@@ -295,13 +300,13 @@ Please provide a detailed answer to this question based on the content of the pa
                     },
                     userPrompt
                 ]);
-                console.log('✅ Received response from Gemini in one-time mode');
+                console.log('✅ Received response from Gemini with PDF context included');
             } catch (aiError) {
-                console.error('❌ Error from Gemini API in one-time mode:', aiError);
+                console.error('❌ Error from Gemini API when sending with PDF context:', aiError);
                 throw aiError;
             }
         } else {
-            // For session-based approach, just send the prompt
+            // For an existing chat with history, just send the prompt (PDF context already exists)
             console.log('Using session-based approach with existing chat history');
             try {
                 response = await chat.sendMessage(userPrompt);
@@ -316,11 +321,21 @@ Please provide a detailed answer to this question based on the content of the pa
         const updatedHistory = await chat.getHistory();
         
         // Create updated session data to return to client
-        const updatedSessionData = sessionData ? {
-            ...(typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData),
+        // Always create updated session data, whether we had session data initially or not
+        const updatedSessionData = {
+            id: sessionId || `session-${Date.now()}`,
             history: updatedHistory,
+            model: "gemini-1.5-flash",
+            systemPrompt: SYSTEM_PROMPT,
+            generationConfig: {
+                ...generationConfig,
+                responseSchema: responseSchema
+            },
+            pdfInitialized: true,
             lastAccessed: Date.now()
-        } : null;
+        };
+        
+        console.log(`Sending updated session data to client, history length: ${updatedHistory.length}`);
 
         // Get the response - should be properly structured due to schema
         const result = await response.response.text();
@@ -345,10 +360,11 @@ Please provide a detailed answer to this question based on the content of the pa
             };
         }
 
-        // Add updated session data to response if available
+        // Add updated session data to response
         const finalResponse = {
             ...parsedResult,
-            updatedSessionData: updatedSessionData ? JSON.stringify(updatedSessionData) : null
+            updatedSessionData: JSON.stringify(updatedSessionData),
+            sessionId: updatedSessionData.id
         };
 
         return new Response(JSON.stringify(finalResponse), {
