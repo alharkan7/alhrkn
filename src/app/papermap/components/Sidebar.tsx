@@ -139,8 +139,27 @@ const Sidebar: React.FC<SidebarProps> = ({
       setUploadProgress(70);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload file');
+        // Check for 413 status code specifically (Request Entity Too Large)
+        if (response.status === 413) {
+          throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        
+        // Check content-type before trying to parse as JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to upload file');
+        } else {
+          // For non-JSON responses, use text() instead
+          const errorText = await response.text();
+          // If the error text starts with "Request Entity Too Large" or contains size-related terms
+          if (errorText.includes('Request Entity Too Large') || 
+              errorText.includes('too large') || 
+              errorText.includes('size exceeds')) {
+            throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+          }
+          throw new Error('Failed to upload file: ' + (errorText.substring(0, 100) || response.statusText));
+        }
       }
 
       const data = await response.json();
@@ -175,16 +194,35 @@ const Sidebar: React.FC<SidebarProps> = ({
       setUploadProgress(70);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        // Check if it's a size error but doesn't contain details
-        if (errorData.error?.includes('too large') || errorData.error?.includes('size exceeds')) {
-          throw new Error(errorData.error || `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        // Check for 413 status code specifically (Request Entity Too Large)
+        if (response.status === 413) {
+          throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
         }
-        // For generic errors, assume it might be a file size issue if we get a 400 or 413 status
-        if (response.status === 400 || response.status === 413) {
-          throw new Error(`The PDF file is likely too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        
+        // Check content-type before trying to parse as JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          // Check if it's a size error but doesn't contain details
+          if (errorData.error?.includes('too large') || errorData.error?.includes('size exceeds')) {
+            throw new Error(errorData.error || `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+          }
+          throw new Error(errorData.error || 'Failed to process URL. Please upload the PDF file directly.');
+        } else {
+          // For non-JSON responses, use text() instead
+          const errorText = await response.text();
+          // If the error text starts with "Request Entity Too Large" or contains size-related terms
+          if (errorText.includes('Request Entity Too Large') || 
+              errorText.includes('too large') || 
+              errorText.includes('size exceeds')) {
+            throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+          }
+          // For generic 400 errors without specific error text
+          if (response.status === 400) {
+            throw new Error(`The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+          }
+          throw new Error('Failed to process URL: ' + (errorText.substring(0, 100) || response.statusText));
         }
-        throw new Error(errorData.error || 'Failed to process URL. Please upload the PDF file directly.');
       }
       
       const data = await response.json();
@@ -452,6 +490,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="text-destructive text-sm mt-4 p-3 bg-destructive/10 rounded-base">
               {error.includes("[GoogleGenerativeAI Error]") 
                 ? "AI service unavailable. Please try again later." 
+                : error.includes("File is too large") || error.includes("too large") || error.includes("size exceeds")
+                  ? `The AI cannot process this large file. Please upload a smaller PDF.`
                 : error.length > 60 
                   ? `${error.substring(0, 60)}...` 
                   : error
