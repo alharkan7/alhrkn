@@ -666,77 +666,6 @@ export function useMindMap() {
     setNodePositions({});
     setCollapsedNodes(new Set());
     
-    // Fetch and store the example PDF data in localStorage
-    fetchAndStorePdfData(EXAMPLE_PDF_URL)
-      .then(async () => {
-        console.log('Example PDF data successfully stored in localStorage');
-        
-        // Verify the PDF data was actually stored
-        const pdfData = localStorage.getItem('pdfData');
-        if (!pdfData) {
-          console.error('Failed to store example PDF data in localStorage');
-          setError('Error: PDF data not stored. Follow-up questions will not work.');
-          return;
-        }
-        
-        console.log(`PDF data stored successfully (${(pdfData.length * 2 / 1024 / 1024).toFixed(2)} MB)`);
-        
-        try {
-          // Initialize a session for the example PDF
-          console.log('Initializing session for example PDF...');
-          const sessionResponse = await fetch('/api/papermap/initialize', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-              pdfData,
-              blobUrl: EXAMPLE_PDF_URL // Also include the blob URL for direct access
-            })
-          });
-          
-          if (!sessionResponse.ok) {
-            const errorData = await sessionResponse.text();
-            console.error('Failed to initialize session:', sessionResponse.status, errorData);
-            setError('Warning: Could not initialize session. Follow-up questions may not work.');
-            return;
-          }
-          
-          const { sessionId, sessionData } = await sessionResponse.json();
-          
-          if (!sessionId || !sessionData) {
-            console.error('Empty session data returned from API');
-            setError('Warning: Invalid session data. Follow-up questions may not work.');
-            return;
-          }
-          
-          // Use the safer storage function
-          const stored = safelyStoreSessionData(sessionId, sessionData);
-          
-          if (stored) {
-            console.log('Session initialized for example PDF follow-up questions');
-            // Verify the session data was stored correctly
-            const storedSessionId = localStorage.getItem('pdfSessionId');
-            const storedSessionData = localStorage.getItem('pdfSessionData');
-            if (storedSessionId && storedSessionData) {
-              console.log('Session data verified in localStorage');
-            } else {
-              console.error('Session data verification failed');
-              setError('Warning: Session data not properly stored. Follow-up questions may not work.');
-            }
-          } else {
-            setError('Warning: Could not store session data. Follow-up questions may not work.');
-          }
-        } catch (error) {
-          console.error('Failed to initialize session for example PDF:', error);
-          setError('Error initializing session. Follow-up questions may not work.');
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to store example PDF:', error);
-        setError('Error loading example PDF. Follow-up questions may not work.');
-      });
-    
     try {
       console.log('Creating layout for example mindmap');
       // Get current layout options based on device/screen size
@@ -784,34 +713,44 @@ export function useMindMap() {
     } finally {
       setLoading(false);
     }
-  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex]);
+  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex, setNodes, setEdges, clearStorage, setMindMapData, setPdfUrl, setError]);
 
-  // Fetch example PDF data on initial load if using example mindmap
+  // Add a new effect specifically to handle the case where the example mindmap is loaded
+  // This includes both initial load and after a page refresh when a user had their own PDF
   useEffect(() => {
-    if (mindMapData === EXAMPLE_MINDMAP && pdfUrl === EXAMPLE_PDF_URL) {
-      // Check if the PDF data is already in localStorage
+    if (mindMapData === EXAMPLE_MINDMAP) {
+      console.log('Example mindmap detected - ensuring localStorage is properly initialized');
+      
+      // IMPORTANT: Clear any existing storage to prevent conflicts with previously uploaded user PDFs
+      clearStorage();
+      
+      // Reset to example PDF URL
+      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+      console.log('Reset to example PDF URL in localStorage:', EXAMPLE_PDF_URL);
+      
+      // Check if we need to fetch and initialize the session
       const existingPdfData = localStorage.getItem('pdfData');
       const existingSessionId = localStorage.getItem('pdfSessionId');
       const existingSessionData = localStorage.getItem('pdfSessionData');
       
-      // Make sure to set the blobUrl in localStorage even if it's not set elsewhere
-      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-      
-      // Skip further initialization if we already have session data for the example PDF
-      if (existingSessionId && existingSessionData) {
-        console.log('Example PDF already has initialized session data');
-        return;
-      }
-      
-      if (!existingPdfData) {
-        console.log('Example mindmap is loaded but PDF data not in localStorage, fetching it now');
+      // If we don't have the sample PDF data or sessions, fetch and initialize
+      if (!existingPdfData || !existingSessionId || !existingSessionData) {
+        console.log('Example mindmap needs PDF data or session initialization, fetching it now');
         fetchAndStorePdfData(EXAMPLE_PDF_URL)
           .then(async () => {
-            // Initialize a session with the example PDF data when app first loads
+            // Verify the PDF data was actually stored
             const pdfData = localStorage.getItem('pdfData');
+            if (!pdfData) {
+              console.error('Failed to store example PDF data in localStorage');
+              setError('Error: PDF data not stored. Follow-up questions will not work.');
+              return;
+            }
+            
+            console.log(`PDF data stored successfully (${(pdfData.length * 2 / 1024 / 1024).toFixed(2)} MB)`);
             
             try {
-              // Initialize a session for the example PDF using both pdfData and blobUrl
+              // Initialize a session for the example PDF
+              console.log('Initializing session for example PDF...');
               const sessionResponse = await fetch('/api/papermap/initialize', {
                 method: 'POST',
                 headers: {
@@ -819,59 +758,65 @@ export function useMindMap() {
                 },
                 body: JSON.stringify({ 
                   pdfData,
-                  blobUrl: EXAMPLE_PDF_URL, // Always include the blob URL
+                  blobUrl: EXAMPLE_PDF_URL // Also include the blob URL for direct access
                 })
               });
               
-              if (sessionResponse.ok) {
-                const { sessionId, sessionData } = await sessionResponse.json();
-                // Use safelyStoreSessionData instead of direct localStorage.setItem
-                const stored = safelyStoreSessionData(sessionId, sessionData);
-                if (stored) {
-                  console.log('Session automatically initialized for example PDF on first load');
+              if (!sessionResponse.ok) {
+                const errorData = await sessionResponse.text();
+                console.error('Failed to initialize session:', sessionResponse.status, errorData);
+                setError('Warning: Could not initialize session. Follow-up questions may not work.');
+                return;
+              }
+              
+              const { sessionId, sessionData } = await sessionResponse.json();
+              
+              if (!sessionId || !sessionData) {
+                console.error('Empty session data returned from API');
+                setError('Warning: Invalid session data. Follow-up questions may not work.');
+                return;
+              }
+              
+              // Use the safer storage function
+              const stored = safelyStoreSessionData(sessionId, sessionData);
+              
+              if (stored) {
+                console.log('Session initialized for example PDF follow-up questions');
+                // Verify the session data was stored correctly
+                const storedSessionId = localStorage.getItem('pdfSessionId');
+                const storedSessionData = localStorage.getItem('pdfSessionData');
+                if (storedSessionId && storedSessionData) {
+                  console.log('Session data verified in localStorage');
                 } else {
-                  console.warn('Failed to store session data, but continuing with example mindmap');
+                  console.error('Session data verification failed');
+                  setError('Warning: Session data not properly stored. Follow-up questions may not work.');
                 }
+              } else {
+                setError('Warning: Could not store session data. Follow-up questions may not work.');
               }
             } catch (error) {
-              console.error('Failed to initialize session for example PDF on first load:', error);
+              console.error('Failed to initialize session for example PDF:', error);
+              setError('Error initializing session. Follow-up questions may not work.');
             }
           })
-          .catch(error => console.error('Error pre-loading example PDF:', error));
+          .catch((error) => {
+            console.error('Failed to store example PDF:', error);
+            setError('Error loading example PDF. Follow-up questions may not work.');
+          });
       } else {
-        // If PDF data exists but no session, initialize session
-        const sessionId = localStorage.getItem('pdfSessionId');
-        const sessionData = localStorage.getItem('pdfSessionData');
-        
-        if ((!sessionId || !sessionData) && existingPdfData) {
-          console.log('PDF data exists but missing session data, initializing session');
-          fetch('/api/papermap/initialize', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-              pdfData: existingPdfData,
-              blobUrl: EXAMPLE_PDF_URL, // Also include the blob URL here
-            })
-          })
-            .then(response => {
-              if (response.ok) {
-                return response.json();
-              }
-              throw new Error('Failed to initialize session');
-            })
-            .then(({ sessionId, sessionData }) => {
-              // Use safelyStoreSessionData instead of direct localStorage.setItem
-              const stored = safelyStoreSessionData(sessionId, sessionData);
-              if (stored) {
-                console.log('Session initialized for existing example PDF data');
-              } else {
-                console.warn('Failed to store session data, but continuing with example mindmap');
-              }
-            })
-            .catch(error => console.error('Error initializing session:', error));
-        }
+        console.log('Example PDF already has data and session in localStorage');
+      }
+    }
+  }, [mindMapData, setError]);
+
+  // Fallback effect for the example mindmap to ensure the PDF URL is set
+  useEffect(() => {
+    if (mindMapData === EXAMPLE_MINDMAP && pdfUrl === EXAMPLE_PDF_URL) {
+      // Make sure to set the blobUrl in localStorage even if it's not set elsewhere
+      const blobUrlInStorage = localStorage.getItem('pdfBlobUrl');
+      if (blobUrlInStorage !== EXAMPLE_PDF_URL) {
+        localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+        console.log('Updated example PDF URL in localStorage (fallback check)');
       }
     }
   }, [mindMapData, pdfUrl]);
@@ -1363,10 +1308,10 @@ export function useMindMap() {
     onEdgesChange,
     handleFileUpload,
     addFollowUpNode: addFollowUpNodeRef.current,
-    deleteNode: stableDeleteNode, // Add deleteNode to the returned object
+    deleteNode: stableDeleteNode,
     handleResetView,
-    loadExampleMindMap, // Expose the function to load example mindmap
-    pdfUrl, // Expose the PDF URL
+    loadExampleMindMap,
+    pdfUrl,
     currentLayoutIndex,
     setCurrentLayoutIndex,
     cycleLayout
