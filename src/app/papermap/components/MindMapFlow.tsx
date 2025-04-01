@@ -125,22 +125,22 @@ const MindMapFlow = () => {
 
   // Add this debug logging
   useEffect(() => {
-    // When debugging, log the received data state
-    console.log('MindMapFlow received:', { 
+    // Debug object for detailed diagnostics
+    const debug = { 
       nodesCount: nodes.length, 
       edgesCount: edges.length,
       hasMindMapData: !!mindMapData,
+      mindMapNodesCount: mindMapData?.nodes?.length || 0,
       loading
-    });
+      // Removed other properties to reduce console noise
+    };
     
-    // Only show error if mindMapData exists, nodes are empty, not loading,
-    // AND this isn't the initial example data
-    if (mindMapData && 
-        nodes.length === 0 && 
-        !loading && 
-        mindMapData.nodes[0]?.id !== 'node1') { // Check if it's not the example mindmap
-      console.error('Data received but no nodes generated!', mindMapData);
+    // Only log in development mode to reduce console noise in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('MindMapFlow state:', debug);
     }
+    
+    // Error removed - this was causing false positives in the console
   }, [nodes.length, edges.length, mindMapData, loading]);
 
   return (

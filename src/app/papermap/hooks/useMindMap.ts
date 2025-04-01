@@ -558,6 +558,22 @@ export function useMindMap() {
     setLoading(true);
     console.log('Loading example mindmap and PDF...');
     
+    // Clean up any existing session
+    const existingSessionId = localStorage.getItem('currentSessionId');
+    if (existingSessionId) {
+      // Send cleanup request to the server
+      fetch('/api/papermap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: existingSessionId,
+          cleanupSession: true
+        }),
+      }).catch(e => console.error('Error cleaning up session:', e));
+    }
+    
     // Reset to example data
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
@@ -565,11 +581,13 @@ export function useMindMap() {
     
     // Store the example PDF URL in localStorage for follow-up questions
     try {
-    localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-    console.log('Stored example PDF URL in localStorage:', EXAMPLE_PDF_URL);
+      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
+      console.log('Stored example PDF URL in localStorage:', EXAMPLE_PDF_URL);
       
       // IMPORTANT: Set the userHasUploadedPdf flag to false when loading the example
       localStorage.setItem('userHasUploadedPdf', 'false');
+      // Clear any existing session ID
+      localStorage.removeItem('currentSessionId');
       console.log('Reset userHasUploadedPdf flag to false for example mindmap');
     } catch (storageError) {
       console.warn('Storage issue when setting example PDF URL, but continuing:', storageError);
@@ -662,6 +680,16 @@ export function useMindMap() {
         // Update the mind map data
         setMindMapData(data.mindmap);
         
+        // Store the session ID in localStorage for follow-up questions
+        if (data.sessionId) {
+          try {
+            localStorage.setItem('currentSessionId', data.sessionId);
+            console.log('Stored session ID in localStorage:', data.sessionId);
+          } catch (storageError) {
+            console.warn('Failed to store session ID in localStorage:', storageError);
+          }
+        }
+        
         // DEBUG: Verify the blob URL is still correctly set in localStorage after all operations
         const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
         console.log('Final blob URL in localStorage after all operations:', finalBlobUrl);
@@ -700,11 +728,28 @@ export function useMindMap() {
       if (file.type !== 'application/pdf') {
         throw new Error('Only PDF files are supported');
       }
+      
+      // Clean up any existing session
+      const existingSessionId = localStorage.getItem('currentSessionId');
+      if (existingSessionId) {
+        // Send cleanup request to the server
+        fetch('/api/papermap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionId: existingSessionId,
+            cleanupSession: true
+          }),
+        }).catch(e => console.error('Error cleaning up session:', e));
+      }
          
       // Clear previous session data for this new PDF
       // Session IDs/data are specific to each PDF, so they need to be recreated
       localStorage.removeItem('pdfSessionId');
       localStorage.removeItem('pdfSessionData');
+      localStorage.removeItem('currentSessionId'); // Clear the session ID for the new PDF
       
       // Check if the example PDF URL is stored and remove it
       const existingPdfUrl = localStorage.getItem('pdfBlobUrl');

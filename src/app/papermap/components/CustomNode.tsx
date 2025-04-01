@@ -222,6 +222,12 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     setShowFollowUpCard(false);
     
     try {
+      // Get session ID from localStorage
+      const sessionId = localStorage.getItem('currentSessionId');
+      if (!sessionId) {
+        throw new Error('No active session found. Please try uploading the PDF again.');
+      }
+
       // Call API endpoint with follow-up question
       const response = await fetch('/api/papermap', {
         method: 'POST',
@@ -230,12 +236,12 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         },
         body: JSON.stringify({
           isFollowUp: true,
+          sessionId,
           question: question,
           nodeContext: {
             title: data.title,
             description: data.description
-          },
-          blobUrl: localStorage.getItem('currentPdfBlobUrl') || '', // Retrieve blob URL from localStorage
+          }
         }),
       });
       

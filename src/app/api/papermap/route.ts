@@ -1,268 +1,257 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   GoogleGenerativeAI, 
-  HarmCategory, 
-  HarmBlockThreshold, 
-  GenerationConfig,
-  Schema,
-  SchemaType
 } from '@google/generative-ai';
 
 // Define constants
 const MAX_RETRIES = 3; // Maximum number of retries for API calls
 
-// Set up Gemini model configuration - Initial mindmap creation prompt
-const MINDMAP_CREATION_PROMPT = `You are a leading expert in the field analyzing this research paper. Present your direct analysis of the content without referring to "the authors" or "the paper." Explain concepts and findings as if you're teaching a colleague. Follow these guidelines strictly:
+// Add session management at the top of the file, after imports
+const chatSessions = new Map();
 
-1. Create a JSON structure representing a mindmap with the following format:
-   {
-     "nodes": [
-       {
-         "id": "string",
-         "title": "string",
-         "description": "string (direct explanation of the content using markdown formatting)",
-         "parentId": "string or null",
-         "level": "integer",
-         "pageNumber": "integer or null (the page number in the PDF where this content appears)"
-       }
-     ]
-   }
+// Session management configuration
+const SESSION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes of inactivity
+const SESSION_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Check every 10 minutes
+const MAX_SESSIONS = 100; // Maximum number of concurrent sessions
+let cleanupIntervalId: NodeJS.Timeout | null = null;
 
-2. Structure Requirements:
-   - EXACTLY ONE root node with level=0 and parentId=null
-   - Every non-root node MUST have a parentId that matches an existing node's id
-   - Child nodes MUST have level = parent's level + 1
-   - IDs must be unique and follow format "node1", "node2", etc.
+// Function to clean up expired sessions
+function cleanupExpiredSessions() {
+  const now = Date.now();
+  let expiredCount = 0;
+  const sessionEntries = Array.from(chatSessions.entries());
+  
+  // Sort sessions by lastAccessed time (oldest first) to prioritize removal
+  sessionEntries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+  
+  // Check if we need to enforce the max sessions limit
+  if (sessionEntries.length > MAX_SESSIONS) {
+    // Remove oldest sessions to get back under the limit
+    const excessCount = sessionEntries.length - MAX_SESSIONS;
+    const sessionsToRemove = sessionEntries.slice(0, excessCount);
+    
+    for (const [sessionId] of sessionsToRemove) {
+      chatSessions.delete(sessionId);
+      expiredCount++;
+    }
+  }
+  
+  // Remove sessions that have expired due to inactivity
+  for (const [sessionId, sessionData] of chatSessions.entries()) {
+    const sessionAge = now - sessionData.lastAccessed;
+    if (sessionAge > SESSION_MAX_AGE_MS) {
+      chatSessions.delete(sessionId);
+      expiredCount++;
+    }
+  }
+  
+  // Log memory usage and session counts
+  const memoryUsage = process.memoryUsage();
+  console.log(`Session cleanup: removed ${expiredCount}, remaining ${chatSessions.size} sessions`);
+  console.log(`Memory usage: ${Math.round(memoryUsage.rss / 1024 / 1024)}MB RSS, ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB heap used`);
+}
 
-3. PAGE NUMBER REQUIREMENT (VERY IMPORTANT):
-   - EVERY node MUST include a "pageNumber" field
-   - Record the exact page number in the PDF where each piece of content is found
-   - Root node should typically use page number 1 (title/abstract page)
-   - For precise page identification, observe PDF page numbers, section headers, or figure/table numbers
-   - If a concept spans multiple pages, use the page where the concept is first introduced
-   - Do not leave pageNumber as null except as a last resort
+// Initialize the cleanup interval
+function initializeSessionCleanup() {
+  if (cleanupIntervalId === null) {
+    cleanupIntervalId = setInterval(cleanupExpiredSessions, SESSION_CLEANUP_INTERVAL_MS);
+    console.log("Session cleanup service initialized");
+  }
+}
 
-4. Content Guidelines:
-   - Root node: Direct statement of the breakthrough/finding and its significance
-   - Level 1: Core findings and implications, stated directly
-   - Level 2: Direct explanation of methodologies and results
-   - Level 3+: Specific technical details and their implications
+// Start the cleanup interval when the module loads
+initializeSessionCleanup();
 
-5. Description Style Requirements:
-   - Use direct statements: "This experiment proves..." instead of "The authors show..."
-   - Present findings as facts: "The quantum tunneling effect occurs at 4.2K" instead of "The paper discusses..."
-   - Include specific numbers, measurements, and results
-   - Explain causality and implications directly
-   - Connect findings to the field's broader context
-   - USE MARKDOWN FORMATTING in descriptions for better readability:
-     * Use **bold** for key findings and important terms
-     * Use *italics* for emphasis
-     * Use bullet points for lists of related points
-     * Use numbered lists for sequential information
-     * Use \`code blocks\` for mathematical equations or formulas
-     * Use > blockquotes for direct definitions or key statements
-     * Include tables using markdown table syntax where appropriate for comparing data
-     * Use markdown headings sparingly and only when needed to organize very long descriptions
+// Helper function to extract JSON from text response
+function extractJsonFromResponse(text: string): any {
+  // Match JSON object pattern
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error("Failed to parse JSON match:", e);
+      // Fall back to returning the original text in a structured format
+      return { answer: text };
+    }
+  }
+  
+  // If no JSON object found, return the text as answer
+  return { answer: text };
+}
 
-6. Example Structure:
-   {
-     "nodes": [
-       {"id": "node1", "title": "Quantum Tunneling Breakthrough", "description": "A new quantum tunneling mechanism emerges at **4.2K** in copper-based superconductors, contradicting the established 10K threshold. This resolves the long-standing paradox in low-temperature quantum transport.\n\n> The tunneling effect operates outside conventional theoretical boundaries.\n\nThe mathematical model is described by: \`E = hf - Φ\`, where:\n- E is the electron energy\n- h is Planck's constant\n- f is frequency\n- Φ is the work function", "parentId": null, "level": 0, "pageNumber": 1},
-       {"id": "node2", "title": "Novel Transport Mechanism", "description": "The Cooper pairs exhibit coherent tunneling through **15nm barriers**, creating a sustained current of 3.7μA. This tunneling distance exceeds previous limits by 300%, fundamentally changing our understanding of macroscopic quantum phenomena.\n\n*Key findings:*\n1. Tunneling occurs across previously impossible distances\n2. Current remains stable at multiple temperature points\n3. Effect is reproducible in various copper-oxide materials", "parentId": "node1", "level": 1, "pageNumber": 3}
-     ]
-   }
+// Define the prompts
+const MINDMAP_CREATION_PROMPT = `You are a helpful assistant that creates mindmaps from PDF documents. Your task is to analyze the PDF and create a structured mindmap that represents the key concepts and their relationships.
 
-7. Key Writing Principles:
-   - Write as if you're directly explaining the science
-   - State findings and implications definitively
-   - Focus on what IS rather than what was studied
-   - Emphasize concrete results and their meaning
-   - Connect each point to fundamental scientific principles
-   - Use the language of the paper. For example, if the paper is in German, not in English, provide your response in German.
+Please create a mindmap with the following structure:
+1. The root node should be the main topic or title of the document
+2. Each child node should represent a key concept or section
+3. Include page numbers where each concept appears
+4. Use clear, concise titles and descriptions
+5. Maintain a logical hierarchy of concepts
 
-8. ONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.`;
+Your response must be a valid JSON object with the following structure:
+{
+  "nodes": [
+    {
+      "id": "unique-id",
+      "title": "node title",
+      "description": "detailed description",
+      "parentId": "parent-node-id or null for root",
+      "level": 0,
+      "pageNumber": 1
+    }
+  ]
+}`;
 
-// System prompt specifically for answering follow-up questions about a node
-const FOLLOWUP_PROMPT = `You are a leading expert in the field analyzing this research paper. A user is asking a follow-up question about a specific concept or finding in the paper. Answer the question directly and factually based on the paper's content. Follow these guidelines strictly:
+const FOLLOWUP_PROMPT = `You are a helpful assistant that answers questions about PDF documents. Your task is to provide clear, concise answers based on the document content.
 
-1. Answer the question directly without referring to "the authors" or "the paper."
-2. Base your answer only on information from the paper.
-3. If the question cannot be answered based on the paper, say so directly.
-4. Be specific and include relevant technical details, data, and numbers from the paper.
-5. Explain complex concepts in a clear, concise manner.
-6. DO NOT make up information not present in the paper.
-7. Your response will be used directly in a markdown renderer, so use proper markdown formatting:
-   - Use **bold** for key findings and important terms
-   - Use *italics* for emphasis
-   - Use bullet points for lists of related points
-   - Use numbered lists for sequential information
-   - Use \`code blocks\` for mathematical equations or formulas
-   - Use > blockquotes for direct definitions or key statements
-   - Include tables using markdown syntax where appropriate for comparing data
-   - Use markdown headings sparingly and only when needed to organize very long answers`;
+Please follow these guidelines:
+1. Answer the question directly and concisely
+2. Use information from the provided context and PDF
+3. If the answer cannot be found in the document, say so
+4. Keep your response focused and relevant
 
-// Define the schema using the proper Schema structure
-const nodeSchema: Schema = {
-    type: SchemaType.OBJECT,
+Your response must be a valid JSON object with the following structure:
+{
+  "answer": "your detailed answer here"
+}`;
+
+// Define schema types
+type JsonSchemaType = 'string' | 'number' | 'integer' | 'array' | 'object';
+
+interface JsonSchema {
+  type: JsonSchemaType;
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  nullable?: boolean;
+}
+
+// Define schemas for different response types
+const mindmapNodeSchema: JsonSchema = {
+    type: 'object',
     properties: {
         id: {
-            type: SchemaType.STRING
+            type: 'string'
         },
         title: {
-            type: SchemaType.STRING
+            type: 'string'
         },
         description: {
-            type: SchemaType.STRING
+            type: 'string'
         },
         parentId: {
-            type: SchemaType.STRING,
+            type: 'string',
             nullable: true
         },
         level: {
-            type: SchemaType.INTEGER
+            type: 'integer'
         },
         pageNumber: {
-            type: SchemaType.INTEGER,
+            type: 'integer',
             nullable: true
         }
     },
     required: ["id", "title", "description", "level"]
 };
 
-const responseSchema: Schema = {
-    type: SchemaType.OBJECT,
+const mindmapResponseSchema: JsonSchema = {
+    type: 'object',
     properties: {
         nodes: {
-            type: SchemaType.ARRAY,
-            items: nodeSchema
+            type: 'array',
+            items: mindmapNodeSchema
         }
     },
     required: ["nodes"]
 };
 
-// Schema for follow-up question answers
-const followUpSchema: Schema = {
-    type: SchemaType.OBJECT,
+const followUpResponseSchema: JsonSchema = {
+    type: 'object',
     properties: {
         answer: {
-            type: SchemaType.STRING,
-            description: "A detailed answer to the follow-up question formatted in markdown. This will be rendered directly without further processing."
+            type: 'string'
         }
     },
     required: ["answer"]
 };
 
-// Validate mindmap structure
-function validateMindmapStructure(data: any) {
-    if (!Array.isArray(data.nodes)) {
-        throw new Error('Invalid mindmap structure: nodes must be an array');
+// Helper function to validate JSON against a schema
+function validateSchema(data: any, schema: JsonSchema): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  function validateType(value: any, type: JsonSchemaType, propertyName: string, schema: JsonSchema): boolean {
+    // Handle nullable fields
+    if (schema.nullable && value === null) {
+      return true;
     }
 
-    // Find root node
-    const rootNodes = data.nodes.filter((node: any) => node.level === 0 && node.parentId === null);
-    if (rootNodes.length !== 1) {
-        throw new Error('Invalid mindmap structure: must have exactly one root node');
+    switch (type) {
+      case 'string':
+        if (typeof value !== 'string') {
+          errors.push(`${propertyName} must be a string`);
+          return false;
+        }
+        break;
+      case 'integer':
+        if (typeof value !== 'number' || !Number.isInteger(value)) {
+          errors.push(`${propertyName} must be an integer`);
+          return false;
+        }
+        break;
+      case 'array':
+        if (!Array.isArray(value)) {
+          errors.push(`${propertyName} must be an array`);
+          return false;
+        }
+        break;
+      case 'object':
+        if (typeof value !== 'object' || value === null) {
+          errors.push(`${propertyName} must be an object`);
+          return false;
+        }
+        break;
+    }
+    return true;
+  }
+
+  function validateObject(obj: any, schema: JsonSchema, path: string = ''): boolean {
+    if (!validateType(obj, schema.type, path, schema)) {
+      return false;
     }
 
-    // Create a map of all node IDs
-    const nodeIds = new Set(data.nodes.map((node: any) => node.id));
+    if (schema.properties) {
+      for (const [key, propSchema] of Object.entries(schema.properties)) {
+        const value = obj[key];
+        const fullPath = path ? `${path}.${key}` : key;
 
-    // Validate each node
-    data.nodes.forEach((node: any) => {
-        if (!node.id || !node.title || typeof node.level !== 'number') {
-            throw new Error('Invalid node structure: missing required fields');
+        if (schema.required?.includes(key) && value === undefined) {
+          errors.push(`${fullPath} is required`);
+          continue;
         }
 
-        if (node.parentId && !nodeIds.has(node.parentId)) {
-            throw new Error(`Invalid parent ID: ${node.parentId} does not exist`);
-        }
-
-        if (node.level < 0) {
-            throw new Error(`Invalid level: ${node.level} must be 0 or greater`);
-        }
-        
-        if (node.pageNumber && (typeof node.pageNumber !== 'number' || node.pageNumber < 1)) {
-            throw new Error(`Invalid page number: ${node.pageNumber} must be a positive number`);
-        }
-    });
-
-    return data;
-}
-
-// Add page numbers to nodes that don't have them
-function assignPageNumbers(data: any, totalPages: number = 20) {
-    // Create a map of parent-child relationships
-    const childrenMap: Record<string, string[]> = {};
-    data.nodes.forEach((node: any) => {
-        if (node.parentId) {
-            if (!childrenMap[node.parentId]) {
-                childrenMap[node.parentId] = [];
+        if (value !== undefined) {
+          if (propSchema.type === 'object') {
+            validateObject(value, propSchema, fullPath);
+          } else if (propSchema.type === 'array') {
+            if (propSchema.items) {
+              value.forEach((item: any, index: number) => {
+                validateObject(item, propSchema.items!, `${fullPath}[${index}]`);
+              });
             }
-            childrenMap[node.parentId].push(node.id);
+          } else {
+            validateType(value, propSchema.type, fullPath, propSchema);
+          }
         }
-    });
-
-    // Create a map for node lookups
-    const nodeMap: Record<string, any> = {};
-    data.nodes.forEach((node: any) => {
-        nodeMap[node.id] = node;
-    });
-
-    // Find the root node
-    const rootNode = data.nodes.find((node: any) => node.level === 0 && node.parentId === null);
-    if (!rootNode) return data;
-
-    // Assign page 1 to the root node if it doesn't have a page number
-    if (!rootNode.pageNumber) {
-        rootNode.pageNumber = 1;
+      }
     }
 
-    // Function to get direct children of a node
-    const getDirectChildren = (nodeId: string) => {
-        return childrenMap[nodeId] || [];
-    };
+    return errors.length === 0;
+  }
 
-    // Distribute pages among level 1 nodes
-    const level1Nodes = data.nodes.filter((node: any) => node.level === 1);
-    level1Nodes.forEach((node: any, index: number) => {
-        if (!node.pageNumber) {
-            // Distribute level 1 nodes across the document
-            // Use a formula that distributes page numbers evenly
-            const pageStep = Math.max(1, Math.floor(totalPages / (level1Nodes.length + 1)));
-            node.pageNumber = Math.min(totalPages, 1 + (index + 1) * pageStep);
-        }
-    });
-
-    // Process each node level by level
-    const processChildren = (parentId: string) => {
-        const children = getDirectChildren(parentId);
-        if (!children.length) return;
-
-        const parentNode = nodeMap[parentId];
-        const parentPage = parentNode.pageNumber || 1;
-
-        // Sort children to ensure reproducible page number assignment
-        children.sort();
-
-        // Assign page numbers to children
-        children.forEach((childId: string, index: number) => {
-            const child = nodeMap[childId];
-            if (!child.pageNumber) {
-                // Child nodes inherit parent's page with small offset to keep related content together
-                // If multiple siblings, spread them slightly to simulate page turns
-                const siblingOffset = children.length > 1 ? Math.floor(index / 2) : 0;
-                child.pageNumber = Math.min(totalPages, parentPage + siblingOffset);
-            }
-            
-            // Process this node's children
-            processChildren(childId);
-        });
-    };
-
-    // Start processing from the root
-    processChildren(rootNode.id);
-
-    return data;
+  validateObject(data, schema);
+  return { valid: errors.length === 0, errors };
 }
 
 /**
@@ -280,7 +269,18 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { blobUrl, fileName, isFollowUp, question, nodeContext } = data;
+    const { blobUrl, fileName, isFollowUp, question, nodeContext, sessionId, cleanupSession } = data;
+
+    // Check if this is a session cleanup request
+    if (cleanupSession && sessionId) {
+      if (chatSessions.has(sessionId)) {
+        chatSessions.delete(sessionId);
+        console.log(`Session ${sessionId} explicitly cleaned up by client`);
+        return NextResponse.json({ success: true, message: "Session cleaned up successfully" });
+      } else {
+        return NextResponse.json({ success: false, message: "Session not found" }, { status: 404 });
+      }
+    }
 
     // Check if this is a follow-up question or initial mindmap creation
     if (isFollowUp) {
@@ -298,9 +298,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!blobUrl) {
+      if (!sessionId) {
         return NextResponse.json(
-          { error: "PDF blob URL is required" },
+          { error: "Session ID is required for follow-up" },
           { status: 400 }
         );
       }
@@ -308,140 +308,66 @@ export async function POST(request: NextRequest) {
       console.log(`Processing follow-up question about: ${nodeContext.title}`);
       
       try {
-        // Fetch the PDF from the blob URL
-        const response = await fetch(blobUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+        // Retrieve existing session
+        const sessionData = chatSessions.get(sessionId);
+        if (!sessionData) {
+          return NextResponse.json(
+            { error: "Session expired or not found" },
+            { status: 404 }
+          );
         }
-        
-        // Get the PDF data as bytes
-        const pdfData = await response.arrayBuffer();
-        const pdfBytes = new Uint8Array(pdfData);
-        
-        console.log(`Successfully fetched PDF for follow-up, size: ${pdfBytes.length} bytes`);
-        
-        // Initialize the Gemini API
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY as string);
-        
-        // Configure generation parameters for follow-up
-        const generationConfig: GenerationConfig = {
-          temperature: 0.7,
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-          responseSchema: followUpSchema
-        };
-        
-        // Create the model with system instruction for follow-up
-        const model = genAI.getGenerativeModel({
+
+        // Update last accessed time
+        sessionData.lastAccessed = Date.now();
+
+        // Initialize Gemini API
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
+        const model = genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
-          systemInstruction: FOLLOWUP_PROMPT,
-        });
-        
-        // Start a chat
-        const chat = model.startChat({
-          generationConfig,
-          history: []
-        });
-        
-        // Create the file part
-        const filePart = {
-          inlineData: {
-            mimeType: "application/pdf",
-            data: Buffer.from(pdfBytes).toString('base64')
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json"
           }
-        };
+        });
 
-        // Format the node context for the prompt
-        const contextPrompt = `I'm analyzing a specific topic from the paper, titled: "${nodeContext.title}"
-Here's what I already know about this topic (from the paper):
-${nodeContext.description}
-
-My question is: ${question}
-
-Provide a direct, factual answer based on the paper's content, using markdown formatting. Focus only on information from the paper. Return your answer as a JSON object with the answer field containing markdown-formatted text.`;
-        
-        // Send the message with retries
-        let response_;
-        let attempts = 0;
-        
-        while (attempts < MAX_RETRIES) {
-          try {
-            console.log(`Gemini API follow-up attempt ${attempts + 1} of ${MAX_RETRIES}`);
-            
-            // Send message with the PDF file and context
-            response_ = await chat.sendMessage([
-              filePart,
-              contextPrompt
-            ]);
-            
-            break; // Exit loop if successful
-          } catch (error) {
-            attempts++;
-            console.error(`Gemini API error (attempt ${attempts}):`, error);
-            
-            // If we've reached max retries, throw the error
-            if (attempts >= MAX_RETRIES) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              throw new Error(`[GoogleGenerativeAI Error] ${errorMessage}`);
+        // Send follow-up question with context
+        const response = await model.generateContent([
+          FOLLOWUP_PROMPT,
+          {
+            inlineData: {
+              mimeType: "application/pdf",
+              data: Buffer.from(sessionData.pdfBytes).toString('base64')
             }
-            
-            // Wait before retrying (exponential backoff)
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts)));
-          }
+          },
+          `Context from previous conversation:\nTitle: ${nodeContext.title}\nDescription: ${nodeContext.description}\n\nQuestion: ${question}`
+        ]);
+
+        const responseText = response.response.text();
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response');
         }
-        
-        if (!response_) {
-          throw new Error("[GoogleGenerativeAI Error] Failed to get response from Gemini after retries");
+        const answer = JSON.parse(jsonMatch[0]);
+
+        // Validate against follow-up response schema
+        const validationResult = validateSchema(answer, followUpResponseSchema);
+        if (!validationResult.valid) {
+          throw new Error(`Invalid follow-up response schema: ${validationResult.errors.join(', ')}`);
         }
-        
-        // Check if the response contains error information
-        if (response_.response.promptFeedback?.blockReason) {
-          throw new Error(`[GoogleGenerativeAI Error] Content blocked: ${response_.response.promptFeedback.blockReason}`);
-        }
-        
-        // Get the text response
-        const result = await response_.response.text();
-        
-        // Try to parse the result as JSON with error handling
-        let parsedResult;
-        try {
-          parsedResult = JSON.parse(result);
-          
-          // Check if the parsed result has the expected structure
-          if (!parsedResult.answer) {
-            throw new Error('Invalid response format: expected an "answer" field');
-          }
-        } catch (parseError) {
-          console.error('Failed to parse Gemini response as JSON:', {
-            error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
-            responsePreview: result.substring(0, 200)
-          });
-          
-          // If it's not valid JSON but has content that looks like an answer
-          if (result.length > 20 && !result.includes('{') && !result.includes('}')) {
-            // Just wrap it in an answer field
-            parsedResult = { answer: result };
-          } else {
-            throw new Error(`Failed to parse Gemini response as JSON. The model may have returned an error or invalid format. ${parseError instanceof Error ? parseError.message : ''}`);
-          }
-        }
-        
-        // Return the answer data
-        return NextResponse.json({
-          success: true,
-          isFollowUp: true,
-          answer: parsedResult.answer
+
+        return NextResponse.json({ 
+          success: true, 
+          answer: answer.answer 
         });
-        
       } catch (error) {
         console.error("Error processing follow-up question:", error);
         throw error;
       }
     } else {
-      // Initial mindmap creation - keep existing implementation
+      // Initial mindmap creation
       if (!blobUrl) {
         return NextResponse.json(
           { error: "PDF blob URL is required" },
@@ -478,125 +404,56 @@ Provide a direct, factual answer based on the paper's content, using markdown fo
           console.warn("Could not estimate PDF page count:", e);
         }
         
-        // Initialize the Gemini API
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY as string);
-        
-        // Configure generation parameters
-        const generationConfig: GenerationConfig = {
-          temperature: 0.7,
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json",
-          responseSchema: responseSchema
-        };
-        
-        // Create the model with system instruction
-        const model = genAI.getGenerativeModel({
+        // Initialize Gemini API
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
+        const model = genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
-          systemInstruction: MINDMAP_CREATION_PROMPT,
-        });
-        
-        // Start a chat
-        const chat = model.startChat({
-          generationConfig,
-          history: []
-        });
-        
-        // Create the file part
-        const filePart = {
-          inlineData: {
-            mimeType: "application/pdf",
-            data: Buffer.from(pdfBytes).toString('base64')
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json"
           }
-        };
-        
-        // Send the message with retries
-        let response_;
-        let attempts = 0;
-        
-        while (attempts < MAX_RETRIES) {
-          try {
-            console.log(`Gemini API attempt ${attempts + 1} of ${MAX_RETRIES}`);
-            
-            // Send message with the PDF file
-            response_ = await chat.sendMessage([
-              filePart,
-              "Analyze this scientific paper and create a mindmap structure. Follow the structure requirements exactly and provide the result in JSON format as specified. Pay special attention to including accurate page numbers for each node, as this is crucial for the user to navigate the document. Ensure all parent-child relationships are valid."
-            ]);
-            
-            break; // Exit loop if successful
-          } catch (error) {
-            attempts++;
-            console.error(`Gemini API error (attempt ${attempts}):`, error);
-            
-            // If we've reached max retries, throw the error
-            if (attempts >= MAX_RETRIES) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              throw new Error(`[GoogleGenerativeAI Error] ${errorMessage}`);
+        });
+
+        // Send message with the PDF file
+        const response_ = await model.generateContent([
+          MINDMAP_CREATION_PROMPT,
+          {
+            inlineData: {
+              mimeType: "application/pdf",
+              data: Buffer.from(pdfBytes).toString('base64')
             }
-            
-            // Wait before retrying (exponential backoff)
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts)));
-          }
+          },
+          `File name: ${fileName}`
+        ]);
+
+        const responseText = response_.response.text();
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response');
         }
-        
-        if (!response_) {
-          throw new Error("[GoogleGenerativeAI Error] Failed to get response from Gemini after retries");
+        const mindmap = JSON.parse(jsonMatch[0]);
+
+        // Validate against mindmap response schema
+        const validationResult = validateSchema(mindmap, mindmapResponseSchema);
+        if (!validationResult.valid) {
+          throw new Error(`Invalid mindmap response schema: ${validationResult.errors.join(', ')}`);
         }
-        
-        // Check if the response contains error information
-        if (response_.response.promptFeedback?.blockReason) {
-          throw new Error(`[GoogleGenerativeAI Error] Content blocked: ${response_.response.promptFeedback.blockReason}`);
-        }
-        
-        // Get the text response
-        const result = await response_.response.text();
-        
-        // Try to parse the result as JSON with error handling
-        let parsedResult;
-        try {
-          parsedResult = JSON.parse(result);
-          
-          // Check if the parsed result has the expected structure
-          if (!parsedResult.nodes || !Array.isArray(parsedResult.nodes)) {
-            throw new Error('Invalid response format: expected a "nodes" array');
-          }
-        } catch (parseError) {
-          // Log the problematic response for debugging
-          console.error('Failed to parse Gemini response as JSON:', {
-            error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
-            responsePreview: result.substring(0, 200) // Log first 200 chars of response
-          });
-          
-          throw new Error(`Failed to parse Gemini response as JSON. The model may have returned an error or invalid format. ${parseError instanceof Error ? parseError.message : ''}`);
-        }
-        
-        // Debug: Check if Gemini provided any page numbers
-        const nodesWithPageNumbers = parsedResult.nodes.filter((node: any) => node.pageNumber != null);
-        console.log(`DEBUG: Gemini provided ${nodesWithPageNumbers.length} out of ${parsedResult.nodes.length} nodes with page numbers`);
-        
-        // Validate the structure
-        const validatedResult = validateMindmapStructure(parsedResult);
-        
-        // Assign page numbers to nodes that don't have them
-        const processedResult = assignPageNumbers(validatedResult, estimatedPageCount);
-        
-        // Debug: Verify all nodes now have page numbers
-        const finalNodesWithPageNumbers = processedResult.nodes.filter((node: any) => node.pageNumber != null);
-        console.log(`DEBUG: After processing, ${finalNodesWithPageNumbers.length} out of ${processedResult.nodes.length} nodes have page numbers`);
-        
-        // Generate a session ID for follow-up questions
-        const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-        
-        // Return the mindmap data
-        return NextResponse.json({
-          success: true,
-          mindmap: processedResult,
-          fileName: fileName || 'document',
-          sessionId
+
+        // Create new session
+        const newSessionId = Math.random().toString(36).substring(2, 15);
+        chatSessions.set(newSessionId, {
+          lastAccessed: Date.now(),
+          pdfBytes: pdfBytes
         });
-        
+
+        return NextResponse.json({ 
+          success: true, 
+          mindmap,
+          sessionId: newSessionId
+        });
       } catch (error) {
         console.error("Error processing PDF:", error);
         throw error;
