@@ -3,6 +3,7 @@ import { LayoutGrid, Moon, Sun, LoaderCircle, X, Waypoints, AlertTriangle } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
+import { upload } from '@vercel/blob/client';
 
 // Define file size limit constant - increased with Vercel Blob
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
@@ -119,53 +120,53 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Upload file to Vercel Blob storage
+  // Upload file to Vercel Blob storage using direct client upload
   const uploadFileToBlob = async (fileToUpload: File): Promise<string | null> => {
     try {
       setIsUploading(true);
       setUploadProgress(10); // Start progress
 
-      // Create FormData
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
+      // Set progress to mimic upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
 
-      // Upload to our blob API endpoint
-      const response = await fetch('/api/papermap/blob-upload', {
-        method: 'POST',
-        body: formData,
-      });
+      try {
+        // Use the client direct upload method
+        const blob = await upload(fileToUpload.name, fileToUpload, {
+          access: 'public',
+          handleUploadUrl: '/api/papermap/blob-token',
+        });
 
-      // Update progress
-      setUploadProgress(70);
-
-      if (!response.ok) {
-        // Check for 413 status code specifically (Request Entity Too Large)
-        if (response.status === 413) {
-          throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-        }
+        // Clear interval and complete progress
+        clearInterval(progressInterval);
+        setUploadProgress(100);
         
-        // Check content-type before trying to parse as JSON
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to upload file');
-        } else {
-          // For non-JSON responses, use text() instead
-          const errorText = await response.text();
-          // If the error text starts with "Request Entity Too Large" or contains size-related terms
-          if (errorText.includes('Request Entity Too Large') || 
-              errorText.includes('too large') || 
-              errorText.includes('size exceeds')) {
+        // Return the blob URL
+        return blob.url;
+      } catch (error) {
+        // Clear interval
+        clearInterval(progressInterval);
+        
+        // Check for specific error types
+        if (error instanceof Error) {
+          // Check for size-related error messages
+          if (error.message.includes('too large') || 
+              error.message.includes('size exceeds') ||
+              error.message.includes('413') ||
+              error.message.includes('Request Entity Too Large')) {
             throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
           }
-          throw new Error('Failed to upload file: ' + (errorText.substring(0, 100) || response.statusText));
+          throw error;
         }
+        throw new Error('Failed to upload file');
       }
-
-      const data = await response.json();
-      setUploadProgress(100);
-      
-      return data.url;
     } catch (error) {
       console.error('Error uploading to Blob storage:', error);
       setUrlError(error instanceof Error ? error.message : 'Failed to upload file');
@@ -181,54 +182,75 @@ const Sidebar: React.FC<SidebarProps> = ({
       setIsUploading(true);
       setUploadProgress(10); // Start progress
       
-      // Call our URL-to-blob API endpoint
-      const response = await fetch('/api/papermap/blob-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: pdfUrl }),
-      });
+      // Set progress to mimic upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
       
-      // Update progress
-      setUploadProgress(70);
-      
-      if (!response.ok) {
-        // Check for 413 status code specifically (Request Entity Too Large)
-        if (response.status === 413) {
-          throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+      try {
+        // First, fetch the PDF from the URL to get it as a blob
+        const response = await fetch(pdfUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.statusText}`);
         }
         
-        // Check content-type before trying to parse as JSON
+        // Get the content-type and check if it's a PDF
         const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          // Check if it's a size error but doesn't contain details
-          if (errorData.error?.includes('too large') || errorData.error?.includes('size exceeds')) {
-            throw new Error(errorData.error || `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-          }
-          throw new Error(errorData.error || 'Failed to process URL. Please upload the PDF file directly.');
-        } else {
-          // For non-JSON responses, use text() instead
-          const errorText = await response.text();
-          // If the error text starts with "Request Entity Too Large" or contains size-related terms
-          if (errorText.includes('Request Entity Too Large') || 
-              errorText.includes('too large') || 
-              errorText.includes('size exceeds')) {
+        if (contentType && !contentType.includes('application/pdf')) {
+          throw new Error("URL does not point to a valid PDF file");
+        }
+        
+        // Get file size from headers if available
+        const contentLength = response.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`File is too large (${(parseInt(contentLength) / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        
+        // Create a blob from the PDF
+        const pdfBlob = await response.blob();
+        
+        // Double-check size after downloading
+        if (pdfBlob.size > MAX_FILE_SIZE_BYTES) {
+          throw new Error(`File is too large (${(pdfBlob.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        }
+        
+        // Extract filename from URL or use a default
+        const urlParts = pdfUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1] || 'document.pdf';
+        
+        // Use direct client upload
+        const blob = await upload(fileName, pdfBlob, {
+          access: 'public',
+          handleUploadUrl: '/api/papermap/blob-token',
+        });
+        
+        // Clear interval and complete progress
+        clearInterval(progressInterval);
+        setUploadProgress(100);
+        
+        return blob.url;
+      } catch (error) {
+        // Clear interval
+        clearInterval(progressInterval);
+        
+        // Handle errors
+        if (error instanceof Error) {
+          // Check for size-related error messages
+          if (error.message.includes('too large') || 
+              error.message.includes('size exceeds')) {
             throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
           }
-          // For generic 400 errors without specific error text
-          if (response.status === 400) {
-            throw new Error(`The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-          }
-          throw new Error('Failed to process URL: ' + (errorText.substring(0, 100) || response.statusText));
+          throw error;
         }
+        throw new Error('Failed to process URL');
       }
-      
-      const data = await response.json();
-      setUploadProgress(100);
-      
-      return data.url;
     } catch (error) {
       // Don't log to console if it's a file size error to avoid cluttering the console
       if (!(error instanceof Error && 
