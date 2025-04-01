@@ -3,9 +3,6 @@ import {
   GoogleGenerativeAI, 
 } from '@google/generative-ai';
 
-// Define constants
-const MAX_RETRIES = 3; // Maximum number of retries for API calls
-
 // Add session management at the top of the file, after imports
 const chatSessions = new Map();
 

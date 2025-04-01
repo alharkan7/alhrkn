@@ -59,8 +59,7 @@ export default function TopBar({
           <div className="flex-1 text-center min-w-0">
             {loading && (
               <div className="flex items-center justify-center text-primary">
-                <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                <span>Creating Mindmap...</span>
+                <span>Creating Mindmap{' '}<span className="animate-ellipsis">...</span></span>
               </div>
             )}
 

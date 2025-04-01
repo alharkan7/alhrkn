@@ -98,3 +98,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes ellipsisAnimation {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-ellipsis {
+  animation: ellipsisAnimation 1.5s infinite;
+  display: inline-block;
+}

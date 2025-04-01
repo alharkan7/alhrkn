@@ -158,8 +158,8 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isProcessing) {
-                  setQuestion("Give an example");
-                  setTimeout(() => handleSave(), 100);
+                  setIsProcessing(true);
+                  onSave(parentNode.id, "Give an example");
                 }
               }}
               disabled={isProcessing}
@@ -171,8 +171,8 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isProcessing) {
-                  setQuestion("Add more details");
-                  setTimeout(() => handleSave(), 100);
+                  setIsProcessing(true);
+                  onSave(parentNode.id, "Add more details");
                 }
               }}
               disabled={isProcessing}

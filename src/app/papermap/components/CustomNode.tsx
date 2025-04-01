@@ -217,9 +217,16 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       return '';
     }
     
-    // Set loading state to indicate processing
-    setLoading(true);
+    // Hide the follow-up card
     setShowFollowUpCard(false);
+    
+    // Create a loading child node immediately
+    const nodeId = data.addFollowUpNode(
+      id, 
+      question, // Use the question as the title
+      '<div class="flex items-center justify-center p-2"><div class="animate-pulse text-blue-600 font-medium">Answering...</div></div>', // Loading indicator
+      undefined // Let the system generate a node ID
+    );
     
     try {
       // Get session ID from localStorage
@@ -253,13 +260,10 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       const result = await response.json();
       
       if (result.success && result.answer) {
-        // Create a new child node with the answer
-        const nodeId = data.addFollowUpNode(
-          id, 
-          question, // Use the question as the title
-          result.answer, // Use the answer as the description
-          undefined // Let the system generate a node ID
-        );
+        // Update the child node with the answer
+        if (data.updateNodeData) {
+          data.updateNodeData(nodeId, { description: result.answer });
+        }
         
         return nodeId;
       } else {
@@ -267,18 +271,14 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       }
     } catch (error) {
       console.error('Error processing follow-up question:', error);
-      // Create error node
-      if (data.addFollowUpNode) {
-        data.addFollowUpNode(
-          id,
-          `Error: ${question}`,
-          `Failed to get answer: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          undefined
+      // Update the node with error message
+      if (data.updateNodeData) {
+        data.updateNodeData(
+          nodeId,
+          { description: `Failed to get answer: ${error instanceof Error ? error.message : 'Unknown error'}` }
         );
       }
-      return '';
-    } finally {
-      setLoading(false);
+      return nodeId;
     }
   };
 
@@ -624,7 +624,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         />
 
         {/* Floating chat and document buttons - only show when hovering and not in other states */}
-        {isHovering && !loading && !editingTitle && !editingDescription && !showFollowUpCard && (
+        {isHovering && !editingTitle && !editingDescription && !showFollowUpCard && (
           <div
             className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-1' : 'flex-col space-y-1'}`}
             style={{ zIndex: 1000 }}
@@ -662,15 +662,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                 <MessageCircle className="h-5 w-5 text-foreground" />
               </button>
             )}
-          </div>
-        )}
-
-        {/* Display loading indicator when processing */}
-        {loading && (
-          <div className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'}`} style={{ zIndex: 1000 }}>
-            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-              Processing...
-            </div>
           </div>
         )}
 
