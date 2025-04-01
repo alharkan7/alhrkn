@@ -760,6 +760,8 @@ export function useMindMap() {
       // CRUCIAL: Store the blob URL in localStorage for cross-page persistence
       try {
         localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
+        // Store with a more specific key for follow-up questions
+        localStorage.setItem('currentPdfBlobUrl', uploadedBlobUrl);
         
         // Double-check it was set correctly
         const storedBlobUrl = localStorage.getItem('pdfBlobUrl');

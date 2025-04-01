@@ -217,6 +217,63 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       return '';
     }
     
+    // Set loading state to indicate processing
+    setLoading(true);
+    setShowFollowUpCard(false);
+    
+    try {
+      // Call API endpoint with follow-up question
+      const response = await fetch('/api/papermap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isFollowUp: true,
+          question: question,
+          nodeContext: {
+            title: data.title,
+            description: data.description
+          },
+          blobUrl: localStorage.getItem('currentPdfBlobUrl') || '', // Retrieve blob URL from localStorage
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get answer');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.answer) {
+        // Create a new child node with the answer
+        const nodeId = data.addFollowUpNode(
+          id, 
+          question, // Use the question as the title
+          result.answer, // Use the answer as the description
+          undefined // Let the system generate a node ID
+        );
+        
+        return nodeId;
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Error processing follow-up question:', error);
+      // Create error node
+      if (data.addFollowUpNode) {
+        data.addFollowUpNode(
+          id,
+          `Error: ${question}`,
+          `Failed to get answer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          undefined
+        );
+      }
+      return '';
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFollowUpCancel = () => {

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MindMapNode } from '../types';
-import { X } from 'lucide-react';
+import { X, LoaderCircle } from 'lucide-react';
 import { followUpCardStyles } from '../styles/styles';
 
 interface FollowUpCardProps {
@@ -16,6 +16,7 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   onCancel
 }) => {
   const [question, setQuestion] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
@@ -65,9 +66,9 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && question.trim()) {
+    if (e.key === 'Enter' && question.trim() && !isProcessing) {
       e.preventDefault();
-      onSave(parentNode.id, question);
+      handleSave();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onCancel();
@@ -75,7 +76,8 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
   };
   
   const handleSave = () => {
-    if (question.trim()) {
+    if (question.trim() && !isProcessing) {
+      setIsProcessing(true);
       onSave(parentNode.id, question);
     }
   };
@@ -99,7 +101,9 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
       }}
       onClick={(e) => {
         e.stopPropagation();
-        onCancel();
+        if (!isProcessing) {
+          onCancel();
+        }
       }}
     >
       <div 
@@ -126,8 +130,11 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
             className="text-muted-foreground hover:text-foreground focus:outline-none"
             onClick={(e) => {
               e.stopPropagation();
-              onCancel();
+              if (!isProcessing) {
+                onCancel();
+              }
             }}
+            disabled={isProcessing}
           >
             <X className="h-5 w-5" />
           </button>
@@ -143,39 +150,53 @@ const FollowUpCard: React.FC<FollowUpCardProps> = ({
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
             autoFocus={true}
+            disabled={isProcessing}
           />
           <div className="flex flex-wrap gap-2 mt-3">
             <button 
-              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
+              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.stopPropagation();
-                setQuestion("Give an example");
-                onSave(parentNode.id, "Give an example");
+                if (!isProcessing) {
+                  setQuestion("Give an example");
+                  setTimeout(() => handleSave(), 100);
+                }
               }}
+              disabled={isProcessing}
             >
               Give an example
             </button>
             <button 
-              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80"
+              className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.stopPropagation();
-                setQuestion("Add more details");
-                onSave(parentNode.id, "Add more details");
+                if (!isProcessing) {
+                  setQuestion("Add more details");
+                  setTimeout(() => handleSave(), 100);
+                }
               }}
+              disabled={isProcessing}
             >
               Add more details
             </button>
           </div>
           <div className="flex justify-end mt-4 space-x-2 text-sm">
             <button 
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!question.trim()}
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={!question.trim() || isProcessing}
               onClick={(e) => {
                 e.stopPropagation();
                 handleSave();
               }}
             >
-              Ask
+              {isProcessing ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Ask'
+              )}
             </button>
           </div>
         </div>
