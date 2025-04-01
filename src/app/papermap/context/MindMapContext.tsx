@@ -3,7 +3,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Node, Edge, NodeChange, EdgeChange, ReactFlowInstance } from 'reactflow';
 import { MindMapData } from '../types';
-import { LayoutOptions } from '../types';
 
 interface MindMapContextType {
   // State

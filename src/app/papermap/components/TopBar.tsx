@@ -103,8 +103,8 @@ export default function TopBar({
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onFileUpload={(file) => {
-          handleUpload(file);
+        onFileUpload={(file, blobUrl) => {
+          handleUpload(file, blobUrl);
           setSidebarOpen(false);
         }}
         loading={loading}

@@ -7,7 +7,6 @@ import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
 import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { STICKY_NOTE_COLORS, BLANK_NODE_COLOR, ANSWER_NODE_COLOR, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
-import { handleFollowUpSave as handleFollowUpSaveImpl } from './handleFollowUpSave';
 
 // Node component props type
 interface CustomNodeProps {
@@ -220,39 +219,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     }
   };
 
-  // Helper function to fetch and store example PDF
-  const fetchAndStoreExamplePdf = async (pdfUrl: string) => {
-    try {
-      console.log('Fetching example PDF:', pdfUrl);
-      const response = await fetch(pdfUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch example PDF');
-      }
-
-      const pdfBlob = await response.blob();
-      const reader = new FileReader();
-
-      return new Promise<void>((resolve, reject) => {
-        reader.onloadend = () => {
-          const base64data = reader.result;
-          if (typeof base64data === 'string') {
-            const base64Content = base64data.split(',')[1];
-            localStorage.setItem('pdfData', base64Content);
-            console.log('Example PDF data stored in localStorage, size:', base64Content.length);
-            resolve();
-          } else {
-            reject(new Error('Failed to convert PDF to base64'));
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
-      });
-    } catch (error) {
-      console.error('Error storing example PDF:', error);
-      throw error;
-    }
-  };
-
   // Use the imported handleFollowUpSave but bind it to this component's context
   const handleFollowUpSave = async (parentId: string, question: string) => {
     if (!data.addFollowUpNode) {
@@ -260,17 +226,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       return '';
     }
     
-    return handleFollowUpSaveImpl(
-      id,
-      question,
-      {
-        ...data,
-        addFollowUpNode: data.addFollowUpNode
-      },
-      setShowFollowUpCard,
-      setShowChatButton,
-      fetchAndStoreExamplePdf
-    );
   };
 
   const handleFollowUpCancel = () => {

@@ -3,110 +3,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
-import { createMindMapLayout, updateMindMapLayout, LayoutOptions, LAYOUT_PRESETS, DEFAULT_LAYOUT_OPTIONS, getDefaultLayoutIndex } from '../types';
+import { createMindMapLayout, updateMindMapLayout, LAYOUT_PRESETS, getDefaultLayoutIndex } from '../types';
 import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
-
-// Function to fetch and store PDF as base64 in localStorage
-const fetchAndStorePdfData = async (pdfUrl: string) => {
-  try {
-    console.log('Fetching example PDF:', pdfUrl);
-    const response = await fetch(pdfUrl);
-    if (!response.ok) {
-      throw new Error('Failed to fetch example PDF');
-    }
-    
-    // Store the PDF URL as a blob URL in localStorage for follow-up questions
-    localStorage.setItem('pdfBlobUrl', pdfUrl);
-    console.log('Stored PDF URL in localStorage as pdfBlobUrl:', pdfUrl);
-    
-    const pdfBlob = await response.blob();
-    const reader = new FileReader();
-    
-    return new Promise<void>((resolve, reject) => {
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        if (typeof base64data === 'string') {
-          const base64Content = base64data.split(',')[1];
-          try {
-            // Check size of data before storing
-            const sizeInMB = (base64Content.length * 2) / (1024 * 1024);
-            console.log(`PDF data size: ${sizeInMB.toFixed(2)} MB`);
-            
-            // Clear existing storage first 
-            clearStorage();
-            
-            // Store the PDF data
-            localStorage.setItem('pdfData', base64Content);
-            console.log('Example PDF data stored in localStorage');
-            resolve();
-          } catch (storageError) {
-            console.error('Failed to store PDF data in localStorage:', storageError);
-            // Resolve anyway so the app can continue without storage
-            resolve();
-          }
-        } else {
-          reject(new Error('Failed to convert PDF to base64'));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(pdfBlob);
-    });
-  } catch (error) {
-    console.error('Error storing example PDF:', error);
-    throw error;
-  }
-};
-
-// Function to safely store session data with error handling
-const safelyStoreSessionData = (sessionId: string, sessionData: string) => {
-  try {
-    // Check size of session data
-    const sessionSizeInKB = (sessionData.length * 2) / 1024;
-    console.log(`Session data size: ${sessionSizeInKB.toFixed(2)} KB`);
-    
-    // Store the data
-    if (sessionId) localStorage.setItem('pdfSessionId', sessionId);
-    if (sessionData) localStorage.setItem('pdfSessionData', sessionData);
-    return true;
-  } catch (storageError) {
-    console.error('Error storing session data:', storageError);
-    return false;
-  }
-};
-
-/**
- * Clear all localStorage items related to PDF and session data
- * 
- * This function is important to prevent QuotaExceededError when creating new mindmaps.
- * The error occurs because the combined size of PDF data and session data can exceed
- * the localStorage quota (typically 5-10MB). By clearing old data before adding new data,
- * we ensure there's enough space available.
- */
-const clearStorage = () => {
-  // Remove all known storage keys related to the PDF and sessions
-  localStorage.removeItem('pdfData');
-  localStorage.removeItem('pdfSessionId');
-  localStorage.removeItem('pdfSessionData');
-  
-  // Try to remove any other app-related data that might exist
-  const keysToRemove = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (key.startsWith('pdf') || key.includes('session') || key.includes('mindmap'))) {
-      keysToRemove.push(key);
-    }
-  }
-  
-  // Remove identified keys
-  keysToRemove.forEach(key => {
-    localStorage.removeItem(key);
-  });
-  
-  console.log('All PDF and session data cleared from localStorage');
-};
 
 export function useMindMap() {
   const [loading, setLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<Error | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mindMapData, setMindMapData] = useState<MindMapData | null>(EXAMPLE_MINDMAP); // Initialize with example data
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -121,11 +24,18 @@ export function useMindMap() {
   const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0);
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex]; // Current layout options
   
-  // Store example PDF URL in localStorage immediately on component mount
+  // Store example PDF URL in localStorage only if there's no existing blob URL
   useEffect(() => {
-    // Ensure pdfBlobUrl is set for the example PDF immediately
+    // Check if there's already a blob URL stored (from a previous upload)
+    const existingBlobUrl = localStorage.getItem('pdfBlobUrl');
+    
+    // Only set the example PDF URL if there's no existing blob URL
+    if (!existingBlobUrl) {
     localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-    console.log('Stored initial example PDF URL in localStorage on mount:', EXAMPLE_PDF_URL);
+      console.log('Stored initial example PDF URL in localStorage (no existing blob URL):', EXAMPLE_PDF_URL);
+    } else {
+      console.log('Kept existing blob URL in localStorage:', existingBlobUrl);
+    }
   }, []);
   
   // Update layout based on device type after mounting on client
@@ -648,17 +558,22 @@ export function useMindMap() {
     setLoading(true);
     console.log('Loading example mindmap and PDF...');
     
-    // Clear all existing data first to prevent storage quota issues
-    clearStorage();
-    
     // Reset to example data
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
     setError(null);
     
     // Store the example PDF URL in localStorage for follow-up questions
+    try {
     localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
     console.log('Stored example PDF URL in localStorage:', EXAMPLE_PDF_URL);
+      
+      // IMPORTANT: Set the userHasUploadedPdf flag to false when loading the example
+      localStorage.setItem('userHasUploadedPdf', 'false');
+      console.log('Reset userHasUploadedPdf flag to false for example mindmap');
+    } catch (storageError) {
+      console.warn('Storage issue when setting example PDF URL, but continuing:', storageError);
+    }
     
     // Clear any existing flow state
     setNodes([]);
@@ -713,165 +628,25 @@ export function useMindMap() {
     } finally {
       setLoading(false);
     }
-  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex, setNodes, setEdges, clearStorage, setMindMapData, setPdfUrl, setError]);
+  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex, setNodes, setEdges, setMindMapData, setPdfUrl, setError]);
 
-  // Add a new effect specifically to handle the case where the example mindmap is loaded
-  // This includes both initial load and after a page refresh when a user had their own PDF
-  useEffect(() => {
-    if (mindMapData === EXAMPLE_MINDMAP) {
-      console.log('Example mindmap detected - ensuring localStorage is properly initialized');
-      
-      // IMPORTANT: Clear any existing storage to prevent conflicts with previously uploaded user PDFs
-      clearStorage();
-      
-      // Reset to example PDF URL
-      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-      console.log('Reset to example PDF URL in localStorage:', EXAMPLE_PDF_URL);
-      
-      // Check if we need to fetch and initialize the session
-      const existingPdfData = localStorage.getItem('pdfData');
-      const existingSessionId = localStorage.getItem('pdfSessionId');
-      const existingSessionData = localStorage.getItem('pdfSessionData');
-      
-      // If we don't have the sample PDF data or sessions, fetch and initialize
-      if (!existingPdfData || !existingSessionId || !existingSessionData) {
-        console.log('Example mindmap needs PDF data or session initialization, fetching it now');
-        fetchAndStorePdfData(EXAMPLE_PDF_URL)
-          .then(async () => {
-            // Verify the PDF data was actually stored
-            const pdfData = localStorage.getItem('pdfData');
-            if (!pdfData) {
-              console.error('Failed to store example PDF data in localStorage');
-              setError('Error: PDF data not stored. Follow-up questions will not work.');
-              return;
-            }
-            
-            console.log(`PDF data stored successfully (${(pdfData.length * 2 / 1024 / 1024).toFixed(2)} MB)`);
-            
-            try {
-              // Initialize a session for the example PDF
-              console.log('Initializing session for example PDF...');
-              const sessionResponse = await fetch('/api/papermap/initialize', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                  pdfData,
-                  blobUrl: EXAMPLE_PDF_URL // Also include the blob URL for direct access
-                })
-              });
-              
-              if (!sessionResponse.ok) {
-                const errorData = await sessionResponse.text();
-                console.error('Failed to initialize session:', sessionResponse.status, errorData);
-                setError('Warning: Could not initialize session. Follow-up questions may not work.');
-                return;
-              }
-              
-              const { sessionId, sessionData } = await sessionResponse.json();
-              
-              if (!sessionId || !sessionData) {
-                console.error('Empty session data returned from API');
-                setError('Warning: Invalid session data. Follow-up questions may not work.');
-                return;
-              }
-              
-              // Use the safer storage function
-              const stored = safelyStoreSessionData(sessionId, sessionData);
-              
-              if (stored) {
-                console.log('Session initialized for example PDF follow-up questions');
-                // Verify the session data was stored correctly
-                const storedSessionId = localStorage.getItem('pdfSessionId');
-                const storedSessionData = localStorage.getItem('pdfSessionData');
-                if (storedSessionId && storedSessionData) {
-                  console.log('Session data verified in localStorage');
-                } else {
-                  console.error('Session data verification failed');
-                  setError('Warning: Session data not properly stored. Follow-up questions may not work.');
-                }
-              } else {
-                setError('Warning: Could not store session data. Follow-up questions may not work.');
-              }
-            } catch (error) {
-              console.error('Failed to initialize session for example PDF:', error);
-              setError('Error initializing session. Follow-up questions may not work.');
-            }
-          })
-          .catch((error) => {
-            console.error('Failed to store example PDF:', error);
-            setError('Error loading example PDF. Follow-up questions may not work.');
-          });
-      } else {
-        console.log('Example PDF already has data and session in localStorage');
-      }
-    }
-  }, [mindMapData, setError]);
-
-  // Fallback effect for the example mindmap to ensure the PDF URL is set
-  useEffect(() => {
-    if (mindMapData === EXAMPLE_MINDMAP && pdfUrl === EXAMPLE_PDF_URL) {
-      // Make sure to set the blobUrl in localStorage even if it's not set elsewhere
-      const blobUrlInStorage = localStorage.getItem('pdfBlobUrl');
-      if (blobUrlInStorage !== EXAMPLE_PDF_URL) {
-        localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-        console.log('Updated example PDF URL in localStorage (fallback check)');
-      }
-    }
-  }, [mindMapData, pdfUrl]);
-
-  // Handle file upload
-  const handleFileUpload = async (file: File, blobUrl?: string) => {
-    // Clear any previous errors
+  // Generate initial mindmap for uploaded PDF
+  const generateInitialMindMap = useCallback(async (fileName: string, pdfBlobUrl: string) => {
+    console.log('Generating initial mindmap for uploaded PDF:', fileName);
+    // We don't set loading state here anymore - it's managed by the parent function
     setError(null);
-    setLoading(true);
-    
-    // Clear any previous data
-    clearStorage();
     
     try {
-      // If a blob URL is provided, use it directly instead of reading the file again
-      const pdfBlobUrl = blobUrl || URL.createObjectURL(file);
-      
-      // Store the PDF URL for later use
-      setPdfUrl(pdfBlobUrl);
-      
-      // Store the blob URL in localStorage for follow-up questions
-      if (blobUrl) {
-        localStorage.setItem('pdfBlobUrl', blobUrl);
-        console.log('Stored PDF Blob URL in localStorage:', blobUrl);
-      }
-      
-      // Store the file content in localStorage for offline access
-      if (!blobUrl) {
-        // Only read and store the file if not already uploaded to Blob
-        const reader = new FileReader();
-        
-        reader.onload = () => {
-          // Skip localStorage storage if using Blob URL
-          if (typeof reader.result === 'string') {
-            const base64Content = reader.result.split(',')[1];
-            try {
-              localStorage.setItem('pdfData', base64Content);
-            } catch (storageError) {
-              console.warn('Failed to store PDF in localStorage - size may exceed quota.');
-              // Continue without stored PDF - we have Blob URL now
-            }
-          }
-        };
-        
-        reader.readAsDataURL(file);
-      }
-      
-      // Process the file for mindmap generation
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Call the API to analyze the PDF and generate a mind map
+      // Call the API with the blob URL to generate a mindmap
       const response = await fetch('/api/papermap', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          blobUrl: pdfBlobUrl,
+          fileName: fileName
+        }),
       });
       
       if (!response.ok) {
@@ -883,22 +658,15 @@ export function useMindMap() {
       
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         console.log('Mind map data received:', data.mindmap);
-        
-        // Store the session data in localStorage
-        if (data.sessionId) {
-          safelyStoreSessionData(data.sessionId, JSON.stringify(data.mindmap));
-        }
-        
+               
         // Update the mind map data
         setMindMapData(data.mindmap);
+        
+        // DEBUG: Verify the blob URL is still correctly set in localStorage after all operations
+        const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
+        console.log('Final blob URL in localStorage after all operations:', finalBlobUrl);
       } else {
         throw new Error('Invalid mind map data received');
-      }
-    } catch (err) {
-      console.error('Error processing PDF:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
     }
     
     // Fit view after nodes are set
@@ -911,7 +679,143 @@ export function useMindMap() {
         });
       }
     }, 100);
-  };
+      
+      return true;
+    } catch (err) {
+      console.error('Error generating mindmap:', err);
+      throw err; // Re-throw to allow the parent function to handle
+    }
+  }, [setMindMapData, setError]);
+
+  // Handle file upload for PDF
+  const handleFileUpload = useCallback(async (file: File, blobUrl?: string) => {
+    if (!file) return;
+    
+    console.log('Starting file upload for:', file.name);
+    setFileLoading(true);
+    setUploadError(null);
+    
+    try {
+      // Check if the file is a PDF
+      if (file.type !== 'application/pdf') {
+        throw new Error('Only PDF files are supported');
+      }
+         
+      // Clear previous session data for this new PDF
+      // Session IDs/data are specific to each PDF, so they need to be recreated
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      
+      // Check if the example PDF URL is stored and remove it
+      const existingPdfUrl = localStorage.getItem('pdfBlobUrl');
+      const isExamplePdf = existingPdfUrl && existingPdfUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf');
+      
+      if (isExamplePdf) {
+        console.log('Removing example PDF URL from localStorage');
+        localStorage.removeItem('pdfBlobUrl');
+      }
+      
+      // Set the user has uploaded PDF flag
+      try {
+        localStorage.setItem('userHasUploadedPdf', 'true');
+      } catch (error) {
+        console.warn('Failed to set userHasUploadedPdf flag, but continuing anyway');
+      }
+      
+      // Start with the blob URL if provided, otherwise it will be set during upload
+      let uploadedBlobUrl: string;
+      
+      // Only upload if no blob URL was provided
+      if (!blobUrl) {
+        // Get the file data as a blob
+        const fileData = new FormData();
+        fileData.append('file', file);
+        
+        // Upload the file to Vercel Blob storage
+        const upload = await fetch('/api/papermap/blob-upload', {
+          method: 'POST',
+          body: fileData,
+        });
+        
+        if (!upload.ok) {
+          const errorDetails = await upload.text();
+          console.error('Upload failed:', errorDetails);
+          throw new Error(`Upload failed: ${upload.status} ${upload.statusText}`);
+        }
+        
+        const { url } = await upload.json();
+        
+        if (!url) {
+          throw new Error('No blob URL returned from upload');
+        }
+        
+        uploadedBlobUrl = url;
+        console.log('File uploaded successfully to Vercel Blob:', 
+          uploadedBlobUrl.substring(0, 50) + '...');
+      } else {
+        uploadedBlobUrl = blobUrl;
+        console.log('Using provided blob URL:', uploadedBlobUrl.substring(0, 50) + '...');
+      }
+      
+      // CRUCIAL: Store the blob URL in localStorage for cross-page persistence
+      try {
+        localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
+        
+        // Double-check it was set correctly
+        const storedBlobUrl = localStorage.getItem('pdfBlobUrl');
+        console.log('Stored blob URL in localStorage:', 
+          storedBlobUrl ? (storedBlobUrl.substring(0, 50) + '...') : 'FAILED TO STORE');
+      } catch (storageError) {
+        console.warn('Failed to store blob URL in localStorage but continuing with session init');
+      }
+      
+      // Update the application state with the blob URL
+      setPdfUrl(uploadedBlobUrl);
+      
+      console.log('PDF upload and session initialization complete');
+      
+      // Triple-check that we didn't somehow revert to the example PDF
+      const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
+      if (finalBlobUrl && finalBlobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
+        console.warn('Example PDF URL found in localStorage after uploading user PDF - will try to fix');
+        try {
+          localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
+        } catch (e) {
+          console.error('Failed to reset blob URL but continuing anyway');
+        }
+      }
+      
+      // Clear any previous mindmap data when a new PDF is uploaded
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+      
+      // Before generating mindmap, set loading true to ensure the loading indicator appears
+      setLoading(true);
+      
+      try {
+        // Generate a new mindmap for the uploaded PDF
+        await generateInitialMindMap(file.name, uploadedBlobUrl);
+      } catch (mindmapError) {
+        console.error('Error generating mindmap:', mindmapError);
+        setError(mindmapError instanceof Error ? mindmapError.message : 'Failed to generate mindmap');
+      } finally {
+        // Ensure loading state is reset regardless of mindmap generation outcome
+        setLoading(false);
+      }
+      
+      return uploadedBlobUrl;
+    } catch (error) {
+      console.error('Error handling file upload:', error);
+      setUploadError(error instanceof Error ? error : new Error('Unknown upload error'));
+      setError(error instanceof Error ? error.message : 'Failed to upload PDF');
+      return null;
+    } finally {
+      setFileLoading(false);
+    }
+  }, [generateInitialMindMap, setPdfUrl, setMindMapData]);
 
   // Update node visibility when collapsed nodes or mindMapData change
   useEffect(() => {
