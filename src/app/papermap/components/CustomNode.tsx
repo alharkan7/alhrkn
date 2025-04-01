@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
-import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
-import InfoTip from './InfoTip';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
 import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
@@ -212,13 +210,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     }
   };
 
-  // Handler for when resizing is complete
-  const onResize = (_event: any, { width, height }: { width: number; height: number }) => {
-    if (data.updateNodeData) {
-      data.updateNodeData(id, { width });
-    }
-  };
-
   // Use the imported handleFollowUpSave but bind it to this component's context
   const handleFollowUpSave = async (parentId: string, question: string) => {
     if (!data.addFollowUpNode) {
@@ -418,54 +409,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   };
 
   return (
-    <>
-      {/* Add NodeResizer component - only visible when selected */}
-      <NodeResizer
-        minWidth={200}
-        minHeight={50}
-        isVisible={selected}
-        onResizeStart={() => setIsResizing(true)}
-        onResize={(e, { width, height }) => {
-          setWidth(width);
-
-          // Update node internals during resize to ensure height recalculates
-          requestAnimationFrame(() => {
-            // Access parent ReactFlow node and update its dimensions
-            if (nodeRef.current) {
-              const reactFlowNode = nodeRef.current.closest('.react-flow__node');
-              if (reactFlowNode && reactFlowNode instanceof HTMLElement) {
-                const contentHeight = nodeRef.current.getBoundingClientRect().height;
-                reactFlowNode.style.height = `${contentHeight}px`;
-              }
-            }
-            updateNodeInternals(id);
-          });
-        }}
-        onResizeEnd={(e, params) => {
-          setIsResizing(false);
-          onResize(e, params);
-
-          // Update node internals after resize completes
-          setTimeout(() => {
-            updateNodeInternals(id);
-          }, 50);
-        }}
-        handleStyle={{
-          width: '8px',
-          height: '8px',
-          backgroundColor: 'transparent',
-          borderRadius: '50%',
-          zIndex: 1002,
-          border: '0',
-          boxShadow: 'none',
-          opacity: 0.5
-        }}
-        lineStyle={{
-          border: '0 transparent none',
-          zIndex: 1002
-        }}
-      />
-
       <div
         className={`p-4 rounded-lg shadow-md relative group sticky-note ${showFollowUpCard ? 'active-with-followup' : ''}`}
         style={{
@@ -549,8 +492,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             </button>
           </div>
         </div>
-
-        {showInfo && <InfoTip content={data.description} />}
 
         {/* Description container - always rendered but with animation */}
         {!showInfo && (
@@ -746,7 +687,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
           </div>
         )}
       </div>
-    </>
   );
 };
 
