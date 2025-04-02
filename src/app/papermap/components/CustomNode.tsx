@@ -224,7 +224,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     const nodeId = data.addFollowUpNode(
       id, 
       question, // Use the question as the title
-      '<div class="flex items-center justify-center p-2"><div class="animate-pulse text-blue-600 font-medium">Answering...</div></div>', // Loading indicator
+      '<div class="flex items-center justify-center p-2"><div class="flex flex-col items-center"><div class="flex space-x-1"><div class="h-2 w-2 bg-blue-600 rounded-full animate-[bounce_1s_ease-in-out_0s_infinite]"></div><div class="h-2 w-2 bg-blue-600 rounded-full animate-[bounce_1s_ease-in-out_0.2s_infinite]"></div><div class="h-2 w-2 bg-blue-600 rounded-full animate-[bounce_1s_ease-in-out_0.4s_infinite]"></div></div><div class="text-blue-600 font-medium mt-2">Answering</div></div></div>', // Wave animation with dots
       undefined // Let the system generate a node ID
     );
     
