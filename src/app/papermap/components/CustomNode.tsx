@@ -238,9 +238,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         role: msg.role === 'assistant' ? 'model' : msg.role
       }));
       
-      // Get the fileUri from localStorage if available
-      const fileUri = localStorage.getItem('pdfFileUri');
-      
       // Call API endpoint with follow-up question
       const response = await fetch('/api/papermap', {
         method: 'POST',
@@ -250,7 +247,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         body: JSON.stringify({
           isFollowUp: true,
           question: question,
-          fileUri: fileUri, // Include fileUri if available
           nodeContext: {
             title: data.title,
             description: data.description

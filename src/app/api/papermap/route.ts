@@ -1,9 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
 import * as crypto from 'crypto';
 
 // Initialize Google AI services
@@ -35,39 +32,6 @@ For FOLLOW-UP questions about specific nodes, you will provide answers in this f
 The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.`;
 
 /**
- * Helper function to upload a file to Google AI File Manager
- */
-async function uploadPdfToFileManager(pdfBuffer: Buffer, fileName: string): Promise<string> {
-  try {
-    // Create temporary file
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'papermap-'));
-    const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.pdf`);
-    
-    // Write buffer to temporary file
-    await fs.writeFile(tempFilePath, pdfBuffer);
-    
-    // Upload to Google AI File Manager
-    const uploadResult = await fileManager.uploadFile(tempFilePath, {
-      mimeType: 'application/pdf',
-      displayName: fileName || 'document.pdf'
-    });
-    
-    // Clean up temporary file
-    try {
-      await fs.unlink(tempFilePath);
-      await fs.rmdir(tempDir);
-    } catch (cleanupError) {
-      console.warn('Failed to clean up temporary files:', cleanupError);
-    }
-    
-    return uploadResult.file.uri;
-  } catch (error) {
-    console.error('Error uploading to File Manager:', error);
-    throw new Error('Failed to upload PDF to AI service');
-  }
-}
-
-/**
  * Main API route for handling PDF analysis and follow-up questions
  */
 export async function POST(request: NextRequest) {
@@ -82,17 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { 
-      blobUrl, 
-      pdfFile, 
-      pdfBase64, 
-      fileName, 
-      fileUri, 
-      isFollowUp, 
-      question, 
-      nodeContext, 
-      chatHistory 
-    } = data;
+    const { blobUrl, fileName, isFollowUp, question, nodeContext, chatHistory } = data;
 
     // Initialize Gemini API with appropriate configuration
     const model = genAI.getGenerativeModel({
@@ -165,80 +119,44 @@ export async function POST(request: NextRequest) {
       ];
       
     } else {
-      // Initial mindmap creation requires a PDF
-      let pdfUri: string | undefined;
-      
-      // First check if we already have a Google AI fileUri
-      if (fileUri) {
-        pdfUri = fileUri;
-        console.log("Using provided Google AI File URI:", fileUri);
-      } 
-      // If we have base64 PDF data
-      else if (pdfBase64) {
-        try {
-          const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
-          const pdfBuffer = Buffer.from(base64Data, 'base64');
-          pdfUri = await uploadPdfToFileManager(pdfBuffer, fileName || 'uploaded-document.pdf');
-          console.log("PDF uploaded to Google AI from base64 data");
-        } catch (error) {
-          console.error("Error uploading base64 PDF to Google AI:", error);
-          return NextResponse.json(
-            { error: "Failed to process PDF data" },
-            { status: 500 }
-          );
-        }
-      } 
-      // If we have a blob URL (Vercel Blob or other URL)
-      else if (blobUrl) {
-        try {
-          console.log(`Processing PDF from URL: ${blobUrl.substring(0, 50)}...`);
-          // Download PDF from blob URL
-          const pdfResponse = await fetch(blobUrl);
-          if (!pdfResponse.ok) {
-            throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
-          }
-          
-          // Get the PDF as buffer
-          const pdfBuffer = await pdfResponse.arrayBuffer();
-          
-          // Upload to Google AI File Manager
-          pdfUri = await uploadPdfToFileManager(
-            Buffer.from(pdfBuffer), 
-            fileName || 'document-from-url.pdf'
-          );
-          console.log("PDF uploaded to Google AI from URL");
-        } catch (error) {
-          console.error("Error downloading and uploading PDF from URL:", error);
-          return NextResponse.json(
-            { error: "Failed to download PDF from provided URL" },
-            { status: 500 }
-          );
-        }
-      } else {
+      // Initial mindmap creation
+      if (!blobUrl) {
         return NextResponse.json(
-          { error: "PDF data is required (fileUri, pdfBase64, or blobUrl)" },
+          { error: "PDF blob URL is required" },
           { status: 400 }
         );
       }
 
-      // Double check that we have a valid fileUri
-      if (!pdfUri) {
+      console.log(`Processing PDF from blob URL: ${blobUrl.substring(0, 50)}...`);
+
+      try {
+        // Download PDF from blob URL
+        const pdfResponse = await fetch(blobUrl);
+        if (!pdfResponse.ok) {
+          throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+        }
+        
+        // Get the PDF as base64
+        const pdfBuffer = await pdfResponse.arrayBuffer();
+        const base64Data = Buffer.from(pdfBuffer).toString('base64');
+        
+        // For initial PDF request, include the PDF data
+        messageParts = [
+          { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
+          {
+            inlineData: {
+              mimeType: "application/pdf",
+              data: base64Data
+            }
+          }
+        ];
+      } catch (error) {
+        console.error("Error downloading PDF from blob URL:", error);
         return NextResponse.json(
-          { error: "Failed to process PDF: No valid file reference obtained" },
+          { error: "Failed to download PDF from provided URL" },
           { status: 500 }
         );
       }
-
-      // For initial PDF request, include the PDF file reference
-      messageParts = [
-        { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
-        {
-          fileData: {
-            mimeType: "application/pdf",
-            fileUri: pdfUri  // This is now guaranteed to be a string
-          }
-        }
-      ];
     }
     
     // Send the message and get response
@@ -271,9 +189,7 @@ export async function POST(request: NextRequest) {
     const responseObject = {
       success: true,
       ...(isFollowUp ? { answer: responseData.answer } : { mindmap: responseData }),
-      chatHistory: newChatHistory,
-      // Include the fileUri in the response for future use
-      fileUri: messageParts[1]?.fileData?.fileUri
+      chatHistory: newChatHistory
     };
     
     return NextResponse.json(responseObject);
