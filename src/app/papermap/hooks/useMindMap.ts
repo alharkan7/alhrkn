@@ -8,6 +8,7 @@ import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
 
 export function useMindMap() {
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<'uploading' | 'processing' | 'building' | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [uploadError, setUploadError] = useState<Error | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -639,6 +640,7 @@ export function useMindMap() {
     console.log('Generating initial mindmap for uploaded PDF:', fileName);
     // We don't set loading state here anymore - it's managed by the parent function
     setError(null);
+    setLoadingStage('processing');
     
     try {
       // Call the API with the blob URL to generate a mindmap
@@ -660,6 +662,8 @@ export function useMindMap() {
       }
       
       const data = await response.json();
+      
+      setLoadingStage('building');
       
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         console.log('Mind map data received:', data.mindmap);
@@ -688,18 +692,18 @@ export function useMindMap() {
         console.log('Final blob URL in localStorage after all operations:', finalBlobUrl);
       } else {
         throw new Error('Invalid mind map data received');
-    }
-    
-    // Fit view after nodes are set
-    setTimeout(() => {
-      if (reactFlowInstance.current) {
-        reactFlowInstance.current.fitView({ 
-          padding: 0.4, 
-          duration: 800,
-          includeHiddenNodes: false
-        });
       }
-    }, 100);
+    
+      // Fit view after nodes are set
+      setTimeout(() => {
+        if (reactFlowInstance.current) {
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false
+          });
+        }
+      }, 100);
       
       return true;
     } catch (err) {
@@ -715,6 +719,7 @@ export function useMindMap() {
     console.log('Starting file upload for:', file.name);
     setFileLoading(true);
     setUploadError(null);
+    setLoadingStage('uploading');
     
     try {
       // Check if the file is a PDF
@@ -815,6 +820,7 @@ export function useMindMap() {
       
       // Before generating mindmap, set loading true to ensure the loading indicator appears
       setLoading(true);
+      setLoadingStage('processing');
       
       try {
         // Generate a new mindmap for the uploaded PDF
@@ -825,6 +831,7 @@ export function useMindMap() {
       } finally {
         // Ensure loading state is reset regardless of mindmap generation outcome
         setLoading(false);
+        setLoadingStage(null);
       }
       
       return uploadedBlobUrl;
@@ -835,6 +842,9 @@ export function useMindMap() {
       return null;
     } finally {
       setFileLoading(false);
+      if (loading) {
+        setLoadingStage(null);
+      }
     }
   }, [generateInitialMindMap, setPdfUrl, setMindMapData]);
 
@@ -1222,6 +1232,7 @@ export function useMindMap() {
 
   return {
     loading,
+    loadingStage,
     error,
     mindMapData,
     nodes,

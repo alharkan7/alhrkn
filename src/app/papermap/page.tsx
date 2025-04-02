@@ -69,6 +69,7 @@ export default function PaperMap() {
   // Get all the mindmap related state and functions from the hook
   const {
     loading,
+    loadingStage,
     error,
     mindMapData,
     nodes,
@@ -88,6 +89,7 @@ export default function PaperMap() {
   // Prepare context values
   const mindMapContextValue = {
     loading,
+    loadingStage,
     error,
     mindMapData,
     nodes,

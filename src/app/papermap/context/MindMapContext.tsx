@@ -7,6 +7,7 @@ import { MindMapData } from '../types';
 interface MindMapContextType {
   // State
   loading: boolean;
+  loadingStage: 'uploading' | 'processing' | 'building' | null;
   error: string | null;
   mindMapData: MindMapData | null;
   nodes: Node[];

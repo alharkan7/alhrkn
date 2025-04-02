@@ -30,6 +30,7 @@ const MindMapFlow = () => {
     onEdgesChange, 
     reactFlowInstance,
     loading,
+    loadingStage,
     currentLayoutIndex,
     cycleLayout,
     mindMapData
@@ -126,6 +127,20 @@ const MindMapFlow = () => {
   // This way we only show the loader when loading is true, but still display any existing nodes
   const showLoadingIndicator = loading;
 
+  // Get loading stage text
+  const getLoadingText = () => {
+    switch (loadingStage) {
+      case 'uploading':
+        return 'Uploading...';
+      case 'processing':
+        return 'Processing...';
+      case 'building':
+        return 'Building...';
+      default:
+        return 'Loading...';
+    }
+  };
+
   // Add this debug logging
   useEffect(() => {
     // Debug object for detailed diagnostics
@@ -202,8 +217,11 @@ const MindMapFlow = () => {
       
       {showLoadingIndicator && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-          <div className="transform scale-75 bg-white/30 dark:bg-black/30 rounded-full p-8">
+          <div className="transform scale-75 p-8 flex flex-col items-center">
             <MindMapLoader />
+            <div className="text-lg font-medium text-gray-800 dark:text-gray-200">
+              {getLoadingText()}
+            </div>
           </div>
         </div>
       )}
