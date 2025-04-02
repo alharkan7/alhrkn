@@ -757,7 +757,7 @@ export function useMindMap() {
           
           const blob = await upload(file.name, file, {
             access: 'public',
-            handleUploadUrl: '/api/papermap/blob-token',
+            handleUploadUrl: '/api/papermap/blob',
           });
           
           if (!blob.url) {

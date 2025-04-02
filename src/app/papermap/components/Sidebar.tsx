@@ -141,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         // Use the client direct upload method
         const blob = await upload(fileToUpload.name, fileToUpload, {
           access: 'public',
-          handleUploadUrl: '/api/papermap/blob-token',
+          handleUploadUrl: '/api/papermap/blob',
         });
 
         // Clear interval and complete progress
@@ -194,41 +194,53 @@ const Sidebar: React.FC<SidebarProps> = ({
       }, 500);
       
       try {
-        // First, fetch the PDF from the URL to get it as a blob
-        const response = await fetch(pdfUrl);
+        // Validate URL format before proceeding
+        try {
+          new URL(pdfUrl);
+        } catch (e) {
+          throw new Error("Invalid URL format. Please enter a valid URL.");
+        }
+        
+        // Use our server-side proxy to fetch the PDF
+        // This avoids CORS issues that occur with direct fetch
+        const proxyUrl = `/api/papermap/proxy?url=${encodeURIComponent(pdfUrl)}`;
+        console.log(`Fetching PDF via proxy: ${proxyUrl}`);
+        
+        const response = await fetch(proxyUrl);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch PDF: ${response.statusText}`);
         }
         
-        // Get the content-type and check if it's a PDF
-        const contentType = response.headers.get('content-type');
-        if (contentType && !contentType.includes('application/pdf')) {
-          throw new Error("URL does not point to a valid PDF file");
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || "Failed to process PDF");
         }
         
-        // Get file size from headers if available
-        const contentLength = response.headers.get('content-length');
-        if (contentLength && parseInt(contentLength) > MAX_FILE_SIZE_BYTES) {
-          throw new Error(`File is too large (${(parseInt(contentLength) / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+        // Convert base64 data back to a Blob
+        const binaryData = atob(data.base64Data);
+        const bytes = new Uint8Array(binaryData.length);
+        for (let i = 0; i < binaryData.length; i++) {
+          bytes[i] = binaryData.charCodeAt(i);
         }
         
-        // Create a blob from the PDF
-        const pdfBlob = await response.blob();
+        // Create a blob from the binary data
+        const pdfBlob = new Blob([bytes.buffer], { type: 'application/pdf' });
         
         // Double-check size after downloading
         if (pdfBlob.size > MAX_FILE_SIZE_BYTES) {
           throw new Error(`File is too large (${(pdfBlob.size / (1024 * 1024)).toFixed(2)} MB). Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
         }
         
-        // Extract filename from URL or use a default
-        const urlParts = pdfUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1] || 'document.pdf';
+        // Extract filename from the proxy response
+        const fileName = data.fileName || 'document.pdf';
         
         // Use direct client upload
         const blob = await upload(fileName, pdfBlob, {
           access: 'public',
-          handleUploadUrl: '/api/papermap/blob-token',
+          handleUploadUrl: '/api/papermap/blob',
         });
         
         // Clear interval and complete progress
@@ -240,39 +252,40 @@ const Sidebar: React.FC<SidebarProps> = ({
         // Clear interval
         clearInterval(progressInterval);
         
-        // Handle errors
+        // Handle specific error types
         if (error instanceof Error) {
-          // Check for size-related error messages
-          if (error.message.includes('too large') || 
-              error.message.includes('size exceeds')) {
+          // Check for common error patterns
+          if (error.message.includes('too large') || error.message.includes('size exceeds')) {
             throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
+          } else if (error.message.includes('valid PDF')) {
+            throw new Error("The URL does not point to a valid PDF file.");
+          } else if (error.message.includes('Failed to fetch PDF')) {
+            throw new Error("Could not download the PDF. Please ensure the URL is accessible.");
+          } else if (error.message.includes('Invalid URL format')) {
+            throw new Error("Please enter a valid URL.");
           }
           throw error;
         }
         throw new Error('Failed to process URL');
       }
     } catch (error) {
-      // Don't log to console if it's a file size error to avoid cluttering the console
-      if (!(error instanceof Error && 
-          (error.message.includes('too large') || error.message.includes('size exceeds')))) {
+      // Don't log common errors to avoid console clutter
+      const isCommonError = error instanceof Error && (
+        error.message.includes('too large') || 
+        error.message.includes('size exceeds') ||
+        error.message.includes('valid PDF') ||
+        error.message.includes('Invalid URL format')
+      );
+      
+      if (!isCommonError) {
         console.error('Error processing URL:', error);
       }
       
-      // Enhance file size error messages to include limit if not already mentioned
+      // Set appropriate error message
       if (error instanceof Error) {
-        // Check for generic error messages and replace with helpful size info
-        if (error.message === 'Failed to process URL' || 
-            error.message.includes('Failed to process URL.')) {
-          setUrlError(`The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-        }
-        else if ((error.message.includes('too large') || error.message.includes('size exceeds')) 
-            && !error.message.includes(`${MAX_FILE_SIZE_MB} MB`)) {
-          setUrlError(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
-        } else {
-          setUrlError(error.message);
-        }
+        setUrlError(error.message);
       } else {
-        setUrlError(`Failed to process URL. The PDF file may be too large (maximum ${MAX_FILE_SIZE_MB} MB).`);
+        setUrlError(`Failed to process URL. Please try again.`);
       }
       return null;
     } finally {
@@ -301,18 +314,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     setUrlError(null);
     setUrlLoading(true);
     
-    if (!url.trim().toLowerCase().endsWith('.pdf')) {
-      setUrlError("URL must point to a PDF file");
-      setUrlLoading(false);
-      return;
-    }
+    // Remove the strict PDF extension check
+    // We now validate content type on the server
     
     try {
       // Upload URL to Vercel Blob
       const blobUrl = await uploadUrlToBlob(url);
       
       if (!blobUrl) {
-        throw new Error(`Failed to process URL. The PDF file may be too large (maximum ${MAX_FILE_SIZE_MB} MB).`);
+        throw new Error(`Failed to process URL. Please check the URL and try again.`);
       }
       
       // Fetch from our blob URL to create a file object
@@ -332,33 +342,22 @@ const Sidebar: React.FC<SidebarProps> = ({
       onFileUpload(fileFromUrl, blobUrl);
       onClose();
     } catch (err) {
-      // Improved error handling with more specific messages
-      let errorMessage = `The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
+      // Use the specific error message when available
+      let errorMessage = "Failed to process the URL. Please try again.";
       
       if (err instanceof Error) {
-        // Handle file size errors consistently with direct uploads
-        if (err.message.includes('too large') || err.message.includes('size exceeds')) {
-          // If the error doesn't include the size limit, add it
-          if (!err.message.includes(`${MAX_FILE_SIZE_MB} MB`)) {
-            errorMessage = `File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
-          } else {
-            errorMessage = err.message;
-          }
-        } else if (err.message.includes('not point to a valid PDF')) {
-          errorMessage = "The URL does not point to a valid PDF file";
-        } else if (err.message.includes('Failed to fetch PDF')) {
-          errorMessage = "Could not download the PDF. Please ensure the URL is accessible.";
-        } else if (err.message.includes('Failed to process URL')) {
-          // Keep our default error message about file size
-          errorMessage = `The PDF file may be too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`;
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
+        errorMessage = err.message;
       }
       
       setUrlError(errorMessage);
-      // Only log to console if it's not a file size error
-      if (!errorMessage.includes('too large') && !errorMessage.includes('size exceeds')) {
+      
+      // Only log if it's not a common error
+      const isCommonError = errorMessage.includes('too large') || 
+                           errorMessage.includes('size exceeds') ||
+                           errorMessage.includes('valid PDF') ||
+                           errorMessage.includes('Invalid URL format');
+      
+      if (!isCommonError) {
         console.error('Error fetching PDF:', err);
       }
     } finally {
