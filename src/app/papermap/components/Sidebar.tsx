@@ -3,16 +3,15 @@ import { LayoutGrid, Moon, Sun, LoaderCircle, X, Waypoints, AlertTriangle } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppsGrid } from "@/components/ui/apps-grid";
-import { upload } from '@vercel/blob/client';
 
-// Define file size limit constant - increased with Vercel Blob
+// Define file size limit constant
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onFileUpload: (file: File, blobUrl?: string) => void;
+  onFileUpload: (file: File, pdfBase64?: string) => void;
   loading: boolean;
   error: string | null;
   loadExampleMindMap?: () => void;
@@ -120,8 +119,18 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Upload file to Vercel Blob storage using direct client upload
-  const uploadFileToBlob = async (fileToUpload: File): Promise<string | null> => {
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  // Modified to use base64 encoding instead of Vercel Blob
+  const processFileForUpload = async (fileToUpload: File): Promise<string | null> => {
     try {
       setIsUploading(true);
       setUploadProgress(10); // Start progress
@@ -138,18 +147,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       }, 500);
 
       try {
-        // Use the client direct upload method
-        const blob = await upload(fileToUpload.name, fileToUpload, {
-          access: 'public',
-          handleUploadUrl: '/api/papermap/blob-token',
-        });
+        // Convert file to base64 instead of uploading to Vercel Blob
+        const base64Data = await fileToBase64(fileToUpload);
 
         // Clear interval and complete progress
         clearInterval(progressInterval);
         setUploadProgress(100);
         
-        // Return the blob URL
-        return blob.url;
+        // Return the base64 data
+        return base64Data;
       } catch (error) {
         // Clear interval
         clearInterval(progressInterval);
@@ -158,26 +164,24 @@ const Sidebar: React.FC<SidebarProps> = ({
         if (error instanceof Error) {
           // Check for size-related error messages
           if (error.message.includes('too large') || 
-              error.message.includes('size exceeds') ||
-              error.message.includes('413') ||
-              error.message.includes('Request Entity Too Large')) {
+              error.message.includes('size exceeds')) {
             throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
           }
           throw error;
         }
-        throw new Error('Failed to upload file');
+        throw new Error('Failed to process file');
       }
     } catch (error) {
-      console.error('Error uploading to Blob storage:', error);
-      setUrlError(error instanceof Error ? error.message : 'Failed to upload file');
+      console.error('Error processing file:', error);
+      setUrlError(error instanceof Error ? error.message : 'Failed to process file');
       return null;
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Upload URL content to Vercel Blob storage
-  const uploadUrlToBlob = async (pdfUrl: string): Promise<string | null> => {
+  // Modified to fetch URL and convert to base64 instead of uploading to Vercel Blob
+  const processUrlForUpload = async (pdfUrl: string): Promise<string | null> => {
     try {
       setIsUploading(true);
       setUploadProgress(10); // Start progress
@@ -194,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       }, 500);
       
       try {
-        // First, fetch the PDF from the URL to get it as a blob
+        // First, fetch the PDF from the URL
         const response = await fetch(pdfUrl);
         
         if (!response.ok) {
@@ -225,17 +229,15 @@ const Sidebar: React.FC<SidebarProps> = ({
         const urlParts = pdfUrl.split('/');
         const fileName = urlParts[urlParts.length - 1] || 'document.pdf';
         
-        // Use direct client upload
-        const blob = await upload(fileName, pdfBlob, {
-          access: 'public',
-          handleUploadUrl: '/api/papermap/blob-token',
-        });
+        // Create a File object to convert to base64
+        const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const base64Data = await fileToBase64(pdfFile);
         
         // Clear interval and complete progress
         clearInterval(progressInterval);
         setUploadProgress(100);
         
-        return blob.url;
+        return base64Data;
       } catch (error) {
         // Clear interval
         clearInterval(progressInterval);
@@ -282,12 +284,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleGenerate = async () => {
     if (file) {
-      // Upload file to Vercel Blob first
-      const blobUrl = await uploadFileToBlob(file);
+      // Process file to base64 instead of uploading to Vercel Blob
+      const base64Data = await processFileForUpload(file);
       
-      if (blobUrl) {
-        // Pass both the file and the blob URL
-        onFileUpload(file, blobUrl);
+      if (base64Data) {
+        // Pass the file and base64 data to the handler
+        onFileUpload(file, base64Data);
         onClose();
       }
       return;
@@ -308,28 +310,19 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
     
     try {
-      // Upload URL to Vercel Blob
-      const blobUrl = await uploadUrlToBlob(url);
+      // Process URL to get base64 data
+      const base64Data = await processUrlForUpload(url);
       
-      if (!blobUrl) {
+      if (!base64Data) {
         throw new Error(`Failed to process URL. The PDF file may be too large (maximum ${MAX_FILE_SIZE_MB} MB).`);
       }
       
-      // Fetch from our blob URL to create a file object
-      const response = await fetch(blobUrl);
-      
-      if (!response.ok) {
-        throw new Error("Failed to retrieve file from storage");
-      }
-      
-      const blob = await response.blob();
-      
-      // Create a File object from the blob
+      // Create a File object from the URL
       const fileName = url.split('/').pop() || 'document.pdf';
-      const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
+      const fileFromUrl = new File([new Blob([base64Data])], fileName, { type: 'application/pdf' });
       
-      // Pass both the file and blob URL to the handler
-      onFileUpload(fileFromUrl, blobUrl);
+      // Pass the file and base64 data to the handler
+      onFileUpload(fileFromUrl, base64Data);
       onClose();
     } catch (err) {
       // Improved error handling with more specific messages

@@ -558,21 +558,9 @@ export function useMindMap() {
     setLoading(true);
     console.log('Loading example mindmap and PDF...');
     
-    // Clean up any existing session
-    const existingSessionId = localStorage.getItem('currentSessionId');
-    if (existingSessionId) {
-      // Send cleanup request to the server
-      fetch('/api/papermap', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: existingSessionId,
-          cleanupSession: true
-        }),
-      }).catch(e => console.error('Error cleaning up session:', e));
-    }
+    // Clean up previous chat history
+    localStorage.removeItem('chatHistory');
+    console.log('Removed previous chat history');
     
     // Reset to example data
     setMindMapData(EXAMPLE_MINDMAP);
@@ -586,8 +574,6 @@ export function useMindMap() {
       
       // IMPORTANT: Set the userHasUploadedPdf flag to false when loading the example
       localStorage.setItem('userHasUploadedPdf', 'false');
-      // Clear any existing session ID
-      localStorage.removeItem('currentSessionId');
       console.log('Reset userHasUploadedPdf flag to false for example mindmap');
     } catch (storageError) {
       console.warn('Storage issue when setting example PDF URL, but continuing:', storageError);
@@ -648,75 +634,8 @@ export function useMindMap() {
     }
   }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex, setNodes, setEdges, setMindMapData, setPdfUrl, setError]);
 
-  // Generate initial mindmap for uploaded PDF
-  const generateInitialMindMap = useCallback(async (fileName: string, pdfBlobUrl: string) => {
-    console.log('Generating initial mindmap for uploaded PDF:', fileName);
-    // We don't set loading state here anymore - it's managed by the parent function
-    setError(null);
-    
-    try {
-      // Call the API with the blob URL to generate a mindmap
-      const response = await fetch('/api/papermap', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          blobUrl: pdfBlobUrl,
-          fileName: fileName
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process PDF');
-      }
-      
-      const data = await response.json();
-      
-      if (data && data.mindmap && typeof data.mindmap === 'object') {
-        console.log('Mind map data received:', data.mindmap);
-               
-        // Update the mind map data
-        setMindMapData(data.mindmap);
-        
-        // Store the session ID in localStorage for follow-up questions
-        if (data.sessionId) {
-          try {
-            localStorage.setItem('currentSessionId', data.sessionId);
-            console.log('Stored session ID in localStorage:', data.sessionId);
-          } catch (storageError) {
-            console.warn('Failed to store session ID in localStorage:', storageError);
-          }
-        }
-        
-        // DEBUG: Verify the blob URL is still correctly set in localStorage after all operations
-        const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
-        console.log('Final blob URL in localStorage after all operations:', finalBlobUrl);
-      } else {
-        throw new Error('Invalid mind map data received');
-    }
-    
-    // Fit view after nodes are set
-    setTimeout(() => {
-      if (reactFlowInstance.current) {
-        reactFlowInstance.current.fitView({ 
-          padding: 0.4, 
-          duration: 800,
-          includeHiddenNodes: false
-        });
-      }
-    }, 100);
-      
-      return true;
-    } catch (err) {
-      console.error('Error generating mindmap:', err);
-      throw err; // Re-throw to allow the parent function to handle
-    }
-  }, [setMindMapData, setError]);
-
   // Handle file upload for PDF
-  const handleFileUpload = useCallback(async (file: File, blobUrl?: string) => {
+  const handleFileUpload = useCallback(async (file: File, pdfBase64?: string) => {
     if (!file) return;
     
     console.log('Starting file upload for:', file.name);
@@ -729,27 +648,13 @@ export function useMindMap() {
         throw new Error('Only PDF files are supported');
       }
       
-      // Clean up any existing session
-      const existingSessionId = localStorage.getItem('currentSessionId');
-      if (existingSessionId) {
-        // Send cleanup request to the server
-        fetch('/api/papermap', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sessionId: existingSessionId,
-            cleanupSession: true
-          }),
-        }).catch(e => console.error('Error cleaning up session:', e));
-      }
+      // Clear previous chat history
+      localStorage.removeItem('chatHistory');
+      console.log('Removed previous chat history for new PDF upload');
          
       // Clear previous session data for this new PDF
-      // Session IDs/data are specific to each PDF, so they need to be recreated
       localStorage.removeItem('pdfSessionId');
       localStorage.removeItem('pdfSessionData');
-      localStorage.removeItem('currentSessionId'); // Clear the session ID for the new PDF
       
       // Check if the example PDF URL is stored and remove it
       const existingPdfUrl = localStorage.getItem('pdfBlobUrl');
@@ -767,71 +672,6 @@ export function useMindMap() {
         console.warn('Failed to set userHasUploadedPdf flag, but continuing anyway');
       }
       
-      // Start with the blob URL if provided, otherwise it will be set during upload
-      let uploadedBlobUrl: string;
-      
-      // Only upload if no blob URL was provided
-      if (!blobUrl) {
-        // Get the file data as a blob
-        const fileData = new FormData();
-        fileData.append('file', file);
-        
-        // Upload the file to Vercel Blob storage
-        const upload = await fetch('/api/papermap/blob-upload', {
-          method: 'POST',
-          body: fileData,
-        });
-        
-        if (!upload.ok) {
-          const errorDetails = await upload.text();
-          console.error('Upload failed:', errorDetails);
-          throw new Error(`Upload failed: ${upload.status} ${upload.statusText}`);
-        }
-        
-        const { url } = await upload.json();
-        
-        if (!url) {
-          throw new Error('No blob URL returned from upload');
-        }
-        
-        uploadedBlobUrl = url;
-        console.log('File uploaded successfully to Vercel Blob:', 
-          uploadedBlobUrl.substring(0, 50) + '...');
-      } else {
-        uploadedBlobUrl = blobUrl;
-        console.log('Using provided blob URL:', uploadedBlobUrl.substring(0, 50) + '...');
-      }
-      
-      // CRUCIAL: Store the blob URL in localStorage for cross-page persistence
-      try {
-        localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
-        // Store with a more specific key for follow-up questions
-        localStorage.setItem('currentPdfBlobUrl', uploadedBlobUrl);
-        
-        // Double-check it was set correctly
-        const storedBlobUrl = localStorage.getItem('pdfBlobUrl');
-        console.log('Stored blob URL in localStorage:', 
-          storedBlobUrl ? (storedBlobUrl.substring(0, 50) + '...') : 'FAILED TO STORE');
-      } catch (storageError) {
-        console.warn('Failed to store blob URL in localStorage but continuing with session init');
-      }
-      
-      // Update the application state with the blob URL
-      setPdfUrl(uploadedBlobUrl);
-      
-      console.log('PDF upload and session initialization complete');
-      
-      // Triple-check that we didn't somehow revert to the example PDF
-      const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
-      if (finalBlobUrl && finalBlobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
-        console.warn('Example PDF URL found in localStorage after uploading user PDF - will try to fix');
-        try {
-          localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
-        } catch (e) {
-          console.error('Failed to reset blob URL but continuing anyway');
-        }
-      }
-      
       // Clear any previous mindmap data when a new PDF is uploaded
       setMindMapData(null);
       setNodes([]);
@@ -844,16 +684,88 @@ export function useMindMap() {
       
       try {
         // Generate a new mindmap for the uploaded PDF
-        await generateInitialMindMap(file.name, uploadedBlobUrl);
+        // We now pass the PDF base64 data directly to the API instead of a blob URL
+        const response = await fetch('/api/papermap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            pdfBase64: pdfBase64,
+            fileName: file.name,
+            chatHistory: [] // Start with empty chat history for a new mindmap
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to process PDF');
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.mindmap && typeof data.mindmap === 'object') {
+          console.log('Mind map data received:', data.mindmap);
+                 
+          // Update the mind map data
+          setMindMapData(data.mindmap);
+          
+          // Store the chat history in localStorage for follow-up questions
+          if (data.chatHistory) {
+            try {
+              // Ensure we're storing correct role format for chat history
+              const formattedChatHistory = data.chatHistory.map((msg: any) => ({
+                ...msg,
+                role: msg.role === 'assistant' ? 'model' : msg.role
+              }));
+              
+              localStorage.setItem('chatHistory', JSON.stringify(formattedChatHistory));
+              console.log('Stored chat history in localStorage');
+            } catch (storageError) {
+              console.warn('Failed to store chat history in localStorage:', storageError);
+            }
+          }
+          
+          // Store the Google AI fileUri for follow-up questions
+          if (data.fileUri) {
+            try {
+              localStorage.setItem('pdfFileUri', data.fileUri);
+              console.log('Stored Google AI File URI in localStorage for follow-up questions');
+            } catch (storageError) {
+              console.warn('Failed to store fileUri in localStorage:', storageError);
+            }
+          }
+        } else {
+          throw new Error('Invalid mind map data received');
+        }
+        
+        // Set the PDF URL for display in the viewer
+        if (pdfBase64) {
+          setPdfUrl(pdfBase64);
+        }
+        
+        // Fit view after nodes are set
+        setTimeout(() => {
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({ 
+              padding: 0.4, 
+              duration: 800,
+              includeHiddenNodes: false
+            });
+          }
+        }, 100);
+        
+        return true;
+        
       } catch (mindmapError) {
         console.error('Error generating mindmap:', mindmapError);
         setError(mindmapError instanceof Error ? mindmapError.message : 'Failed to generate mindmap');
+        return false;
       } finally {
         // Ensure loading state is reset regardless of mindmap generation outcome
         setLoading(false);
       }
       
-      return uploadedBlobUrl;
     } catch (error) {
       console.error('Error handling file upload:', error);
       setUploadError(error instanceof Error ? error : new Error('Unknown upload error'));
@@ -862,7 +774,7 @@ export function useMindMap() {
     } finally {
       setFileLoading(false);
     }
-  }, [generateInitialMindMap, setPdfUrl, setMindMapData]);
+  }, [setPdfUrl, setMindMapData]);
 
   // Update node visibility when collapsed nodes or mindMapData change
   useEffect(() => {

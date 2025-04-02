@@ -1,93 +1,19 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  GoogleGenerativeAI, 
-} from '@google/generative-ai';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+import * as crypto from 'crypto';
 
-// Add session management at the top of the file, after imports
-const chatSessions = new Map();
+// Initialize Google AI services
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
+const fileManager = new GoogleAIFileManager(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
 
-// Session management configuration
-const SESSION_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes of inactivity
-const SESSION_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Check every 10 minutes
-const MAX_SESSIONS = 100; // Maximum number of concurrent sessions
-let cleanupIntervalId: NodeJS.Timeout | null = null;
+// Define system prompt that explains the response format requirements
+const SYSTEM_PROMPT = `You are a specialized AI assistant that analyzes PDF documents and creates structured mindmaps.
 
-// Function to clean up expired sessions
-function cleanupExpiredSessions() {
-  const now = Date.now();
-  let expiredCount = 0;
-  const sessionEntries = Array.from(chatSessions.entries());
-  
-  // Sort sessions by lastAccessed time (oldest first) to prioritize removal
-  sessionEntries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
-  
-  // Check if we need to enforce the max sessions limit
-  if (sessionEntries.length > MAX_SESSIONS) {
-    // Remove oldest sessions to get back under the limit
-    const excessCount = sessionEntries.length - MAX_SESSIONS;
-    const sessionsToRemove = sessionEntries.slice(0, excessCount);
-    
-    for (const [sessionId] of sessionsToRemove) {
-      chatSessions.delete(sessionId);
-      expiredCount++;
-    }
-  }
-  
-  // Remove sessions that have expired due to inactivity
-  for (const [sessionId, sessionData] of chatSessions.entries()) {
-    const sessionAge = now - sessionData.lastAccessed;
-    if (sessionAge > SESSION_MAX_AGE_MS) {
-      chatSessions.delete(sessionId);
-      expiredCount++;
-    }
-  }
-  
-  // Log memory usage and session counts
-  const memoryUsage = process.memoryUsage();
-  console.log(`Session cleanup: removed ${expiredCount}, remaining ${chatSessions.size} sessions`);
-  console.log(`Memory usage: ${Math.round(memoryUsage.rss / 1024 / 1024)}MB RSS, ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB heap used`);
-}
-
-// Initialize the cleanup interval
-function initializeSessionCleanup() {
-  if (cleanupIntervalId === null) {
-    cleanupIntervalId = setInterval(cleanupExpiredSessions, SESSION_CLEANUP_INTERVAL_MS);
-    console.log("Session cleanup service initialized");
-  }
-}
-
-// Start the cleanup interval when the module loads
-initializeSessionCleanup();
-
-// Helper function to extract JSON from text response
-function extractJsonFromResponse(text: string): any {
-  // Match JSON object pattern
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      console.error("Failed to parse JSON match:", e);
-      // Fall back to returning the original text in a structured format
-      return { answer: text };
-    }
-  }
-  
-  // If no JSON object found, return the text as answer
-  return { answer: text };
-}
-
-// Define the prompts
-const MINDMAP_CREATION_PROMPT = `You are a helpful assistant that creates mindmaps from PDF documents. Your task is to analyze the PDF and create a structured mindmap that represents the key concepts and their relationships.
-
-Please create a mindmap with the following structure:
-1. The root node should be the main topic or title of the document
-2. Each child node should represent a key concept or section
-3. Include page numbers where each concept appears
-4. Use clear, concise titles and descriptions
-5. Maintain a logical hierarchy of concepts
-
-Your response must be a valid JSON object with the following structure:
+For the FIRST message with a PDF, you will create a mindmap with this structure:
 {
   "nodes": [
     {
@@ -99,160 +25,50 @@ Your response must be a valid JSON object with the following structure:
       "pageNumber": 1
     }
   ]
-}`;
-
-const FOLLOWUP_PROMPT = `You are a helpful assistant that answers questions about PDF documents. Your task is to provide clear, concise answers based on the document content.
-
-Please follow these guidelines:
-1. Answer the question directly and concisely
-2. Use information from the provided context and PDF
-3. If the answer cannot be found in the document, say so
-4. Keep your response focused and relevant
-
-Your response must be a valid JSON object with the following structure:
-{
-  "answer": "your detailed answer here"
-}`;
-
-// Define schema types
-type JsonSchemaType = 'string' | 'number' | 'integer' | 'array' | 'object';
-
-interface JsonSchema {
-  type: JsonSchemaType;
-  properties?: Record<string, JsonSchema>;
-  items?: JsonSchema;
-  required?: string[];
-  nullable?: boolean;
 }
 
-// Define schemas for different response types
-const mindmapNodeSchema: JsonSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string'
-        },
-        title: {
-            type: 'string'
-        },
-        description: {
-            type: 'string'
-        },
-        parentId: {
-            type: 'string',
-            nullable: true
-        },
-        level: {
-            type: 'integer'
-        },
-        pageNumber: {
-            type: 'integer',
-            nullable: true
-        }
-    },
-    required: ["id", "title", "description", "level"]
-};
+For FOLLOW-UP questions about specific nodes, you will provide answers in this format:
+{
+  "answer": "your detailed answer here"
+}
 
-const mindmapResponseSchema: JsonSchema = {
-    type: 'object',
-    properties: {
-        nodes: {
-            type: 'array',
-            items: mindmapNodeSchema
-        }
-    },
-    required: ["nodes"]
-};
+The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.`;
 
-const followUpResponseSchema: JsonSchema = {
-    type: 'object',
-    properties: {
-        answer: {
-            type: 'string'
-        }
-    },
-    required: ["answer"]
-};
-
-// Helper function to validate JSON against a schema
-function validateSchema(data: any, schema: JsonSchema): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  function validateType(value: any, type: JsonSchemaType, propertyName: string, schema: JsonSchema): boolean {
-    // Handle nullable fields
-    if (schema.nullable && value === null) {
-      return true;
+/**
+ * Helper function to upload a file to Google AI File Manager
+ */
+async function uploadPdfToFileManager(pdfBuffer: Buffer, fileName: string): Promise<string> {
+  try {
+    // Create temporary file
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'papermap-'));
+    const tempFilePath = path.join(tempDir, `${crypto.randomUUID()}.pdf`);
+    
+    // Write buffer to temporary file
+    await fs.writeFile(tempFilePath, pdfBuffer);
+    
+    // Upload to Google AI File Manager
+    const uploadResult = await fileManager.uploadFile(tempFilePath, {
+      mimeType: 'application/pdf',
+      displayName: fileName || 'document.pdf'
+    });
+    
+    // Clean up temporary file
+    try {
+      await fs.unlink(tempFilePath);
+      await fs.rmdir(tempDir);
+    } catch (cleanupError) {
+      console.warn('Failed to clean up temporary files:', cleanupError);
     }
-
-    switch (type) {
-      case 'string':
-        if (typeof value !== 'string') {
-          errors.push(`${propertyName} must be a string`);
-          return false;
-        }
-        break;
-      case 'integer':
-        if (typeof value !== 'number' || !Number.isInteger(value)) {
-          errors.push(`${propertyName} must be an integer`);
-          return false;
-        }
-        break;
-      case 'array':
-        if (!Array.isArray(value)) {
-          errors.push(`${propertyName} must be an array`);
-          return false;
-        }
-        break;
-      case 'object':
-        if (typeof value !== 'object' || value === null) {
-          errors.push(`${propertyName} must be an object`);
-          return false;
-        }
-        break;
-    }
-    return true;
+    
+    return uploadResult.file.uri;
+  } catch (error) {
+    console.error('Error uploading to File Manager:', error);
+    throw new Error('Failed to upload PDF to AI service');
   }
-
-  function validateObject(obj: any, schema: JsonSchema, path: string = ''): boolean {
-    if (!validateType(obj, schema.type, path, schema)) {
-      return false;
-    }
-
-    if (schema.properties) {
-      for (const [key, propSchema] of Object.entries(schema.properties)) {
-        const value = obj[key];
-        const fullPath = path ? `${path}.${key}` : key;
-
-        if (schema.required?.includes(key) && value === undefined) {
-          errors.push(`${fullPath} is required`);
-          continue;
-        }
-
-        if (value !== undefined) {
-          if (propSchema.type === 'object') {
-            validateObject(value, propSchema, fullPath);
-          } else if (propSchema.type === 'array') {
-            if (propSchema.items) {
-              value.forEach((item: any, index: number) => {
-                validateObject(item, propSchema.items!, `${fullPath}[${index}]`);
-              });
-            }
-          } else {
-            validateType(value, propSchema.type, fullPath, propSchema);
-          }
-        }
-      }
-    }
-
-    return errors.length === 0;
-  }
-
-  validateObject(data, schema);
-  return { valid: errors.length === 0, errors };
 }
 
 /**
- * Processes a follow-up question to a node in the mindmap
+ * Main API route for handling PDF analysis and follow-up questions
  */
 export async function POST(request: NextRequest) {
   try {
@@ -266,21 +82,70 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { blobUrl, fileName, isFollowUp, question, nodeContext, sessionId, cleanupSession } = data;
+    const { 
+      blobUrl, 
+      pdfFile, 
+      pdfBase64, 
+      fileName, 
+      fileUri, 
+      isFollowUp, 
+      question, 
+      nodeContext, 
+      chatHistory 
+    } = data;
 
-    // Check if this is a session cleanup request
-    if (cleanupSession && sessionId) {
-      if (chatSessions.has(sessionId)) {
-        chatSessions.delete(sessionId);
-        console.log(`Session ${sessionId} explicitly cleaned up by client`);
-        return NextResponse.json({ success: true, message: "Session cleaned up successfully" });
-      } else {
-        return NextResponse.json({ success: false, message: "Session not found" }, { status: 404 });
+    // Initialize Gemini API with appropriate configuration
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json"
       }
+    });
+    
+    // Start a chat with the system prompt
+    let chat;
+    
+    if (chatHistory && chatHistory.length > 0) {
+      // If we have chat history, use it
+      const formattedHistory = chatHistory.map((msg: any) => ({
+        role: msg.role === 'assistant' ? 'model' : msg.role,
+        parts: [{ text: msg.content }]
+      }));
+      
+      chat = model.startChat({
+        history: formattedHistory,
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      });
+    } else {
+      // If no history, start with the system prompt
+      chat = model.startChat({
+        history: [
+          {
+            role: "user",
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
+          {
+            role: "model",
+            parts: [{ text: "I understand. I'll analyze PDFs and create structured mindmaps for first requests, and provide focused answers for follow-up questions. All responses will follow the exact JSON schemas you specified." }]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      });
     }
-
-    // Check if this is a follow-up question or initial mindmap creation
+    
+    // Prepare message parts based on whether this is initial request or follow-up
+    let messageParts = [];
+    
     if (isFollowUp) {
+      // For follow-up questions, include the node context and question
       if (!question) {
         return NextResponse.json(
           { error: "Question is required for follow-up" },
@@ -295,167 +160,123 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!sessionId) {
-        return NextResponse.json(
-          { error: "Session ID is required for follow-up" },
-          { status: 400 }
-        );
-      }
-
-      console.log(`Processing follow-up question about: ${nodeContext.title}`);
+      messageParts = [
+        { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\nPlease provide a detailed answer in the format: { "answer": "your detailed answer here" }` }
+      ];
       
-      try {
-        // Retrieve existing session
-        const sessionData = chatSessions.get(sessionId);
-        if (!sessionData) {
+    } else {
+      // Initial mindmap creation requires a PDF
+      let pdfUri: string | undefined;
+      
+      // First check if we already have a Google AI fileUri
+      if (fileUri) {
+        pdfUri = fileUri;
+        console.log("Using provided Google AI File URI:", fileUri);
+      } 
+      // If we have base64 PDF data
+      else if (pdfBase64) {
+        try {
+          const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
+          const pdfBuffer = Buffer.from(base64Data, 'base64');
+          pdfUri = await uploadPdfToFileManager(pdfBuffer, fileName || 'uploaded-document.pdf');
+          console.log("PDF uploaded to Google AI from base64 data");
+        } catch (error) {
+          console.error("Error uploading base64 PDF to Google AI:", error);
           return NextResponse.json(
-            { error: "Session expired or not found" },
-            { status: 404 }
+            { error: "Failed to process PDF data" },
+            { status: 500 }
           );
         }
-
-        // Update last accessed time
-        sessionData.lastAccessed = Date.now();
-
-        // Initialize Gemini API
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json"
+      } 
+      // If we have a blob URL (Vercel Blob or other URL)
+      else if (blobUrl) {
+        try {
+          console.log(`Processing PDF from URL: ${blobUrl.substring(0, 50)}...`);
+          // Download PDF from blob URL
+          const pdfResponse = await fetch(blobUrl);
+          if (!pdfResponse.ok) {
+            throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
           }
-        });
-
-        // Send follow-up question with context
-        const response = await model.generateContent([
-          FOLLOWUP_PROMPT,
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: Buffer.from(sessionData.pdfBytes).toString('base64')
-            }
-          },
-          `Context from previous conversation:\nTitle: ${nodeContext.title}\nDescription: ${nodeContext.description}\n\nQuestion: ${question}`
-        ]);
-
-        const responseText = response.response.text();
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON found in response');
+          
+          // Get the PDF as buffer
+          const pdfBuffer = await pdfResponse.arrayBuffer();
+          
+          // Upload to Google AI File Manager
+          pdfUri = await uploadPdfToFileManager(
+            Buffer.from(pdfBuffer), 
+            fileName || 'document-from-url.pdf'
+          );
+          console.log("PDF uploaded to Google AI from URL");
+        } catch (error) {
+          console.error("Error downloading and uploading PDF from URL:", error);
+          return NextResponse.json(
+            { error: "Failed to download PDF from provided URL" },
+            { status: 500 }
+          );
         }
-        const answer = JSON.parse(jsonMatch[0]);
-
-        // Validate against follow-up response schema
-        const validationResult = validateSchema(answer, followUpResponseSchema);
-        if (!validationResult.valid) {
-          throw new Error(`Invalid follow-up response schema: ${validationResult.errors.join(', ')}`);
-        }
-
-        return NextResponse.json({ 
-          success: true, 
-          answer: answer.answer 
-        });
-      } catch (error) {
-        console.error("Error processing follow-up question:", error);
-        throw error;
-      }
-    } else {
-      // Initial mindmap creation
-      if (!blobUrl) {
+      } else {
         return NextResponse.json(
-          { error: "PDF blob URL is required" },
+          { error: "PDF data is required (fileUri, pdfBase64, or blobUrl)" },
           { status: 400 }
         );
       }
 
-      console.log(`Processing PDF from blob URL: ${blobUrl.substring(0, 50)}...`);
-
-      try {
-        // Fetch the PDF directly from the blob URL
-        const response = await fetch(blobUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-        }
-        
-        // Get the PDF data as bytes
-        const pdfData = await response.arrayBuffer();
-        const pdfBytes = new Uint8Array(pdfData);
-        
-        console.log(`Successfully fetched PDF, size: ${pdfBytes.length} bytes`);
-        
-        // Get approximate page count from PDF
-        let estimatedPageCount = 20; // Default fallback
-        try {
-          // This is a simplified approach to estimate page count
-          const pdfText = new TextDecoder().decode(pdfData);
-          const pageMarkers = pdfText.match(/\/Page\s*<<|\/Type\s*\/Page/g);
-          if (pageMarkers && pageMarkers.length > 0) {
-            estimatedPageCount = pageMarkers.length;
-          }
-        } catch (e) {
-          console.warn("Could not estimate PDF page count:", e);
-        }
-        
-        // Initialize Gemini API
-        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json"
-          }
-        });
-
-        // Send message with the PDF file
-        const response_ = await model.generateContent([
-          MINDMAP_CREATION_PROMPT,
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: Buffer.from(pdfBytes).toString('base64')
-            }
-          },
-          `File name: ${fileName}`
-        ]);
-
-        const responseText = response_.response.text();
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON found in response');
-        }
-        const mindmap = JSON.parse(jsonMatch[0]);
-
-        // Validate against mindmap response schema
-        const validationResult = validateSchema(mindmap, mindmapResponseSchema);
-        if (!validationResult.valid) {
-          throw new Error(`Invalid mindmap response schema: ${validationResult.errors.join(', ')}`);
-        }
-
-        // Create new session
-        const newSessionId = Math.random().toString(36).substring(2, 15);
-        chatSessions.set(newSessionId, {
-          lastAccessed: Date.now(),
-          pdfBytes: pdfBytes
-        });
-
-        return NextResponse.json({ 
-          success: true, 
-          mindmap,
-          sessionId: newSessionId
-        });
-      } catch (error) {
-        console.error("Error processing PDF:", error);
-        throw error;
+      // Double check that we have a valid fileUri
+      if (!pdfUri) {
+        return NextResponse.json(
+          { error: "Failed to process PDF: No valid file reference obtained" },
+          { status: 500 }
+        );
       }
+
+      // For initial PDF request, include the PDF file reference
+      messageParts = [
+        { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
+        {
+          fileData: {
+            mimeType: "application/pdf",
+            fileUri: pdfUri  // This is now guaranteed to be a string
+          }
+        }
+      ];
     }
+    
+    // Send the message and get response
+    const response = await chat.sendMessage(messageParts);
+    const responseText = response.response.text();
+    
+    // Extract the JSON response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in response');
+    }
+    
+    const responseData = JSON.parse(jsonMatch[0]);
+    
+    // Create the response data
+    const newChatHistory = [
+      ...(chatHistory || []),
+      {
+        role: "user",
+        content: isFollowUp 
+          ? `Follow-up question about ${nodeContext.title}: ${question}` 
+          : "Please create a mindmap from this PDF"
+      },
+      {
+        role: "model",
+        content: responseText
+      }
+    ];
+    
+    const responseObject = {
+      success: true,
+      ...(isFollowUp ? { answer: responseData.answer } : { mindmap: responseData }),
+      chatHistory: newChatHistory,
+      // Include the fileUri in the response for future use
+      fileUri: messageParts[1]?.fileData?.fileUri
+    };
+    
+    return NextResponse.json(responseObject);
     
   } catch (error) {
     console.error("Error in API route:", error);

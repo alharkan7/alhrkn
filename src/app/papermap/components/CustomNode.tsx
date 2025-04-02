@@ -229,12 +229,18 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
     );
     
     try {
-      // Get session ID from localStorage
-      const sessionId = localStorage.getItem('currentSessionId');
-      if (!sessionId) {
-        throw new Error('No active session found. Please try uploading the PDF again.');
-      }
-
+      // Get chat history from localStorage instead of sessionId
+      const rawChatHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      
+      // Ensure chat history has the correct role format for Gemini API
+      const chatHistory = rawChatHistory.map((msg: any) => ({
+        ...msg,
+        role: msg.role === 'assistant' ? 'model' : msg.role
+      }));
+      
+      // Get the fileUri from localStorage if available
+      const fileUri = localStorage.getItem('pdfFileUri');
+      
       // Call API endpoint with follow-up question
       const response = await fetch('/api/papermap', {
         method: 'POST',
@@ -243,12 +249,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
         },
         body: JSON.stringify({
           isFollowUp: true,
-          sessionId,
           question: question,
+          fileUri: fileUri, // Include fileUri if available
           nodeContext: {
             title: data.title,
             description: data.description
-          }
+          },
+          chatHistory: chatHistory
         }),
       });
       
@@ -258,6 +265,12 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       }
       
       const result = await response.json();
+      
+      // Save updated chat history to localStorage
+      if (result.chatHistory) {
+        localStorage.setItem('chatHistory', JSON.stringify(result.chatHistory));
+        console.log('Saved updated chat history to localStorage');
+      }
       
       if (result.success && result.answer) {
         // Update the child node with the answer
@@ -271,7 +284,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       }
     } catch (error) {
       console.error('Error processing follow-up question:', error);
-      // Update the node with error message
+      // Update the child node with error message
       if (data.updateNodeData) {
         data.updateNodeData(
           nodeId,
