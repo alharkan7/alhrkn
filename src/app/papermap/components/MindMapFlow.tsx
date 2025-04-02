@@ -8,10 +8,11 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
-import { LoaderCircle, Network } from 'lucide-react';
+import { Network } from 'lucide-react';
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import { reactFlowStyles } from '../styles/styles';
 import { LAYOUT_PRESETS } from '../types';
+import MindMapLoader from './MindMapLoader';
 
 // Node types for ReactFlow
 const nodeTypes = {
@@ -121,7 +122,9 @@ const MindMapFlow = () => {
   const dotSize = 1.5; // Slightly larger dots for better visibility
   const dotGap = 24;
 
-  const showLoadingIndicator = loading || nodes.length === 0;
+  // Changed from "loading || nodes.length === 0" to just "loading"
+  // This way we only show the loader when loading is true, but still display any existing nodes
+  const showLoadingIndicator = loading;
 
   // Add this debug logging
   useEffect(() => {
@@ -198,8 +201,10 @@ const MindMapFlow = () => {
       </div>
       
       {showLoadingIndicator && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/15 backdrop-blur-xs">
-          <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+          <div className="transform scale-75 bg-white/30 dark:bg-black/30 rounded-full p-8">
+            <MindMapLoader />
+          </div>
         </div>
       )}
     </div>

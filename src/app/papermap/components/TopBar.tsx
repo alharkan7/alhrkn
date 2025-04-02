@@ -60,11 +60,11 @@ export default function TopBar({
             {loading && (
               <div className="flex items-center justify-center text-primary">
                 <span>Creating Mindmap</span>
-                <div className="flex items-center ml-1">
+                {/* <div className="flex items-center ml-1">
                   <div className="h-1.5 w-1.5 bg-primary rounded-full animate-[bounce_1s_ease-in-out_0s_infinite]"></div>
                   <div className="h-1.5 w-1.5 bg-primary rounded-full mx-0.5 animate-[bounce_1s_ease-in-out_0.2s_infinite]"></div>
                   <div className="h-1.5 w-1.5 bg-primary rounded-full animate-[bounce_1s_ease-in-out_0.4s_infinite]"></div>
-                </div>
+                </div> */}
               </div>
             )}
 
