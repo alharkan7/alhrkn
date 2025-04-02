@@ -33,6 +33,20 @@ export async function GET(request: NextRequest) {
 
     console.log(`Proxy fetching PDF from: ${url}`);
 
+    // OPTIMIZATION: Fast path for Vercel Blob URLs
+    // If the URL is already a Vercel Blob URL, we can just return it directly
+    // since it's already accessible and CORS-friendly
+    if (url.includes('vercel-blob.com')) {
+      console.log('URL is a Vercel Blob URL, returning directly without downloading');
+      return NextResponse.json({
+        success: true,
+        isVercelBlob: true,
+        contentType: 'application/pdf',
+        fileName: extractFileName(url),
+        directUrl: url
+      });
+    }
+
     // Fetch the PDF
     const response = await fetch(url, {
       method: 'GET',

@@ -218,7 +218,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         if (!data.success) {
           throw new Error(data.error || "Failed to process PDF");
         }
+
+        // OPTIMIZATION: Check if the proxy returned a direct URL (for Vercel Blob URLs)
+        if (data.isVercelBlob && data.directUrl) {
+          console.log('Proxy returned a direct Vercel Blob URL, using it without re-uploading');
+          // Clear interval and complete progress
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+          
+          // Return the direct URL
+          return data.directUrl;
+        }
         
+        // For regular URLs, continue with the normal process
         // Convert base64 data back to a Blob
         const binaryData = atob(data.base64Data);
         const bytes = new Uint8Array(binaryData.length);

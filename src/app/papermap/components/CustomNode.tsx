@@ -271,7 +271,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       if (result.success && result.answer) {
         // Update the child node with the answer
         if (data.updateNodeData) {
-          data.updateNodeData(nodeId, { description: result.answer });
+          // Ensure answer is string, or convert it to a string
+          const answerContent = typeof result.answer === 'string' 
+            ? result.answer 
+            : JSON.stringify(result.answer);
+            
+          console.log('Updating node with answer:', answerContent);
+          data.updateNodeData(nodeId, { description: answerContent });
         }
         
         return nodeId;
@@ -601,13 +607,13 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                   onDoubleClick={handleDescriptionDoubleClick}
                 >
                   {/* Render loading animation if description contains HTML */}
-                  {data.description.includes('<div class=') ? (
+                  {typeof data.description === 'string' && data.description.includes('<div class=') ? (
                     <div dangerouslySetInnerHTML={{ __html: data.description }} />
                   ) : (
                     /* Otherwise render description as markdown */
                     <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                       <ReactMarkdown>
-                        {extractMarkdownContent(data.description) || 'Double-click to add a description'}
+                        {extractMarkdownContent(typeof data.description === 'string' ? data.description : JSON.stringify(data.description)) || 'Double-click to add a description'}
                       </ReactMarkdown>
                     </div>
                   )}
@@ -754,7 +760,25 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 };
 
 // Add this utility function at the top of the file (after imports)
-const extractMarkdownContent = (content: string): string => {
+const extractMarkdownContent = (content: any): string => {
+  // Handle non-string content
+  if (typeof content !== 'string') {
+    try {
+      // If it's an object, try to stringify it
+      if (typeof content === 'object' && content !== null) {
+        if (content.answer) {
+          return content.answer;
+        }
+        return JSON.stringify(content);
+      }
+      // Convert to string for any other type
+      return String(content);
+    } catch (e) {
+      console.error('Failed to convert content to string:', e);
+      return '';
+    }
+  }
+
   if (!content) return '';
 
   // First attempt: Try to directly parse as JSON

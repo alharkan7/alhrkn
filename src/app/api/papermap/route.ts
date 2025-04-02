@@ -130,30 +130,49 @@ export async function POST(request: NextRequest) {
       console.log(`Processing PDF from blob URL: ${blobUrl.substring(0, 50)}...`);
 
       try {
-        // Download PDF from blob URL
-        const pdfResponse = await fetch(blobUrl);
-        if (!pdfResponse.ok) {
-          throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
-        }
+        // OPTIMIZATION: For Vercel Blob URLs, use the remote file capability of Gemini API
+        // instead of downloading the content and re-uploading it
         
-        // Get the PDF as base64
-        const pdfBuffer = await pdfResponse.arrayBuffer();
-        const base64Data = Buffer.from(pdfBuffer).toString('base64');
+        // Check if it's a Vercel Blob URL or other URL
+        const isVercelBlobUrl = blobUrl.includes('vercel-blob.com');
         
-        // For initial PDF request, include the PDF data
-        messageParts = [
-          { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: base64Data
+        if (isVercelBlobUrl) {
+          // Use the remote file reference capability of Gemini API
+          // This avoids downloading and re-uploading the PDF
+          messageParts = [
+            { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
+            {
+              fileData: {
+                mimeType: "application/pdf",
+                fileUri: blobUrl
+              }
             }
+          ];
+        } else {
+          // For non-Vercel Blob URLs, fall back to the download method
+          const pdfResponse = await fetch(blobUrl);
+          if (!pdfResponse.ok) {
+            throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
           }
-        ];
+          
+          // Get the PDF as base64
+          const pdfBuffer = await pdfResponse.arrayBuffer();
+          const base64Data = Buffer.from(pdfBuffer).toString('base64');
+          
+          messageParts = [
+            { text: "Please analyze this PDF and create a structured mindmap following the format specified earlier." },
+            {
+              inlineData: {
+                mimeType: "application/pdf",
+                data: base64Data
+              }
+            }
+          ];
+        }
       } catch (error) {
-        console.error("Error downloading PDF from blob URL:", error);
+        console.error("Error processing PDF from blob URL:", error);
         return NextResponse.json(
-          { error: "Failed to download PDF from provided URL" },
+          { error: "Failed to process PDF from provided URL" },
           { status: 500 }
         );
       }
@@ -186,9 +205,23 @@ export async function POST(request: NextRequest) {
       }
     ];
     
+    // Ensure the answer is consistently formatted for follow-up questions
+    let formattedAnswer;
+    if (isFollowUp) {
+      if (typeof responseData.answer === 'string') {
+        formattedAnswer = responseData.answer;
+      } else if (responseData.answer) {
+        // If it's not a string but exists, stringify it
+        formattedAnswer = JSON.stringify(responseData.answer);
+      } else {
+        // If there's no answer field, use the whole response
+        formattedAnswer = JSON.stringify(responseData);
+      }
+    }
+    
     const responseObject = {
       success: true,
-      ...(isFollowUp ? { answer: responseData.answer } : { mindmap: responseData }),
+      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: responseData }),
       chatHistory: newChatHistory
     };
     
