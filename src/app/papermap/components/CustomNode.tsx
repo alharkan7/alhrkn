@@ -11,7 +11,7 @@ interface CustomNodeProps {
   data: {
     title: string;
     description: string;
-    updateNodeData?: (id: string, newData: { title?: string; description?: string; width?: number; pageNumber?: number }) => void;
+    updateNodeData?: (id: string, newData: { title?: string; description?: string; width?: number; pageNumber?: number; expanded?: boolean }) => void;
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
     nodeType?: 'regular' | 'qna' | 'blank'; // Add 'blank' type to identify blank nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
@@ -94,8 +94,9 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
       shouldHighlight = true;
     }
     
-    // Update expanded state if it changed in data
-    if (data.expanded !== undefined && data.expanded !== expanded) {
+    // Only update expanded state from props on initial render or when explicitly changed from parent
+    // This allows the local toggle to work without being overridden
+    if (prevDataRef.current.expanded !== data.expanded && data.expanded !== undefined) {
       setExpanded(data.expanded);
     }
 
@@ -113,7 +114,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
       // Update ref even if no highlight to keep it current
       prevDataRef.current = data;
     }
-  }, [data.title, data.description, data.expanded, expanded, data]);
+  }, [data.title, data.description, data.expanded, data]);
 
   // Set cursor position to end of text
   const setCursorToEnd = (element: HTMLTextAreaElement) => {
@@ -210,6 +211,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
     });
   };
 
+  // Toggle expanded state and sync with data if needed
   const toggleExpanded = () => {
     setShowInfo(false);
 
@@ -218,7 +220,13 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
 
     // Toggle expanded state after a small delay to ensure proper animation start
     requestAnimationFrame(() => {
-      setExpanded(!expanded);
+      const newExpandedState = !expanded;
+      setExpanded(newExpandedState);
+      
+      // If updateNodeData exists, update the expanded state in the data
+      if (data.updateNodeData) {
+        data.updateNodeData(id, { expanded: newExpandedState });
+      }
 
       // Update node internals after animation completes
       setTimeout(() => {

@@ -155,7 +155,7 @@ export function useMindMap() {
   }, [updateNodeVisibility]); // Trigger effect when the callback itself changes (due to its deps)
 
   // Update node data
-  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number}) => {
+  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number; expanded?: boolean}) => {
     // Apply visual feedback for the edited node (like a subtle highlight)
     setNodes((nds) => 
       nds.map((node) => {
@@ -195,6 +195,8 @@ export function useMindMap() {
               description: newData.description ?? n.description,
               // Make sure we keep the original type
               type: n.type,
+              // Store expanded state in mindMapData if provided
+              ...(newData.expanded !== undefined && { expanded: newData.expanded }),
               __contentOnlyUpdate: true // Flag to indicate this update shouldn't trigger layout recalculation
             };
           }
