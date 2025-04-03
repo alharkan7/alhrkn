@@ -20,11 +20,14 @@ export interface MindMapNode {
   children?: MindMapNode[]; // For hierarchical structure visualization
   visible?: boolean; // Whether the node is visible (used for collapsed children)
   width?: number; // Optional width of the node
+  __contentOnlyUpdate?: boolean; // Flag to indicate this is just a content update
 }
 
 // Mind map data type
 export interface MindMapData {
   nodes: MindMapNode[];
+  __contentOnlyUpdate?: boolean; // Flag to indicate this is just a content update, not a structural change
+  __nodeAddition?: boolean; // Flag to indicate this is a node addition operation
 }
 
 // Types for managing collapsed node state

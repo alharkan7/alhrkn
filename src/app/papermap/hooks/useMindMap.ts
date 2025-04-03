@@ -21,6 +21,10 @@ export function useMindMap() {
   const reactFlowInstance = useRef<any>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(EXAMPLE_PDF_URL); // Initialize with example PDF URL
   
+  // Refs to help prevent infinite state update loops
+  const previousLayoutIndexRef = useRef<number>(0);
+  const positionsToApplyRef = useRef<Record<string, NodePosition>>({});
+  
   // Initialize with a default value first for SSR
   const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(0);
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex]; // Current layout options
@@ -207,24 +211,29 @@ export function useMindMap() {
       );
     }, 1000);
     
-    // Also update the mindMapData
+    // Also update the mindMapData but using a flag to indicate this is just a content update
+    // not a structural change, to prevent unnecessary layout recalculation
     if (mindMapData) {
-      setMindMapData((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          nodes: prev.nodes.map((n) => {
-            if (n.id === nodeId) {
-              return {
-                ...n,
-                title: newData.title ?? n.title,
-                description: newData.description ?? n.description
-              };
-            }
-            return n;
-          })
-        };
-      });
+      const updatedMindMapData = {
+        ...mindMapData,
+        nodes: mindMapData.nodes.map((n) => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              title: newData.title ?? n.title,
+              description: newData.description ?? n.description,
+              __contentOnlyUpdate: true // Flag to indicate this update shouldn't trigger layout recalculation
+            };
+          }
+          return n;
+        }),
+        __contentOnlyUpdate: true // Add a flag at the root level too
+      };
+      
+      // Use setTimeout to break potential update cycles
+      setTimeout(() => {
+        setMindMapData(updatedMindMapData);
+      }, 0);
     }
   }, [mindMapData, setNodes, toggleChildrenVisibility]);
 
@@ -249,10 +258,40 @@ export function useMindMap() {
 
     console.log('Adding follow-up node:', { parentId, question, answer: answer.substring(0, 50) + '...', nodeId: newNodeId });
     
-    // Find the parent node in ReactFlow nodes
-    const parentFlowNode = nodes.find(node => node.id === parentId);
-    if (!parentFlowNode) {
-      console.error(`Cannot add follow-up node: parent ReactFlow node with id ${parentId} not found`);
+    // Get the latest positions of all nodes from ReactFlow instance
+    const currentNodePositions: Record<string, NodePosition> = {};
+    if (reactFlowInstance.current) {
+      try {
+        const currentNodes = reactFlowInstance.current.getNodes();
+        currentNodes.forEach((node: { id: string; position: NodePosition }) => {
+          currentNodePositions[node.id] = node.position;
+        });
+        console.log('Retrieved latest node positions from ReactFlow instance');
+      } catch (error) {
+        console.warn('Could not get node positions from reactFlowInstance:', error);
+      }
+    }
+    
+    // Find the parent node with the CURRENT position (which may have been moved)
+    let currentParentPos: NodePosition | null = null;
+    
+    // First check if we have a position from reactFlowInstance
+    if (currentNodePositions[parentId]) {
+      currentParentPos = currentNodePositions[parentId];
+      console.log(`Using position from ReactFlow instance for parent ${parentId}:`, currentParentPos);
+    } else {
+      // Fall back to finding the node in nodes state
+      const parentFlowNode = nodes.find(node => node.id === parentId);
+      if (!parentFlowNode) {
+        console.error(`Cannot add follow-up node: parent ReactFlow node with id ${parentId} not found`);
+        return newNodeId;
+      }
+      currentParentPos = parentFlowNode.position;
+      console.log(`Using position from nodes state for parent ${parentId}:`, currentParentPos);
+    }
+    
+    if (!currentParentPos) {
+      console.error(`Cannot determine position for parent node ${parentId}`);
       return newNodeId;
     }
     
@@ -266,34 +305,28 @@ export function useMindMap() {
       type: 'qna' as 'regular' | 'qna' // Mark as a QnA node
     };
     
-    // Update mindMapData with the new node
-    setMindMapData(prevData => {
-      if (!prevData) return null;
-      const updatedData = {
-        ...prevData,
-        nodes: [...prevData.nodes, newNode]
-      };
-      console.log('Updated mindMapData, node count:', updatedData.nodes.length);
-      return updatedData;
-    });
-    
-    // Instead of manually positioning, use dagre to calculate position
-    // First, collect all existing nodes in the same level as this new node
-    const allNodesAtLevel = nodes.filter(node => {
+    // Find existing child nodes of this parent to avoid overlaps
+    const siblingNodes = nodes.filter(node => {
       const nodeData = mindMapData.nodes.find(n => n.id === node.id);
-      return nodeData && nodeData.level === parentNode.level + 1;
+      return nodeData && nodeData.parentId === parentId;
     });
-
-    // Parent node position
-    const parentPos = parentFlowNode.position;
     
-    // Default position before dagre calculation (will be properly positioned later)
+    // Calculate spacing offset based on number of siblings
+    const siblingCount = siblingNodes.length;
+    const offsetMultiplier = siblingCount > 0 ? siblingCount : 0;
+    const siblingSpacing = 30; // Spacing between sibling nodes
+    
+    // Calculate position based on layout direction and existing siblings
+    const isHorizontalLayout = !currentLayout?.direction || 
+                              currentLayout.direction === 'LR' || 
+                              currentLayout.direction === 'RL';
+    
     const newNodePosition = { 
-      x: parentPos.x + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? 0 : COLUMN_WIDTH), 
-      y: parentPos.y + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? COLUMN_WIDTH : 0)
+      x: currentParentPos.x + (isHorizontalLayout ? COLUMN_WIDTH : offsetMultiplier * siblingSpacing), 
+      y: currentParentPos.y + (isHorizontalLayout ? offsetMultiplier * siblingSpacing : COLUMN_WIDTH)
     };
     
-    // Store the ID of the last created node in all nodes' data for reference in async operations
+    // Store the ID of the last created node in all nodes' data for reference
     const lastCreatedNodeId = newNodeId;
     
     // Create ReactFlow node
@@ -343,9 +376,28 @@ export function useMindMap() {
       className: 'mindmap-edge'
     };
     
+    // Store the positions that we want to set, but use setTimeout to avoid circular updates
+    const positionsToSet = {
+      ...currentNodePositions,
+      [newNodeId]: newNodePosition
+    };
+    
     // Update nodes and edges - use functional updates to ensure latest state
     setNodes(currentNodes => {
-      const updatedNodes = [...currentNodes, newFlowNode];
+      // Map through current nodes and update their positions from reactFlowInstance
+      const nodesWithUpdatedPositions = currentNodes.map(node => {
+        if (currentNodePositions[node.id]) {
+          // Use the position from reactFlowInstance
+          return {
+            ...node,
+            position: currentNodePositions[node.id]
+          };
+        }
+        return node;
+      });
+      
+      // Add the new node
+      const updatedNodes = [...nodesWithUpdatedPositions, newFlowNode];
       console.log('Updated nodes array:', updatedNodes.length, 'nodes');
       
       // Also update the parent node to show it has children
@@ -380,6 +432,25 @@ export function useMindMap() {
       }))
     );
     
+    // Now update mindMapData, but use a flag to indicate this was a node addition
+    // to prevent unnecessary layout recalculation
+    const updatedMindMapData = {
+      ...mindMapData,
+      nodes: [...mindMapData.nodes, newNode],
+      __nodeAddition: true  // Special flag to indicate this is a node addition
+    };
+    
+    // Update mindMapData
+    setMindMapData(updatedMindMapData);
+    
+    // Use setTimeout to break potential update cycles when updating nodePositions
+    setTimeout(() => {
+      setNodePositions(prev => ({
+        ...prev,
+        ...positionsToSet
+      }));
+    }, 50);
+    
     // Reset the highlight after a moment
     setTimeout(() => {
       setNodes(currentNodes => 
@@ -399,106 +470,6 @@ export function useMindMap() {
         })
       );
     }, 2000);
-    
-    // After node is added, recalculate positions with dagre
-    setTimeout(() => {
-      // Re-run dagre to layout all nodes and prevent overlaps
-      if (mindMapData && mindMapData.nodes.length > 1) {
-        // Create a new layout with the updated data - only to get position for the new node
-        import('../types').then(({ createMindMapLayout, updateMindMapLayout }) => {
-          // First try to use current node positions if they're being tracked
-          let updatedNodes;
-          
-          if (Object.keys(nodePositions).length > 0) {
-            // We have tracked positions, use them to calculate layout
-            console.log('Using tracked node positions for new node');
-            
-            try {
-              // Get layout for new node
-              const { nodes: layoutNodes } = createMindMapLayout(
-                { nodes: mindMapData.nodes },
-                updateNodeData
-              );
-              
-              // Find position for new node only
-              const newNodeLayout = layoutNodes.find(n => n.id === newNodeId);
-              
-              // Apply positions: Keep existing nodes where they are, position new node
-              setNodes(currentNodes => {
-                return currentNodes.map(node => {
-                  if (node.id === newNodeId && newNodeLayout) {
-                    // Position the new node using the layout
-                    console.log(`Positioning new node ${newNodeId} at x:${newNodeLayout.position.x}, y:${newNodeLayout.position.y}`);
-                    return {
-                      ...node,
-                      position: newNodeLayout.position
-                    };
-                  } else if (nodePositions[node.id]) {
-                    // Use tracked positions for existing nodes
-                    return {
-                      ...node,
-                      position: nodePositions[node.id]
-                    };
-                  }
-                  // Fall back to current position
-                  return node;
-                });
-              });
-            } catch (error) {
-              console.error('Error updating layout for new node:', error);
-              // If there's an error, just position the new node relatively to its parent
-              setNodes(currentNodes => {
-                return currentNodes.map(node => {
-                  if (node.id === newNodeId) {
-                    const parentNode = currentNodes.find(n => n.id === parentId);
-                    if (parentNode) {
-                      // Calculate a position below the parent
-                      return {
-                        ...node,
-                        position: {
-                          x: parentNode.position.x + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? 0 : COLUMN_WIDTH),
-                          y: parentNode.position.y + (currentLayout?.direction === 'TB' || currentLayout?.direction === 'BT' ? COLUMN_WIDTH : 100)
-                        }
-                      };
-                    }
-                  }
-                  return node;
-                });
-              });
-            }
-          } else {
-            // No tracked positions, fall back to only updating the new node
-            try {
-              const { nodes: newNodes } = createMindMapLayout(
-                { nodes: mindMapData.nodes }, 
-                updateNodeData
-              );
-              
-              // Apply the new position only to the newly created node, preserve existing node positions
-              setNodes(currentNodes => {
-                return currentNodes.map(node => {
-                  // Only update the position of the newly created node
-                  if (node.id === newNodeId) {
-                    const newLayoutNode = newNodes.find(n => n.id === newNodeId);
-                    if (newLayoutNode) {
-                      console.log(`Positioning new node ${newNodeId} with complete layout at x:${newLayoutNode.position.x}, y:${newLayoutNode.position.y}`);
-                      return {
-                        ...node,
-                        position: newLayoutNode.position
-                      };
-                    }
-                  }
-                  // Keep existing positions for all other nodes
-                  return node;
-                });
-              });
-            } catch (error) {
-              console.error('Error in complete layout for new node:', error);
-            }
-          }
-        });
-      }
-    }, 500);
     
     // Return the node ID for reference
     return newNodeId;
@@ -1187,9 +1158,71 @@ export function useMindMap() {
     if (mindMapData && !loading) {
       console.log('Generating new flow from updated mindMapData:', mindMapData);
       
+      // Check if this is just a content update that should not trigger layout recalculation
+      const isContentOnlyUpdate = mindMapData.__contentOnlyUpdate === true;
+      
+      // Check if this is a node addition operation (handled separately in addFollowUpNode)
+      const isNodeAddition = mindMapData.__nodeAddition === true;
+      
+      if (isContentOnlyUpdate) {
+        console.log('Content-only update detected - skipping layout recalculation');
+        
+        // For content updates, just update the data in the existing nodes without changing positions
+        setNodes(currentNodes => 
+          currentNodes.map(node => {
+            // Find the corresponding node in mindMapData to get updated content
+            const mindMapNode = mindMapData.nodes.find(n => n.id === node.id);
+            
+            if (mindMapNode) {
+              return {
+                ...node,
+                // Preserve current position
+                position: node.position,
+                data: {
+                  ...node.data,
+                  // Update only content properties
+                  title: mindMapNode.title,
+                  description: mindMapNode.description,
+                  // Preserve other data properties
+                  addFollowUpNode: stableAddFollowUpNode,
+                  deleteNode: stableDeleteNode, 
+                  toggleChildrenVisibility,
+                  // Preserve layout direction
+                  layoutDirection: node.data.layoutDirection
+                }
+              };
+            }
+            return node;
+          })
+        );
+        
+        // Early return to skip the rest of the layout calculation
+        return;
+      }
+      
+      // If this is a node addition, we've already handled it in addFollowUpNode
+      if (isNodeAddition) {
+        console.log('Node addition detected - positions were already set in addFollowUpNode');
+        return;
+      }
+      
       // Get current layout options based on device/screen size
       const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
       console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
+      
+      // PRESERVE CURRENT POSITIONS: First get all current node positions from ReactFlow before any update
+      const currentNodePositions: Record<string, NodePosition> = {};
+      if (reactFlowInstance.current && nodes.length > 0) {
+        try {
+          const flowNodes = reactFlowInstance.current.getNodes();
+          flowNodes.forEach((node: { id: string; position: NodePosition }) => {
+            currentNodePositions[node.id] = node.position;
+          });
+          console.log(`Preserved positions for ${Object.keys(currentNodePositions).length} existing nodes`);
+        } catch (error) {
+          console.warn('Could not get node positions from reactFlowInstance:', error);
+        }
+      }
       
       // Generate the initial layout with enhanced positioning
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
@@ -1200,19 +1233,54 @@ export function useMindMap() {
       
       // Add the addFollowUpNode function to all nodes' data
       // Ensure each node has the correct layout direction set
-      const nodesWithFollowUp = flowNodes.map(node => ({
-        ...node,
-        data: {
-          ...node.data,
-          addFollowUpNode: stableAddFollowUpNode,
-          deleteNode: stableDeleteNode, 
-          toggleChildrenVisibility,
-          // Explicitly set layoutDirection here rather than letting it be inherited later
-          layoutDirection: currentLayoutOptions.direction 
-        }
-      }));
+      const nodesWithFunctions = flowNodes.map(node => {
+        // Check if we have a current position for this node and use it
+        const existingPosition = 
+          // First check reactFlowInstance positions (most up-to-date)
+          currentNodePositions[node.id] || 
+          // Then fallback to nodePositions state (might be slightly outdated)
+          nodePositions[node.id];
+        
+        return {
+          ...node,
+          // Preserve current position if it exists
+          ...(existingPosition ? { position: existingPosition } : {}),
+          data: {
+            ...node.data,
+            addFollowUpNode: stableAddFollowUpNode,
+            deleteNode: stableDeleteNode, 
+            toggleChildrenVisibility,
+            // Explicitly set layoutDirection here rather than letting it be inherited later
+            layoutDirection: currentLayoutOptions.direction 
+          }
+        };
+      });
       
-      setNodes(nodesWithFollowUp);
+      // If this is not the initial load, update the nodePositions state with current positions
+      // IMPORTANT FIX: Only update nodePositions if the update wasn't triggered by a nodePositions change
+      const isLayoutChange = currentLayoutIndex !== previousLayoutIndexRef.current;
+      const isInitialLoad = nodes.length === 0;
+      
+      // Keep track of the previous layout index
+      previousLayoutIndexRef.current = currentLayoutIndex;
+      
+      if ((isLayoutChange || isInitialLoad) && nodes.length > 0) {
+        // Store current positions for later use, but avoid triggering this effect again
+        // by setting nodePositions only when necessary
+        positionsToApplyRef.current = { ...currentNodePositions };
+        
+        // Use setTimeout to avoid the circular dependency in the effect
+        setTimeout(() => {
+          setNodePositions(prev => ({
+            ...prev,
+            ...positionsToApplyRef.current
+          }));
+          // Clear the ref after applying
+          positionsToApplyRef.current = {};
+        }, 0);
+      }
+      
+      setNodes(nodesWithFunctions);
       setEdges(flowEdges);
       
       // Only fit view if this is an initial load (nodes.length was 0) or layout change
@@ -1228,6 +1296,7 @@ export function useMindMap() {
         }, 100);
       }
     }
+  // IMPORTANT: Remove nodePositions from the dependency array to prevent circular updates
   }, [mindMapData, currentLayoutIndex, loading, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
 
   return {
