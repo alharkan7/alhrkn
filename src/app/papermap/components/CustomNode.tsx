@@ -3,7 +3,7 @@ import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
 import '@reactflow/node-resizer/dist/style.css';
 import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { STICKY_NOTE_COLORS, BLANK_NODE_COLOR, ANSWER_NODE_COLOR, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
 
 // Node component props type
@@ -44,6 +44,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const [width, setWidth] = useState(data.width || 256); // Default width 256px (64*4)
   const [isResizing, setIsResizing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false); // State for highlight effect
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -77,11 +78,36 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const sourcePosition = isHorizontalFlow ? Position.Right : Position.Bottom;
   const targetPosition = isHorizontalFlow ? Position.Left : Position.Top;
 
+  // Ref to track previous data for highlighting
+  const prevDataRef = useRef(data);
+
   // Update local state when data from parent changes
   useEffect(() => {
-    setTitleValue(data.title);
-    setDescriptionValue(data.description);
-  }, [data.title, data.description]);
+    let shouldHighlight = false;
+    if (prevDataRef.current.title !== data.title) {
+      setTitleValue(data.title);
+      shouldHighlight = true;
+    }
+    if (prevDataRef.current.description !== data.description) {
+      setDescriptionValue(data.description);
+      shouldHighlight = true;
+    }
+
+    if (shouldHighlight) {
+      setIsUpdating(true);
+      const timer = setTimeout(() => {
+        setIsUpdating(false);
+      }, 1000); // Duration of the highlight effect
+
+      // Update previous data ref
+      prevDataRef.current = data;
+
+      return () => clearTimeout(timer);
+    } else {
+      // Update ref even if no highlight to keep it current
+      prevDataRef.current = data;
+    }
+  }, [data.title, data.description, data]);
 
   // Set cursor position to end of text
   const setCursorToEnd = (element: HTMLTextAreaElement) => {
@@ -460,26 +486,41 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
 
   return (
       <div
-        className={`p-4 rounded-lg shadow-md relative group sticky-note ${showFollowUpCard ? 'active-with-followup' : ''}`}
+        ref={nodeRef}
+        className={[
+          'node-card', // Base class
+          'p-4', // Padding
+          'rounded-lg', // Rounded corners
+          'shadow-md', // Shadow
+          'relative', // For absolute positioning of children
+          'group', // For group hover states (if used)
+          'sticky-note', // Specific styling class
+          isUpdating ? 'updating' : '', // Conditional updating class
+          showFollowUpCard ? 'active-with-followup' : '', // Conditional class
+        ].filter(Boolean).join(' ')} // Combine classes safely
         style={{
+          // Apply background from nodeColor
           backgroundColor: nodeColor.bg,
+          // Apply border/shadow from nodeColor, override with selected/resizing states
           border: isResizing
-            ? '1px solid #3b82f6'
+            ? '1px solid #3b82f6' 
             : selected
-              ? '1px solid #3182CE'
-              : `1px solid ${nodeColor.border}`,
+              ? '1px solid #3182CE' 
+              : `1px solid ${nodeColor.border || 'transparent'}`,
+          boxShadow: selected
+            ? '0 0 0 2px rgba(49, 130, 206, 0.5)' 
+            : nodeColor.shadow || '0 4px 6px rgba(0, 0, 0, 0.1)',
+          // Apply width and height
           width: `${width}px`,
           height: 'auto',
           minHeight: 'fit-content',
-          transition: isResizing ? 'none' : 'border 0.3s, box-shadow 0.3s',
+          // Apply transitions (unless resizing)
+          transition: isResizing ? 'none' : 'border 0.3s, box-shadow 0.3s, background-color 0.2s', 
+          // Other necessary styles
           userSelect: isResizing ? 'none' : 'auto',
-          boxShadow: selected
-            ? '0 0 0 2px rgba(49, 130, 206, 0.5)'
-            : `0 5px 10px ${nodeColor.shadow}, 2px 2px 4px rgba(0, 0, 0, 0.1)`,
           zIndex: selected || isHovering || showFollowUpCard ? 1001 : 'auto',
           transformOrigin: 'center',
         }}
-        ref={nodeRef}
         onMouseEnter={() => {
           setIsHovering(true);
           setShowChatButton(true);
@@ -489,42 +530,35 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
           setShowChatButton(false);
         }}
       >
-
-        {/* Input handle on left side */}
+        {/* Handles are direct children */}
         <Handle
           type="target"
           position={targetPosition}
-          style={{
-            background: nodeColor.border,
-            width: '10px',
-            height: '10px',
-            opacity: 0,
-            border: 'none'
-          }}
+          style={{ background: nodeColor.border, width: '10px', height: '10px', opacity: 0, border: 'none' }}
           id="target"
         />
+        <Handle
+          type="source"
+          position={sourcePosition}
+          style={{ background: nodeColor.border, width: '10px', height: '10px', zIndex: 100, opacity: 0, border: 'none' }}
+          id="source"
+        />
 
+        {/* Inner content wrapper (removed extra classes/styles from here) */}
         <div className="flex justify-between items-start">
           {editingTitle ? (
-            <textarea
+             <textarea
               ref={titleRef}
               value={titleValue}
               onChange={(e) => handleTextAreaChange(e, setTitleValue)}
               onBlur={handleTitleBlur}
               onKeyDown={(e) => handleKeyDown(e, 'title')}
-              className="font-bold text-lg mb-2 w-full resize-none overflow-hidden"
-              style={{
-                outline: 'none',
-                border: 'none',
-                padding: 0,
-                minHeight: '1.5rem',
-                background: 'transparent',
-                boxShadow: 'none'
-              }}
+              className="font-bold text-lg mb-2 w-full resize-none overflow-hidden bg-transparent border-none outline-none p-0 shadow-none"
+              style={{ minHeight: '1.5rem'}}
               rows={1}
             />
           ) : (
-            <h3
+            <h3 
               className="font-bold text-lg mb-2 cursor-text"
               style={{ color: nodeColor.border }}
               onDoubleClick={handleTitleDoubleClick}
@@ -533,9 +567,9 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
             </h3>
           )}
           <div className="flex flex-shrink-0">
-            <button
-              className="mt-1 font-bold text-gray-800"
-              onClick={toggleExpanded}
+            <button 
+              className="mt-1 font-bold text-gray-800" 
+              onClick={toggleExpanded} 
               title={expanded ? "Collapse" : "Expand"}
             >
               {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -543,81 +577,63 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
           </div>
         </div>
 
-        {/* Description container - always rendered but with animation */}
+        {/* Description container */}
         {!showInfo && (
-          <div className={`node-description-wrapper ${!expanded ? 'collapsed' : ''}`}>
-            <div
-              className={`node-description-content ${expanded ? 'expanded' : 'collapsed'}`}
-              onTransitionEnd={() => updateNodeInternals(id)}
-            >
-              {editingDescription ? (
-                <div>
-                  <textarea
-                    ref={descriptionRef}
-                    value={descriptionValue}
-                    onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
-                    onBlur={handleDescriptionBlur}
-                    onKeyDown={(e) => handleKeyDown(e, 'description')}
-                    className="w-full text-sm resize-none overflow-hidden font-mono"
-                    style={{
-                      outline: 'none',
-                      border: 'none',
-                      padding: 0,
-                      minHeight: '2rem',
-                      background: 'transparent',
-                      boxShadow: 'none'
-                    }}
-                    placeholder="Markdown formatting supported"
-                  />
-                  <div className="text-xs text-gray-500 mt-1 italic">
-                    Supports markdown: **bold**, *italic*, lists, `code`, etc.
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="text-sm cursor-text"
-                  onDoubleClick={handleDescriptionDoubleClick}
-                >
-                  {/* Render loading animation if description contains HTML */}
-                  {typeof data.description === 'string' && data.description.includes('<div class=') ? (
-                    <div dangerouslySetInnerHTML={{ __html: data.description }} />
-                  ) : (
-                    /* Otherwise render description as markdown */
-                    <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
-                      <ReactMarkdown>
-                        {extractMarkdownContent(typeof data.description === 'string' ? data.description : JSON.stringify(data.description)) || 'Double-click to add a description'}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+           <div className={`node-description-wrapper ${!expanded ? 'collapsed' : ''}`}>
+             <div
+               className={`node-description-content ${expanded ? 'expanded max-h-80 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-400 hover:scrollbar-thumb-gray-500' : 'collapsed'}`}
+               onTransitionEnd={() => updateNodeInternals(id)}
+             >
+               {editingDescription ? (
+                 <div>
+                   <textarea
+                     ref={descriptionRef}
+                     value={descriptionValue}
+                     onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
+                     onBlur={handleDescriptionBlur}
+                     onKeyDown={(e) => handleKeyDown(e, 'description')}
+                     className="w-full text-sm resize-none overflow-hidden font-mono"
+                     style={{
+                       outline: 'none',
+                       border: 'none',
+                       padding: 0,
+                       minHeight: '2rem',
+                       background: 'transparent',
+                       boxShadow: 'none'
+                     }}
+                     placeholder="Markdown formatting supported"
+                   />
+                   <div className="text-xs text-gray-500 mt-1 italic">
+                     Supports markdown: **bold**, *italic*, lists, `code`, etc.
+                   </div>
+                 </div>
+               ) : (
+                 <div
+                   className="text-sm cursor-text"
+                   onDoubleClick={handleDescriptionDoubleClick}
+                 >
+                   {typeof data.description === 'string' && data.description.includes('<div class=') ? (
+                     <div dangerouslySetInnerHTML={{ __html: data.description }} />
+                   ) : (
+                     <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                       <ReactMarkdown>
+                         {extractMarkdownContent(typeof data.description === 'string' ? data.description : JSON.stringify(data.description)) || 'Double-click to add a description'}
+                       </ReactMarkdown>
+                     </div>
+                   )}
+                 </div>
+               )}
+             </div>
+           </div>
         )}
 
-        {/* Output handle on right side - Invisible but functional */}
-        <Handle
-          type="source"
-          position={sourcePosition}
-          style={{
-            background: nodeColor.border,
-            width: '10px',
-            height: '10px',
-            zIndex: 100,
-            opacity: 0, // Make invisible while keeping functionality
-            border: 'none'
-          }}
-          id="source"
-        />
-
-        {/* Floating chat and document buttons - only show when hovering and not in other states */}
+        {/* Floating buttons are direct children */}
         {isHovering && !editingTitle && !editingDescription && !showFollowUpCard && (
-          <div
-            className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'right-[-20px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-1' : 'flex-col space-y-1'}`}
-            style={{ zIndex: 1000 }}
+          <div 
+            className={`absolute ${isHorizontalFlow ? '-bottom-6 left-1/2 transform -translate-x-1/2' : 'left-[-25px] top-1/2 transform -translate-y-1/2'} cursor-pointer flex ${isHorizontalFlow ? 'space-x-1' : 'flex-col space-y-1'}`}
+            style={{ zIndex: 1000 }} 
             data-exclude-from-export="true"
           >
-            {/* Document icon button - show only if pageNumber is available */}
             {data.pageNumber && data.openPdfViewer && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
@@ -628,7 +644,6 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
               </button>
             )}
 
-            {/* Add blank child node button - show for all nodes */}
             {showChatButton && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
@@ -639,7 +654,6 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
               </button>
             )}
 
-            {/* Chat button for follow-up questions - only show for non-blank nodes */}
             {showChatButton && data.title !== 'Double Click to Edit' && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
@@ -652,80 +666,78 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
           </div>
         )}
 
-        {/* Toggle children visibility button */}
+        {/* Toggle Children Button - Corrected Positioning and Icons */}
         {data.hasChildren && (
-          <div
-            className={`absolute ${isHorizontalFlow
-              ? 'right-0 top-1/2 transform translate-x-[10px] -translate-y-1/2'
-              : 'bottom-0 left-1/2 transform translate-y-[10px] -translate-x-1/2'} cursor-pointer`}
+          <div 
+            className={`absolute cursor-pointer p-0.5 rounded-full border border-muted-foreground/50 hover:border-muted-foreground/80 hover:bg-secondary bg-card z-10 
+              ${isHorizontalFlow 
+                ? 'right-[-12px] top-1/2 transform -translate-y-1/2' // Centered on Right for LR/RL
+                : 'bottom-[-12px] left-1/2 transform -translate-x-1/2' // Centered on Bottom for TB/BT
+              }`}
+            style={{ zIndex: 1000 }} 
             onClick={handleChildrenToggle}
-            style={{ zIndex: 1001 }}
-            title={data.childrenCollapsed ? "Show children" : "Hide children"}
+            title={data.childrenCollapsed ? "Show Children" : "Hide Children"}
             data-exclude-from-export="true"
           >
-            <div className={`w-5 h-5 bg-muted rounded-full flex items-center justify-center border border-border dark:bg-slate-800 dark:border-slate-700 transition-colors`}>
-              <span className="text-xs font-bold">
-                {data.childrenCollapsed ? '+' : '−'}
-              </span>
-            </div>
+            {isHorizontalFlow ? (
+              // Icons for Horizontal flow (LR/RL)
+              data.childrenCollapsed ? (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+              )
+            ) : (
+              // Icons for Vertical flow (TB/BT)
+              data.childrenCollapsed ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              )
+            )}
           </div>
         )}
-
-        {/* FollowUp Card popup */}
+        
         {showFollowUpCard && (
           <FollowUpCard
-            parentNode={{
-              id,
-              title: data.title,
-              description: data.description,
-              parentId: null,
-              level: 0
-            }}
+            parentId={id}
             onSave={handleFollowUpSave}
             onCancel={handleFollowUpCancel}
+            loading={loading}
           />
         )}
 
-        {/* Delete button - only show when node is selected */}
         {selected && !showDeleteConfirm && (
-          <div
-            className="absolute -top-10 left-1/2 transform -translate-x-1/2 cursor-pointer"
-            style={{ zIndex: 1000 }}
-          >
-            <button
-              className="bg-red-100 hover:bg-red-200 hover:outline outline-1.5 outline-red-400 p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-red-300 dark:bg-red-900 dark:border-red-700"
-              onClick={handleDeleteButtonClick}
-              title="Delete node"
-              data-exclude-from-export="true"
-            >
-              <Trash2 className="h-5 w-5 text-red-600 dark:text-red-300" />
-            </button>
-          </div>
+           <div 
+             className="absolute top-[-10px] right-[-10px] cursor-pointer p-1 bg-destructive text-destructive-foreground rounded-full shadow-md border border-border hover:bg-destructive/80" 
+             onClick={handleDeleteButtonClick}
+             title="Delete node"
+             data-exclude-from-export="true"
+           >
+             <Trash2 className="w-3.5 h-3.5" />
+           </div>
         )}
 
-        {/* Confirmation dialog */}
         {showDeleteConfirm && (
-          <div
-            className="absolute -top-24 left-1/2 transform -translate-x-1/2 bg-card p-3 rounded-lg shadow-lg border border-border dark:bg-slate-800 dark:border-slate-700"
-            style={{ zIndex: 1002, minWidth: '200px' }}
+          <div 
+            className="absolute top-0 left-0 right-0 bottom-0 bg-background/80 flex flex-col items-center justify-center rounded-lg z-50 p-4 border border-destructive"
             data-exclude-from-export="true"
           >
-            <p className="text-sm mb-3 text-center">Are you sure you want to delete this node?</p>
-            <div className="flex justify-center space-x-2">
-              <button
-                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                onClick={handleConfirmDelete}
-              >
-                Delete
-              </button>
-              <button
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200"
-                onClick={handleCancelDelete}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+             <p className="text-sm font-medium text-center mb-3">Delete this node?</p>
+             <div className="flex space-x-2">
+               <button 
+                 onClick={handleConfirmDelete} 
+                 className="px-3 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/80"
+               >
+                 Delete
+               </button>
+               <button 
+                 onClick={handleCancelDelete} 
+                 className="px-3 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/80"
+               >
+                 Cancel
+               </button>
+             </div>
+           </div>
         )}
       </div>
   );

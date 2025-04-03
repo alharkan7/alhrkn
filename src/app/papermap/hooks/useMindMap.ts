@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
 import { createMindMapLayout, updateMindMapLayout, LAYOUT_PRESETS, getDefaultLayoutIndex } from '../types';
@@ -59,6 +59,23 @@ export function useMindMap() {
     console.error("deleteNode called before initialization");
   });
   
+  // Memoize the parent-to-children map based on mindMapData structure
+  const parentToChildrenMap = useMemo(() => {
+    if (!mindMapData) return {};
+    
+    const map: Record<string, string[]> = {};
+    mindMapData.nodes.forEach(node => {
+      if (node.parentId) {
+        if (!map[node.parentId]) {
+          map[node.parentId] = [];
+        }
+        map[node.parentId].push(node.id);
+      }
+    });
+    return map;
+  // Dependency: Only recalculate when the node list itself changes structurally
+  }, [mindMapData?.nodes]); 
+
   // Get all descendant node IDs (recursive)
   const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
     const children = nodeMap[nodeId] || [];
@@ -70,68 +87,40 @@ export function useMindMap() {
     });
     
     return descendants;
-  }, []);
+  }, []); // No dependencies needed if it purely operates on its arguments
 
   // Toggle visibility of children nodes
   const toggleChildrenVisibility = useCallback((nodeId: string) => {
-    // If mindMapData is not available, do nothing
-    if (!mindMapData) return;
-    
-    // Create a mapping of parent ID to children IDs for faster lookup
-    const parentToChildren: Record<string, string[]> = {};
-    mindMapData.nodes.forEach(node => {
-      if (node.parentId) {
-        if (!parentToChildren[node.parentId]) {
-          parentToChildren[node.parentId] = [];
-        }
-        parentToChildren[node.parentId].push(node.id);
-      }
-    });
-    
     setCollapsedNodes(prev => {
       const newCollapsed = new Set(prev);
-      
-      // Toggle collapsed state for this node
       if (newCollapsed.has(nodeId)) {
         newCollapsed.delete(nodeId);
       } else {
         newCollapsed.add(nodeId);
       }
-      
       return newCollapsed;
     });
-    
-    // Update node visibility based on collapsed state
-    updateNodeVisibility();
-  }, [mindMapData]);
-  
+    // No need to call updateNodeVisibility here, the effect below handles it
+  }, []); // Removed updateNodeVisibility dependency
+
   // Update node visibility based on collapsed state
   const updateNodeVisibility = useCallback(() => {
-    // If mindMapData is not available, do nothing
-    if (!mindMapData) return;
-    
-    // Create a mapping of parent ID to children IDs for faster lookup
-    const parentToChildren: Record<string, string[]> = {};
-    mindMapData.nodes.forEach(node => {
-      if (node.parentId) {
-        if (!parentToChildren[node.parentId]) {
-          parentToChildren[node.parentId] = [];
-        }
-        parentToChildren[node.parentId].push(node.id);
-      }
-    });
+    // Use the memoized parentToChildrenMap
+    if (!mindMapData || Object.keys(parentToChildrenMap).length === 0) return;
     
     // Find all nodes that should be hidden due to their ancestor being collapsed
     const nodesToHide = new Set<string>();
     collapsedNodes.forEach(collapsedId => {
-      const descendants = getDescendantIds(collapsedId, parentToChildren);
+      // Pass the memoized map to getDescendantIds
+      const descendants = getDescendantIds(collapsedId, parentToChildrenMap);
       descendants.forEach(id => nodesToHide.add(id));
     });
     
     // Update nodes with visibility and hasChildren data
     setNodes(currentNodes => 
       currentNodes.map(node => {
-        const nodeHasChildren = !!parentToChildren[node.id]?.length;
+        // Use memoized map to check for children efficiently
+        const nodeHasChildren = !!parentToChildrenMap[node.id]?.length;
         const childrenCollapsed = collapsedNodes.has(node.id);
         
         return {
@@ -141,7 +130,8 @@ export function useMindMap() {
             ...node.data,
             hasChildren: nodeHasChildren,
             childrenCollapsed: childrenCollapsed,
-            toggleChildrenVisibility: toggleChildrenVisibility
+            // Pass the stable toggle function
+            toggleChildrenVisibility: toggleChildrenVisibility 
           }
         };
       })
@@ -151,10 +141,16 @@ export function useMindMap() {
     setEdges(currentEdges => 
       currentEdges.map(edge => ({
         ...edge,
-        hidden: nodesToHide.has(edge.target)
+        hidden: nodesToHide.has(edge.target) // Only need to check target for hiding
       }))
     );
-  }, [collapsedNodes, mindMapData, getDescendantIds, toggleChildrenVisibility, setNodes, setEdges]);
+  // Dependencies: Recalculate visibility when collapsed nodes change or the map changes
+  }, [collapsedNodes, parentToChildrenMap, mindMapData, getDescendantIds, toggleChildrenVisibility, setNodes, setEdges]);
+
+  // Effect to update visibility when dependencies change
+  useEffect(() => {
+    updateNodeVisibility();
+  }, [updateNodeVisibility]); // Trigger effect when the callback itself changes (due to its deps)
 
   // Update node data
   const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number}) => {
@@ -162,55 +158,28 @@ export function useMindMap() {
     setNodes((nds) => 
       nds.map((node) => {
         if (node.id === nodeId) {
-          // Add a subtle animation/highlight to the node that was just edited
+          // Update the node data
+          // The visual highlight is now handled by CSS in CustomNode.tsx
           return {
             ...node,
             data: {
               ...node.data,
               ...newData,
-              updateNodeData, // Keep the update function in the data
+              // Keep essential functions
+              updateNodeData,
+              toggleChildrenVisibility,
+              // Preserve other important data
               hasChildren: node.data.hasChildren,
               childrenCollapsed: node.data.childrenCollapsed,
-              toggleChildrenVisibility
             },
-            style: {
-              ...node.style,
-              border: node.data.nodeType === 'qna' 
-                ? '2px solid #bfdbfe' 
-                : '2px solid #4299e1', // Keep QnA styling if it's a QnA node
-              boxShadow: '0 0 0 3px rgba(66, 153, 225, 0.5)',
-            },
-            className: 'node-card updating' // Add updating class for transition effect
+            // No need to manipulate style or className here anymore for highlighting
           };
         }
         return node;
       })
     );
     
-    // After a short delay, reset the style
-    setTimeout(() => {
-      setNodes((nds) => 
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            const isQnA = node.data.nodeType === 'qna';
-            return {
-              ...node,
-              style: {
-                ...node.style,
-                border: isQnA ? '2px solid #bfdbfe' : '2px solid #4299e1', // Keep QnA styling
-                backgroundColor: isQnA ? '#eff6ff' : '#ffffff', // Keep QnA background
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              },
-              className: 'node-card' // Remove updating class to prevent transitions during drag
-            };
-          }
-          return node;
-        })
-      );
-    }, 1000);
-    
-    // Also update the mindMapData but using a flag to indicate this is just a content update
-    // not a structural change, to prevent unnecessary layout recalculation
+    // Update the mindMapData with a flag to prevent unnecessary layout recalculation
     if (mindMapData) {
       const updatedMindMapData = {
         ...mindMapData,
@@ -229,6 +198,8 @@ export function useMindMap() {
       };
       
       // Use setTimeout to break potential update cycles
+      // Although, if this update never causes a loop, setTimeout might be unnecessary here too.
+      // Keeping it for now as a precaution.
       setTimeout(() => {
         setMindMapData(updatedMindMapData);
       }, 0);
@@ -991,123 +962,126 @@ export function useMindMap() {
 
   // Delete a node and its connected edges
   const deleteNode = useCallback((nodeId: string) => {
-  
-    // Remove the node from the nodes state
-    setNodes(currentNodes => currentNodes.filter(node => node.id !== nodeId));
-    
-    // Remove all edges connected to this node (both incoming and outgoing)
-    setEdges(currentEdges => currentEdges.filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    ));
-    
-    // Also update the mindMapData state
-    if (mindMapData) {
-      // Find the node to determine if it has children
-      const nodeToDelete = mindMapData.nodes.find(node => node.id === nodeId);
-      const childNodes = nodeToDelete ? mindMapData.nodes.filter(node => node.parentId === nodeId) : [];
-      
-      // Get the parent of the deleted node (if any)
-      const parentNodeId = nodeToDelete?.parentId;
-      
-      // Update the mindMapData by removing the node
-      setMindMapData(prevData => {
-        if (!prevData) return null;
-        
-        // Create new nodes array without the deleted node
-        let updatedNodes = prevData.nodes.filter(node => node.id !== nodeId);
-        
-        // Check if parent still has other children
-        const parentHasOtherChildren = updatedNodes.some(
-          node => node.parentId === parentNodeId && node.id !== nodeId
-        );
-        
-        // For any child nodes, either orphan them or reconnect to grandparent
-        if (childNodes.length > 0 && parentNodeId) {
-          // Reconnect children to grandparent
-          updatedNodes = updatedNodes.map(node => {
-            if (node.parentId === nodeId) {
-              return {
-                ...node,
-                parentId: parentNodeId
-              };
-            }
-            return node;
-          });
-          
-          // Update the edges in ReactFlow to reflect these changes
-          childNodes.forEach(childNode => {
-            // Create a unique edge ID by including a timestamp
-            const uniqueEdgeId = `e-${parentNodeId}-${childNode.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            // Create new edge from grandparent to child
-            const newEdge = {
-              id: uniqueEdgeId,
-              source: parentNodeId,
-              target: childNode.id,
-              sourceHandle: 'source',
-              targetHandle: 'target',
-              type: 'bezier',
-              style: { 
-                stroke: '#3182CE', // Bright blue that matches our palette
-                strokeWidth: 1.5, 
-                strokeOpacity: 0.8, 
-                zIndex: 1000 
-              },
-              animated: false,
-              className: 'mindmap-edge'
+    let parentId: string | undefined = undefined;
+    let childrenToReparent: string[] = [];
+
+    // Directly update nodes state
+    setNodes(currentNodes => {
+      const nodeToDelete = currentNodes.find(n => n.id === nodeId);
+      parentId = nodeToDelete?.data.parentId; // Capture parentId before filtering
+
+      // Find children of the node being deleted
+      childrenToReparent = currentNodes
+        .filter(n => n.data.parentId === nodeId)
+        .map(n => n.id);
+
+      // Filter out the deleted node
+      let updatedNodes = currentNodes.filter(node => node.id !== nodeId);
+
+      // Reparent children to grandparent (if parent exists)
+      if (parentId && childrenToReparent.length > 0) {
+        updatedNodes = updatedNodes.map(node => {
+          if (childrenToReparent.includes(node.id)) {
+            return {
+              ...node,
+              data: { ...node.data, parentId: parentId } // Update parentId in data
             };
-            
-            // Add the new edge
-            setEdges(currentEdges => [...currentEdges, newEdge]);
-          });
-        }
-        
-        return {
-          ...prevData,
-          nodes: updatedNodes
-        };
-      });
-      
-      // Update any nodes that need to have their hasChildren property updated
-      if (parentNodeId) {
-        setNodes(currentNodes => {
-          return currentNodes.map(node => {
-            if (node.id === parentNodeId) {
-              // Check if parent still has other children
-              const parentStillHasChildren = currentNodes.some(n => 
-                n.id !== nodeId && 
-                n.data.parentId === parentNodeId
-              );
-              
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  hasChildren: parentStillHasChildren
-                }
-              };
-            }
-            return node;
+          }
+          return node;
+        });
+      }
+
+      // Update the original parent's hasChildren status
+      if (parentId) {
+        const parentStillHasChildren = updatedNodes.some(node => node.data.parentId === parentId);
+        updatedNodes = updatedNodes.map(node => {
+          if (node.id === parentId) {
+            return {
+              ...node,
+              data: { ...node.data, hasChildren: parentStillHasChildren }
+            };
+          }
+          return node;
+        });
+      }
+
+      return updatedNodes;
+    });
+
+    // Directly update edges state
+    setEdges(currentEdges => {
+      // Remove edges connected to the deleted node
+      let updatedEdges = currentEdges.filter(edge => 
+        edge.source !== nodeId && edge.target !== nodeId
+      );
+
+      // Add new edges from grandparent to reparented children
+      if (parentId && childrenToReparent.length > 0) {
+        childrenToReparent.forEach(childId => {
+          const uniqueEdgeId = `e-${parentId}-${childId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          updatedEdges.push({
+            id: uniqueEdgeId,
+            source: parentId!,
+            target: childId,
+            sourceHandle: 'source', // Assuming default handle names
+            targetHandle: 'target', // Assuming default handle names
+            type: 'bezier',
+            style: { stroke: '#3182CE', strokeWidth: 1.5, strokeOpacity: 0.8 }, // Consistent style
+            animated: false,
+            className: 'mindmap-edge'
           });
         });
       }
-    }
-    
-    // Handle collapsed nodes state if necessary
+      return updatedEdges;
+    });
+
+    // Update nodePositions state (remove deleted node)
+    setNodePositions(prev => {
+      const { [nodeId]: _, ...rest } = prev; // Destructure to remove the key
+      return rest;
+    });
+
+    // Update collapsedNodes state (remove deleted node if present)
     setCollapsedNodes(prev => {
       const newCollapsed = new Set(prev);
       if (newCollapsed.has(nodeId)) {
         newCollapsed.delete(nodeId);
       }
+      // Also remove any reparented children from collapsed set? Maybe not needed.
       return newCollapsed;
     });
-    
-    // After deletion, run node visibility update
+
+    // OPTIONAL: Update mindMapData state asynchronously without triggering layout
+    // This preserves mindMapData for export/other uses but avoids performance hit.
     setTimeout(() => {
-      updateNodeVisibility();
-    }, 50);
-    
-  }, [mindMapData, updateNodeVisibility]);
+        setMindMapData(prevData => {
+            if (!prevData) return null;
+
+            let updatedMindMapNodes = prevData.nodes.filter(node => node.id !== nodeId);
+
+            if (parentId && childrenToReparent.length > 0) {
+                 updatedMindMapNodes = updatedMindMapNodes.map(node => {
+                    if (childrenToReparent.includes(node.id)) {
+                        // FIX: Convert undefined parentId to null to match MindMapNode type
+                        return { ...node, parentId: parentId ?? null }; 
+                    }
+                    return node;
+                });
+            }
+            
+            return {
+                ...prevData,
+                nodes: updatedMindMapNodes,
+                __internalUpdate: true // Add a flag to signify internal update if needed elsewhere
+            };
+        });
+    }, 0);
+
+    // No need to call updateNodeVisibility explicitly if React Flow handles hidden state internally?
+    // If visibility relies on hasChildren/childrenCollapsed in data, it should update automatically.
+
+  // Removed mindMapData from dependencies to avoid triggering this on internal mindMapData updates
+  }, [setNodes, setEdges, setNodePositions, setCollapsedNodes]);
 
   // Generate initial nodes and edges whenever mindMapData changes
   useEffect(() => {

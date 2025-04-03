@@ -1,4 +1,4 @@
-import { Styles } from 'reactflow';
+// import { Styles } from 'reactflow'; // Removed unused import
 
 export const nodeUpdateStyles = `
   @keyframes node-updated {
