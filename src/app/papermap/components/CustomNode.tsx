@@ -13,7 +13,7 @@ interface CustomNodeProps {
     description: string;
     updateNodeData?: (id: string, newData: { title?: string; description?: string; width?: number; pageNumber?: number }) => void;
     addFollowUpNode?: (parentId: string, question: string, answer: string, customNodeId?: string) => string;
-    nodeType?: 'regular' | 'qna'; // Add nodeType to identify QnA nodes
+    nodeType?: 'regular' | 'qna' | 'blank'; // Add 'blank' type to identify blank nodes
     lastCreatedNodeId?: string; // ID of the most recently created node
     hasChildren?: boolean; // Whether this node has children
     childrenCollapsed?: boolean; // Whether children are collapsed
@@ -24,6 +24,7 @@ interface CustomNodeProps {
     columnLevel?: number; // Column level for color assignment
     layoutDirection?: 'LR' | 'TB' | 'RL' | 'BT'; // Current layout direction
     deleteNode?: (nodeId: string) => void; // Add this line
+    expanded?: boolean; // Whether the node is expanded by default
   };
   id: string;
   selected?: boolean; // Add selected prop
@@ -32,7 +33,7 @@ interface CustomNodeProps {
 // Custom node component
 const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const [showInfo, setShowInfo] = useState(false);
-  const [expanded, setExpanded] = useState(data.nodeType === 'qna'); // Set QnA nodes expanded by default
+  const [expanded, setExpanded] = useState(data.expanded !== undefined ? data.expanded : true); // Expand all nodes by default
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [titleValue, setTitleValue] = useState(data.title);
@@ -54,8 +55,8 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
 
-  // Check if this is a blank node by title
-  const isBlankNode = data.title === 'Double Click to Edit';
+  // Check if this is a blank node by nodeType first, then fallback to title check for backward compatibility
+  const isBlankNode = data.nodeType === 'blank' || (data.nodeType !== 'qna' && data.title === 'Double Click to Edit');
 
   // Get color based on node type or column level
   let nodeColor;
@@ -92,6 +93,11 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
       setDescriptionValue(data.description);
       shouldHighlight = true;
     }
+    
+    // Update expanded state if it changed in data
+    if (data.expanded !== undefined && data.expanded !== expanded) {
+      setExpanded(data.expanded);
+    }
 
     if (shouldHighlight) {
       setIsUpdating(true);
@@ -107,7 +113,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
       // Update ref even if no highlight to keep it current
       prevDataRef.current = data;
     }
-  }, [data.title, data.description, data]);
+  }, [data.title, data.description, data.expanded, expanded, data]);
 
   // Set cursor position to end of text
   const setCursorToEnd = (element: HTMLTextAreaElement) => {
@@ -680,7 +686,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
               </button>
             )}
 
-            {showChatButton && data.title !== 'Double Click to Edit' && (
+            {showChatButton && !isBlankNode && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleChatButtonClick}

@@ -131,7 +131,9 @@ export function useMindMap() {
             hasChildren: nodeHasChildren,
             childrenCollapsed: childrenCollapsed,
             // Pass the stable toggle function
-            toggleChildrenVisibility: toggleChildrenVisibility 
+            toggleChildrenVisibility: toggleChildrenVisibility,
+            // Preserve nodeType
+            nodeType: node.data.nodeType
           }
         };
       })
@@ -153,7 +155,7 @@ export function useMindMap() {
   }, [updateNodeVisibility]); // Trigger effect when the callback itself changes (due to its deps)
 
   // Update node data
-  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number}) => {
+  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number}) => {
     // Apply visual feedback for the edited node (like a subtle highlight)
     setNodes((nds) => 
       nds.map((node) => {
@@ -171,6 +173,8 @@ export function useMindMap() {
               // Preserve other important data
               hasChildren: node.data.hasChildren,
               childrenCollapsed: node.data.childrenCollapsed,
+              // Preserve the original nodeType
+              nodeType: node.data.nodeType,
             },
             // No need to manipulate style or className here anymore for highlighting
           };
@@ -189,6 +193,8 @@ export function useMindMap() {
               ...n,
               title: newData.title ?? n.title,
               description: newData.description ?? n.description,
+              // Make sure we keep the original type
+              type: n.type,
               __contentOnlyUpdate: true // Flag to indicate this update shouldn't trigger layout recalculation
             };
           }
@@ -327,13 +333,16 @@ export function useMindMap() {
     }
     
     // Create the new node with question as title and answer as description
+    const isBlankNode = question === 'Double Click to Edit' && answer === 'Double-click to add a description';
+    const nodeType = isBlankNode ? 'blank' as const : 'qna' as const;
+    
     const newNode = {
       id: newNodeId,
       title: question,
       description: answer,
       parentId: parentId,
       level: parentMindMapNode.level + 1,
-      type: 'qna' as 'regular' | 'qna', // Mark as a QnA node
+      type: nodeType, // Set nodeType based on content
       pageNumber: parentPageNumber,
       openPdfViewer: parentOpenPdfViewer
     };
@@ -372,22 +381,23 @@ export function useMindMap() {
       id: newNodeId,
       type: 'custom',
       position: newNodePosition,
-      data: { 
+      data: {
         title: question,
         description: answer,
         updateNodeData,
-        addFollowUpNode,
-        deleteNode: stableDeleteNode, // Add deleteNode function
-        nodeType: 'qna', // Set the nodeType for QnA nodes
-        expanded: true, // Set expanded to true for QnA nodes
-        lastCreatedNodeId, // Store reference to this node ID for updates
+        addFollowUpNode: stableAddFollowUpNode, // Use stable reference
+        deleteNode: stableDeleteNode,
+        // Set nodeType based on content
+        nodeType: nodeType,
+        expanded: true, // Expand all nodes by default
+        lastCreatedNodeId,
         hasChildren: false,
         childrenCollapsed: false,
         toggleChildrenVisibility,
-        width: 256, // Default width for new nodes
+        width: 256,
         pageNumber: parentPageNumber,
         openPdfViewer: parentOpenPdfViewer,
-        layoutDirection: currentLayout?.direction // Add current layout direction
+        layoutDirection: currentLayout?.direction
       },
       style: {
         border: '2px solid #4299e1', // Highlight the new node
@@ -865,9 +875,6 @@ export function useMindMap() {
     if (mindMapData) {
       // Create a new layout with the next layout preset
       const nextLayout = LAYOUT_PRESETS[nextLayoutIndex];
-      const isChangingOrientation = 
-        (LAYOUT_PRESETS[currentLayoutIndex].direction === 'LR' || LAYOUT_PRESETS[currentLayoutIndex].direction === 'RL') !==
-        (nextLayout.direction === 'LR' || nextLayout.direction === 'RL');
       
       try {
         // First get current ReactFlow nodes to ensure we don't lose any nodes
