@@ -68,11 +68,7 @@ const MindMapFlow = () => {
 
   // Enhance nodes with PDF viewer capability and layout direction
   const enhancedNodes = nodes.map(node => {
-    // Log the node data to check if pageNumber exists
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Node ${node.id}: pageNumber=${node.data.pageNumber}, hasOpenPdf=${!!openPdfViewer}`);
-    }
-    
+  
     return {
       ...node,
       data: {
@@ -140,26 +136,6 @@ const MindMapFlow = () => {
         return 'Loading...';
     }
   };
-
-  // Add this debug logging
-  useEffect(() => {
-    // Debug object for detailed diagnostics
-    const debug = { 
-      nodesCount: nodes.length, 
-      edgesCount: edges.length,
-      hasMindMapData: !!mindMapData,
-      mindMapNodesCount: mindMapData?.nodes?.length || 0,
-      loading
-      // Removed other properties to reduce console noise
-    };
-    
-    // Only log in development mode to reduce console noise in production
-    if (process.env.NODE_ENV === 'development') {
-      console.log('MindMapFlow state:', debug);
-    }
-    
-    // Error removed - this was causing false positives in the console
-  }, [nodes.length, edges.length, mindMapData, loading]);
 
   return (
     <div className="relative w-full h-full">

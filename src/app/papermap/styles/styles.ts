@@ -1,3 +1,5 @@
+import { Styles } from 'reactflow';
+
 export const nodeUpdateStyles = `
   @keyframes node-updated {
     0% { border: 2px solid #4299e1; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.3); }
@@ -400,6 +402,32 @@ export const reactFlowStyles = `
     fill: var(--foreground);
   }
 `;
+
+// Base node card styles
+export const nodeCardBaseStyle = `
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  text-align: left;
+  background-color: white;
+  border: 2px solid transparent; // Start with transparent border
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 150px; // Ensure nodes have a minimum width
+  position: relative; // Needed for absolute positioning of buttons
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.3s ease; // Added transitions
+`;
+
+// Styles for the updating state
+export const nodeCardUpdatingStyle = `
+  border-color: #4299e1; // Highlight border color
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5); // Highlight shadow
+`;
+
+// Combine base and updating styles (example of how it might be used, though className is simpler)
+// export const getDynamicNodeStyle = (isUpdating: boolean) => `
+//   ${nodeCardBaseStyle}
+//   ${isUpdating ? nodeCardUpdatingStyle : ''}
+// `;
 
 // Combined styles for use in the page component
 export const combinedStyles = `

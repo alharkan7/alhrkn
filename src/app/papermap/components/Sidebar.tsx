@@ -204,7 +204,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         // Use our server-side proxy to fetch the PDF
         // This avoids CORS issues that occur with direct fetch
         const proxyUrl = `/api/papermap/proxy?url=${encodeURIComponent(pdfUrl)}`;
-        console.log(`Fetching PDF via proxy: ${proxyUrl}`);
         
         const response = await fetch(proxyUrl);
         
@@ -221,7 +220,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         // OPTIMIZATION: Check if the proxy returned a direct URL (for Vercel Blob URLs)
         if (data.isVercelBlob && data.directUrl) {
-          console.log('Proxy returned a direct Vercel Blob URL, using it without re-uploading');
           // Clear interval and complete progress
           clearInterval(progressInterval);
           setUploadProgress(100);

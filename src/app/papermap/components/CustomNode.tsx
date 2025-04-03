@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
 import '@reactflow/node-resizer/dist/style.css';
 import FollowUpCard from './FollowUpCard';
@@ -30,7 +30,7 @@ interface CustomNodeProps {
 }
 
 // Custom node component
-const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
+const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const [showInfo, setShowInfo] = useState(false);
   const [expanded, setExpanded] = useState(data.nodeType === 'qna'); // Set QnA nodes expanded by default
   const [editingTitle, setEditingTitle] = useState(false);
@@ -74,18 +74,8 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
 
   // Determine handle positions based on layout direction
   const isHorizontalFlow = !data.layoutDirection || data.layoutDirection === 'LR' || data.layoutDirection === 'RL';
-  console.log(`Node ${id} layout flow: ${isHorizontalFlow ? 'horizontal' : 'vertical'}, direction: ${data.layoutDirection || 'undefined'}`);
   const sourcePosition = isHorizontalFlow ? Position.Right : Position.Bottom;
   const targetPosition = isHorizontalFlow ? Position.Left : Position.Top;
-
-  // Debug logging
-  useEffect(() => {
-    console.log(`CustomNode ${id} rendering with addFollowUpNode:`, data.addFollowUpNode ? 'available' : 'not available');
-    console.log(`CustomNode ${id} rendering with layoutDirection:`, data.layoutDirection || 'undefined');
-    if (isQnANode) {
-      console.log(`Node ${id} is a QnA node`);
-    }
-  }, [id, data.addFollowUpNode, isQnANode, data.layoutDirection]);
 
   // Update local state when data from parent changes
   useEffect(() => {
@@ -265,7 +255,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       // Save updated chat history to localStorage
       if (result.chatHistory) {
         localStorage.setItem('chatHistory', JSON.stringify(result.chatHistory));
-        console.log('Saved updated chat history to localStorage');
       }
       
       if (result.success && result.answer) {
@@ -276,7 +265,6 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
             ? result.answer 
             : JSON.stringify(result.answer);
             
-          console.log('Updating node with answer:', answerContent);
           data.updateNodeData(nodeId, { description: answerContent });
         }
         
@@ -400,23 +388,7 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
   }, [id, updateNodeInternals, width, expanded]);
 
   useEffect(() => {
-    console.log(`Node ${id}: pageNumber=${data.pageNumber}, openPdfViewer=${!!data.openPdfViewer}`);
   }, [id, data.pageNumber, data.openPdfViewer]);
-
-  // Add debug logging for document button visibility conditions
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Node ${id} document button conditions:`, {
-        pageNumber: data.pageNumber,
-        hasOpenPdfFn: !!data.openPdfViewer,
-        isHovering,
-        loading,
-        editingTitle,
-        editingDescription,
-        showFollowUpCard
-      });
-    }
-  }, [id, data.pageNumber, data.openPdfViewer, isHovering, loading, editingTitle, editingDescription, showFollowUpCard]);
 
   // Add optimized sticky note style to document - only once
   useEffect(() => {
@@ -758,6 +730,9 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
       </div>
   );
 };
+
+// Wrap the component with React.memo
+const CustomNode = memo(CustomNodeComponent);
 
 // Add this utility function at the top of the file (after imports)
 const extractMarkdownContent = (content: any): string => {

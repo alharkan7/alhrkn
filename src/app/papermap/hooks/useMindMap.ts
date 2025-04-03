@@ -37,9 +37,7 @@ export function useMindMap() {
     // Only set the example PDF URL if there's no existing blob URL
     if (!existingBlobUrl) {
     localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-      console.log('Stored initial example PDF URL in localStorage (no existing blob URL):', EXAMPLE_PDF_URL);
     } else {
-      console.log('Kept existing blob URL in localStorage:', existingBlobUrl);
     }
   }, []);
   
@@ -239,7 +237,6 @@ export function useMindMap() {
 
   // Add a new follow-up node
   const addFollowUpNode = (parentId: string, question: string, answer: string, customNodeId?: string): string => {
-    console.log('DIRECT addFollowUpNode called with mindMapData:', mindMapData ? 'exists' : 'null');
     
     // Generate a unique ID for the new node or use the provided ID
     const newNodeId = customNodeId || `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -256,7 +253,6 @@ export function useMindMap() {
       return newNodeId;
     }
 
-    console.log('Adding follow-up node:', { parentId, question, answer: answer.substring(0, 50) + '...', nodeId: newNodeId });
     
     // Get the latest positions of all nodes from ReactFlow instance
     const currentNodePositions: Record<string, NodePosition> = {};
@@ -266,7 +262,6 @@ export function useMindMap() {
         currentNodes.forEach((node: { id: string; position: NodePosition }) => {
           currentNodePositions[node.id] = node.position;
         });
-        console.log('Retrieved latest node positions from ReactFlow instance');
       } catch (error) {
         console.warn('Could not get node positions from reactFlowInstance:', error);
       }
@@ -278,7 +273,6 @@ export function useMindMap() {
     // First check if we have a position from reactFlowInstance
     if (currentNodePositions[parentId]) {
       currentParentPos = currentNodePositions[parentId];
-      console.log(`Using position from ReactFlow instance for parent ${parentId}:`, currentParentPos);
     } else {
       // Fall back to finding the node in nodes state
       const parentFlowNode = nodes.find(node => node.id === parentId);
@@ -287,7 +281,6 @@ export function useMindMap() {
         return newNodeId;
       }
       currentParentPos = parentFlowNode.position;
-      console.log(`Using position from nodes state for parent ${parentId}:`, currentParentPos);
     }
     
     if (!currentParentPos) {
@@ -398,7 +391,6 @@ export function useMindMap() {
       
       // Add the new node
       const updatedNodes = [...nodesWithUpdatedPositions, newFlowNode];
-      console.log('Updated nodes array:', updatedNodes.length, 'nodes');
       
       // Also update the parent node to show it has children
       return updatedNodes.map(node => {
@@ -417,7 +409,6 @@ export function useMindMap() {
     
     setEdges(currentEdges => {
       const updatedEdges = [...currentEdges, newEdge];
-      console.log('Updated edges array:', updatedEdges.length, 'edges');
       return updatedEdges;
     });
     
@@ -492,7 +483,6 @@ export function useMindMap() {
         currentNodes.forEach((node: { id: string; position: NodePosition }) => {
           positions[node.id] = node.position;
         });
-        console.log('Node positions updated after drag');
         setNodePositions(positions);
       };
       
@@ -512,7 +502,6 @@ export function useMindMap() {
   
   // Create a stable function that always calls the latest implementation
   const stableAddFollowUpNode = useCallback((parentId: string, question: string, answer: string, customNodeId?: string) => {
-    console.log('Stable addFollowUpNode called, delegating to current implementation');
     // Always call the latest implementation from the ref
     const nodeId = addFollowUpNodeRef.current(parentId, question, answer, customNodeId);
     return nodeId || customNodeId || ''; // Ensure we always return a string
@@ -520,7 +509,6 @@ export function useMindMap() {
 
   // Create a stable function for deleteNode
   const stableDeleteNode = useCallback((nodeId: string) => {
-    console.log('Stable deleteNode called, delegating to current implementation');
     // Always call the latest implementation from the ref
     deleteNodeRef.current(nodeId);
   }, []);
@@ -528,11 +516,9 @@ export function useMindMap() {
   // Function to load example mindmap
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
-    console.log('Loading example mindmap and PDF...');
     
     // Clean up previous chat history
     localStorage.removeItem('chatHistory');
-    console.log('Removed previous chat history');
     
     // Reset to example data
     setMindMapData(EXAMPLE_MINDMAP);
@@ -542,11 +528,9 @@ export function useMindMap() {
     // Store the example PDF URL in localStorage for follow-up questions
     try {
       localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-      console.log('Stored example PDF URL in localStorage:', EXAMPLE_PDF_URL);
       
       // IMPORTANT: Set the userHasUploadedPdf flag to false when loading the example
       localStorage.setItem('userHasUploadedPdf', 'false');
-      console.log('Reset userHasUploadedPdf flag to false for example mindmap');
     } catch (storageError) {
       console.warn('Storage issue when setting example PDF URL, but continuing:', storageError);
     }
@@ -558,10 +542,8 @@ export function useMindMap() {
     setCollapsedNodes(new Set());
     
     try {
-      console.log('Creating layout for example mindmap');
       // Get current layout options based on device/screen size
       const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
-      console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
       
       // Generate layout with enhanced positioning algorithm
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
@@ -584,7 +566,6 @@ export function useMindMap() {
         }
       }));
       
-      console.log(`Created example mindmap with ${nodesWithFollowUp.length} nodes and ${flowEdges.length} edges`);
       setNodes(nodesWithFollowUp);
       setEdges(flowEdges);
       
@@ -608,7 +589,6 @@ export function useMindMap() {
 
   // Generate initial mindmap for uploaded PDF
   const generateInitialMindMap = useCallback(async (fileName: string, pdfBlobUrl: string) => {
-    console.log('Generating initial mindmap for uploaded PDF:', fileName);
     // We don't set loading state here anymore - it's managed by the parent function
     setError(null);
     setLoadingStage('processing');
@@ -637,7 +617,6 @@ export function useMindMap() {
       setLoadingStage('building');
       
       if (data && data.mindmap && typeof data.mindmap === 'object') {
-        console.log('Mind map data received:', data.mindmap);
                
         // Update the mind map data
         setMindMapData(data.mindmap);
@@ -652,15 +631,11 @@ export function useMindMap() {
             }));
             
             localStorage.setItem('chatHistory', JSON.stringify(formattedChatHistory));
-            console.log('Stored chat history in localStorage');
           } catch (storageError) {
             console.warn('Failed to store chat history in localStorage:', storageError);
           }
         }
         
-        // DEBUG: Verify the blob URL is still correctly set in localStorage after all operations
-        const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
-        console.log('Final blob URL in localStorage after all operations:', finalBlobUrl);
       } else {
         throw new Error('Invalid mind map data received');
       }
@@ -687,7 +662,6 @@ export function useMindMap() {
   const handleFileUpload = useCallback(async (file: File, blobUrl?: string) => {
     if (!file) return;
     
-    console.log('Starting file upload for:', file.name);
     setFileLoading(true);
     setUploadError(null);
     setLoadingStage('uploading');
@@ -700,7 +674,6 @@ export function useMindMap() {
       
       // Clear previous chat history
       localStorage.removeItem('chatHistory');
-      console.log('Removed previous chat history for new PDF upload');
          
       // Clear previous session data for this new PDF
       localStorage.removeItem('pdfSessionId');
@@ -711,7 +684,6 @@ export function useMindMap() {
       const isExamplePdf = existingPdfUrl && existingPdfUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf');
       
       if (isExamplePdf) {
-        console.log('Removing example PDF URL from localStorage');
         localStorage.removeItem('pdfBlobUrl');
       }
       
@@ -741,15 +713,12 @@ export function useMindMap() {
           }
           
           uploadedBlobUrl = blob.url;
-          console.log('File uploaded successfully to Vercel Blob:', 
-            uploadedBlobUrl.substring(0, 50) + '...');
         } catch (uploadError) {
           console.error('Error uploading to Blob:', uploadError);
           throw new Error('Failed to upload PDF file');
         }
       } else {
         uploadedBlobUrl = blobUrl;
-        console.log('Using provided blob URL:', uploadedBlobUrl.substring(0, 50) + '...');
       }
       
       // CRUCIAL: Store the blob URL in localStorage for cross-page persistence
@@ -760,17 +729,13 @@ export function useMindMap() {
         
         // Double-check it was set correctly
         const storedBlobUrl = localStorage.getItem('pdfBlobUrl');
-        console.log('Stored blob URL in localStorage:', 
-          storedBlobUrl ? (storedBlobUrl.substring(0, 50) + '...') : 'FAILED TO STORE');
       } catch (storageError) {
         console.warn('Failed to store blob URL in localStorage but continuing with session init');
       }
       
       // Update the application state with the blob URL
       setPdfUrl(uploadedBlobUrl);
-      
-      console.log('PDF upload and session initialization complete');
-      
+          
       // Triple-check that we didn't somehow revert to the example PDF
       const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
       if (finalBlobUrl && finalBlobUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
@@ -827,7 +792,6 @@ export function useMindMap() {
   // Force update node handlers when mindMapData changes
   useEffect(() => {
     if (mindMapData && nodes.length > 0) {
-      console.log('Updating node function references due to mindMapData change');
       
       // Create a map of parent to children for checking if nodes have children
       const parentToChildren: Record<string, boolean> = {};
@@ -907,11 +871,6 @@ export function useMindMap() {
       const isChangingOrientation = 
         (LAYOUT_PRESETS[currentLayoutIndex].direction === 'LR' || LAYOUT_PRESETS[currentLayoutIndex].direction === 'RL') !==
         (nextLayout.direction === 'LR' || nextLayout.direction === 'RL');
-        
-      console.log(`Switching layout to: ${nextLayout.name} (${nextLayout.direction})`);
-      if (isChangingOrientation) {
-        console.log('Orientation changed: Repositioning handles and buttons');
-      }
       
       try {
         // Generate the layout with enhanced positioning algorithm
@@ -965,11 +924,9 @@ export function useMindMap() {
   // Effect to create initial flow when mindMapData is set
   useEffect(() => {
     if (mindMapData && nodes.length === 0) {
-      console.log('Creating initial flow from mindMapData');
       
       // Get the current layout options based on device/screen size
       const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
-      console.log(`Using initial layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
       
       // Generate the initial layout with enhanced positioning algorithm
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
@@ -1034,8 +991,7 @@ export function useMindMap() {
 
   // Delete a node and its connected edges
   const deleteNode = useCallback((nodeId: string) => {
-    console.log(`Deleting node: ${nodeId}`);
-    
+  
     // Remove the node from the nodes state
     setNodes(currentNodes => currentNodes.filter(node => node.id !== nodeId));
     
@@ -1156,7 +1112,6 @@ export function useMindMap() {
   // Generate initial nodes and edges whenever mindMapData changes
   useEffect(() => {
     if (mindMapData && !loading) {
-      console.log('Generating new flow from updated mindMapData:', mindMapData);
       
       // Check if this is just a content update that should not trigger layout recalculation
       const isContentOnlyUpdate = mindMapData.__contentOnlyUpdate === true;
@@ -1165,7 +1120,6 @@ export function useMindMap() {
       const isNodeAddition = mindMapData.__nodeAddition === true;
       
       if (isContentOnlyUpdate) {
-        console.log('Content-only update detected - skipping layout recalculation');
         
         // For content updates, just update the data in the existing nodes without changing positions
         setNodes(currentNodes => 
@@ -1202,13 +1156,11 @@ export function useMindMap() {
       
       // If this is a node addition, we've already handled it in addFollowUpNode
       if (isNodeAddition) {
-        console.log('Node addition detected - positions were already set in addFollowUpNode');
         return;
       }
       
       // Get current layout options based on device/screen size
       const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
-      console.log(`Using layout: ${currentLayoutOptions.name} with direction: ${currentLayoutOptions.direction}`);
       
       // PRESERVE CURRENT POSITIONS: First get all current node positions from ReactFlow before any update
       const currentNodePositions: Record<string, NodePosition> = {};
@@ -1218,7 +1170,6 @@ export function useMindMap() {
           flowNodes.forEach((node: { id: string; position: NodePosition }) => {
             currentNodePositions[node.id] = node.position;
           });
-          console.log(`Preserved positions for ${Object.keys(currentNodePositions).length} existing nodes`);
         } catch (error) {
           console.warn('Could not get node positions from reactFlowInstance:', error);
         }

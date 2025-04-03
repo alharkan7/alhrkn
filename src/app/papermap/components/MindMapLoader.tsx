@@ -1,7 +1,6 @@
 import React from 'react';
 
 // MindMapLoader Component: Displays an animated mind-map structure as a loading indicator.
-// ADDED SVG BACKGROUND FOR PREVIEW DEBUGGING
 const MindMapLoader = () => {
   // --- Configuration ---
   const width = 150; // SVG canvas width

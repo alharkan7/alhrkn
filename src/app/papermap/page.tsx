@@ -37,7 +37,6 @@ export default function PaperMap() {
           if (navigator.sendBeacon) {
             const blob = new Blob([data], { type: 'application/json' });
             navigator.sendBeacon('/api/papermap', blob);
-            console.log('Session cleanup request sent via sendBeacon');
           } else {
             // Fall back to fetch with keepalive
             fetch('/api/papermap', {
@@ -48,7 +47,6 @@ export default function PaperMap() {
               body: data,
               keepalive: true
             }).catch(e => console.error('Error sending cleanup request:', e));
-            console.log('Session cleanup request sent via fetch');
           }
         }
       } catch (error) {

@@ -58,7 +58,6 @@ export function PdfViewerProvider({
         setPdfUrl(blobUrl);
         // Since we're using the Blob URL, we can clear the base64 data to save memory
         setPdfBase64(null);
-        console.log('Using Blob URL for PDF:', blobUrl);
         return;
       }
       
@@ -77,7 +76,6 @@ export function PdfViewerProvider({
       // Set the base64 data
       setPdfBase64(base64);
       
-      console.log('PDF processed:', newFileName);
     } catch (error) {
       console.error('Failed to process PDF file:', error);
     }
@@ -89,7 +87,6 @@ export function PdfViewerProvider({
     const validPage = pageNumber && pageNumber > 0 ? pageNumber : 1;
     setCurrentPdfPage(validPage);
     setIsPdfViewerOpen(true);
-    console.log('Opening PDF viewer at page:', validPage);
   }, []);
   
   // Function to close PDF viewer

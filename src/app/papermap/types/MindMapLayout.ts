@@ -159,9 +159,7 @@ export const createMindMapLayout = (
   
   // Run the layout algorithm
   try {
-    console.log('Running dagre layout with', data.nodes.length, 'nodes');
     dagre.layout(dagreGraph);
-    console.log('Dagre layout completed');
   } catch (error) {
     console.error('Error in dagre layout:', error);
   }
