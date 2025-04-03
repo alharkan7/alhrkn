@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+// Import the sample text
+import { EXAMPLE_PDF_TEXT } from '@/app/papermap/data/sampleMindmap';
 
 // Initialize Google AI services
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
@@ -79,8 +81,23 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // If no history, start with the system prompt
-      chat = model.startChat({
-        history: [
+      // Determine initial history based on whether the *first* request is a follow-up (sample map)
+      let initialHistory;
+      if (isFollowUp) {
+        // First request is a follow-up -> sample map context needed
+        initialHistory = [
+          {
+            role: "user",
+            parts: [{ text: `${SYSTEM_PROMPT}\n\n--- Sample Document Context ---\n${EXAMPLE_PDF_TEXT}` }]
+          },
+          {
+            role: "model",
+            parts: [{ text: "I understand. I'll use the provided sample document context for follow-up questions. All responses will follow the exact JSON schemas you specified." }]
+          }
+        ];
+      } else {
+        // First request is mindmap generation -> standard system prompt
+        initialHistory = [
           {
             role: "user",
             parts: [{ text: SYSTEM_PROMPT }]
@@ -89,7 +106,11 @@ export async function POST(request: NextRequest) {
             role: "model",
             parts: [{ text: "I understand. I'll analyze PDFs and create structured mindmaps for first requests, and provide focused answers for follow-up questions. All responses will follow the exact JSON schemas you specified." }]
           }
-        ],
+        ];
+      }
+      
+      chat = model.startChat({
+        history: initialHistory,
         generationConfig: {
           responseMimeType: "application/json"
         }
