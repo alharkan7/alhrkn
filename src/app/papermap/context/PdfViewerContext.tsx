@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useCallback, useEffect } from 'react';
 
 interface PdfViewerContextType {
   // State
@@ -45,6 +45,25 @@ export function PdfViewerProvider({
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState<boolean>(false);
   const [currentPdfPage, setCurrentPdfPage] = useState<number>(1);
   const [fileName, setFileName] = useState<string>(initialFileName);
+
+  // --- Add useEffect to update internal state when props change --- 
+  useEffect(() => {
+    // Update internal pdfUrl state if the initialPdfUrl prop changes
+    if (initialPdfUrl !== pdfUrl) { // Avoid unnecessary updates
+      setPdfUrl(initialPdfUrl);
+      // Clear base64 if we now have a URL
+      if (initialPdfUrl) {
+        setPdfBase64(null);
+      }
+    }
+  }, [initialPdfUrl, pdfUrl]); // Depend on the prop and the internal state
+
+  useEffect(() => {
+    // Update internal fileName state if the initialFileName prop changes
+    if (initialFileName !== fileName) { // Avoid unnecessary updates
+       setFileName(initialFileName);
+    }
+  }, [initialFileName, fileName]); // Depend on the prop and the internal state
 
   // Function to process PDF file
   const handlePdfFile = useCallback(async (file: File, blobUrl?: string) => {

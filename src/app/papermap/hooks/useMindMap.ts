@@ -20,6 +20,7 @@ export function useMindMap() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useRef<any>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(EXAMPLE_PDF_URL); // Initialize with example PDF URL
+  const [fileName, setFileName] = useState<string>('mindmap'); // Initialize with a default file name
   
   // Refs to help prevent infinite state update loops
   const previousLayoutIndexRef = useRef<number>(0);
@@ -47,174 +48,8 @@ export function useMindMap() {
       setCurrentLayoutIndex(getDefaultLayoutIndex());
     }
   }, []);
-  
-  // Create a ref to hold the latest addFollowUpNode implementation
-  const addFollowUpNodeRef = useRef<(parentId: string, question: string, answer: string, customNodeId?: string) => string>((parentId, question, answer, customNodeId) => {
-    console.error("addFollowUpNode called before initialization");
-    return customNodeId || '';
-  });
 
-  // Add deleteNode reference 
-  const deleteNodeRef = useRef<(nodeId: string) => void>((nodeId) => {
-    console.error("deleteNode called before initialization");
-  });
-  
-  // Memoize the parent-to-children map based on mindMapData structure
-  const parentToChildrenMap = useMemo(() => {
-    if (!mindMapData) return {};
-    
-    const map: Record<string, string[]> = {};
-    mindMapData.nodes.forEach(node => {
-      if (node.parentId) {
-        if (!map[node.parentId]) {
-          map[node.parentId] = [];
-        }
-        map[node.parentId].push(node.id);
-      }
-    });
-    return map;
-  // Dependency: Only recalculate when the node list itself changes structurally
-  }, [mindMapData?.nodes]); 
-
-  // Get all descendant node IDs (recursive)
-  const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
-    const children = nodeMap[nodeId] || [];
-    const descendants = [...children];
-    
-    children.forEach(childId => {
-      const childDescendants = getDescendantIds(childId, nodeMap);
-      descendants.push(...childDescendants);
-    });
-    
-    return descendants;
-  }, []); // No dependencies needed if it purely operates on its arguments
-
-  // Toggle visibility of children nodes
-  const toggleChildrenVisibility = useCallback((nodeId: string) => {
-    setCollapsedNodes(prev => {
-      const newCollapsed = new Set(prev);
-      if (newCollapsed.has(nodeId)) {
-        newCollapsed.delete(nodeId);
-      } else {
-        newCollapsed.add(nodeId);
-      }
-      return newCollapsed;
-    });
-    // No need to call updateNodeVisibility here, the effect below handles it
-  }, []); // Removed updateNodeVisibility dependency
-
-  // Update node visibility based on collapsed state
-  const updateNodeVisibility = useCallback(() => {
-    // Use the memoized parentToChildrenMap
-    if (!mindMapData || Object.keys(parentToChildrenMap).length === 0) return;
-    
-    // Find all nodes that should be hidden due to their ancestor being collapsed
-    const nodesToHide = new Set<string>();
-    collapsedNodes.forEach(collapsedId => {
-      // Pass the memoized map to getDescendantIds
-      const descendants = getDescendantIds(collapsedId, parentToChildrenMap);
-      descendants.forEach(id => nodesToHide.add(id));
-    });
-    
-    // Update nodes with visibility and hasChildren data
-    setNodes(currentNodes => 
-      currentNodes.map(node => {
-        // Use memoized map to check for children efficiently
-        const nodeHasChildren = !!parentToChildrenMap[node.id]?.length;
-        const childrenCollapsed = collapsedNodes.has(node.id);
-        
-        return {
-          ...node,
-          hidden: nodesToHide.has(node.id),
-          data: {
-            ...node.data,
-            hasChildren: nodeHasChildren,
-            childrenCollapsed: childrenCollapsed,
-            // Pass the stable toggle function
-            toggleChildrenVisibility: toggleChildrenVisibility,
-            // Preserve nodeType
-            nodeType: node.data.nodeType
-          }
-        };
-      })
-    );
-    
-    // Update edges - hide edges connected to hidden nodes
-    setEdges(currentEdges => 
-      currentEdges.map(edge => ({
-        ...edge,
-        hidden: nodesToHide.has(edge.target as string) // Only need to check target for hiding
-      }))
-    );
-  // Dependencies: Recalculate visibility when collapsed nodes change or the map changes
-  }, [collapsedNodes, parentToChildrenMap, mindMapData, getDescendantIds, toggleChildrenVisibility, setNodes, setEdges]);
-
-  // Effect to update visibility when dependencies change
-  useEffect(() => {
-    updateNodeVisibility();
-  }, [updateNodeVisibility]); // Trigger effect when the callback itself changes (due to its deps)
-
-  // Update node data
-  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number; expanded?: boolean}) => {
-    // Apply visual feedback for the edited node (like a subtle highlight)
-    setNodes((nds) => 
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          // Update the node data
-          // The visual highlight is now handled by CSS in CustomNode.tsx
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              ...newData,
-              // Keep essential functions
-              updateNodeData,
-              toggleChildrenVisibility,
-              // Preserve other important data
-              hasChildren: node.data.hasChildren,
-              childrenCollapsed: node.data.childrenCollapsed,
-              // Preserve the original nodeType
-              nodeType: node.data.nodeType,
-            },
-            // No need to manipulate style or className here anymore for highlighting
-          };
-        }
-        return node;
-      })
-    );
-    
-    // Update the mindMapData with a flag to prevent unnecessary layout recalculation
-    if (mindMapData) {
-      const updatedMindMapData = {
-        ...mindMapData,
-        nodes: mindMapData.nodes.map((n) => {
-          if (n.id === nodeId) {
-            return {
-              ...n,
-              title: newData.title ?? n.title,
-              description: newData.description ?? n.description,
-              // Make sure we keep the original type
-              type: n.type,
-              // Store expanded state in mindMapData if provided
-              ...(newData.expanded !== undefined && { expanded: newData.expanded }),
-              __contentOnlyUpdate: true // Flag to indicate this update shouldn't trigger layout recalculation
-            };
-          }
-          return n;
-        }),
-        __contentOnlyUpdate: true // Add a flag at the root level too
-      };
-      
-      // Use setTimeout to break potential update cycles
-      // Although, if this update never causes a loop, setTimeout might be unnecessary here too.
-      // Keeping it for now as a precaution.
-      setTimeout(() => {
-        setMindMapData(updatedMindMapData);
-      }, 0);
-    }
-  }, [mindMapData, setNodes, toggleChildrenVisibility]);
-
-  // Add a new follow-up node
+    // Add a new follow-up node
   const addFollowUpNode = (parentId: string, question: string, answer: string, customNodeId?: string): string => {
     
     // Validate inputs to prevent errors
@@ -387,8 +222,8 @@ export function useMindMap() {
         title: question,
         description: answer,
         updateNodeData,
-        addFollowUpNode: stableAddFollowUpNode, // Use stable reference
-        deleteNode: stableDeleteNode,
+        addFollowUpNode: addFollowUpNodeRef.current,
+        deleteNode: deleteNodeRef.current,
         // Set nodeType based on content
         nodeType: nodeType,
         expanded: true, // Expand all nodes by default
@@ -502,6 +337,172 @@ export function useMindMap() {
     return newNodeId;
   };
   
+  // Create a ref to hold the latest addFollowUpNode implementation
+  const addFollowUpNodeRef = useRef<(parentId: string, question: string, answer: string, customNodeId?: string) => string>((parentId, question, answer, customNodeId) => {
+    console.error("addFollowUpNode called before initialization");
+    return customNodeId || '';
+  });
+
+  // Add deleteNode reference 
+  const deleteNodeRef = useRef<(nodeId: string) => void>((nodeId) => {
+    console.error("deleteNode called before initialization");
+  });
+  
+  // Memoize the parent-to-children map based on mindMapData structure
+  const parentToChildrenMap = useMemo(() => {
+    if (!mindMapData) return {};
+    
+    const map: Record<string, string[]> = {};
+    mindMapData.nodes.forEach(node => {
+      if (node.parentId) {
+        if (!map[node.parentId]) {
+          map[node.parentId] = [];
+        }
+        map[node.parentId].push(node.id);
+      }
+    });
+    return map;
+  // Dependency: Only recalculate when the node list itself changes structurally
+  }, [mindMapData?.nodes]); 
+
+  // Get all descendant node IDs (recursive)
+  const getDescendantIds = useCallback((nodeId: string, nodeMap: Record<string, string[]>): string[] => {
+    const children = nodeMap[nodeId] || [];
+    const descendants = [...children];
+    
+    children.forEach(childId => {
+      const childDescendants = getDescendantIds(childId, nodeMap);
+      descendants.push(...childDescendants);
+    });
+    
+    return descendants;
+  }, []); // No dependencies needed if it purely operates on its arguments
+
+  // Toggle visibility of children nodes
+  const toggleChildrenVisibility = useCallback((nodeId: string) => {
+    setCollapsedNodes(prev => {
+      const newCollapsed = new Set(prev);
+      if (newCollapsed.has(nodeId)) {
+        newCollapsed.delete(nodeId);
+      } else {
+        newCollapsed.add(nodeId);
+      }
+      return newCollapsed;
+    });
+    // No need to call updateNodeVisibility here, the effect below handles it
+  }, []); // Removed updateNodeVisibility dependency
+
+  // Update node visibility based on collapsed state
+  const updateNodeVisibility = useCallback(() => {
+    // Use the memoized parentToChildrenMap
+    if (!mindMapData || Object.keys(parentToChildrenMap).length === 0) return;
+    
+    // Find all nodes that should be hidden due to their ancestor being collapsed
+    const nodesToHide = new Set<string>();
+    collapsedNodes.forEach(collapsedId => {
+      // Pass the memoized map to getDescendantIds
+      const descendants = getDescendantIds(collapsedId, parentToChildrenMap);
+      descendants.forEach(id => nodesToHide.add(id));
+    });
+    
+    // Update nodes with visibility and hasChildren data
+    setNodes(currentNodes => 
+      currentNodes.map(node => {
+        // Use memoized map to check for children efficiently
+        const nodeHasChildren = !!parentToChildrenMap[node.id]?.length;
+        const childrenCollapsed = collapsedNodes.has(node.id);
+        
+        return {
+          ...node,
+          hidden: nodesToHide.has(node.id),
+          data: {
+            ...node.data,
+            hasChildren: nodeHasChildren,
+            childrenCollapsed: childrenCollapsed,
+            // Pass the stable toggle function
+            toggleChildrenVisibility: toggleChildrenVisibility,
+            // Preserve nodeType
+            nodeType: node.data.nodeType
+          }
+        };
+      })
+    );
+    
+    // Update edges - hide edges connected to hidden nodes
+    setEdges(currentEdges => 
+      currentEdges.map(edge => ({
+        ...edge,
+        hidden: nodesToHide.has(edge.target as string) // Only need to check target for hiding
+      }))
+    );
+  // Dependencies: Recalculate visibility when collapsed nodes change or the map changes
+  }, [collapsedNodes, parentToChildrenMap, mindMapData, getDescendantIds, toggleChildrenVisibility, setNodes, setEdges]);
+
+  // Effect to update visibility when dependencies change
+  useEffect(() => {
+    updateNodeVisibility();
+  }, [updateNodeVisibility]); // Trigger effect when the callback itself changes (due to its deps)
+
+  // Update node data
+  const updateNodeData = useCallback((nodeId: string, newData: {title?: string; description?: string; width?: number; pageNumber?: number; expanded?: boolean}) => {
+    // Apply visual feedback for the edited node (like a subtle highlight)
+    setNodes((nds) => 
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          // Update the node data
+          // The visual highlight is now handled by CSS in CustomNode.tsx
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...newData,
+              // Keep essential functions
+              updateNodeData,
+              toggleChildrenVisibility,
+              // Preserve other important data
+              hasChildren: node.data.hasChildren,
+              childrenCollapsed: node.data.childrenCollapsed,
+              // Preserve the original nodeType
+              nodeType: node.data.nodeType,
+            },
+            // No need to manipulate style or className here anymore for highlighting
+          };
+        }
+        return node;
+      })
+    );
+    
+    // Update the mindMapData with a flag to prevent unnecessary layout recalculation
+    if (mindMapData) {
+      const updatedMindMapData = {
+        ...mindMapData,
+        nodes: mindMapData.nodes.map((n) => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              title: newData.title ?? n.title,
+              description: newData.description ?? n.description,
+              // Make sure we keep the original type
+              type: n.type,
+              // Store expanded state in mindMapData if provided
+              ...(newData.expanded !== undefined && { expanded: newData.expanded }),
+              __contentOnlyUpdate: true // Flag to indicate this update shouldn't trigger layout recalculation
+            };
+          }
+          return n;
+        }),
+        __contentOnlyUpdate: true // Add a flag at the root level too
+      };
+      
+      // Use setTimeout to break potential update cycles
+      // Although, if this update never causes a loop, setTimeout might be unnecessary here too.
+      // Keeping it for now as a precaution.
+      setTimeout(() => {
+        setMindMapData(updatedMindMapData);
+      }, 0);
+    }
+  }, [mindMapData, setNodes, toggleChildrenVisibility]);
+  
   // Always update the references
   useEffect(() => {
     // Update the ref with the latest implementation that has access to current state
@@ -509,92 +510,25 @@ export function useMindMap() {
     deleteNodeRef.current = deleteNode;
   });
 
-  // Create a stable function that always calls the latest implementation
-  const stableAddFollowUpNode = useCallback((parentId: string, question: string, answer: string, customNodeId?: string) => {
-    // Always call the latest implementation from the ref
-    const nodeId = addFollowUpNodeRef.current(parentId, question, answer, customNodeId);
-    return nodeId || customNodeId || ''; // Ensure we always return a string
-  }, []);
-
-  // Create a stable function for deleteNode
-  const stableDeleteNode = useCallback((nodeId: string) => {
-    // Always call the latest implementation from the ref
-    deleteNodeRef.current(nodeId);
-  }, []);
-
-  // Function to load example mindmap
+  // Load example mind map function
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
-    
-    // Clean up previous chat history
-    localStorage.removeItem('chatHistory');
-    
-    // Reset to example data
+    setLoadingStage('processing');
+    setError(null);
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
-    setError(null);
+    setFileName('mindmap'); // Reset filename when loading example
+    setCollapsedNodes(new Set()); // Reset collapsed state
     
-    // Store the example PDF URL in localStorage for follow-up questions
-    try {
-      localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-      
-      // IMPORTANT: Set the userHasUploadedPdf flag to false when loading the example
-      localStorage.setItem('userHasUploadedPdf', 'false');
-    } catch (storageError) {
-      console.warn('Storage issue when setting example PDF URL, but continuing:', storageError);
-    }
-    
-    // Clear any existing flow state
-    setNodes([]);
-    setEdges([]);
-    setNodePositions({});
-    setCollapsedNodes(new Set());
-    
-    try {
-      // Get current layout options based on device/screen size
-      const currentLayoutOptions = LAYOUT_PRESETS[currentLayoutIndex];
-      
-      // Generate layout with enhanced positioning algorithm
-      const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
-        EXAMPLE_MINDMAP, 
-        updateNodeData, 
-        currentLayoutOptions
-      );
-      
-      // Add the addFollowUpNode function to all nodes' data
-      // Ensure each node has the correct layout direction explicitly set
-      const nodesWithFollowUp = flowNodes.map(node => ({
-        ...node,
-        data: {
-          ...node.data,
-          addFollowUpNode: stableAddFollowUpNode,
-          deleteNode: stableDeleteNode,
-          toggleChildrenVisibility,
-          // Explicitly set layoutDirection here rather than letting it be inherited later
-          layoutDirection: currentLayoutOptions.direction
-        }
-      }));
-      
-      setNodes(nodesWithFollowUp);
-      setEdges(flowEdges);
-      
-      // Fit view after nodes are set
-      setTimeout(() => {
-        if (reactFlowInstance.current) {
-          reactFlowInstance.current.fitView({ 
-            padding: 0.4, 
-            duration: 800,
-            includeHiddenNodes: false
-          });
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Error creating example mindmap layout:', error);
-      setError('Error creating mindmap. Please try again.');
-    } finally {
+    // Small delay to allow state updates before layout calculation
+    setTimeout(() => {
+      // ... layout calculation logic ...
+       // Use the consistent padding
+      reactFlowInstance.current?.fitView({ padding: 0.4, duration: 800 });
       setLoading(false);
-    }
-  }, [updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex, setNodes, setEdges, setMindMapData, setPdfUrl, setError]);
+      setLoadingStage(null);
+    }, 100);
+  }, [setLoading, setLoadingStage, setError, setMindMapData, setPdfUrl, setFileName, setCollapsedNodes]); 
 
   // Generate initial mindmap for uploaded PDF
   const generateInitialMindMap = useCallback(async (fileName: string, pdfBlobUrl: string) => {
@@ -670,11 +604,14 @@ export function useMindMap() {
   // Handle file upload for PDF
   const handleFileUpload = useCallback(async (file: File, blobUrl?: string) => {
     if (!file) return;
-    
-    setFileLoading(true);
-    setUploadError(null);
-    setLoadingStage('uploading');
-    
+
+    // --- Moved loading state setters to the beginning ---
+    setLoading(true);           // Set main loading true immediately
+    setLoadingStage('uploading'); // Indicate upload stage
+    setFileLoading(true);       // Keep this if Sidebar uses it
+    setError(null);             // Clear previous errors
+    setUploadError(null);       // Clear previous upload errors
+
     try {
       // Check if the file is a PDF
       if (file.type !== 'application/pdf') {
@@ -744,6 +681,7 @@ export function useMindMap() {
       
       // Update the application state with the blob URL
       setPdfUrl(uploadedBlobUrl);
+      setFileName(file.name); // Update the file name
           
       // Triple-check that we didn't somehow revert to the example PDF
       const finalBlobUrl = localStorage.getItem('pdfBlobUrl');
@@ -763,18 +701,19 @@ export function useMindMap() {
       setNodePositions({});
       setCollapsedNodes(new Set());
       
-      // Before generating mindmap, set loading true to ensure the loading indicator appears
-      setLoading(true);
+      // --- Loading state is already set, now update stage for processing ---
+      // setLoading(true); // Already set above
       setLoadingStage('processing');
       
       try {
         // Generate a new mindmap for the uploaded PDF
         await generateInitialMindMap(file.name, uploadedBlobUrl);
+        setLoading(false);
+        setLoadingStage(null);
       } catch (mindmapError) {
         console.error('Error generating mindmap:', mindmapError);
-        setError(mindmapError instanceof Error ? mindmapError.message : 'Failed to generate mindmap');
-      } finally {
-        // Ensure loading state is reset regardless of mindmap generation outcome
+        const errorMessage = mindmapError instanceof Error ? mindmapError.message : 'Failed to generate mindmap';
+        setError(errorMessage);
         setLoading(false);
         setLoadingStage(null);
       }
@@ -782,16 +721,22 @@ export function useMindMap() {
       return uploadedBlobUrl;
     } catch (error) {
       console.error('Error handling file upload:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process PDF';
       setUploadError(error instanceof Error ? error : new Error('Unknown upload error'));
-      setError(error instanceof Error ? error.message : 'Failed to upload PDF');
+      setError(errorMessage);
+      // --- Ensure loading is reset on error --- 
+      setLoading(false);
+      setLoadingStage(null);
       return null;
     } finally {
+      // --- Simplify finally block --- 
       setFileLoading(false);
-      if (loading) {
-        setLoadingStage(null);
-      }
+      // No need to check loading state here, it's handled in try/catch/finally above
+      // if (loading) { 
+      //   setLoadingStage(null);
+      // }
     }
-  }, [generateInitialMindMap, setPdfUrl, setMindMapData]);
+  }, [generateInitialMindMap, setPdfUrl, setMindMapData, setLoading, setLoadingStage, setError, setFileName]); // Add state setters to dependency array
 
   // Update node visibility when collapsed nodes or mindMapData change
   useEffect(() => {
@@ -824,8 +769,8 @@ export function useMindMap() {
             position, // Preserve position
             data: {
               ...node.data,
-              addFollowUpNode: stableAddFollowUpNode, // Use the stable function
-              deleteNode: stableDeleteNode, // Add deleteNode function
+              addFollowUpNode: addFollowUpNodeRef.current,
+              deleteNode: deleteNodeRef.current,
               hasChildren: !!parentToChildren[node.id],
               childrenCollapsed: collapsedNodes.has(node.id),
               toggleChildrenVisibility,
@@ -838,7 +783,7 @@ export function useMindMap() {
         })
       );
     }
-  }, [mindMapData, nodes.length, stableAddFollowUpNode, stableDeleteNode, collapsedNodes, toggleChildrenVisibility, nodePositions]);
+  }, [mindMapData, nodes.length, collapsedNodes, toggleChildrenVisibility, nodePositions]);
 
   // Reset zoom and center the view
   const handleResetView = useCallback(() => {
@@ -962,8 +907,8 @@ export function useMindMap() {
           ...node,
           data: {
             ...node.data,
-            addFollowUpNode: stableAddFollowUpNode,
-            deleteNode: stableDeleteNode,
+            addFollowUpNode: addFollowUpNodeRef.current,
+            deleteNode: deleteNodeRef.current,
             toggleChildrenVisibility,
             // Explicitly set layoutDirection to ensure correct handle positioning
             layoutDirection: nextLayout.direction
@@ -995,7 +940,7 @@ export function useMindMap() {
         console.error('Error applying new layout:', error);
       }
     }
-  }, [currentLayoutIndex, mindMapData, nodes, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, updateNodeData]);
+  }, [currentLayoutIndex, mindMapData, nodes, toggleChildrenVisibility, updateNodeData]);
 
   // Effect to create initial flow when mindMapData is set
   useEffect(() => {
@@ -1017,8 +962,8 @@ export function useMindMap() {
         ...node,
         data: {
           ...node.data,
-          addFollowUpNode: stableAddFollowUpNode,
-          deleteNode: stableDeleteNode,
+          addFollowUpNode: addFollowUpNodeRef.current,
+          deleteNode: deleteNodeRef.current,
           toggleChildrenVisibility,
           // Explicitly set layoutDirection to ensure correct handle positioning
           layoutDirection: currentLayoutOptions.direction
@@ -1039,7 +984,7 @@ export function useMindMap() {
         }
       }, 100);
     }
-  }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex]);
+  }, [mindMapData, nodes.length, updateNodeData, toggleChildrenVisibility, currentLayoutIndex]);
 
   // Customize onNodesChange to track positions *after* node drags complete
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
@@ -1219,8 +1164,8 @@ export function useMindMap() {
                   title: mindMapNode.title,
                   description: mindMapNode.description,
                   // Preserve other data properties
-                  addFollowUpNode: stableAddFollowUpNode,
-                  deleteNode: stableDeleteNode, 
+                  addFollowUpNode: addFollowUpNodeRef.current,
+                  deleteNode: deleteNodeRef.current, 
                   toggleChildrenVisibility,
                   // Preserve layout direction
                   layoutDirection: node.data.layoutDirection
@@ -1279,8 +1224,8 @@ export function useMindMap() {
           ...(existingPosition ? { position: existingPosition } : {}),
           data: {
             ...node.data,
-            addFollowUpNode: stableAddFollowUpNode,
-            deleteNode: stableDeleteNode, 
+            addFollowUpNode: addFollowUpNodeRef.current,
+            deleteNode: deleteNodeRef.current,
             toggleChildrenVisibility,
             // Explicitly set layoutDirection here rather than letting it be inherited later
             layoutDirection: currentLayoutOptions.direction 
@@ -1329,7 +1274,7 @@ export function useMindMap() {
       }
     }
   // IMPORTANT: Remove nodePositions from the dependency array to prevent circular updates
-  }, [mindMapData, currentLayoutIndex, loading, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
+  }, [mindMapData, currentLayoutIndex, loading, updateNodeData, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
 
   return {
     loading,
@@ -1345,12 +1290,12 @@ export function useMindMap() {
     onEdgesChange,
     handleFileUpload,
     addFollowUpNode: addFollowUpNodeRef.current,
-    deleteNode: stableDeleteNode,
+    deleteNode: deleteNodeRef.current,
     handleResetView,
     loadExampleMindMap,
     pdfUrl,
+    fileName,
     currentLayoutIndex,
-    setCurrentLayoutIndex,
     cycleLayout
   };
-} 
+}
