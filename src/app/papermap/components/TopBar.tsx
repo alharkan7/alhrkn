@@ -1,4 +1,4 @@
-import { LoaderCircle, Menu, FileText, Plus } from 'lucide-react';
+import { Menu, FileText, Plus } from 'lucide-react';
 import Downloader from './Downloader';
 import { useCallback } from 'react';
 import Sidebar from './Sidebar';
