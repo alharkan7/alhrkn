@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange } from 'reactflow';
+import { Node, Edge, useNodesState, useEdgesState, NodeChange, NodePositionChange, ReactFlowJsonObject } from 'reactflow';
 import { MindMapData, NodePosition, MindMapNode, COLUMN_WIDTH } from '../types';
 import { createMindMapLayout, updateMindMapLayout, LAYOUT_PRESETS, getDefaultLayoutIndex } from '../types';
 import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
@@ -141,7 +141,7 @@ export function useMindMap() {
     setEdges(currentEdges => 
       currentEdges.map(edge => ({
         ...edge,
-        hidden: nodesToHide.has(edge.target) // Only need to check target for hiding
+        hidden: nodesToHide.has(edge.target as string) // Only need to check target for hiding
       }))
     );
   // Dependencies: Recalculate visibility when collapsed nodes change or the map changes
@@ -386,7 +386,8 @@ export function useMindMap() {
         toggleChildrenVisibility,
         width: 256, // Default width for new nodes
         pageNumber: parentPageNumber,
-        openPdfViewer: parentOpenPdfViewer
+        openPdfViewer: parentOpenPdfViewer,
+        layoutDirection: currentLayout?.direction // Add current layout direction
       },
       style: {
         border: '2px solid #4299e1', // Highlight the new node
@@ -467,14 +468,15 @@ export function useMindMap() {
       return updatedEdges;
     });
 
-    // ---> MOVED MINDMAPDATA UPDATE EARLIER <---
-    const updatedMindMapData = {
-      ...mindMapData,
-      nodes: [...mindMapData.nodes, newNode],
+    // Create a copy of the existing mindMapData to avoid mutation issues
+    const updatedMindMapData = { 
+      ...(mindMapData || { nodes: [] }), 
+      nodes: [...(mindMapData?.nodes || []), newNode],
       __nodeAddition: true  // Special flag to indicate this is a node addition
     };
+    
+    // Update the mindMapData state with the new node
     setMindMapData(updatedMindMapData);
-    // <--- END MOVE --->
 
     // Use setTimeout to break potential update cycles when updating nodePositions
     setTimeout(() => {
@@ -868,9 +870,79 @@ export function useMindMap() {
         (nextLayout.direction === 'LR' || nextLayout.direction === 'RL');
       
       try {
+        // First get current ReactFlow nodes to ensure we don't lose any nodes
+        let currentNodeIds = new Set<string>();
+        if (reactFlowInstance.current) {
+          const currentNodes = reactFlowInstance.current.getNodes();
+          currentNodeIds = new Set(currentNodes.map((node: Node) => node.id));
+        } else {
+          // Fall back to nodes state if reactFlowInstance isn't available
+          currentNodeIds = new Set(nodes.map((node: Node) => node.id));
+        }
+        
+        // Check if there are any nodes in ReactFlow that aren't in mindMapData
+        const missingNodes = nodes.filter(node => {
+          return !mindMapData.nodes.some(mindMapNode => mindMapNode.id === node.id);
+        });
+        
+        // Add any missing nodes to mindMapData for this layout change
+        let updatedMindMapData = { ...mindMapData };
+        if (missingNodes.length > 0) {
+          // First build a map of edge connections to determine parent-child relationships
+          const edgeMap: Record<string, string> = {};
+          if (reactFlowInstance.current) {
+            const allEdges = reactFlowInstance.current.getEdges();
+            // @ts-ignore - Edge type is inferred from ReactFlow
+            allEdges.forEach(edge => {
+              // Use explicit typing when accessing properties
+              const target = edge.target as string;
+              const source = edge.source as string;
+              edgeMap[target] = source;
+            });
+          } else {
+            // Fall back to edges state
+            // @ts-ignore - Edge type is inferred from ReactFlow
+            edges.forEach(edge => {
+              // Use explicit typing when accessing properties
+              const target = edge.target as string;
+              const source = edge.source as string;
+              edgeMap[target] = source;
+            });
+          }
+          
+          const newMindMapNodes = missingNodes.map((node: Node) => {
+            // Get parent ID from edge connections rather than node data
+            const parentId = edgeMap[node.id] || null;
+            
+            // Get parent's level or default to 0
+            let level = 0;
+            if (parentId) {
+              const parentNode = mindMapData.nodes.find(n => n.id === parentId);
+              if (parentNode) {
+                level = parentNode.level + 1;
+              }
+            }
+            
+            return {
+              id: node.id,
+              title: node.data.title || '',
+              description: node.data.description || '',
+              parentId: parentId,
+              level: level,
+              type: node.data.nodeType || 'qna',
+              pageNumber: node.data.pageNumber
+            };
+          });
+          
+          updatedMindMapData = {
+            ...mindMapData,
+            nodes: [...mindMapData.nodes, ...newMindMapNodes]
+          };
+        }
+        
         // Generate the layout with enhanced positioning algorithm
         const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
-          mindMapData,
+          updatedMindMapData,
           updateNodeData,
           nextLayout
         );
@@ -914,7 +986,7 @@ export function useMindMap() {
         console.error('Error applying new layout:', error);
       }
     }
-  }, [currentLayoutIndex, mindMapData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, updateNodeData]);
+  }, [currentLayoutIndex, mindMapData, nodes, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, updateNodeData]);
 
   // Effect to create initial flow when mindMapData is set
   useEffect(() => {

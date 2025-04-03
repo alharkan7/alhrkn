@@ -660,7 +660,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
             style={{ zIndex: 1000 }} 
             data-exclude-from-export="true"
           >
-            {data.pageNumber && data.openPdfViewer && (
+            {data.pageNumber && data.openPdfViewer && !isBlankNode && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleDocumentButtonClick}
