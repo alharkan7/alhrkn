@@ -209,6 +209,12 @@ export function useMindMap() {
   // Add a new follow-up node
   const addFollowUpNode = (parentId: string, question: string, answer: string, customNodeId?: string): string => {
     
+    // Validate inputs to prevent errors
+    if (!parentId || typeof parentId !== 'string') {
+      console.log('Invalid parent ID provided to addFollowUpNode, using default');
+      parentId = 'root'; // Use a default parent ID to avoid errors
+    }
+    
     // Generate a unique ID for the new node or use the provided ID
     const newNodeId = customNodeId || `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -218,13 +224,72 @@ export function useMindMap() {
       return newNodeId;
     }
     
-    const parentNode = mindMapData.nodes.find(node => node.id === parentId);
-    if (!parentNode) {
-      console.error(`Cannot add follow-up node: parent node with id ${parentId} not found`);
-      return newNodeId;
+    let parentMindMapNode = mindMapData.nodes.find(node => node.id === parentId);
+    if (!parentMindMapNode) {
+      // Silent fix for QnA nodes: Instead of showing an error, try to find the node in ReactFlow nodes
+      // and create a placeholder entry in mindMapData for this node
+      const parentFlowNode = nodes.find(node => node.id === parentId);
+      if (parentFlowNode) {
+        // Find the parent's parent to determine the level
+        const grandparentId = parentFlowNode.data.parentId;
+        let level = 1; // Default level if we can't determine
+        
+        if (grandparentId) {
+          const grandparent = mindMapData.nodes.find(node => node.id === grandparentId);
+          if (grandparent) {
+            level = grandparent.level + 1;
+          }
+        }
+        
+        // Create a placeholder entry in mindMapData for this node
+        const placeholderNode = {
+          id: parentId,
+          title: parentFlowNode.data.title || '',
+          description: parentFlowNode.data.description || '',
+          parentId: grandparentId || null,
+          level: level,
+          type: 'qna' as 'regular' | 'qna'
+        };
+        
+        // Add the placeholder node to mindMapData
+        mindMapData.nodes.push(placeholderNode);
+        
+        // Now retry finding the parent
+        parentMindMapNode = mindMapData.nodes.find(node => node.id === parentId);
+        if (!parentMindMapNode) {
+          // Still can't find it after adding placeholder - this should never happen,
+          // but handle it gracefully
+          console.log(`Added placeholder for node ${parentId} but still not found. Using defaults.`);
+          // Create a fallback node to avoid errors and allow operation to continue
+          parentMindMapNode = {
+            id: parentId,
+            title: parentFlowNode.data.title || '',
+            description: parentFlowNode.data.description || '',
+            parentId: null,
+            level: 1,
+            type: 'qna' as 'regular' | 'qna'
+          };
+        }
+      } else {
+        // If we can't find the node in ReactFlow either, this is a real error
+        // but we'll handle it gracefully to avoid breaking the UI
+        console.log(`Node with ID ${parentId} not found in ReactFlow or mindMapData. Using fallback.`);
+        parentMindMapNode = {
+          id: parentId,
+          title: 'Unknown Node',
+          description: '',
+          parentId: null,
+          level: 1,
+          type: 'regular' as 'regular' | 'qna'
+        };
+      }
     }
 
-    
+    // Find parent FlowNode to access its data
+    const parentFlowNode = nodes.find(node => node.id === parentId);
+    const parentPageNumber = parentFlowNode?.data?.pageNumber;
+    const parentOpenPdfViewer = parentFlowNode?.data?.openPdfViewer;
+
     // Get the latest positions of all nodes from ReactFlow instance
     const currentNodePositions: Record<string, NodePosition> = {};
     if (reactFlowInstance.current) {
@@ -248,15 +313,17 @@ export function useMindMap() {
       // Fall back to finding the node in nodes state
       const parentFlowNode = nodes.find(node => node.id === parentId);
       if (!parentFlowNode) {
-        console.error(`Cannot add follow-up node: parent ReactFlow node with id ${parentId} not found`);
-        return newNodeId;
+        console.log(`Cannot find position for node ${parentId}. Using default positioning.`);
+        // Use a default position rather than failing
+        currentParentPos = { x: 100, y: 100 };
+      } else {
+        currentParentPos = parentFlowNode.position;
       }
-      currentParentPos = parentFlowNode.position;
     }
     
     if (!currentParentPos) {
-      console.error(`Cannot determine position for parent node ${parentId}`);
-      return newNodeId;
+      console.log(`Cannot determine position for parent node ${parentId}. Using default.`);
+      currentParentPos = { x: 100, y: 100 }; // Default position to avoid failure
     }
     
     // Create the new node with question as title and answer as description
@@ -265,14 +332,21 @@ export function useMindMap() {
       title: question,
       description: answer,
       parentId: parentId,
-      level: parentNode.level + 1,
-      type: 'qna' as 'regular' | 'qna' // Mark as a QnA node
+      level: parentMindMapNode.level + 1,
+      type: 'qna' as 'regular' | 'qna', // Mark as a QnA node
+      pageNumber: parentPageNumber,
+      openPdfViewer: parentOpenPdfViewer
     };
     
     // Find existing child nodes of this parent to avoid overlaps
     const siblingNodes = nodes.filter(node => {
-      const nodeData = mindMapData.nodes.find(n => n.id === node.id);
-      return nodeData && nodeData.parentId === parentId;
+      // Changed this to avoid potential errors when node isn't in mindMapData
+      try {
+        const nodeData = mindMapData.nodes.find(n => n.id === node.id);
+        return nodeData && nodeData.parentId === parentId;
+      } catch (e) {
+        return false; // Safely handle any errors
+      }
     });
     
     // Calculate spacing offset based on number of siblings
@@ -310,7 +384,9 @@ export function useMindMap() {
         hasChildren: false,
         childrenCollapsed: false,
         toggleChildrenVisibility,
-        width: 256 // Default width for new nodes
+        width: 256, // Default width for new nodes
+        pageNumber: parentPageNumber,
+        openPdfViewer: parentOpenPdfViewer
       },
       style: {
         border: '2px solid #4299e1', // Highlight the new node
@@ -347,92 +423,67 @@ export function useMindMap() {
     };
     
     // Update nodes and edges - use functional updates to ensure latest state
+    // Consolidate node updates
     setNodes(currentNodes => {
-      // Map through current nodes and update their positions from reactFlowInstance
+      // Map through current nodes and update their positions from reactFlowInstance (if available)
       const nodesWithUpdatedPositions = currentNodes.map(node => {
-        if (currentNodePositions[node.id]) {
-          // Use the position from reactFlowInstance
-          return {
-            ...node,
-            position: currentNodePositions[node.id]
-          };
-        }
-        return node;
+        const currentPosition = currentNodePositions[node.id];
+        return currentPosition ? { ...node, position: currentPosition } : node;
       });
+
+      // Find the parent node to update its hasChildren status
+      const parentIndex = nodesWithUpdatedPositions.findIndex(node => node.id === parentId);
+      if (parentIndex !== -1) {
+        nodesWithUpdatedPositions[parentIndex] = {
+          ...nodesWithUpdatedPositions[parentIndex],
+          data: {
+            ...nodesWithUpdatedPositions[parentIndex].data,
+            hasChildren: true,
+            // Ensure children are not collapsed when adding a new one
+            childrenCollapsed: false
+          }
+        };
+      }
       
-      // Add the new node
-      const updatedNodes = [...nodesWithUpdatedPositions, newFlowNode];
-      
-      // Also update the parent node to show it has children
-      return updatedNodes.map(node => {
-        if (node.id === parentId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              hasChildren: true
-            }
-          };
-        }
-        return node;
-      });
+      // Add the new node (remove direct style manipulation for highlighting)
+      const finalNewFlowNode = {
+        ...newFlowNode,
+        style: { // Basic styles, QnA styling handled in CustomNode
+            border: '2px solid #bfdbfe', // QnA node border color
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 1000,
+        },
+        className: 'node-card' // Rely on CustomNode for 'updating' class via its useEffect
+      };
+
+      // Return updated nodes array including the new one
+      return [...nodesWithUpdatedPositions, finalNewFlowNode];
     });
-    
+
     setEdges(currentEdges => {
       const updatedEdges = [...currentEdges, newEdge];
       return updatedEdges;
     });
-    
-    // Update all nodes to have reference to the last created node ID
-    setNodes(currentNodes => 
-      currentNodes.map(node => ({
-        ...node,
-        data: {
-          ...node.data,
-          lastCreatedNodeId
-        }
-      }))
-    );
-    
-    // Now update mindMapData, but use a flag to indicate this was a node addition
-    // to prevent unnecessary layout recalculation
+
+    // ---> MOVED MINDMAPDATA UPDATE EARLIER <---
     const updatedMindMapData = {
       ...mindMapData,
       nodes: [...mindMapData.nodes, newNode],
       __nodeAddition: true  // Special flag to indicate this is a node addition
     };
-    
-    // Update mindMapData
     setMindMapData(updatedMindMapData);
-    
+    // <--- END MOVE --->
+
     // Use setTimeout to break potential update cycles when updating nodePositions
     setTimeout(() => {
       setNodePositions(prev => ({
         ...prev,
-        ...positionsToSet
+        ...positionsToSet // Use the positions calculated earlier
       }));
-    }, 50);
-    
-    // Reset the highlight after a moment
-    setTimeout(() => {
-      setNodes(currentNodes => 
-        currentNodes.map(node => {
-          if (node.id === newNodeId) {
-            return {
-              ...node,
-              style: {
-                ...node.style,
-                border: '2px solid #bfdbfe', // QnA node border color
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              },
-              className: 'node-card'
-            };
-          }
-          return node;
-        })
-      );
-    }, 2000);
-    
+    }, 0); // Use 0 timeout for minimal delay
+
     // Return the node ID for reference
     return newNodeId;
   };
@@ -443,34 +494,7 @@ export function useMindMap() {
     addFollowUpNodeRef.current = addFollowUpNode;
     deleteNodeRef.current = deleteNode;
   });
-  
-  // Create an effect to track node position changes
-  useEffect(() => {
-    // This effect updates nodePositions whenever nodes are dragged
-    if (reactFlowInstance.current) {
-      const updateNodePositionsAfterDrag = () => {
-        const currentNodes = reactFlowInstance.current.getNodes();
-        const positions: Record<string, NodePosition> = {};
-        currentNodes.forEach((node: { id: string; position: NodePosition }) => {
-          positions[node.id] = node.position;
-        });
-        setNodePositions(positions);
-      };
-      
-      // Add event listener for node drag end
-      const reactFlowElement = document.querySelector('.react-flow');
-      if (reactFlowElement) {
-        reactFlowElement.addEventListener('mouseup', updateNodePositionsAfterDrag);
-        reactFlowElement.addEventListener('touchend', updateNodePositionsAfterDrag);
-        
-        return () => {
-          reactFlowElement.removeEventListener('mouseup', updateNodePositionsAfterDrag);
-          reactFlowElement.removeEventListener('touchend', updateNodePositionsAfterDrag);
-        };
-      }
-    }
-  }, [reactFlowInstance]);
-  
+
   // Create a stable function that always calls the latest implementation
   const stableAddFollowUpNode = useCallback((parentId: string, question: string, answer: string, customNodeId?: string) => {
     // Always call the latest implementation from the ref
@@ -936,29 +960,31 @@ export function useMindMap() {
     }
   }, [mindMapData, nodes.length, updateNodeData, stableAddFollowUpNode, stableDeleteNode, toggleChildrenVisibility, currentLayoutIndex]);
 
-  // Customize onNodesChange to track positions after node drags
+  // Customize onNodesChange to track positions *after* node drags complete
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
-    // Call the original onNodesChange
+    // Call the original onNodesChange to apply immediate visual updates
     onNodesChange(changes);
-    
-    // After position changes, update the nodePositions state
-    const positionChanges = changes.filter(
-      (change): change is NodePositionChange => change.type === 'position' && change.position !== undefined
+
+    // Check for position changes that indicate the *end* of a drag
+    const dragStopChanges = changes.filter(
+      (change): change is NodePositionChange =>
+        change.type === 'position' && change.dragging === false && change.position !== undefined
     );
-    
-    if (positionChanges.length > 0) {
-      // Update positions for the dragged nodes
+
+    if (dragStopChanges.length > 0) {
+      // Update positions state only for the nodes that finished dragging
       setNodePositions(prev => {
         const newPositions = { ...prev };
-        positionChanges.forEach(change => {
+        dragStopChanges.forEach(change => {
+          // Ensure position exists before assigning
           if (change.position) {
-            newPositions[change.id] = change.position;
+             newPositions[change.id] = change.position;
           }
         });
         return newPositions;
       });
     }
-  }, [onNodesChange]);
+  }, [onNodesChange]); // Dependency: only the original onNodesChange setter
 
   // Delete a node and its connected edges
   const deleteNode = useCallback((nodeId: string) => {

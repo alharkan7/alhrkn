@@ -30,7 +30,7 @@ USE MARKDOWN FORMATTING in all descriptions and answers to make the text visuall
 
 The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.
 
-GIVE YOUR RESPONSE IN THE MAIN LANGUAGE OF THE FILE. For example, if the PDF is dominantly in Bahasa Indonesia, not in English, provide your response in Bahasa Indonesia.`;
+GIVE YOUR RESPONSE IN THE MAIN LANGUAGE OF THE FILE. For example, if the PDF is dominantly not in English, provide your response using that language instead of English. If there's no PDF, then give your response in English.`;
 
 /**
  * Main API route for handling PDF analysis and follow-up questions
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       }
 
       messageParts = [
-        { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\n1. Answer the question directly without referring to "the authors" or "the paper."\n2. Prioritize your answer to be based on information from the paper. If necessary, add information based on your knowledge base.\n3. Be specific and include relevant details, data, and numbers from the paper.\n4. Explain complex concepts in a clear, concise manner.\n5. REMEMBER: GIVE YOUR RESPONSE IN THE DOMINANTLANGUAGE OF THE FILE, even though the question is in English.\n6. Provide an answer that fully addresses the question.\n7. USE MARKDOWN FORMATTING in your answer to make it more visually appealing with **bold**, *italics*, bullet points, and other formatting features as appropriate.\n\nPlease provide answer in the format: { "answer": "your answer here" }` }
+        { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\n1. Answer the question directly without referring to "the authors" or "the paper."\n2. Prioritize your answer to be based on information from the paper. If necessary, add information based on your knowledge base.\n3. Be specific and include relevant details, data, and numbers from the paper.\n4. Explain complex concepts in a clear, concise manner.\n5. REMEMBER: GIVE YOUR RESPONSE IN THE DOMINANT LANGUAGE OF THE FILE, even though the question is in English.\n6. Provide an answer that fully addresses the question.\n7. USE MARKDOWN FORMATTING in your answer to make it more visually appealing with **bold**, *italics*, bullet points, and other formatting features as appropriate.\n7. DO NOT reference the node, just answer the question.\n\nPlease provide answer in the format: { "answer": "your answer here" }` }
       ];
       
     } else {

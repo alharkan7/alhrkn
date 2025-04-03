@@ -135,19 +135,43 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   }, [editingTitle, editingDescription]);
 
   const handleTitleDoubleClick = () => {
+    // Clear placeholder text if it matches before editing
+    if (titleValue === 'Double Click to Edit') {
+      setTitleValue('');
+    }
     setEditingTitle(true);
     setShowInfo(false);
   };
 
   const handleDescriptionDoubleClick = () => {
+    // Clear placeholder text if it matches before editing
+    if (descriptionValue === 'Double-click to add a description') {
+      setDescriptionValue('');
+    }
     setEditingDescription(true);
     setShowInfo(false);
   };
 
   const handleTitleBlur = () => {
     setEditingTitle(false);
-    if (data.updateNodeData && titleValue !== data.title) {
-      data.updateNodeData(id, { title: titleValue });
+    const trimmedTitle = titleValue.trim(); // Trim whitespace
+    if (data.updateNodeData) {
+      // If the title is empty after trimming, revert to placeholder
+      if (trimmedTitle === '') {
+        // Only update if the original title wasn't already the placeholder
+        if (data.title !== 'Double Click to Edit') {
+            setTitleValue('Double Click to Edit'); // Update local state for immediate feedback
+            data.updateNodeData(id, { title: 'Double Click to Edit' });
+        } else {
+            // If the original title was already placeholder, no need to update
+            setTitleValue('Double Click to Edit'); // Ensure local state is placeholder
+        }
+      } else if (trimmedTitle !== data.title) {
+        // Otherwise, update with the new trimmed title if it changed
+        setTitleValue(trimmedTitle); // Update local state with trimmed value
+        data.updateNodeData(id, { title: trimmedTitle });
+      }
+      // If trimmedTitle is the same as data.title, do nothing
     }
   };
 
@@ -603,9 +627,6 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
                      }}
                      placeholder="Markdown formatting supported"
                    />
-                   <div className="text-xs text-gray-500 mt-1 italic">
-                     Supports markdown: **bold**, *italic*, lists, `code`, etc.
-                   </div>
                  </div>
                ) : (
                  <div
@@ -624,6 +645,11 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
                  </div>
                )}
              </div>
+             {editingDescription && (
+               <div className="text-xs text-gray-500 mt-2 italic">
+                 Example: **bold**, *italic*, lists, `code`, etc.
+               </div>
+             )}
            </div>
         )}
 
