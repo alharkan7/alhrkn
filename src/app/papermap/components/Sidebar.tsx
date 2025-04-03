@@ -198,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         try {
           new URL(pdfUrl);
         } catch (e) {
-          throw new Error("Invalid URL format. Please enter a valid URL.");
+          throw new Error("Invalid URL. Please enter a valid URL or upload the PDF file.");
         }
         
         // Use our server-side proxy to fetch the PDF
@@ -268,15 +268,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           if (error.message.includes('too large') || error.message.includes('size exceeds')) {
             throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
           } else if (error.message.includes('valid PDF')) {
-            throw new Error("The URL does not point to a valid PDF file.");
+            throw new Error("The URL does not point to a valid PDF file. Please enter a valid URL or upload the PDF file.");
           } else if (error.message.includes('Failed to fetch PDF')) {
-            throw new Error("Could not download the PDF. Please ensure the URL is accessible.");
+            throw new Error("Could not download the PDF. Please ensure the URL is accessible or upload the PDF file.");
           } else if (error.message.includes('Invalid URL format')) {
-            throw new Error("Please enter a valid URL.");
+            throw new Error("Please enter a valid URL or upload the PDF file.");
           }
           throw error;
         }
-        throw new Error('Failed to process URL');
+        throw new Error('Failed to process URL. Try uploading the PDF file.');
       }
     } catch (error) {
       // Don't log common errors to avoid console clutter
@@ -295,7 +295,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       if (error instanceof Error) {
         setUrlError(error.message);
       } else {
-        setUrlError(`Failed to process URL. Please try again.`);
+        setUrlError(`Failed to process URL. Please try again or upload the PDF file.`);
       }
       return null;
     } finally {
@@ -317,7 +317,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
     
     if (!url.trim()) {
-      setUrlError("Please enter a URL");
+      setUrlError("Please enter a URL or upload the PDF file.");
       return;
     }
     
@@ -332,7 +332,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       const blobUrl = await uploadUrlToBlob(url);
       
       if (!blobUrl) {
-        throw new Error(`Failed to process URL. Please check the URL and try again.`);
+        throw new Error(`Failed to process URL. Please check the URL and try again or upload the PDF file.`);
       }
       
       // Fetch from our blob URL to create a file object
@@ -353,7 +353,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       onClose();
     } catch (err) {
       // Use the specific error message when available
-      let errorMessage = "Failed to process the URL. Please try again.";
+      let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";
       
       if (err instanceof Error) {
         errorMessage = err.message;
