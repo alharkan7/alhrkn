@@ -603,8 +603,12 @@ const CustomNode = ({ data, id, selected }: CustomNodeProps) => {
                 </div>
               ) : (
                 <div
-                  className="text-sm cursor-text"
+                  className="text-sm cursor-text max-h-[300px] overflow-y-auto custom-scrollbar"
                   onDoubleClick={handleDescriptionDoubleClick}
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: `${nodeColor.border} transparent`
+                  }}
                 >
                   {/* Render loading animation if description contains HTML */}
                   {typeof data.description === 'string' && data.description.includes('<div class=') ? (
