@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { Download,FileImage, FileText, Braces } from 'lucide-react';
+import { Download,FileImage, FileText, Braces, List } from 'lucide-react';
 import { getNodesBounds, getTransformForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext } from '../context';
@@ -204,6 +204,73 @@ export default function Downloader({}: DownloaderProps) {
     URL.revokeObjectURL(url);
   };
 
+  // Generate and download as bullet point list
+  const downloadAsBulletList = () => {
+    if (!mindMapData || !mindMapData.nodes.length) return;
+
+    // Create a map of parent ID to child nodes for easier traversal
+    const nodeMap = new Map<string | null, Array<typeof mindMapData.nodes[0]>>();
+    
+    // Group nodes by their parent
+    mindMapData.nodes.forEach(node => {
+      if (!nodeMap.has(node.parentId)) {
+        nodeMap.set(node.parentId, []);
+      }
+      nodeMap.get(node.parentId)?.push(node);
+    });
+    
+    // Generate the bullet point text
+    let bulletText = "";
+    let lastLevel = -1; // Track the level of the last processed node
+    
+    // Function to recursively generate bullet points
+    const generateBulletPoints = (nodeId: string | null, level: number = 0) => {
+      const nodes = nodeMap.get(nodeId) || [];
+      
+      // Sort nodes if needed (you can sort by ID, title, or any other property)
+      nodes.sort((a, b) => a.level - b.level);
+      
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        
+        // Add a blank line in these cases:
+        // 1. When we're not at the first node overall
+        // 2. When the current level is different from the last processed level (moving up or down levels)
+        // 3. When we're at the same level but not the first node in a group of siblings
+        if (bulletText.length > 0 && (level !== lastLevel || i > 0)) {
+          bulletText += "\n";
+        }
+        
+        // Create indentation based on level
+        const indent = "  ".repeat(level);
+        
+        // Add the bullet point line with center dot "•" instead of dash "-"
+        bulletText += `${indent}• ${node.title}: ${node.description}\n`;
+        
+        // Save the current level before recursing
+        lastLevel = level;
+        
+        // Process children recursively
+        generateBulletPoints(node.id, level + 1);
+      }
+    };
+    
+    // Start with root nodes (nodes with null parentId)
+    generateBulletPoints(null);
+    
+    // Create a blob and download
+    const dataBlob = new Blob([bulletText], { type: 'text/plain' });
+    const url = URL.createObjectURL(dataBlob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileName}_mindmap.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (nodes.length === 0) return null;
 
   return (
@@ -260,6 +327,20 @@ export default function Downloader({}: DownloaderProps) {
                 <div className="flex items-center">
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
+                </div>
+              </button>
+            </li>
+            <li key="txt">
+              <button
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
+                onClick={() => {
+                  downloadAsBulletList();
+                  setShowDropdown(false);
+                }}
+              >
+                <div className="flex items-center">
+                  <List className="mr-2 h-4 w-4" />
+                  Text
                 </div>
               </button>
             </li>
