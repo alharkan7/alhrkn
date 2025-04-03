@@ -229,9 +229,9 @@ export default function PaperMap() {
             {droppedFile && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
                 <div className="bg-card rounded-lg shadow-xl p-6 max-w-md w-full border border-border">
-                  <h3 className="text-lg font-semibold mb-4 text-card-foreground">Confirm Upload</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-card-foreground">Create a New Mindmap?</h3>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Generate a mind map for this file?
+                    The existing mindmap will be replaced.
                   </p>
                   <div className="bg-muted/50 p-3 rounded-md mb-6 text-sm break-words border border-border/50">
                     <strong>File:</strong> {droppedFile.name} <br />
@@ -242,7 +242,7 @@ export default function PaperMap() {
                       Cancel
                     </Button>
                     <Button variant="default" onClick={handleConfirmUpload}>
-                      Confirm & Generate
+                      Confirm
                     </Button>
                   </div>
                 </div>
