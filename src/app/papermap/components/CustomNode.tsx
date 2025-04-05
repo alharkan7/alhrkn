@@ -46,9 +46,12 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const [isResizing, setIsResizing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false); // State for highlight effect
+  const [isDescriptionScrollable, setIsDescriptionScrollable] = useState(false); // State for scroll fade cue
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false); // State to track if scrolled to bottom
 
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionContainerRef = useRef<HTMLDivElement>(null); // Ref for the scrollable description container
   const nodeRef = useRef<HTMLDivElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -379,37 +382,110 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
     return () => clearTimeout(timeoutId);
   }, [id, updateNodeInternals, width, titleValue, descriptionValue, expanded]);
 
-  // CSS to hide unwanted resize handles and fix node height
+  // CSS injection for animations and scroll fade
   useEffect(() => {
-    // Create a style tag to add custom CSS
-    const style = document.createElement('style');
-    style.innerHTML = nodeAnimationStyles;
-    document.head.appendChild(style);
+    const scrollFadeStyle = `
+      .node-description-wrapper {
+        position: relative; /* Needed for ::after positioning */
+      }
+      .node-description-wrapper.has-scroll-fade::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100px; /* Adjust height as needed */
+        background: linear-gradient(to bottom, transparent, var(--node-bg-color, #fff));
+        pointer-events: none; /* Prevent blocking interaction */
+        z-index: 1; /* Ensure it's above the text */
+        border-bottom-left-radius: inherit; /* Match parent rounding */
+        border-bottom-right-radius: inherit;
+        transition: opacity 0.2s ease-in-out; /* Add transition for fade */
+        opacity: 1;
+      }
+      .node-description-wrapper.collapsed .node-description-content.has-scroll-fade::after {
+        opacity: 0; /* Hide fade when wrapper is collapsed */
+      }
+    `;
 
-    // Clean up
-    return () => {
-      document.head.removeChild(style);
+    const styleId = 'custom-node-styles';
+    let styleTag = document.getElementById(styleId) as HTMLStyleElement | null;
+
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = styleId;
+      // Combine base animation styles and scroll fade styles
+      styleTag.innerHTML = nodeAnimationStyles + scrollFadeStyle;
+      document.head.appendChild(styleTag);
+    } else {
+      // If tag exists, ensure both sets of styles are present (idempotent)
+      let updatedStyles = styleTag.innerHTML;
+      if (!updatedStyles.includes('.node-card.updating')) { // Check for a unique string from nodeAnimationStyles
+        updatedStyles += nodeAnimationStyles;
+      }
+      if (!updatedStyles.includes('.has-scroll-fade::after')) { // Check for a unique string from scrollFadeStyle
+        updatedStyles += scrollFadeStyle;
+      }
+      styleTag.innerHTML = updatedStyles;
+    }
+    // No cleanup function needed, let the styles persist globally
+  }, []); // Run only once on mount
+
+  // Effect to check if description is scrollable
+  useEffect(() => {
+    const element = descriptionContainerRef.current;
+
+    // If not expanded or element doesn't exist, it's not scrollable
+    if (!expanded || !element) {
+      if (isDescriptionScrollable) setIsDescriptionScrollable(false);
+      return;
+    }
+
+    let observer: ResizeObserver | null = null;
+
+    const checkScrollability = () => {
+      // Check element exists again inside the potentially delayed callback
+      if (element) {
+        // RAF ensures we check *after* rendering and layout calculation
+        requestAnimationFrame(() => {
+          if (element) { // Final check inside RAF
+            const scrollable = element.scrollHeight > element.clientHeight + 1; // Add 1px tolerance
+            const scrolledToBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1; // Check if scrolled near bottom
+
+            // Only update state if the value actually changes
+            if (scrollable !== isDescriptionScrollable) {
+              setIsDescriptionScrollable(scrollable);
+            }
+            if (scrolledToBottom !== isScrolledToBottom) {
+              setIsScrolledToBottom(scrolledToBottom);
+            }
+          }
+        });
+      }
     };
-  }, []);
 
-  // Use MutationObserver to detect content height changes and update node
-  useEffect(() => {
-    if (!nodeRef.current) return;
+    // Initial check slightly delayed to allow for rendering/transitions
+    const initialCheckTimeout = setTimeout(checkScrollability, 50);
 
-    const observer = new MutationObserver(() => {
-      // Force node update when content changes
-      updateNodeInternals(id);
-    });
+    // Use ResizeObserver for robust detection of size changes
+    observer = new ResizeObserver(checkScrollability);
+    observer.observe(element);
 
-    observer.observe(nodeRef.current, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
+    // Also observe children as direct content changes might not trigger observer on parent
+    const childNodes = Array.from(element.children);
+    childNodes.forEach(child => observer?.observe(child));
 
-    return () => observer.disconnect();
-  }, [id, updateNodeInternals]);
+    // Re-check when scrolling occurs (handles edge cases like async content load)
+    element.addEventListener('scroll', checkScrollability);
+
+    return () => {
+      clearTimeout(initialCheckTimeout);
+      observer?.disconnect();
+      element?.removeEventListener('scroll', checkScrollability);
+    };
+
+    // Key dependencies: expansion state, content, dimensions, and current scrollable status
+  }, [expanded, descriptionValue, width, id, isDescriptionScrollable, isScrolledToBottom]);
 
   // Measure node content and synchronize with ReactFlow
   useEffect(() => {
@@ -522,6 +598,58 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
     setShowDeleteConfirm(false);
   };
 
+  // Add useEffect for event listeners on description container
+  useEffect(() => {
+    const element = descriptionContainerRef.current;
+    if (!element) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!element) return;
+      const { scrollTop, scrollHeight, clientHeight } = element;
+      const deltaY = event.deltaY;
+      const isScrollable = scrollHeight > clientHeight;
+
+      if (!isScrollable) {
+        return; // Don't stop propagation if not scrollable
+      }
+
+      // Check if scrolling up is possible and intended
+      if (deltaY < 0 && scrollTop > 0) {
+        event.stopPropagation();
+        return;
+      }
+
+      // Check if scrolling down is possible and intended
+      // Allow a small tolerance (e.g., 1px) for floating point inaccuracies
+      if (deltaY > 0 && scrollTop + clientHeight < scrollHeight - 1) {
+        event.stopPropagation();
+        return;
+      }
+
+      // If trying to scroll past boundaries, allow event to bubble up (for zoom/pan)
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+       if (!element) return;
+       const isScrollable = element.scrollHeight > element.clientHeight;
+       if (isScrollable) {
+         // Stop propagation if the content area is scrollable
+         // This prioritizes content scrolling over node dragging/panning on touch devices
+         event.stopPropagation();
+       }
+    };
+
+    // Attach listeners with passive: false to allow stopPropagation
+    element.addEventListener('wheel', handleWheel, { passive: false });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      // Clean up listeners
+      element.removeEventListener('wheel', handleWheel);
+      element.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [expanded]); // Re-attach listeners if expanded state changes (might affect scrollability)
+
   return (
       <div
         ref={nodeRef}
@@ -617,54 +745,58 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
 
         {/* Description container */}
         {!showInfo && (
-           <div className={`node-description-wrapper ${!expanded ? 'collapsed' : ''}`}>
-             <div
-               className={`node-description-content ${expanded ? 'expanded max-h-80 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-400 hover:scrollbar-thumb-gray-500' : 'collapsed'}`}
-               onTransitionEnd={() => updateNodeInternals(id)}
-             >
-               {editingDescription ? (
-                 <div>
-                   <textarea
-                     ref={descriptionRef}
-                     value={descriptionValue}
-                     onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
-                     onBlur={handleDescriptionBlur}
-                     onKeyDown={(e) => handleKeyDown(e, 'description')}
-                     className="w-full text-sm resize-none overflow-hidden font-mono"
-                     style={{
-                       outline: 'none',
-                       border: 'none',
-                       padding: 0,
-                       minHeight: '2rem',
-                       background: 'transparent',
-                       boxShadow: 'none'
-                     }}
-                     placeholder="Markdown formatting supported"
-                   />
-                 </div>
-               ) : (
-                 <div
-                   className="text-sm cursor-text"
-                   onDoubleClick={handleDescriptionDoubleClick}
-                 >
-                   {typeof data.description === 'string' && data.description.includes('<div class=') ? (
-                     <div dangerouslySetInnerHTML={{ __html: data.description }} />
-                   ) : (
-                     <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
-                       <ReactMarkdown>
-                         {extractMarkdownContent(typeof data.description === 'string' ? data.description : JSON.stringify(data.description)) || 'Double-click to add a description'}
-                       </ReactMarkdown>
-                     </div>
-                   )}
-                 </div>
-               )}
-             </div>
-             {editingDescription && (
-               <div className="text-xs text-gray-500 mt-2 italic">
-                 Example: **bold**, *italic*, lists, `code`, etc.
-               </div>
-             )}
-           </div>
+          <div
+            className={`node-description-wrapper ${!expanded ? 'collapsed' : ''} ${isDescriptionScrollable && !isScrolledToBottom ? 'has-scroll-fade' : ''}`}
+            style={{ '--node-bg-color': nodeColor.bg } as React.CSSProperties} // Pass bg color to wrapper for gradient
+          >
+            <div
+              ref={descriptionContainerRef} // Assign the ref here
+              className={`node-description-content ${expanded ? 'expanded' : 'collapsed'} max-h-80 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-400 hover:scrollbar-thumb-gray-500`}
+              onTransitionEnd={() => updateNodeInternals(id)}
+            >
+              {editingDescription ? (
+                <div>
+                  <textarea
+                    ref={descriptionRef}
+                    value={descriptionValue}
+                    onChange={(e) => handleTextAreaChange(e, setDescriptionValue)}
+                    onBlur={handleDescriptionBlur}
+                    onKeyDown={(e) => handleKeyDown(e, 'description')}
+                    className="w-full text-sm resize-none overflow-hidden font-mono"
+                    style={{
+                      outline: 'none',
+                      border: 'none',
+                      padding: 0,
+                      minHeight: '2rem',
+                      background: 'transparent',
+                      boxShadow: 'none'
+                    }}
+                    placeholder="Markdown formatting supported"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="text-sm cursor-text"
+                  onDoubleClick={handleDescriptionDoubleClick}
+                >
+                  {typeof data.description === 'string' && data.description.includes('<div class=') ? (
+                    <div dangerouslySetInnerHTML={{ __html: data.description }} />
+                  ) : (
+                    <div className="markdown-content prose prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1" style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                      <ReactMarkdown>
+                        {extractMarkdownContent(typeof data.description === 'string' ? data.description : JSON.stringify(data.description)) || 'Double-click to add a description'}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {editingDescription && (
+              <div className="text-xs text-gray-500 mt-2 italic">
+                Example: **bold**, *italic*, lists, `code`, etc.
+              </div>
+            )}
+          </div>
         )}
 
         {/* Floating buttons are direct children */}
