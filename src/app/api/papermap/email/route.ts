@@ -15,7 +15,8 @@ export async function POST(req: Request) {
       hour: 'numeric',
       minute: 'numeric',
       second: 'numeric',
-      hour12: false
+      hour12: false,
+      timeZone: 'Asia/Jakarta'  // Explicitly set timezone
     }).replace(',', '');
 
     const auth = new google.auth.GoogleAuth({
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
     const sheets = google.sheets({ version: 'v4', auth });
     const sheetId = process.env.GOOGLE_SHEETS_ID_PAPERMAP_EMAIL;
-    const range = 'Email Downloads!A:C';
+    const range = 'Email Downloads!A:D';
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
       includeValuesInResponse: true,
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[timestamp, email, `${fileName} (${downloadFormat})`]],
+        values: [[timestamp, email, fileName, `${downloadFormat.toUpperCase()}`]],
       },
     });
 
