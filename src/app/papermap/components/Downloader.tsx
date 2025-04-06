@@ -5,6 +5,7 @@ import { Download,FileImage, FileText, Braces, List } from 'lucide-react';
 import { getNodesBounds, getTransformForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext } from '../context';
+import EmailForm from './EmailForm';
 
 interface DownloaderProps {
   // No props needed anymore as we'll use context
@@ -15,6 +16,11 @@ export default function Downloader({}: DownloaderProps) {
   const { fileName } = usePdfViewerContext();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingDownloadFormat, setPendingDownloadFormat] = useState<string>('');
+  const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -271,6 +277,50 @@ export default function Downloader({}: DownloaderProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleEmailSubmit = async (email: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Execute the download immediately
+      if (pendingDownloadAction) {
+        pendingDownloadAction();
+      }
+
+      // Submit email in the background
+      fetch('/api/papermap/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          fileName,
+          downloadFormat: pendingDownloadFormat,
+        }),
+      }).catch(err => {
+        // Log error but don't show to user since download already started
+        console.error('Error submitting email:', err);
+      });
+      
+      // Close the email form
+      setShowEmailForm(false);
+      setLoading(false);
+      setPendingDownloadAction(null);
+      setPendingDownloadFormat('');
+    } catch (err) {
+      setError('Failed to process your request. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const initiateDownload = (format: string, downloadAction: () => void) => {
+    setPendingDownloadFormat(format);
+    setPendingDownloadAction(() => downloadAction);
+    setShowEmailForm(true);
+    setShowDropdown(false);
+  };
+
   if (nodes.length === 0) return null;
 
   return (
@@ -291,10 +341,7 @@ export default function Downloader({}: DownloaderProps) {
             <li key="jpeg">
               <button
                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                onClick={() => {
-                  downloadAsJpeg();
-                  setShowDropdown(false);
-                }}
+                onClick={() => initiateDownload('jpeg', downloadAsJpeg)}
               >
                 <div className="flex items-center">
                   <FileImage className="mr-2 h-4 w-4" />
@@ -305,10 +352,7 @@ export default function Downloader({}: DownloaderProps) {
             <li key="png">
               <button
                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                onClick={() => {
-                  downloadAsPng();
-                  setShowDropdown(false);
-                }}
+                onClick={() => initiateDownload('png', downloadAsPng)}
               >
                 <div className="flex items-center">
                   <FileImage className="mr-2 h-4 w-4" />
@@ -319,10 +363,7 @@ export default function Downloader({}: DownloaderProps) {
             <li key="pdf">
               <button
                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                onClick={() => {
-                  downloadAsPdf();
-                  setShowDropdown(false);
-                }}
+                onClick={() => initiateDownload('pdf', downloadAsPdf)}
               >
                 <div className="flex items-center">
                   <FileText className="h-4 w-4 mr-2" />
@@ -333,10 +374,7 @@ export default function Downloader({}: DownloaderProps) {
             <li key="txt">
               <button
                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                onClick={() => {
-                  downloadAsBulletList();
-                  setShowDropdown(false);
-                }}
+                onClick={() => initiateDownload('text', downloadAsBulletList)}
               >
                 <div className="flex items-center">
                   <List className="mr-2 h-4 w-4" />
@@ -347,10 +385,7 @@ export default function Downloader({}: DownloaderProps) {
             <li key="json">
               <button
                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                onClick={() => {
-                  downloadAsJSON();
-                  setShowDropdown(false);
-                }}
+                onClick={() => initiateDownload('json', downloadAsJSON)}
               >
                 <div className="flex items-center">
                   <Braces className="mr-2 h-4 w-4" />
@@ -360,6 +395,20 @@ export default function Downloader({}: DownloaderProps) {
             </li>
           </ul>
         </div>
+      )}
+
+      {showEmailForm && (
+        <EmailForm
+          onSubmit={handleEmailSubmit}
+          onCancel={() => {
+            setShowEmailForm(false);
+            setPendingDownloadAction(null);
+            setPendingDownloadFormat('');
+          }}
+          loading={loading}
+          error={error}
+          downloadFormat={pendingDownloadFormat}
+        />
       )}
     </div>
   );
