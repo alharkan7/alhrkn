@@ -219,10 +219,10 @@ export default function PaperMap() {
                     <AppsHeader />
                   </div>
                   <div className="text-center py-4">
-                    <h1 className="text-6xl font-black mb-2">
+                    <h1 className="text-5xl md:text-6xl font-black mb-2">
                       Papermap
                     </h1>
-                    <div className="text-lg text-muted-foreground">
+                    <div className="text-base md:text-lg text-muted-foreground">
                       <a>
                         Learn Anything with AI Mindmap
                       </a>
