@@ -51,10 +51,13 @@ const InputForm: React.FC<InputFormProps> = ({
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];
+        // Clear both error states when file selection dialog is opened
+        setUrlError(null);
         if (selectedFile) {
             if (checkFileSize(selectedFile)) {
                 setFile(selectedFile);
                 setUrl('');
+                setFileSizeError(null);
             } else {
                 setFile(null);
                 // Keep the file selected in the input for better UX
@@ -104,6 +107,8 @@ const InputForm: React.FC<InputFormProps> = ({
         if (fileInputRef.current) {
             fileInputRef.current.accept = 'application/pdf';
             fileInputRef.current.click();
+            // Clear any URL errors when opening the file dialog
+            setUrlError(null);
         }
     };
 
@@ -367,6 +372,12 @@ const InputForm: React.FC<InputFormProps> = ({
         }
     };
 
+    const handleModeSwitch = (checked: boolean) => {
+        setIsUrlMode(checked);
+        setUrlError(null);
+        setFileSizeError(null);
+    };
+
     // Determine if the Create button should be disabled
     const isCreateButtonDisabled = loading ||
         urlLoading ||
@@ -487,7 +498,7 @@ const InputForm: React.FC<InputFormProps> = ({
                             <div className="flex items-center gap-2">
                                 <Switch
                                     checked={isUrlMode}
-                                    onCheckedChange={setIsUrlMode}
+                                    onCheckedChange={handleModeSwitch}
                                     aria-label="Toggle URL mode"
                                 />
                                 <span className="text-xs text-muted-foreground">URL</span>

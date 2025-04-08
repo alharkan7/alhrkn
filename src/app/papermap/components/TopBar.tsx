@@ -39,10 +39,10 @@ export default function TopBar({
 
   return (
     <>
-      <div className="p-2 bg-muted/50 print:hidden">
-        <div className="flex items-center justify-between gap-4">
+      <div className="py-4 px-2 bg-muted/50 print:hidden">
+        <div className="flex items-center justify-between gap-4 relative">
           {/* Left side - New button */}
-          <div>
+          <div className="absolute left-0 z-10">
             <Button
               onClick={() => setSidebarOpen(true)}
               variant="default"
@@ -56,7 +56,7 @@ export default function TopBar({
           </div>
           
           {/* Center - Status messages */}
-          <div className="flex-1 text-center min-w-0">
+          <div className="flex-1 text-center min-w-0 mx-[72px] sm:mx-[85px]">
             {loading && (
               <div className="flex items-center justify-center text-primary">
                 <span>Creating Mindmap</span>
@@ -98,7 +98,7 @@ export default function TopBar({
           </div>
           
           {/* Right side - Download button */}
-          <div>
+          <div className="absolute right-0 z-10">
             <Downloader />
           </div>
         </div>
