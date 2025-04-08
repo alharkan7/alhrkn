@@ -434,7 +434,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                     </div>
                                 ) : (
                                     <div>
-                                        <p className="text-muted-foreground text-sm">
+                                        <p className="text-muted-foreground text-sm hidden md:block">
                                             {isDragging ? "Drop PDF here" : "Drop PDF here"}
                                         </p>
                                         <Button
