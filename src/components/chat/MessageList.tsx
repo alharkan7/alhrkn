@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Message } from '@/types/types';
-import { FilePreview } from '@/components/chat/FilePreview';
+import { FilePreview } from '@/components/ui/FilePreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';

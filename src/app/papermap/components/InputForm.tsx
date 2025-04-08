@@ -1,12 +1,12 @@
-import { Send, Paperclip, Image } from 'lucide-react'
+import { Send, Paperclip, Link2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { FilePreview } from '../ui/FilePreview'
+import { FilePreview } from '@/components/ui/FilePreview'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 
-interface ChatInputProps {
+interface InputFormProps {
     input: string;
     setInput: (input: string) => void;
     isLoading: boolean;
@@ -18,7 +18,7 @@ interface ChatInputProps {
     onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
 }
 
-export function ChatInput({
+export function InputForm({
     input,
     setInput,
     isLoading,
@@ -28,7 +28,7 @@ export function ChatInput({
     clearFile,
     sendMessage,
     onFocusChange
-}: ChatInputProps) {
+}: InputFormProps) {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
     const [isFocused, setIsFocused] = useState(false);
@@ -134,7 +134,7 @@ export function ChatInput({
                                     disabled={isLoading || !!file}
                                     aria-label="Attach image"
                                 >
-                                    <Image className="size-5" />
+                                    <Link2 className="size-5" />
                                 </Button>
                             </div>
                             <Button
