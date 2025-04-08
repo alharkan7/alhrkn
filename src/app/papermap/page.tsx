@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import MindMapFlow from './components/MindMapFlow';
 import PdfViewer from './components/PdfViewer';
 import TopBar from './components/TopBar';
+import InputForm from './components/InputForm';
 import { useMindMap } from './hooks/useMindMap';
 import { combinedStyles } from './styles';
 import { MindMapProvider, PdfViewerProvider, UIStateProvider } from './context';
@@ -20,6 +21,8 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function PaperMap() {
   const { setTheme } = useTheme();
+  // State to track if a mindmap has been created
+  const [hasCreatedMindmap, setHasCreatedMindmap] = useState<boolean>(false);
 
   // Force light theme on mount
   useEffect(() => {
@@ -38,7 +41,7 @@ export default function PaperMap() {
             sessionId,
             cleanupSession: true
           });
-          
+
           // Try to use sendBeacon first (most reliable during page unload)
           if (navigator.sendBeacon) {
             const blob = new Blob([data], { type: 'application/json' });
@@ -115,6 +118,12 @@ export default function PaperMap() {
     cycleLayout
   };
 
+  // Custom handler for file upload that also sets hasCreatedMindmap to true
+  const handleFileUploadWithState = useCallback((file: File, blobUrl?: string) => {
+    handleFileUpload(file, blobUrl);
+    setHasCreatedMindmap(true);
+  }, [handleFileUpload]);
+
   // Drag and Drop Handlers
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -131,7 +140,7 @@ export default function PaperMap() {
     event.stopPropagation();
     // Check if the related target (where the cursor moved to) is outside the drop zone
     if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-        setIsDraggingOver(false);
+      setIsDraggingOver(false);
     }
   }, []);
 
@@ -143,8 +152,8 @@ export default function PaperMap() {
 
     // Prevent drop if already loading
     if (loading) {
-        setDropError("Cannot upload a new file while another is being processed.");
-        return;
+      setDropError("Cannot upload a new file while another is being processed.");
+      return;
     }
 
     const files = event.dataTransfer.files;
@@ -177,10 +186,10 @@ export default function PaperMap() {
   // Confirmation Handlers
   const handleConfirmUpload = useCallback(() => {
     if (droppedFile) {
-      handleFileUpload(droppedFile); // Call the existing upload handler
+      handleFileUploadWithState(droppedFile); // Call the modified upload handler
       setDroppedFile(null); // Close the dialog
     }
-  }, [droppedFile, handleFileUpload]);
+  }, [droppedFile, handleFileUploadWithState]);
 
   const handleCancelUpload = useCallback(() => {
     setDroppedFile(null); // Close the dialog
@@ -193,37 +202,58 @@ export default function PaperMap() {
           <div className="flex flex-col h-screen relative">
             <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
-            <TopBar 
-              onFileUpload={handleFileUpload}
-            />
-            
-            <div className="flex-grow relative" ref={reactFlowWrapper} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-              {/* Drag Over Lay */}
+            <div 
+              className="flex-grow relative" 
+              onDragOver={handleDragOver} 
+              onDragLeave={handleDragLeave} 
+              onDrop={handleDrop}
+              ref={hasCreatedMindmap ? reactFlowWrapper : undefined}
+            >
+              {/* Drag Over Lay - Show on both InputForm and main content */}
               {isDraggingOver && (
                 <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex flex-col items-center justify-center pointer-events-none z-10">
                   <FileUp className="h-16 w-16 text-primary mb-4" />
                   <p className="text-lg font-semibold text-primary">Drop PDF Here</p>
                 </div>
               )}
-              {/* ReactFlow */}
-              <ReactFlowProvider>
-                <MindMapFlow />
-              </ReactFlowProvider>
 
-              {/* Drop Error Message */}
+              {!hasCreatedMindmap ? (
+                // Show InputForm when no mindmap has been created yet
+                <div className="flex-grow flex items-center justify-center bg-background">
+                  <InputForm 
+                    onFileUpload={handleFileUploadWithState}
+                    loading={loading}
+                    error={error}
+                  />
+                </div>
+              ) : (
+                // Show the main content when a mindmap has been created
+                <>
+                  <TopBar
+                    onFileUpload={handleFileUploadWithState}
+                  />
+
+                  {/* ReactFlow */}
+                  <ReactFlowProvider>
+                    <MindMapFlow />
+                  </ReactFlowProvider>
+                </>
+              )}
+
+              {/* Drop Error Message - Show on both InputForm and main content */}
               {dropError && !isDraggingOver && ( // Show only if not dragging over and not loading
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-destructive/10 text-destructive text-sm p-3 rounded-md shadow-md flex items-center z-20">
-                   <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
-                   <span>{dropError}</span>
-                   <Button variant="neutral" size="sm" onClick={() => setDropError(null)} className="ml-2 p-1 h-auto text-destructive hover:bg-destructive/20">
-                      <X className="h-4 w-4" />
-                    </Button>
+                  <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+                  <span>{dropError}</span>
+                  <Button variant="neutral" size="sm" onClick={() => setDropError(null)} className="ml-2 p-1 h-auto text-destructive hover:bg-destructive/20">
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </div>
-            
-            {/* PDF Viewer */}
-            <PdfViewer />
+
+            {/* PDF Viewer - Only show when a mindmap has been created */}
+            {hasCreatedMindmap && <PdfViewer />}
 
             {/* Confirmation Dialog */}
             {droppedFile && (
@@ -231,7 +261,7 @@ export default function PaperMap() {
                 <div className="bg-card rounded-lg shadow-xl p-6 max-w-md w-full border border-border">
                   <h3 className="text-lg font-semibold mb-4 text-card-foreground">Create a New Mindmap?</h3>
                   <p className="text-sm text-muted-foreground mb-2">
-                    The existing mindmap will be replaced.
+                    {hasCreatedMindmap ? "The existing mindmap will be replaced." : "A new mindmap will be created."}
                   </p>
                   <div className="bg-muted/50 p-3 rounded-md mb-6 text-sm break-words border border-border/50">
                     <strong>File:</strong> {droppedFile.name} <br />
