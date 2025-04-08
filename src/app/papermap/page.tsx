@@ -26,11 +26,6 @@ export default function PaperMap() {
   // State to track if a mindmap has been created
   const [hasCreatedMindmap, setHasCreatedMindmap] = useState<boolean>(false);
 
-  // Force light theme on mount
-  useEffect(() => {
-    setTheme('light');
-  }, [setTheme]);
-
   // Add cleanup on page unload/refresh
   useEffect(() => {
     // Function to clean up session when page is closed/refreshed
@@ -126,6 +121,11 @@ export default function PaperMap() {
     setHasCreatedMindmap(true);
   }, [handleFileUpload]);
 
+  // Handler for example badge click
+  const handleExampleClick = useCallback(() => {
+    setHasCreatedMindmap(true);
+  }, []);
+
   // Drag and Drop Handlers
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -211,13 +211,6 @@ export default function PaperMap() {
               onDrop={handleDrop}
               ref={hasCreatedMindmap ? reactFlowWrapper : undefined}
             >
-              {/* Drag Over Lay - Show on both InputForm and main content */}
-              {isDraggingOver && (
-                <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex flex-col items-center justify-center pointer-events-none z-10">
-                  <FileUp className="h-16 w-16 text-primary mb-4" />
-                  <p className="text-lg font-semibold text-primary">Drop PDF Here</p>
-                </div>
-              )}
 
               {!hasCreatedMindmap ? (
                 // Show InputForm when no mindmap has been created yet
@@ -239,6 +232,7 @@ export default function PaperMap() {
                     onFileUpload={handleFileUploadWithState}
                     loading={loading}
                     error={error}
+                    onExampleClick={handleExampleClick}
                   />
                   <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center text-gray-600 text-xs bg-background">
                     <div className="flex-none">
@@ -249,6 +243,14 @@ export default function PaperMap() {
               ) : (
                 // Show the main content when a mindmap has been created
                 <>
+                  {/* Drag Over Lay - Show on both InputForm and main content */}
+                  {isDraggingOver && (
+                    <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex flex-col items-center justify-center pointer-events-none z-10">
+                      <FileUp className="h-16 w-16 text-primary mb-4" />
+                      <p className="text-lg font-semibold text-primary">Drop PDF Here</p>
+                    </div>
+                  )}
+
                   <TopBar
                     onFileUpload={handleFileUploadWithState}
                   />
@@ -257,18 +259,19 @@ export default function PaperMap() {
                   <ReactFlowProvider>
                     <MindMapFlow />
                   </ReactFlowProvider>
-                </>
-              )}
 
-              {/* Drop Error Message - Show on both InputForm and main content */}
-              {dropError && !isDraggingOver && ( // Show only if not dragging over and not loading
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-destructive/10 text-destructive text-sm p-3 rounded-md shadow-md flex items-center z-20">
-                  <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
-                  <span>{dropError}</span>
-                  <Button variant="neutral" size="sm" onClick={() => setDropError(null)} className="ml-2 p-1 h-auto text-destructive hover:bg-destructive/20">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                  {/* Drop Error Message - Show on both InputForm and main content */}
+                  {dropError && !isDraggingOver && ( // Show only if not dragging over and not loading
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-destructive/10 text-destructive text-sm p-3 rounded-md shadow-md flex items-center z-20">
+                      <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+                      <span>{dropError}</span>
+                      <Button variant="neutral" size="sm" onClick={() => setDropError(null)} className="ml-2 p-1 h-auto text-destructive hover:bg-destructive/20">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+
+                </>
               )}
             </div>
 

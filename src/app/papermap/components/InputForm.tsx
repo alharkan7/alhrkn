@@ -6,6 +6,7 @@ import { upload } from '@vercel/blob/client';
 import { Switch } from "@/components/ui/switch";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { Badge } from "@/components/ui/badge";
 
 // Define file size limit constant - increased with Vercel Blob
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
@@ -15,12 +16,14 @@ interface InputFormProps {
     onFileUpload: (file: File, blobUrl?: string) => void;
     loading: boolean;
     error: string | null;
+    onExampleClick?: () => void;
 }
 
 const InputForm: React.FC<InputFormProps> = ({
     onFileUpload,
     loading,
-    error
+    error,
+    onExampleClick
 }) => {
     const [url, setUrl] = useState<string>('');
     const [urlError, setUrlError] = useState<string | null>(null);
@@ -32,6 +35,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const [isFocused, setIsFocused] = useState(false);
     const [isUrlMode, setIsUrlMode] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const form = useForm();
 
@@ -380,7 +384,7 @@ const InputForm: React.FC<InputFormProps> = ({
 
     return (
         <div className="w-full max-w-7xl px-4 py-2 rounded-lg">
-            <div className="mb-6">
+            <div className="mb-4">
 
                 {fileSizeError && (
                     <div className="text-destructive text-sm mb-0 p-3 bg-destructive/10 rounded-base flex items-start">
@@ -400,11 +404,11 @@ const InputForm: React.FC<InputFormProps> = ({
                     >
                         {!isUrlMode ? (
                             <div
-                                className={`border-none bg-muted/50 rounded-base p-8 text-center mb-0 relative transition-all duration-200 ${file
+                                className={`bg-muted/50 rounded-base p-8 text-center mb-0 relative transition-all duration-200 ${file
                                     ? 'border-primary bg-primary/10'
                                     : isDragging
-                                        ? 'border-primary bg-primary/5 border-dashed'
-                                        : 'border-border'
+                                        ? 'border-2 border-primary bg-primary/5 border-dashed'
+                                        : 'border-none border-border'
                                     }`}
                                 onDrop={handleFileDrop}
                                 onDragOver={handleDragOver}
@@ -503,6 +507,18 @@ const InputForm: React.FC<InputFormProps> = ({
                         </div>
                     </form>
                 </Form>
+            </div>
+
+            <div className="flex justify-center mb-4">
+                <Badge 
+                    variant={isHovered ? "neutral" : "default"}
+                    className="cursor-pointer"
+                    onClick={onExampleClick}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                >
+                    Example
+                </Badge>
             </div>
 
             {error && (
