@@ -169,7 +169,7 @@ export function MessageList({ messages, messagesEndRef, isLoading, isStreaming }
                                     className="self-start mr-2 h-6 w-6"
                                     onClick={() => handleCopy(message.content)}
                                 >
-                                    <Copy className="h-4 w-4 text-muted-foreground" />
+                                    <Copy className="h-4 w-4" />
                                 </Button>
                             )}
                         </div>

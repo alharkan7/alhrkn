@@ -1,5 +1,5 @@
 import { Send, Paperclip, Image } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { FilePreview } from './FilePreview'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ export function ChatInput({
 }: ChatInputProps) {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
+    const [isFocused, setIsFocused] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,6 +59,18 @@ export function ChatInput({
         }
     };
 
+    const handleFocus = () => {
+        console.log('Focus event triggered');
+        setIsFocused(true);
+        onFocusChange?.(true);
+    };
+
+    const handleBlur = () => {
+        console.log('Blur event triggered');
+        setIsFocused(false);
+        onFocusChange?.(false);
+    };
+
     return (
         <>
             <div className="relative flex flex-col gap-2">
@@ -71,7 +84,15 @@ export function ChatInput({
                     </div>
                 )}
                 <Form {...form}>
-                    <form onSubmit={handleSubmit} className="relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all max-w-2xl mx-auto w-full border-2 border-border bg-bw rounded-lg p-2 shadow-[var(--shadow)] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-ring-offset">
+                    <form 
+                        onSubmit={handleSubmit} 
+                        data-focused={isFocused}
+                        className={`relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full ${
+                            isFocused 
+                            ? 'border-[3px] border-ring shadow-[3px_3px_0px_0px_var(--ring)]' 
+                            : 'border-[2px] border-border shadow-[var(--shadow)]'
+                        } bg-bw rounded-lg p-2`}
+                    >
                         <textarea
                             ref={inputRef}
                             value={input}
@@ -79,9 +100,8 @@ export function ChatInput({
                             onKeyDown={handleKeyDown}
                             placeholder={file ? "Add a message..." : "Send a message..."}
                             className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
-                            // disabled={Boolean(isLoading || (file && !file.uploaded))}
-                            onFocus={() => onFocusChange?.(true)}
-                            onBlur={() => onFocusChange?.(false)}
+                            onFocus={handleFocus}
+                            onBlur={handleBlur}
                             rows={1}
                             style={{ height: 'auto' }}
                             onInput={(e) => {

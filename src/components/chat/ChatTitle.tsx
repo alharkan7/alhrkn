@@ -35,6 +35,17 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
                 <span className="text-primary whitespace-nowrap">Ask</span>{' '}
                 <span className="whitespace-nowrap">Al</span>
             </h1>
+            <div className="text-sm text-muted-foreground">
+                <a 
+                    href="https://x.com/alhrkn" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors hover:font-bold"
+                >
+                    @alhrkn
+                </a>
+                's Experimental Apps
+            </div>
         </div>
     );
 }
