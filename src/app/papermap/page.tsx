@@ -224,7 +224,7 @@ export default function PaperMap() {
                     </h1>
                     <div className="text-base md:text-lg text-muted-foreground">
                       <a>
-                        Learn Anything with AI Mindmap
+                        Turn Any PDF into AI Mindmap
                       </a>
                     </div>
                   </div>
