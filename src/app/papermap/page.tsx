@@ -14,6 +14,8 @@ import InputForm from './components/InputForm';
 import { useMindMap } from './hooks/useMindMap';
 import { combinedStyles } from './styles';
 import { MindMapProvider, PdfViewerProvider, UIStateProvider } from './context';
+import { AppsHeader } from '@/components/apps-header'
+import AppsFooter from '@/components/apps-footer'
 
 // Define file size limits (copied from Sidebar.tsx)
 const MAX_FILE_SIZE_MB = 25;
@@ -202,10 +204,10 @@ export default function PaperMap() {
           <div className="flex flex-col h-screen relative">
             <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
-            <div 
-              className="flex-grow relative" 
-              onDragOver={handleDragOver} 
-              onDragLeave={handleDragLeave} 
+            <div
+              className="flex-grow relative"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               ref={hasCreatedMindmap ? reactFlowWrapper : undefined}
             >
@@ -219,12 +221,30 @@ export default function PaperMap() {
 
               {!hasCreatedMindmap ? (
                 // Show InputForm when no mindmap has been created yet
-                <div className="flex-grow flex items-center justify-center bg-background">
-                  <InputForm 
+                <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+                  <div className="fixed top-0 left-0 right-0 z-50">
+                    <AppsHeader />
+                  </div>
+                  <div className="text-center py-4">
+                    <h1 className="text-6xl font-black mb-2">
+                      Papermap
+                    </h1>
+                    <div className="text-lg text-muted-foreground">
+                      <a>
+                        Learn Anything with AI Mindmap
+                      </a>
+                    </div>
+                  </div>
+                  <InputForm
                     onFileUpload={handleFileUploadWithState}
                     loading={loading}
                     error={error}
                   />
+                  <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center text-gray-600 text-xs bg-background">
+                    <div className="flex-none">
+                      <AppsFooter />
+                    </div>
+                  </div>
                 </div>
               ) : (
                 // Show the main content when a mindmap has been created
