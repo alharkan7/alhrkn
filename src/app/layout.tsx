@@ -8,6 +8,7 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-space-grotesk',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 const title = "Ask Al"
@@ -41,7 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={spaceGrotesk.variable} suppressHydrationWarning>
-      <body>
+      <body className={`${spaceGrotesk.className} font-sans`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

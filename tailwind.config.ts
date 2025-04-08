@@ -88,9 +88,7 @@ const config = {
 				reverseBoxShadowY: '-4px'
 			},
 			fontFamily: {
-				sans: [
-					'var(--font-space-grotesk)'
-				]
+				sans: ['var(--font-space-grotesk)', 'system-ui', 'sans-serif'],
 			},
 			fontWeight: {
 				base: '500',

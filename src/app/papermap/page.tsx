@@ -5,7 +5,7 @@ import { InputForm } from './components/InputForm'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import AppsFooter from '@/components/apps-footer'
 import { useFileUpload } from '@/hooks/useFileUpload';
-
+import { AppsHeader } from '@/components/apps-header'
 
 export default function ChatPage() {
   const { messages, isLoading, isStreaming, sendMessage } = useChatMessages();
@@ -71,15 +71,18 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background">
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <AppsHeader />
+      </div>
       <div className={`flex-1 overflow-hidden flex flex-col justify-start max-w-4xl mx-auto w-full px-1 md:px-4 ${!hasUserSentMessage ? 'mt-[20vh]' : ''}`}>
         <div className="flex-none">
           <div className="text-center py-4">
             <h1 className="text-6xl font-black mb-3">
               Papermap
             </h1>
-            <div className="text-sm">
+            <div className="text-lg text-muted-foreground">
               <a>
-                Explain Anything in Interactive AI Mindmap
+                Learn Anything with AI Mindmap
               </a>
             </div>
           </div>
