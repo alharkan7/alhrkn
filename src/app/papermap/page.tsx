@@ -247,7 +247,7 @@ export default function PaperMap() {
             <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
             <div
-              className="flex-grow relative"
+              className="flex flex-col flex-grow relative overflow-hidden"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -301,7 +301,9 @@ export default function PaperMap() {
 
                   {/* ReactFlow */}
                   <ReactFlowProvider>
-                    <MindMapFlow />
+                    <div className="flex-grow h-[calc(100vh-4rem)]">
+                      <MindMapFlow />
+                    </div>
                   </ReactFlowProvider>
 
                   {/* Drop Error Message - Show on both InputForm and main content */}

@@ -53,7 +53,7 @@ export default function TopBar({
   };
 
   return (
-    <div className="py-4 px-2 bg-muted/50 print:hidden">
+    <div className="sticky top-0 py-4 px-2 bg-muted/50 backdrop-blur-sm print:hidden z-50">
       <div className="flex items-center justify-between gap-4 relative">
         {/* Left side - New button */}
         <div className="absolute left-0 z-10">

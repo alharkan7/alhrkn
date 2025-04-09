@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { LoaderCircle, AlertTriangle, Waypoints, Send, X } from "lucide-react";
+import { LoaderCircle, AlertTriangle, Waypoints, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { upload } from '@vercel/blob/client';
-import { Switch } from "@/components/ui/switch";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
@@ -141,7 +140,9 @@ const InputForm: React.FC<InputFormProps> = ({
         }
     };
 
-    const handleFileClick = () => {
+    const handleFileClick = (e: React.MouseEvent) => {
+        // Only prevent default to stop form submission
+        e.preventDefault();
         if (fileInputRef.current) {
             fileInputRef.current.accept = 'application/pdf';
             fileInputRef.current.click();
@@ -491,7 +492,9 @@ const InputForm: React.FC<InputFormProps> = ({
                                         <Button
                                             variant="neutral"
                                             size="icon"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
                                                 setFile(null);
                                                 setFileSizeError(null);
                                             }}
@@ -510,9 +513,10 @@ const InputForm: React.FC<InputFormProps> = ({
                                             {isDragging ? "Drop PDF here" : "Drop PDF here"}
                                         </p>
                                         <Button
+                                            type="button"
                                             variant="default"
                                             className="mt-2"
-                                            onClick={handleFileClick}
+                                            onClick={() => fileInputRef.current?.click()}
                                         >
                                             Browse Files
                                             <input
@@ -570,29 +574,42 @@ const InputForm: React.FC<InputFormProps> = ({
                             </div>
                         )}
 
-                        <div className="flex justify-between items-center w-full">
-                            <Tabs defaultValue="file" onValueChange={handleInputModeChange} className="w-fit">
-                                <TabsList className="h-8 p-1 bg-muted/50">
-                                    <TabsTrigger 
-                                        value="file" 
-                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                                    >
-                                        File
-                                    </TabsTrigger>
-                                    <TabsTrigger 
-                                        value="url" 
-                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                                    >
-                                        URL
-                                    </TabsTrigger>
-                                    <TabsTrigger 
-                                        value="text" 
-                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                                    >
-                                        Text
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
+                        <div className="flex justify-between items-center gap-4 w-full">
+                            <div className="flex items-center gap-2">
+                                <Tabs defaultValue="file" onValueChange={handleInputModeChange} className="w-fit">
+                                    <TabsList className="h-8 p-1 bg-muted/50">
+                                        <TabsTrigger 
+                                            value="file" 
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                        >
+                                            File
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="url" 
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                        >
+                                            URL
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="text" 
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                        >
+                                            Text
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
+
+                                <Badge
+                                    variant={isHovered ? "neutral" : "default"}
+                                    className="cursor-pointer"
+                                    onClick={onExampleClick}
+                                    onMouseEnter={() => setIsHovered(true)}
+                                    onMouseLeave={() => setIsHovered(false)}
+                                >
+                                    Example
+                                </Badge>
+                            </div>
+
                             <Button
                                 type="submit"
                                 className="shrink-0 p-2 transition-colors disabled:opacity-50"
@@ -602,24 +619,13 @@ const InputForm: React.FC<InputFormProps> = ({
                                 {loading || urlLoading || isUploading ? (
                                     <LoaderCircle className="size-5 animate-spin" />
                                 ) : (
-                                    <Send className="size-5" />
+                                    <Waypoints className="size-5" />
                                 )}
+                                Create
                             </Button>
                         </div>
                     </form>
                 </Form>
-            </div>
-
-            <div className="flex justify-center mb-4">
-                <Badge 
-                    variant={isHovered ? "neutral" : "default"}
-                    className="cursor-pointer"
-                    onClick={onExampleClick}
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
-                >
-                    Example
-                </Badge>
             </div>
 
             {error && (

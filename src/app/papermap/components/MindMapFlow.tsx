@@ -167,8 +167,9 @@ const MindMapFlow = () => {
           },
           animated: false
         }}
-        className="mindmap-container"
+        className="h-full"
         style={{ width: '100%', height: '100%', background: bgColor }}
+        fitView
       >
         <Controls className="print:hidden" />
         <Background color={dotColor} gap={dotGap} size={dotSize} />
