@@ -106,7 +106,7 @@ export default function TopBar({
 
           {!loading && !error && (
             <div 
-              className={`font-extrabold text-primary relative inline-flex items-center max-w-full ${inputType === 'pdf' ? 'cursor-pointer hover:text-blue-600 group' : ''}`}
+              className={`font-extrabold text-primary relative inline-flex items-center max-w-[calc(100%-2rem)] ${inputType === 'pdf' ? 'cursor-pointer hover:text-blue-600 group' : ''}`}
               onClick={inputType === 'pdf' ? handleFileNameClick : undefined}
               title={inputType === 'pdf' ? "Click to open PDF" : ""}
             >
@@ -117,7 +117,7 @@ export default function TopBar({
                   <MessageSquare className="h-4 w-4" />
                 )}
               </div>
-              <div className="truncate">
+              <div className="truncate max-w-full">
                 {inputType === 'pdf' 
                   ? (fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech")
                   : (fileName || "Topic Mindmap")

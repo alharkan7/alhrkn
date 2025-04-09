@@ -1307,7 +1307,7 @@ export function useMindMap() {
       setCollapsedNodes(new Set());
       
       // Set a default filename for text-based mindmaps
-      setFileName(text.length > 20 ? `${text.substring(0, 20)}...` : text);
+      setFileName(text.length > 60 ? `${text.substring(0, 60)}...` : text);
       
       // No need to set PDF URL for text-based mindmaps
       setPdfUrl(null);
