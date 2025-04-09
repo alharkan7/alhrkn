@@ -56,7 +56,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
         {trigger}
       </PopoverTrigger>
       <PopoverContent
-        className="w-[240px] p-2"
+        className="w-[240px] p-2 bg-muted"
         align="end"
         onPointerDownOutside={(e: Event) => {
           if (e.target instanceof Element && e.target.closest('.apps-grid-content')) {
@@ -77,7 +77,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
               //   <TooltipTrigger asChild disabled={!showTooltips}>
               <Button
                 key={app.slug}
-                variant="neutral"
+                variant="default"
                 className="relative h-[90px] w-[100px] flex flex-col items-center justify-center gap-3 rounded-2xl"
                 onClick={() => handleAppClick(app.slug)}
               >
@@ -96,7 +96,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
         </div>
         <div className="mt-2 pt-3 border-t border-border">
           <Button
-            variant="neutral"
+            variant="default"
             className="w-full flex items-center justify-start gap-2 text-xs"
             onClick={() => window.location.href = 'mailto:enaiblr@gmail.com'}
           >

@@ -469,11 +469,19 @@ const InputForm: React.FC<InputFormProps> = ({
                 <Form {...form}>
                     <form
                         onSubmit={handleSubmit}
+                        onClick={() => setIsFocused(true)}
+                        onBlur={(e) => {
+                            // Only blur if clicking outside the form
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                setIsFocused(false);
+                            }
+                        }}
+                        tabIndex={0} // Make the form focusable
                         data-focused={isFocused}
                         className={`relative flex flex-col backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full ${isFocused
                             ? 'border-[3px] border-ring shadow-[3px_3px_0px_0px_var(--ring)]'
                             : 'border-[2px] border-border shadow-[var(--shadow)]'
-                            } bg-bw rounded-lg p-2`}
+                            } bg-bw rounded-lg p-2 focus:outline-none`}
                     >
                         {inputMode === 'file' && (
                             <div
@@ -538,7 +546,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 value={url}
                                 onChange={handleUrlChange}
                                 placeholder="https://example.com/paper.pdf"
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[100px] max-h-[120px] overflow-y-auto px-1 pb-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                             />
@@ -550,7 +558,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 value={text}
                                 onChange={handleTextChange}
                                 placeholder="Ask a question or brainstorm an idea.."
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[50px] overflow-y-hidden p-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[100px] overflow-y-hidden p-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                                 rows={1}
@@ -577,7 +585,7 @@ const InputForm: React.FC<InputFormProps> = ({
                         <div className="flex justify-between items-center gap-4 w-full">
                             <div className="flex items-center gap-2">
                                 <Tabs defaultValue="file" onValueChange={handleInputModeChange} className="w-fit">
-                                    <TabsList className="h-8 p-1 bg-muted/50">
+                                    <TabsList className="h-8 p-1 bg-muted/50 border border-muted-foreground border-2">
                                         <TabsTrigger 
                                             value="file" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
@@ -600,8 +608,8 @@ const InputForm: React.FC<InputFormProps> = ({
                                 </Tabs>
 
                                 <Badge
-                                    variant={isHovered ? "neutral" : "default"}
-                                    className="cursor-pointer"
+                                    variant={isHovered ? "default" : "neutral"}
+                                    className="cursor-pointer h-8 text-muted-foreground"
                                     onClick={onExampleClick}
                                     onMouseEnter={() => setIsHovered(true)}
                                     onMouseLeave={() => setIsHovered(false)}
@@ -612,14 +620,14 @@ const InputForm: React.FC<InputFormProps> = ({
 
                             <Button
                                 type="submit"
-                                className="shrink-0 p-2 transition-colors disabled:opacity-50"
+                                className="shrink-0 p-2 transition-colors disabled:opacity-50 h-8 text-sm"
                                 disabled={isCreateButtonDisabled}
                                 aria-label="Create mindmap"
                             >
                                 {loading || urlLoading || isUploading ? (
-                                    <LoaderCircle className="size-5 animate-spin" />
+                                    <LoaderCircle className="size-4 animate-spin" />
                                 ) : (
-                                    <Waypoints className="size-5" />
+                                    <Waypoints className="size-4" />
                                 )}
                                 Create
                             </Button>
