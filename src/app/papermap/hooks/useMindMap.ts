@@ -1284,6 +1284,112 @@ export function useMindMap() {
   // IMPORTANT: Remove nodePositions from the dependency array to prevent circular updates
   }, [mindMapData, currentLayoutIndex, loading, updateNodeData, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
 
+  // Handle text input for mindmap generation
+  const handleTextInput = useCallback(async (text: string) => {
+    setLoading(true);
+    setLoadingStage('processing');
+    setError(null);
+    setUploadError(null);
+
+    try {
+      // Clear previous chat history
+      localStorage.removeItem('chatHistory');
+      
+      // Clear previous session data
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      
+      // Clear any previous mindmap data
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+      
+      // Set a default filename for text-based mindmaps
+      setFileName(text.length > 20 ? `${text.substring(0, 20)}...` : text);
+      
+      // No need to set PDF URL for text-based mindmaps
+      setPdfUrl(null);
+      
+      try {
+        // Call the API with the text input to generate a mindmap
+        const response = await fetch('/api/papermap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            textInput: text,
+            chatHistory: [] // Start with empty chat history for a new mindmap
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to process text input');
+        }
+        
+        const data = await response.json();
+        
+        setLoadingStage('building');
+        
+        if (data && data.mindmap && typeof data.mindmap === 'object') {
+          // Update the mind map data
+          setMindMapData(data.mindmap);
+          
+          // Store the chat history in localStorage for follow-up questions
+          if (data.chatHistory) {
+            try {
+              // Ensure we're storing correct role format for chat history
+              const formattedChatHistory = data.chatHistory.map((msg: any) => ({
+                ...msg,
+                role: msg.role === 'assistant' ? 'model' : msg.role
+              }));
+              
+              localStorage.setItem('chatHistory', JSON.stringify(formattedChatHistory));
+            } catch (storageError) {
+              console.warn('Failed to store chat history in localStorage:', storageError);
+            }
+          }
+        } else {
+          throw new Error('Invalid mind map data received');
+        }
+      
+        // Fit view after nodes are set
+        setTimeout(() => {
+          if (reactFlowInstance.current) {
+            reactFlowInstance.current.fitView({ 
+              padding: 0.4, 
+              duration: 800,
+              includeHiddenNodes: false
+            });
+          }
+        }, 100);
+        
+        setLoading(false);
+        setLoadingStage(null);
+        
+        return true;
+      } catch (err) {
+        console.error('Error generating mindmap from text:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to generate mindmap';
+        setError(errorMessage);
+        setLoading(false);
+        setLoadingStage(null);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error handling text input:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process text input';
+      setUploadError(error instanceof Error ? error : new Error('Unknown error'));
+      setError(errorMessage);
+      setLoading(false);
+      setLoadingStage(null);
+      return false;
+    }
+  }, [setMindMapData, setError, setPdfUrl, setFileName, setLoading, setLoadingStage]);
+
   return {
     loading,
     loadingStage,
@@ -1297,6 +1403,7 @@ export function useMindMap() {
     onNodesChange: handleNodesChange,
     onEdgesChange,
     handleFileUpload,
+    handleTextInput,
     addFollowUpNode: addFollowUpNodeRef.current,
     deleteNode: deleteNodeRef.current,
     handleResetView,

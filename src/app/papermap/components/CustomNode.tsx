@@ -61,6 +61,9 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   // Check if this is a blank node by nodeType first, then fallback to title check for backward compatibility
   const isBlankNode = data.nodeType === 'blank' || (data.nodeType !== 'qna' && data.title === 'Double Click to Edit');
 
+  // Check if this is a PDF-based node or text-based node
+  const isPdfNode = data.pageNumber !== undefined && data.pageNumber !== null;
+
   // Get color based on node type or column level
   let nodeColor;
 
@@ -243,9 +246,10 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
     setShowFollowUpCard(true);
   };
 
+  // Function to handle document button click
   const handleDocumentButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (data.openPdfViewer) {
+    if (data.openPdfViewer && isPdfNode) {
       // Ensure pageNumber is valid, default to page 1 if not
       const pageToOpen = data.pageNumber && data.pageNumber > 0 ? data.pageNumber : 1;
       data.openPdfViewer(pageToOpen);
@@ -806,7 +810,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
             style={{ zIndex: 1000 }} 
             data-exclude-from-export="true"
           >
-            {data.pageNumber && data.openPdfViewer && !isBlankNode && (
+            {isPdfNode && data.pageNumber && data.openPdfViewer && !isBlankNode && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleDocumentButtonClick}

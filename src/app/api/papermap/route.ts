@@ -34,6 +34,48 @@ The client will use your responses to construct and update a visual mindmap. Ens
 
 GIVE YOUR RESPONSE IN THE MAIN LANGUAGE OF THE FILE. For example, if the PDF is dominantly not in English, provide your response using that language instead of English. If there's no PDF, then give your response in English.`;
 
+// Additional prompt for text-based input
+const TEXT_INPUT_PROMPT = `You are a specialized AI assistant that creates structured mindmaps from questions, ideas, or topics.
+
+Create a mindmap with this structure:
+{
+  "nodes": [
+    {
+      "id": "unique-id",
+      "title": "node title",
+      "description": "detailed description",
+      "parentId": "parent-node-id or null for root",
+      "level": 0,
+      "pageNumber": null
+    }
+  ]
+}
+
+For FOLLOW-UP questions about specific nodes, you will provide answers in this format:
+{
+  "answer": "your answer here"
+}
+
+USE MARKDOWN FORMATTING in all descriptions and answers to make the text visually more appealing. Use **bold**, *italics*, lists, and other markdown features to improve readability.
+
+Structure Requirements:
+- EXACTLY ONE root node with level=0 and parentId=null
+- Every non-root node MUST have a parentId that matches an existing node's id
+- Child nodes MUST have level = parent's level + 1
+- IDs must be unique
+- AIM FOR DEPTH: Create at least 3-5 levels of hierarchy where appropriate
+- BREAK DOWN CONCEPTS: Each major topic should be broken down into multiple sub-topics
+- DETAILED BRANCHING: Important concepts should branch into 3-4 child nodes minimum
+
+Description Style Requirements:
+- Use direct statements that clearly explain concepts
+- Include specific examples and details where appropriate
+- Structure information hierarchically and logically
+- Break down complex topics into simpler components
+- USE MARKDOWN FORMATTING in descriptions to improve readability
+
+The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.`;
+
 /**
  * Main API route for handling PDF analysis and follow-up questions
  */
@@ -49,7 +91,16 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { blobUrl, isFollowUp, question, nodeContext, chatHistory } = data;
+    const { blobUrl, textInput, isFollowUp, question, nodeContext, chatHistory } = data;
+
+    // Log request parameters for debugging
+    console.log("API Request params:", { 
+      hasBlobUrl: !!blobUrl, 
+      hasTextInput: !!textInput, 
+      isFollowUp,
+      blobUrlType: blobUrl ? typeof blobUrl : null,
+      textInputType: textInput ? typeof textInput : null
+    });
 
     // Initialize Gemini API with appropriate configuration
     const model = genAI.getGenerativeModel({
@@ -80,9 +131,10 @@ export async function POST(request: NextRequest) {
         }
       });
     } else {
-      // If no history, start with the system prompt
-      // Determine initial history based on whether the *first* request is a follow-up (sample map)
+      // If no history, start with the appropriate system prompt
+      // Determine initial history based on whether this is follow-up, text input, or PDF
       let initialHistory;
+      
       if (isFollowUp) {
         // First request is a follow-up -> sample map context needed
         initialHistory = [
@@ -95,8 +147,20 @@ export async function POST(request: NextRequest) {
             parts: [{ text: "I understand. I'll use the provided sample document context for follow-up questions. All responses will follow the exact JSON schemas you specified." }]
           }
         ];
+      } else if (textInput) {
+        // First request is for text-based mindmap
+        initialHistory = [
+          {
+            role: "user",
+            parts: [{ text: TEXT_INPUT_PROMPT }]
+          },
+          {
+            role: "model",
+            parts: [{ text: "I understand. I'll create structured mindmaps from the provided text input. All responses will follow the exact JSON schema you specified." }]
+          }
+        ];
       } else {
-        // First request is mindmap generation -> standard system prompt
+        // First request is PDF mindmap generation -> standard system prompt
         initialHistory = [
           {
             role: "user",
@@ -137,14 +201,19 @@ export async function POST(request: NextRequest) {
       }
 
       messageParts = [
-        { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\n1. Answer the question directly without referring to "the authors" or "the paper."\n2. Prioritize your answer to be based on information from the paper. If necessary, add information based on your knowledge base.\n3. Be specific and include relevant details, data, and numbers from the paper.\n4. Explain complex concepts in a clear, concise manner.\n5. REMEMBER: GIVE YOUR RESPONSE IN THE DOMINANT LANGUAGE OF THE FILE, even though the question is in English.\n6. Provide an answer that fully addresses the question.\n7. USE MARKDOWN FORMATTING in your answer to make it more visually appealing with **bold**, *italics*, bullet points, and other formatting features as appropriate.\n7. DO NOT reference the node, just answer the question.\n\nPlease provide answer in the format: { "answer": "your answer here" }` }
+        { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\n1. Answer the question directly without referring to "the authors" or "the paper."\n2. Focus on providing a comprehensive answer based on your knowledge.\n3. Be specific and include relevant details.\n4. Explain complex concepts in a clear, concise manner.\n5. Provide an answer that fully addresses the question.\n6. USE MARKDOWN FORMATTING in your answer to make it more visually appealing with **bold**, *italics*, bullet points, and other formatting features as appropriate.\n7. DO NOT reference the node, just answer the question.\n\nPlease provide answer in the format: { "answer": "your answer here" }` }
       ];
       
+    } else if (textInput) {
+      // Handle text-based input for mindmap generation
+      messageParts = [
+        { text: `Please create a comprehensive, deeply structured mindmap about this topic or question:\n\n"${textInput}"\n\nStructure Requirements:\n   - EXACTLY ONE root node with level=0 and parentId=null\n   - Every non-root node MUST have a parentId that matches an existing node's id\n   - Child nodes MUST have level = parent's level + 1\n   - IDs must be unique\n   - AIM FOR DEPTH: Create at least 3-5 levels of hierarchy where appropriate\n   - BREAK DOWN CONCEPTS: Each major topic should be broken down into multiple sub-topics\n   - DETAILED BRANCHING: Important concepts should branch into 3-4 child nodes minimum\n\nDescription Style Requirements:\n   - Use direct statements: "This works by..." instead of "The concept works by..."\n   - Present information as facts and clear explanations\n   - Include specific examples and analogies where helpful\n   - Explain complex concepts thoroughly but clearly\n   - INCLUDE DETAILS: Add specific methodologies, examples, and background where relevant\n   - USE MARKDOWN FORMATTING in descriptions to make them more visually appealing (bold, italics, bullet points, etc.)\n\nExample Structure:\n   {\n     \"nodes\": [\n       {\"id\": \"node1\", \"title\": \"Artificial Intelligence\", \"description\": \"**AI systems** simulate human intelligence through algorithms and data, enabling machines to perform tasks that typically require human cognition like visual perception, speech recognition, and decision-making.\", \"parentId\": null, \"level\": 0, \"pageNumber\": null},\n       {\"id\": \"node2\", \"title\": \"Machine Learning\", \"description\": \"A subset of AI that uses *statistical techniques* to give computers the ability to learn from data without being explicitly programmed. ML algorithms build mathematical models to make predictions or decisions.\", \"parentId\": \"node1\", \"level\": 1, \"pageNumber\": null}\n     ]\n   }\n\nKey Writing Principles:\n   - Write as if you're directly explaining the topic\n   - Use clear, concise language\n   - Break down complex concepts into detailed sub-components\n   - Include specific examples and applications\n\nONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.` }
+      ];
     } else {
-      // Initial mindmap creation
+      // Initial mindmap creation for PDF
       if (!blobUrl) {
         return NextResponse.json(
-          { error: "PDF blob URL is required" },
+          { error: "Either PDF blob URL or text input is required" },
           { status: 400 }
         );
       }
@@ -219,7 +288,9 @@ export async function POST(request: NextRequest) {
         role: "user",
         content: isFollowUp 
           ? `Follow-up question about ${nodeContext.title}: ${question}` 
-          : "Please create a mindmap from this PDF"
+          : textInput
+            ? `Create a mindmap about: ${textInput}`
+            : "Please create a mindmap from this PDF"
       },
       {
         role: "model",
@@ -244,7 +315,8 @@ export async function POST(request: NextRequest) {
     const responseObject = {
       success: true,
       ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: responseData }),
-      chatHistory: newChatHistory
+      chatHistory: newChatHistory,
+      inputType: textInput ? 'text' : 'pdf'
     };
     
     return NextResponse.json(responseObject);

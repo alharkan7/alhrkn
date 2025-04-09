@@ -25,6 +25,10 @@ export default function PaperMap() {
   const { setTheme } = useTheme();
   // State to track if a mindmap has been created
   const [hasCreatedMindmap, setHasCreatedMindmap] = useState<boolean>(false);
+  // State to track the current input type (pdf or text)
+  const [inputType, setInputType] = useState<'pdf' | 'text' | null>(null);
+  // Local error state for input validation
+  const [inputError, setInputError] = useState<string | null>(null);
 
   // Add cleanup on page unload/refresh
   useEffect(() => {
@@ -83,6 +87,7 @@ export default function PaperMap() {
     onNodesChange,
     onEdgesChange,
     handleFileUpload,
+    handleTextInput,
     handleResetView,
     loadExampleMindMap,
     pdfUrl,
@@ -109,27 +114,58 @@ export default function PaperMap() {
     onNodesChange,
     onEdgesChange,
     handleFileUpload,
+    handleTextInput,
     handleResetView,
     loadExampleMindMap,
     currentLayoutIndex,
     cycleLayout
   };
 
-  // Custom handler for file upload that also sets hasCreatedMindmap to true
-  const handleFileUploadWithState = useCallback((file: File, blobUrl?: string) => {
-    handleFileUpload(file, blobUrl);
+  // Type guard for text input objects
+  const isTextInputObject = (input: any): input is { text: string, isTextInput?: boolean } => {
+    return typeof input === 'object' && input !== null && 'text' in input && typeof input.text === 'string';
+  };
+
+  // Custom handler for input that updates hasCreatedMindmap and input type
+  const handleInput = useCallback((input: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => {
+    if (isTextInputObject(input)) {
+      // This is a text input object 
+      if (input.isTextInput === true) {
+        // Handle text input for question/topic
+        setInputType('text');
+        handleTextInput(input.text);
+      } else {
+        // This is likely a text file being uploaded, not a text query
+        setInputError('Please upload a PDF file instead of a text file, or use the Text tab for questions.');
+      }
+    } else {
+      // This is a File object
+      setInputType('pdf');
+      // Check that the file is a PDF
+      if (input.type === 'application/pdf') {
+        handleFileUpload(input, blobUrl);
+      } else {
+        setInputError('Only PDF files are supported for file upload.');
+      }
+    }
     setHasCreatedMindmap(true);
-  }, [handleFileUpload]);
+  }, [handleFileUpload, handleTextInput]);
+
+  // Use combined error from multiple sources
+  const combinedError = inputError || error || null;
 
   // Handler for example badge click
   const handleExampleClick = useCallback(() => {
     loadExampleMindMap();
     setHasCreatedMindmap(true);
+    setInputType('pdf'); // Example is PDF-based
   }, [loadExampleMindMap]);
 
   // Handler for new mindmap click
   const handleNewClick = useCallback(() => {
     setHasCreatedMindmap(false);
+    setInputType(null);
+    setInputError(null);
   }, []);
 
   // Drag and Drop Handlers
@@ -194,17 +230,17 @@ export default function PaperMap() {
   // Confirmation Handlers
   const handleConfirmUpload = useCallback(() => {
     if (droppedFile) {
-      handleFileUploadWithState(droppedFile); // Call the modified upload handler
+      handleInput(droppedFile); // Call the modified input handler
       setDroppedFile(null); // Close the dialog
     }
-  }, [droppedFile, handleFileUploadWithState]);
+  }, [droppedFile, handleInput]);
 
   const handleCancelUpload = useCallback(() => {
     setDroppedFile(null); // Close the dialog
   }, []);
 
   return (
-    <UIStateProvider initialLoading={loading} initialError={error}>
+    <UIStateProvider initialLoading={loading} initialError={combinedError}>
       <MindMapProvider value={mindMapContextValue}>
         <PdfViewerProvider initialPdfUrl={pdfUrl} initialFileName={fileName}>
           <div className="flex flex-col h-screen relative">
@@ -235,9 +271,9 @@ export default function PaperMap() {
                     </div>
                   </div>
                   <InputForm
-                    onFileUpload={handleFileUploadWithState}
+                    onFileUpload={handleInput}
                     loading={loading}
-                    error={error}
+                    error={combinedError}
                     onExampleClick={handleExampleClick}
                   />
                   <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center text-gray-600 text-xs bg-background">
@@ -258,8 +294,9 @@ export default function PaperMap() {
                   )}
 
                   <TopBar
-                    onFileUpload={handleFileUploadWithState}
+                    onFileUpload={handleInput}
                     onNewClick={handleNewClick}
+                    inputType={inputType}
                   />
 
                   {/* ReactFlow */}
@@ -282,8 +319,8 @@ export default function PaperMap() {
               )}
             </div>
 
-            {/* PDF Viewer - Only show when a mindmap has been created */}
-            {hasCreatedMindmap && <PdfViewer />}
+            {/* PDF Viewer - Only show when a PDF-based mindmap has been created */}
+            {hasCreatedMindmap && inputType === 'pdf' && <PdfViewer />}
 
             {/* Confirmation Dialog */}
             {droppedFile && (

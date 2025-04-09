@@ -1,4 +1,4 @@
-import { FileText, Plus, RefreshCw } from 'lucide-react';
+import { FileText, Plus, RefreshCw, MessageSquare } from 'lucide-react';
 import Downloader from './Downloader';
 import { useCallback } from 'react';
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface TopBarProps {
-  onFileUpload: (file: File, blobUrl?: string) => void;
+  onFileUpload: (file: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => void;
   onNewClick: () => void;
+  inputType: 'pdf' | 'text' | null;
 }
 
 export default function TopBar({
   onFileUpload,
-  onNewClick
+  onNewClick,
+  inputType
 }: TopBarProps) {
   // Get state from contexts
   const { 
@@ -33,19 +35,21 @@ export default function TopBar({
   
   const { fileName, openPdfViewer, handlePdfFile } = usePdfViewerContext();
 
-  // Custom file upload handler
+  // Custom file upload handler for PDF files
   const handleUpload = useCallback(async (file: File, blobUrl?: string) => {
-    // Clear any previous errors
-    // Process the PDF file for viewing
+    // Process the PDF file for viewing first
     await handlePdfFile(file, blobUrl);
     
-    // Call original handler for mind map generation
+    // Then call the parent handler for mind map generation
+    // Make sure we're passing the file as a File object, not as text
     onFileUpload(file, blobUrl);
   }, [onFileUpload, handlePdfFile]);
 
   // Function to handle file name click and open PDF viewer
   const handleFileNameClick = () => {
-    openPdfViewer(1); // Open to the first page
+    if (inputType === 'pdf') {
+      openPdfViewer(1); // Open to the first page
+    }
   };
 
   return (
@@ -102,15 +106,22 @@ export default function TopBar({
 
           {!loading && !error && (
             <div 
-              className={`font-extrabold text-primary relative inline-flex items-center max-w-full cursor-pointer hover:text-blue-600 group`}
-              onClick={handleFileNameClick}
-              title="Click to open PDF"
+              className={`font-extrabold text-primary relative inline-flex items-center max-w-full ${inputType === 'pdf' ? 'cursor-pointer hover:text-blue-600 group' : ''}`}
+              onClick={inputType === 'pdf' ? handleFileNameClick : undefined}
+              title={inputType === 'pdf' ? "Click to open PDF" : ""}
             >
-              <div className="group-hover:text-blue-600 mr-2">
-                <FileText className="h-4 w-4" />
+              <div className={inputType === 'pdf' ? "group-hover:text-blue-600 mr-2" : "mr-2"}>
+                {inputType === 'pdf' ? (
+                  <FileText className="h-4 w-4" />
+                ) : (
+                  <MessageSquare className="h-4 w-4" />
+                )}
               </div>
               <div className="truncate">
-                {fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech"}
+                {inputType === 'pdf' 
+                  ? (fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech")
+                  : (fileName || "Topic Mindmap")
+                }
               </div>
             </div>
           )}

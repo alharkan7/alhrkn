@@ -19,7 +19,8 @@ interface MindMapContextType {
   // Operations
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
-  handleFileUpload: (file: File) => void;
+  handleFileUpload: (file: File, blobUrl?: string) => void;
+  handleTextInput: (text: string) => Promise<boolean>;
   handleResetView: () => void;
   loadExampleMindMap: () => void;
   cycleLayout: () => void;

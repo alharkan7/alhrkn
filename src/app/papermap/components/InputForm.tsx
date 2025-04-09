@@ -16,7 +16,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 type InputMode = 'file' | 'url' | 'text';
 
 interface InputFormProps {
-    onFileUpload: (file: File, blobUrl?: string) => void;
+    onFileUpload: (file: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => void;
     loading: boolean;
     error: string | null;
     onExampleClick?: () => void;
@@ -419,19 +419,8 @@ const InputForm: React.FC<InputFormProps> = ({
             }
 
             try {
-                // Create a blob from the text
-                const textBlob = new Blob([text], { type: 'text/plain' });
-                
-                // Create a File object from the blob
-                const file = new File([textBlob], 'text.txt', { type: 'text/plain' });
-                
-                // Upload the file to Vercel Blob
-                const blobUrl = await uploadFileToBlob(file);
-
-                if (blobUrl) {
-                    // Pass both the file and the blob URL
-                    onFileUpload(file, blobUrl);
-                }
+                // Add a special flag to identify this as a text input request
+                onFileUpload({ text: text.trim(), isTextInput: true });
             } catch (err) {
                 let errorMessage = "Failed to process the text. Please try again.";
 
@@ -452,7 +441,9 @@ const InputForm: React.FC<InputFormProps> = ({
     const isCreateButtonDisabled = loading ||
         urlLoading ||
         isUploading ||
-        (!file && !url.trim()) ||
+        (inputMode === 'file' && !file) ||
+        (inputMode === 'url' && !url.trim()) ||
+        (inputMode === 'text' && !text.trim()) ||
         !!fileSizeError;
 
     // Convert File to the format expected by FilePreview
