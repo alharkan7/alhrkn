@@ -123,7 +123,13 @@ export default function PaperMap() {
 
   // Handler for example badge click
   const handleExampleClick = useCallback(() => {
+    loadExampleMindMap();
     setHasCreatedMindmap(true);
+  }, [loadExampleMindMap]);
+
+  // Handler for new mindmap click
+  const handleNewClick = useCallback(() => {
+    setHasCreatedMindmap(false);
   }, []);
 
   // Drag and Drop Handlers
@@ -224,7 +230,7 @@ export default function PaperMap() {
                     </h1>
                     <div className="text-base md:text-lg text-muted-foreground">
                       <a>
-                        Turn Any PDF into AI Mindmap
+                        Learn Anything with AI Mindmap
                       </a>
                     </div>
                   </div>
@@ -253,6 +259,7 @@ export default function PaperMap() {
 
                   <TopBar
                     onFileUpload={handleFileUploadWithState}
+                    onNewClick={handleNewClick}
                   />
 
                   {/* ReactFlow */}

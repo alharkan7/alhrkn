@@ -33,7 +33,6 @@ const MindMapFlow = () => {
     loadingStage,
     currentLayoutIndex,
     cycleLayout,
-    mindMapData
   } = useMindMapContext();
   
   const { openPdfViewer } = usePdfViewerContext();

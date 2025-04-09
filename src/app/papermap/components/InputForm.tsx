@@ -7,10 +7,13 @@ import { Switch } from "@/components/ui/switch";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define file size limit constant - increased with Vercel Blob
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+type InputMode = 'file' | 'url' | 'text';
 
 interface InputFormProps {
     onFileUpload: (file: File, blobUrl?: string) => void;
@@ -26,6 +29,7 @@ const InputForm: React.FC<InputFormProps> = ({
     onExampleClick
 }) => {
     const [url, setUrl] = useState<string>('');
+    const [text, setText] = useState<string>('');
     const [urlError, setUrlError] = useState<string | null>(null);
     const [urlLoading, setUrlLoading] = useState<boolean>(false);
     const [file, setFile] = useState<File | null>(null);
@@ -33,11 +37,45 @@ const InputForm: React.FC<InputFormProps> = ({
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [isFocused, setIsFocused] = useState(false);
-    const [isUrlMode, setIsUrlMode] = useState(false);
+    const [inputMode, setInputMode] = useState<InputMode>('file');
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const form = useForm();
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const handleInputModeChange = (value: string) => {
+        setInputMode(value as InputMode);
+        setUrlError(null);
+        setFileSizeError(null);
+        // Clear other inputs when switching modes
+        if (value === 'file') {
+            setUrl('');
+            setText('');
+        } else if (value === 'url') {
+            setFile(null);
+            setText('');
+        } else if (value === 'text') {
+            setFile(null);
+            setUrl('');
+        }
+    };
+
+    // Add auto-resize function
+    const autoResize = () => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+    };
+
+    const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setText(event.target.value);
+        setUrlError(null);
+        setFileSizeError(null);
+        autoResize();
+    };
 
     // Check if file size is within limits
     const checkFileSize = (file: File): boolean => {
@@ -306,7 +344,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (file) {
+        if (inputMode === 'file' && file) {
             // Upload file to Vercel Blob first
             const blobUrl = await uploadFileToBlob(file);
 
@@ -317,65 +355,97 @@ const InputForm: React.FC<InputFormProps> = ({
             return;
         }
 
-        if (!url.trim()) {
-            setUrlError("Please enter a URL or upload the PDF file.");
+        if (inputMode === 'url') {
+            if (!url.trim()) {
+                setUrlError("Please enter a URL or upload the PDF file.");
+                return;
+            }
+
+            setUrlError(null);
+            setUrlLoading(true);
+
+            try {
+                // Upload URL to Vercel Blob
+                const blobUrl = await uploadUrlToBlob(url);
+
+                if (!blobUrl) {
+                    throw new Error(`Failed to process URL. Please check the URL and try again or upload the PDF file.`);
+                }
+
+                // Fetch from our blob URL to create a file object
+                const response = await fetch(blobUrl);
+
+                if (!response.ok) {
+                    throw new Error("Failed to retrieve file from storage");
+                }
+
+                const blob = await response.blob();
+
+                // Create a File object from the blob
+                const fileName = url.split('/').pop() || 'document.pdf';
+                const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
+
+                // Pass both the file and blob URL to the handler 
+                onFileUpload(fileFromUrl, blobUrl);
+            } catch (err) {
+                // Use the specific error message when available
+                let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";
+
+                if (err instanceof Error) {
+                    errorMessage = err.message;
+                }
+
+                setUrlError(errorMessage);
+
+                // Only log if it's not a common error
+                const isCommonError = errorMessage.includes('too large') ||
+                    errorMessage.includes('size exceeds') ||
+                    errorMessage.includes('valid PDF') ||
+                    errorMessage.includes('Invalid URL format');
+
+                if (!isCommonError) {
+                    console.error('Error fetching PDF:', err);
+                }
+            } finally {
+                setUrlLoading(false);
+            }
             return;
         }
 
-        setUrlError(null);
-        setUrlLoading(true);
-
-        try {
-            // Upload URL to Vercel Blob
-            const blobUrl = await uploadUrlToBlob(url);
-
-            if (!blobUrl) {
-                throw new Error(`Failed to process URL. Please check the URL and try again or upload the PDF file.`);
+        if (inputMode === 'text') {
+            if (!text.trim()) {
+                setUrlError("Please enter some text.");
+                return;
             }
 
-            // Fetch from our blob URL to create a file object
-            const response = await fetch(blobUrl);
+            try {
+                // Create a blob from the text
+                const textBlob = new Blob([text], { type: 'text/plain' });
+                
+                // Create a File object from the blob
+                const file = new File([textBlob], 'text.txt', { type: 'text/plain' });
+                
+                // Upload the file to Vercel Blob
+                const blobUrl = await uploadFileToBlob(file);
 
-            if (!response.ok) {
-                throw new Error("Failed to retrieve file from storage");
+                if (blobUrl) {
+                    // Pass both the file and the blob URL
+                    onFileUpload(file, blobUrl);
+                }
+            } catch (err) {
+                let errorMessage = "Failed to process the text. Please try again.";
+
+                if (err instanceof Error) {
+                    errorMessage = err.message;
+                }
+
+                setUrlError(errorMessage);
+                console.error('Error processing text:', err);
             }
-
-            const blob = await response.blob();
-
-            // Create a File object from the blob
-            const fileName = url.split('/').pop() || 'document.pdf';
-            const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
-
-            // Pass both the file and blob URL to the handler 
-            onFileUpload(fileFromUrl, blobUrl);
-        } catch (err) {
-            // Use the specific error message when available
-            let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";
-
-            if (err instanceof Error) {
-                errorMessage = err.message;
-            }
-
-            setUrlError(errorMessage);
-
-            // Only log if it's not a common error
-            const isCommonError = errorMessage.includes('too large') ||
-                errorMessage.includes('size exceeds') ||
-                errorMessage.includes('valid PDF') ||
-                errorMessage.includes('Invalid URL format');
-
-            if (!isCommonError) {
-                console.error('Error fetching PDF:', err);
-            }
-        } finally {
-            setUrlLoading(false);
+            return;
         }
-    };
 
-    const handleModeSwitch = (checked: boolean) => {
-        setIsUrlMode(checked);
-        setUrlError(null);
-        setFileSizeError(null);
+        setUrlError("Please provide input in the selected format.");
     };
 
     // Determine if the Create button should be disabled
@@ -408,14 +478,14 @@ const InputForm: React.FC<InputFormProps> = ({
                     <form
                         onSubmit={handleSubmit}
                         data-focused={isFocused}
-                        className={`relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full ${isFocused
+                        className={`relative flex flex-col backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full ${isFocused
                             ? 'border-[3px] border-ring shadow-[3px_3px_0px_0px_var(--ring)]'
                             : 'border-[2px] border-border shadow-[var(--shadow)]'
                             } bg-bw rounded-lg p-2`}
                     >
-                        {!isUrlMode ? (
+                        {inputMode === 'file' && (
                             <div
-                                className={`bg-muted/50 rounded-base p-8 text-center mb-0 relative transition-all duration-200 ${file
+                                className={`bg-muted/50 rounded-base p-8 text-center mb-2 relative transition-all duration-200 ${file
                                     ? 'border-primary bg-primary/10'
                                     : isDragging
                                         ? 'border-2 border-primary bg-primary/5 border-dashed'
@@ -465,7 +535,9 @@ const InputForm: React.FC<InputFormProps> = ({
                                     </div>
                                 )}
                             </div>
-                        ) : (
+                        )}
+
+                        {inputMode === 'url' && (
                             <Input
                                 type="text"
                                 value={url}
@@ -474,6 +546,19 @@ const InputForm: React.FC<InputFormProps> = ({
                                 className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
+                            />
+                        )}
+
+                        {inputMode === 'text' && (
+                            <textarea
+                                ref={textareaRef}
+                                value={text}
+                                onChange={handleTextChange}
+                                placeholder="Ask a question or brainstorm an idea.."
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[50px] overflow-y-hidden p-1"
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                rows={1}
                             />
                         )}
 
@@ -486,7 +571,7 @@ const InputForm: React.FC<InputFormProps> = ({
 
                         {/* Upload progress bar */}
                         {isUploading && (
-                            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-0">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 my-2">
                                 <div
                                     className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
                                     style={{ width: `${uploadProgress}%` }}
@@ -495,14 +580,28 @@ const InputForm: React.FC<InputFormProps> = ({
                         )}
 
                         <div className="flex justify-between items-center w-full">
-                            <div className="flex items-center gap-2">
-                                <Switch
-                                    checked={isUrlMode}
-                                    onCheckedChange={handleModeSwitch}
-                                    aria-label="Toggle URL mode"
-                                />
-                                <span className="text-xs text-muted-foreground">URL</span>
-                            </div>
+                            <Tabs defaultValue="file" onValueChange={handleInputModeChange} className="w-fit">
+                                <TabsList className="h-8 p-1 bg-muted/50">
+                                    <TabsTrigger 
+                                        value="file" 
+                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                    >
+                                        File
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                        value="url" 
+                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                    >
+                                        URL
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                        value="text" 
+                                        className="px-2 py-0.5 h-6 text-xs data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                    >
+                                        Text
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
                             <Button
                                 type="submit"
                                 className="shrink-0 p-2 transition-colors disabled:opacity-50"

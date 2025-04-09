@@ -520,13 +520,21 @@ export function useMindMap() {
     setFileName('mindmap'); // Reset filename when loading example
     setCollapsedNodes(new Set()); // Reset collapsed state
     
-    // Small delay to allow state updates before layout calculation
+    // Wait longer to ensure nodes are created and laid out
     setTimeout(() => {
-      // ... layout calculation logic ...
-       // Use the consistent padding
-      reactFlowInstance.current?.fitView({ padding: 0.4, duration: 800 });
       setLoading(false);
       setLoadingStage(null);
+      
+      // Fit view after nodes are created and laid out
+      setTimeout(() => {
+        if (reactFlowInstance.current) {
+          reactFlowInstance.current.fitView({ 
+            padding: 0.4, 
+            duration: 800,
+            includeHiddenNodes: false 
+          });
+        }
+      }, 300); // Wait a bit longer after loading is done
     }, 100);
   }, [setLoading, setLoadingStage, setError, setMindMapData, setPdfUrl, setFileName, setCollapsedNodes]); 
 
