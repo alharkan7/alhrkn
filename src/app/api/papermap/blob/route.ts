@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
             tokenPayload: JSON.stringify({
               timestamp: Date.now(),
             }),
-          };
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+          } as any;
         },
         onUploadCompleted: async ({ blob, tokenPayload }) => {
           // This won't work on localhost, but will work in production

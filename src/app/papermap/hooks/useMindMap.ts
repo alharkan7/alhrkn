@@ -660,7 +660,8 @@ export function useMindMap() {
           const blob = await upload(file.name, file, {
             access: 'public',
             handleUploadUrl: '/api/papermap/blob',
-          });
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+          } as any);
           
           if (!blob.url) {
             throw new Error('No blob URL returned from upload');

@@ -181,7 +181,8 @@ const InputForm: React.FC<InputFormProps> = ({
                 const blob = await upload(fileToUpload.name, fileToUpload, {
                     access: 'public',
                     handleUploadUrl: '/api/papermap/blob',
-                });
+                    expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+                } as any);
 
                 // Clear interval and complete progress
                 clearInterval(progressInterval);
@@ -305,7 +306,8 @@ const InputForm: React.FC<InputFormProps> = ({
                 const blob = await upload(fileName, pdfBlob, {
                     access: 'public',
                     handleUploadUrl: '/api/papermap/blob',
-                });
+                    expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+                } as any);
 
                 // Clear interval and complete progress
                 clearInterval(progressInterval);

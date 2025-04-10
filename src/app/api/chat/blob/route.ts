@@ -16,7 +16,8 @@ export async function POST(request: Request) {
         
         const blob = await put(filename, new Blob([await request.arrayBuffer()]), {
             access: 'public',
-        });
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+        } as any);
 
         return NextResponse.json(blob);
     } catch (error) {

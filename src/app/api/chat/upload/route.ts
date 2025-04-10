@@ -15,8 +15,9 @@ export async function POST(request: Request) {
 
         const blob = await put(file.name, file, {
             access: 'public',
-            token: process.env.BLOB_READ_WRITE_TOKEN // Use server-side env variable
-        });
+            token: process.env.BLOB_READ_WRITE_TOKEN, // Use server-side env variable
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expire after 12 hours
+        } as any);
 
         return NextResponse.json(blob);
     } catch (error) {
