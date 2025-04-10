@@ -609,7 +609,7 @@ const InputForm: React.FC<InputFormProps> = ({
 
                                 <Badge
                                     variant={isHovered ? "default" : "neutral"}
-                                    className="cursor-pointer h-8 text-muted-foreground"
+                                    className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
                                     onClick={onExampleClick}
                                     onMouseEnter={() => setIsHovered(true)}
                                     onMouseLeave={() => setIsHovered(false)}
