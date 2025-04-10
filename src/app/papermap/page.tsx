@@ -122,15 +122,22 @@ export default function PaperMap() {
   };
 
   // Type guard for text input objects
-  const isTextInputObject = (input: any): input is { text: string, isTextInput?: boolean } => {
+  const isTextInputObject = (input: any): input is { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string } => {
     return typeof input === 'object' && input !== null && 'text' in input && typeof input.text === 'string';
   };
 
   // Custom handler for input that updates hasCreatedMindmap and input type
-  const handleInput = useCallback((input: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => {
+  const handleInput = useCallback((input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string }, blobUrl?: string) => {
     if (isTextInputObject(input)) {
-      // This is a text input object 
-      if (input.isTextInput === true) {
+      // Check if this is web content extracted from a URL
+      if (input.isWebContent === true && input.sourceUrl) {
+        // Handle web content as text input but track source
+        setInputType('text');
+        handleTextInput(input.text, input.sourceUrl);
+        // Filename is handled in handleTextInput
+      } 
+      // This is a text input object for question/topic
+      else if (input.isTextInput === true) {
         // Handle text input for question/topic
         setInputType('text');
         handleTextInput(input.text);

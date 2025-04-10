@@ -1285,7 +1285,7 @@ export function useMindMap() {
   }, [mindMapData, currentLayoutIndex, loading, updateNodeData, toggleChildrenVisibility, setNodes, setEdges, nodes.length]);
 
   // Handle text input for mindmap generation
-  const handleTextInput = useCallback(async (text: string) => {
+  const handleTextInput = useCallback(async (text: string, sourceUrl?: string) => {
     setLoading(true);
     setLoadingStage('processing');
     setError(null);
@@ -1307,10 +1307,29 @@ export function useMindMap() {
       setCollapsedNodes(new Set());
       
       // Set a default filename for text-based mindmaps
-      setFileName(text.length > 60 ? `${text.substring(0, 60)}...` : text);
+      if (sourceUrl) {
+        // For web content, use the URL as the filename
+        try {
+          const url = new URL(sourceUrl);
+          setFileName(`${url.hostname}${url.pathname}`);
+        } catch (e) {
+          // Fallback if URL parsing fails
+          setFileName(`${sourceUrl}`);
+        }
+      } else {
+        // For regular text input, use the text content
+        setFileName(text.length > 60 ? `${text.substring(0, 60)}...` : text);
+      }
       
       // No need to set PDF URL for text-based mindmaps
       setPdfUrl(null);
+      
+      // Store source URL for web content
+      if (sourceUrl) {
+        localStorage.setItem('sourceUrl', sourceUrl);
+      } else {
+        localStorage.removeItem('sourceUrl');
+      }
       
       try {
         // Call the API with the text input to generate a mindmap
@@ -1321,6 +1340,7 @@ export function useMindMap() {
           },
           body: JSON.stringify({ 
             textInput: text,
+            sourceUrl: sourceUrl, // Pass source URL if provided
             chatHistory: [] // Start with empty chat history for a new mindmap
           }),
         });

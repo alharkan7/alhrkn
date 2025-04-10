@@ -15,7 +15,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 type InputMode = 'file' | 'url' | 'text';
 
 interface InputFormProps {
-    onFileUpload: (file: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => void;
+    onFileUpload: (file: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string }, blobUrl?: string) => void;
     loading: boolean;
     error: string | null;
     onExampleClick?: () => void;
@@ -248,13 +248,13 @@ const InputForm: React.FC<InputFormProps> = ({
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || `Failed to fetch PDF: ${response.statusText}`);
+                    throw new Error(errorData.error || `Failed to fetch content: ${response.statusText}`);
                 }
 
                 const data = await response.json();
 
                 if (!data.success) {
-                    throw new Error(data.error || "Failed to process PDF");
+                    throw new Error(data.error || "Failed to process content");
                 }
 
                 // OPTIMIZATION: Check if the proxy returned a direct URL (for Vercel Blob URLs)
@@ -265,6 +265,21 @@ const InputForm: React.FC<InputFormProps> = ({
 
                     // Return the direct URL
                     return data.directUrl;
+                }
+
+                // Check if the content is from a web page (not a PDF)
+                if (data.isWebContent && data.extractedText) {
+                    // Clear interval and complete progress
+                    clearInterval(progressInterval);
+                    setUploadProgress(100);
+
+                    // Return special object for web content
+                    return JSON.stringify({
+                        isWebContent: true,
+                        extractedText: data.extractedText,
+                        sourceUrl: pdfUrl,
+                        fileName: data.fileName || `Content from ${new URL(pdfUrl).hostname}`
+                    });
                 }
 
                 // For regular URLs, continue with the normal process
@@ -307,9 +322,9 @@ const InputForm: React.FC<InputFormProps> = ({
                     if (error.message.includes('too large') || error.message.includes('size exceeds')) {
                         throw new Error(`File is too large. Maximum file size is ${MAX_FILE_SIZE_MB} MB.`);
                     } else if (error.message.includes('valid PDF')) {
-                        throw new Error("The URL does not point to a valid PDF file. Please enter a valid URL or upload the PDF file.");
-                    } else if (error.message.includes('Failed to fetch PDF')) {
-                        throw new Error("Could not download the PDF. Please ensure the URL is accessible or upload the PDF file.");
+                        throw new Error("The URL does not point to a valid PDF file. The system will try to extract web content instead.");
+                    } else if (error.message.includes('Failed to fetch')) {
+                        throw new Error("Could not download the content. Please ensure the URL is accessible or upload the PDF file.");
                     } else if (error.message.includes('Invalid URL format')) {
                         throw new Error("Please enter a valid URL or upload the PDF file.");
                     }
@@ -367,14 +382,31 @@ const InputForm: React.FC<InputFormProps> = ({
 
             try {
                 // Upload URL to Vercel Blob
-                const blobUrl = await uploadUrlToBlob(url);
+                const result = await uploadUrlToBlob(url);
 
-                if (!blobUrl) {
+                if (!result) {
                     throw new Error(`Failed to process URL. Please check the URL and try again or upload the PDF file.`);
                 }
 
-                // Fetch from our blob URL to create a file object
-                const response = await fetch(blobUrl);
+                // Check if the result is web content
+                try {
+                    const parsedResult = JSON.parse(result);
+                    if (parsedResult.isWebContent) {
+                        // Handle web content result
+                        onFileUpload({
+                            text: parsedResult.extractedText,
+                            isTextInput: true,
+                            isWebContent: true,
+                            sourceUrl: parsedResult.sourceUrl
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    // Not JSON, proceed with blob URL handling
+                }
+
+                // If we're here, treat as a blob URL for PDF
+                const response = await fetch(result);
 
                 if (!response.ok) {
                     throw new Error("Failed to retrieve file from storage");
@@ -387,7 +419,7 @@ const InputForm: React.FC<InputFormProps> = ({
                 const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
 
                 // Pass both the file and blob URL to the handler 
-                onFileUpload(fileFromUrl, blobUrl);
+                onFileUpload(fileFromUrl, result);
             } catch (err) {
                 // Use the specific error message when available
                 let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";
@@ -405,7 +437,7 @@ const InputForm: React.FC<InputFormProps> = ({
                     errorMessage.includes('Invalid URL format');
 
                 if (!isCommonError) {
-                    console.error('Error fetching PDF:', err);
+                    console.error('Error fetching content:', err);
                 }
             } finally {
                 setUrlLoading(false);

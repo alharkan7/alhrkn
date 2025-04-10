@@ -1,6 +1,6 @@
-import { FileText, Plus, RefreshCw, MessageSquare } from 'lucide-react';
+import { FileText, Plus, RefreshCw, MessageSquare, ExternalLink } from 'lucide-react';
 import Downloader from './Downloader';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import {
@@ -34,6 +34,17 @@ export default function TopBar({
   } = useMindMapContext();
   
   const { fileName, openPdfViewer, handlePdfFile } = usePdfViewerContext();
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+
+  // Load sourceUrl from localStorage when component mounts
+  useEffect(() => {
+    const url = localStorage.getItem('sourceUrl');
+    if (url) {
+      setSourceUrl(url);
+    } else {
+      setSourceUrl(null);
+    }
+  }, [fileName]); // Re-check when filename changes
 
   // Custom file upload handler for PDF files
   const handleUpload = useCallback(async (file: File, blobUrl?: string) => {
@@ -51,6 +62,16 @@ export default function TopBar({
       openPdfViewer(1); // Open to the first page
     }
   };
+
+  // Function to handle URL click and open in new tab
+  const handleUrlClick = () => {
+    if (sourceUrl) {
+      window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Determine if the title is a URL (starts with "URL:")
+  const isUrl = fileName?.startsWith('URL:');
 
   return (
     <div className="sticky top-0 py-4 px-2 bg-muted/50 backdrop-blur-sm print:hidden z-50">
@@ -106,13 +127,29 @@ export default function TopBar({
 
           {!loading && !error && (
             <div 
-              className={`font-extrabold text-primary relative inline-flex items-center max-w-[calc(100%-2rem)] ${inputType === 'pdf' ? 'cursor-pointer hover:text-blue-600 group' : ''}`}
-              onClick={inputType === 'pdf' ? handleFileNameClick : undefined}
-              title={inputType === 'pdf' ? "Click to open PDF" : ""}
+              className={`font-extrabold text-primary relative inline-flex items-center max-w-[calc(100%-2rem)] ${
+                inputType === 'pdf' || isUrl ? 'cursor-pointer hover:text-blue-600 group' : ''
+              }`}
+              onClick={
+                inputType === 'pdf' 
+                  ? handleFileNameClick 
+                  : isUrl && sourceUrl 
+                    ? handleUrlClick 
+                    : undefined
+              }
+              title={
+                inputType === 'pdf' 
+                  ? "Click to open PDF" 
+                  : isUrl && sourceUrl 
+                    ? "Click to open URL in new tab" 
+                    : ""
+              }
             >
-              <div className={inputType === 'pdf' ? "group-hover:text-blue-600 mr-2" : "mr-2"}>
+              <div className={`${inputType === 'pdf' || isUrl ? "group-hover:text-blue-600 mr-2" : "mr-2"}`}>
                 {inputType === 'pdf' ? (
                   <FileText className="h-4 w-4" />
+                ) : isUrl ? (
+                  <ExternalLink className="h-4 w-4" />
                 ) : (
                   <MessageSquare className="h-4 w-4" />
                 )}

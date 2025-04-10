@@ -35,7 +35,7 @@ The client will use your responses to construct and update a visual mindmap. Ens
 GIVE YOUR RESPONSE IN THE MAIN LANGUAGE OF THE FILE. For example, if the PDF is dominantly not in English, provide your response using that language instead of English. If there's no PDF, then give your response in English.`;
 
 // Additional prompt for text-based input
-const TEXT_INPUT_PROMPT = `You are a specialized AI assistant that creates structured mindmaps from questions, ideas, or topics.
+const TEXT_INPUT_PROMPT = `You are a specialized AI assistant that creates structured mindmaps from questions, ideas, topics, or web content.
 
 Create a mindmap with this structure:
 {
@@ -76,6 +76,44 @@ Description Style Requirements:
 
 The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.`;
 
+// Additional prompt for web content
+const WEB_CONTENT_PROMPT = `You are a specialized AI assistant that creates structured mindmaps from web content.
+
+Create a comprehensive mindmap from the provided web content with this structure:
+{
+  "nodes": [
+    {
+      "id": "unique-id",
+      "title": "node title",
+      "description": "detailed description",
+      "parentId": "parent-node-id or null for root",
+      "level": 0,
+      "pageNumber": null
+    }
+  ]
+}
+
+Structure Requirements:
+- EXACTLY ONE root node with level=0 and parentId=null that summarizes the entire content
+- Every non-root node MUST have a parentId that matches an existing node's id
+- Child nodes MUST have level = parent's level + 1
+- IDs must be unique
+- ORGANIZE BY TOPICS: Group related information from across the content into coherent sections
+- MAINTAIN ORIGINAL STRUCTURE: Follow the content's inherent organization where possible
+- INCLUDE KEY POINTS: Capture main arguments, evidence, and conclusions
+- AIM FOR DEPTH: Create at least 3-5 levels of hierarchy where appropriate
+
+Description Style Requirements:
+- Use direct statements that clearly explain concepts
+- Include specific data points, quotes, and statistics from the content
+- Structure information hierarchically and logically
+- Break down complex topics into simpler components
+- USE MARKDOWN FORMATTING in descriptions to improve readability
+
+USE MARKDOWN FORMATTING in all descriptions and answers to make the text visually more appealing. Use **bold**, *italics*, lists, and other markdown features to improve readability.
+
+The client will use your responses to construct and update a visual mindmap. Ensure all JSON is valid and follows these exact schemas.`;
+
 /**
  * Main API route for handling PDF analysis and follow-up questions
  */
@@ -91,13 +129,14 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { blobUrl, textInput, isFollowUp, question, nodeContext, chatHistory } = data;
+    const { blobUrl, textInput, isFollowUp, question, nodeContext, chatHistory, sourceUrl } = data;
 
     // Log request parameters for debugging
     console.log("API Request params:", { 
       hasBlobUrl: !!blobUrl, 
       hasTextInput: !!textInput, 
       isFollowUp,
+      hasSourceUrl: !!sourceUrl,
       blobUrlType: blobUrl ? typeof blobUrl : null,
       textInputType: textInput ? typeof textInput : null
     });
@@ -145,6 +184,18 @@ export async function POST(request: NextRequest) {
           {
             role: "model",
             parts: [{ text: "I understand. I'll use the provided sample document context for follow-up questions. All responses will follow the exact JSON schemas you specified." }]
+          }
+        ];
+      } else if (textInput && sourceUrl) {
+        // First request is for web content-based mindmap
+        initialHistory = [
+          {
+            role: "user",
+            parts: [{ text: WEB_CONTENT_PROMPT }]
+          },
+          {
+            role: "model",
+            parts: [{ text: "I understand. I'll create a structured mindmap from the web content. All responses will follow the exact JSON schema you specified." }]
           }
         ];
       } else if (textInput) {
@@ -204,6 +255,11 @@ export async function POST(request: NextRequest) {
         { text: `This is a follow-up question about a specific node in the mindmap.\n\nNode Title: ${nodeContext.title}\nNode Description: ${nodeContext.description}\n\nQuestion: ${question}\n\n1. Answer the question directly without referring to "the authors" or "the paper."\n2. Focus on providing a comprehensive answer based on your knowledge.\n3. Be specific and include relevant details.\n4. Explain complex concepts in a clear, concise manner.\n5. Provide an answer that fully addresses the question.\n6. USE MARKDOWN FORMATTING in your answer to make it more visually appealing with **bold**, *italics*, bullet points, and other formatting features as appropriate.\n7. DO NOT reference the node, just answer the question.\n\nPlease provide answer in the format: { "answer": "your answer here" }` }
       ];
       
+    } else if (textInput && sourceUrl) {
+      // Handle web content input for mindmap generation
+      messageParts = [
+        { text: `Please create a comprehensive, deeply structured mindmap about this web content:\n\n"${textInput}"\n\nThis content was extracted from the URL: ${sourceUrl}\n\nStructure Requirements:\n   - EXACTLY ONE root node with level=0 and parentId=null that summarizes the entire web page\n   - Every non-root node MUST have a parentId that matches an existing node's id\n   - Child nodes MUST have level = parent's level + 1\n   - IDs must be unique\n   - ORGANIZE BY TOPICS: Group related information from across the content into coherent sections\n   - MAINTAIN ORIGINAL STRUCTURE: Follow the content's inherent organization where possible\n   - INCLUDE KEY POINTS: Capture main arguments, evidence, and conclusions\n   - AIM FOR DEPTH: Create at least 3-5 levels of hierarchy where appropriate\n\nDescription Style Requirements:\n   - Use direct statements that clearly explain concepts\n   - Include specific data points, quotes, and statistics from the content\n   - Structure information hierarchically and logically\n   - Break down complex topics into simpler components\n   - USE MARKDOWN FORMATTING in descriptions to make them more visually appealing (bold, italics, bullet points, etc.)\n\nONLY GIVE THE JSON STRUCTURE. Do not include any additional text or context.` }
+      ];
     } else if (textInput) {
       // Handle text-based input for mindmap generation
       messageParts = [
