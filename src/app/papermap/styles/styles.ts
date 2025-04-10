@@ -429,12 +429,33 @@ export const nodeCardUpdatingStyle = `
 //   ${isUpdating ? nodeCardUpdatingStyle : ''}
 // `;
 
-// Combined styles for use in the page component
+// Add mobile-specific overscroll prevention
+export const mobileOverscrollStyles = `
+  @media (max-width: 768px) {
+    html, body {
+      overscroll-behavior: none;
+      overscroll-behavior-y: none;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+    
+    .sticky {
+      position: sticky !important;
+      top: 0;
+      z-index: 50;
+    }
+  }
+`;
+
+// Combine all styles for easy import
 export const combinedStyles = `
   ${nodeUpdateStyles}
   ${pdfViewerAnimationStyles}
   ${draggableStyles}
   ${stickyNoteStyles}
+  ${mobileOverscrollStyles}
   ${nodeAnimationStyles}
   ${followUpCardStyles}
   ${reactFlowStyles}

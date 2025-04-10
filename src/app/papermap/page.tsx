@@ -259,6 +259,7 @@ export default function PaperMap() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               ref={hasCreatedMindmap ? reactFlowWrapper : undefined}
+              style={{ overscrollBehavior: 'none' }}
             >
 
               {!hasCreatedMindmap ? (

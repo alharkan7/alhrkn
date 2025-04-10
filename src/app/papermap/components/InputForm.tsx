@@ -580,7 +580,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 value={url}
                                 onChange={handleUrlChange}
                                 placeholder="https://example.com/paper.pdf"
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[100px] max-h-[120px] overflow-y-auto px-1 pb-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] max-h-[120px] overflow-y-auto px-1 pb-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                             />
@@ -592,7 +592,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 value={text}
                                 onChange={handleTextChange}
                                 placeholder="Ask a question or brainstorm an idea.."
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[100px] overflow-y-hidden p-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] overflow-y-hidden p-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                                 rows={1}
@@ -624,7 +624,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                             value="file" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
                                         >
-                                            File
+                                            PDF
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="url" 
