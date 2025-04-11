@@ -149,7 +149,7 @@ export default function TopBar({
                 {inputType === 'pdf' ? (
                   <FileText className="h-4 w-4" />
                 ) : isUrl ? (
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4 text-blue-600" />
                 ) : (
                   <MessageSquare className="h-4 w-4" />
                 )}
@@ -157,7 +157,13 @@ export default function TopBar({
               <div className="truncate max-w-full">
                 {inputType === 'pdf' 
                   ? (fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech")
-                  : (fileName || "Topic Mindmap")
+                  : isUrl 
+                    ? (
+                      <span className="flex items-center gap-1 text-blue-600 group-hover:underline">
+                        {fileName}
+                      </span>
+                    )
+                    : (fileName || "Topic Mindmap")
                 }
               </div>
             </div>

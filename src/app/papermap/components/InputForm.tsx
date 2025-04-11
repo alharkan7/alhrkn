@@ -36,7 +36,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const [isFocused, setIsFocused] = useState(false);
-    const [inputMode, setInputMode] = useState<InputMode>('file');
+    const [inputMode, setInputMode] = useState<InputMode>('text');
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -617,8 +617,8 @@ const InputForm: React.FC<InputFormProps> = ({
                         )}
 
                         <div className="flex justify-between items-center gap-4 w-full">
-                            <div className="flex items-center gap-2">
-                                <Tabs defaultValue="file" onValueChange={handleInputModeChange} className="w-fit">
+                            <div className="flex items-center gap-1">
+                                <Tabs defaultValue="text" onValueChange={handleInputModeChange} className="w-fit">
                                     <TabsList className="h-8 p-1 bg-muted/50 border border-muted-foreground border-2">
                                         <TabsTrigger 
                                             value="file" 
@@ -627,16 +627,16 @@ const InputForm: React.FC<InputFormProps> = ({
                                             PDF
                                         </TabsTrigger>
                                         <TabsTrigger 
-                                            value="url" 
-                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                                        >
-                                            URL
-                                        </TabsTrigger>
-                                        <TabsTrigger 
                                             value="text" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
                                         >
                                             Text
+                                        </TabsTrigger>
+                                        <TabsTrigger 
+                                            value="url" 
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                        >
+                                            URL
                                         </TabsTrigger>
                                     </TabsList>
                                 </Tabs>
@@ -661,9 +661,8 @@ const InputForm: React.FC<InputFormProps> = ({
                                 {loading || urlLoading || isUploading ? (
                                     <LoaderCircle className="size-4 animate-spin" />
                                 ) : (
-                                    <Waypoints className="size-4" />
+                                    "Create"
                                 )}
-                                Create
                             </Button>
                         </div>
                     </form>

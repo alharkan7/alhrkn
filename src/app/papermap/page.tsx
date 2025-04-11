@@ -250,7 +250,7 @@ export default function PaperMap() {
     <UIStateProvider initialLoading={loading} initialError={combinedError}>
       <MindMapProvider value={mindMapContextValue}>
         <PdfViewerProvider initialPdfUrl={pdfUrl} initialFileName={fileName}>
-          <div className="flex flex-col h-screen relative">
+          <div className="flex flex-col h-[100dvh] relative">
             <style dangerouslySetInnerHTML={{ __html: combinedStyles }} />
 
             <div

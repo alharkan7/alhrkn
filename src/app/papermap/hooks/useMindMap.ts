@@ -1312,10 +1312,10 @@ export function useMindMap() {
         // For web content, use the URL as the filename
         try {
           const url = new URL(sourceUrl);
-          setFileName(`${url.hostname}${url.pathname}`);
+          setFileName(`URL: ${url.hostname}${url.pathname}`);
         } catch (e) {
           // Fallback if URL parsing fails
-          setFileName(`${sourceUrl}`);
+          setFileName(`URL: ${sourceUrl}`);
         }
       } else {
         // For regular text input, use the text content
