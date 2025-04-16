@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Papermap',
-  description: 'Turn Any PDF into Interactive Mindmap',
+  description: 'Learn Anything with Interactive AI Mindmap',
 }
 
 export default function PapermapLayout({
