@@ -15,7 +15,7 @@ const AppsFooter = () => {
         <footer className="py-1 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
-                    &copy; {currentYear} | by&nbsp;<a
+                    &copy; {currentYear} | Created by&nbsp;<a
                         href="https://x.com/alhrkn"
                         target="_blank"
                         rel="noopener noreferrer"
