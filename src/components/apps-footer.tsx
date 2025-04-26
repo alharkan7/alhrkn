@@ -15,14 +15,14 @@ const AppsFooter = () => {
         <footer className="py-1 text-center text-sm text-muted-foreground max-w-6xl mx-auto">
             <p className="flex flex-wrap items-center justify-center relative">
                 <span className="flex-grow flex items-center justify-center">
-                    &copy; &nbsp;
+                    &copy; 
                     <a
                         href="https://x.com/alhrkn"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline font-bold text-primary transition-all"
                     >
-                        @alhrkn
+                        alhrkn
                     </a>
                     &nbsp;
                     {currentYear}
