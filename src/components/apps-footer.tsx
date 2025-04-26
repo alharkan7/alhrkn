@@ -20,7 +20,7 @@ const AppsFooter = () => {
                         href="https://x.com/alhrkn"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:underline font-bold text-primary transition-all"
+                        className="underline font-bold hover:text-primary transition-all"
                     >
                         alhrkn
                     </a>
