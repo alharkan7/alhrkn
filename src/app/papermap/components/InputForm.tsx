@@ -40,6 +40,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const urlTextareaRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -61,8 +62,8 @@ const InputForm: React.FC<InputFormProps> = ({
     };
 
     // Add auto-resize function
-    const autoResize = () => {
-        const textarea = textareaRef.current;
+    const autoResize = (ref: React.RefObject<HTMLTextAreaElement | null>) => {
+        const textarea = ref.current;
         if (textarea) {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
@@ -73,7 +74,7 @@ const InputForm: React.FC<InputFormProps> = ({
         setText(event.target.value);
         setUrlError(null);
         setFileSizeError(null);
-        autoResize();
+        autoResize(textareaRef);
     };
 
     // Check if file size is within limits
@@ -131,13 +132,14 @@ const InputForm: React.FC<InputFormProps> = ({
         setIsDragging(false);
     };
 
-    const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleUrlChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setUrl(event.target.value);
         setUrlError(null);
         setFileSizeError(null);
         if (event.target.value) {
             setFile(null);
         }
+        autoResize(urlTextareaRef);
     };
 
     const handleFileClick = (e: React.MouseEvent) => {
@@ -235,15 +237,20 @@ const InputForm: React.FC<InputFormProps> = ({
 
             try {
                 // Validate URL format before proceeding
+                let processedUrl = pdfUrl;
+                if (!/^https?:\/\//i.test(processedUrl)) {
+                    processedUrl = 'https://' + processedUrl;
+                }
+
                 try {
-                    new URL(pdfUrl);
+                    new URL(processedUrl); // Validate the potentially modified URL
                 } catch (e) {
                     throw new Error("Invalid URL. Please enter a valid URL or upload the PDF file.");
                 }
 
                 // Use our server-side proxy to fetch the PDF
                 // This avoids CORS issues that occur with direct fetch
-                const proxyUrl = `/api/papermap/proxy?url=${encodeURIComponent(pdfUrl)}`;
+                const proxyUrl = `/api/papermap/proxy?url=${encodeURIComponent(processedUrl)}`;
 
                 const response = await fetch(proxyUrl);
 
@@ -278,8 +285,8 @@ const InputForm: React.FC<InputFormProps> = ({
                     return JSON.stringify({
                         isWebContent: true,
                         extractedText: data.extractedText,
-                        sourceUrl: pdfUrl,
-                        fileName: data.fileName || `Content from ${new URL(pdfUrl).hostname}`
+                        sourceUrl: processedUrl,
+                        fileName: data.fileName || `Content from ${new URL(processedUrl).hostname}`
                     });
                 }
 
@@ -575,14 +582,15 @@ const InputForm: React.FC<InputFormProps> = ({
                         )}
 
                         {inputMode === 'url' && (
-                            <Input
-                                type="text"
+                            <textarea
+                                ref={urlTextareaRef}
                                 value={url}
                                 onChange={handleUrlChange}
                                 placeholder="https://example.com/paper.pdf"
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] max-h-[120px] overflow-y-auto px-1 pb-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] mb-2 max-h-[180px] overflow-y-auto p-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
+                                rows={1}
                             />
                         )}
 
@@ -592,7 +600,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 value={text}
                                 onChange={handleTextChange}
                                 placeholder="Ask a question or brainstorm an idea.."
-                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] overflow-y-hidden p-1"
+                                className="w-full bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[120px] mb-2 max-h-[240px] overflow-y-auto p-1"
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                                 rows={1}

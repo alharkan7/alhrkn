@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
           return {
             allowedContentTypes: ['application/pdf'],
             maximumSizeInBytes: MAX_FILE_SIZE_BYTES,
+            addRandomSuffix: true,
             tokenPayload: JSON.stringify({
               timestamp: Date.now(),
             }),
