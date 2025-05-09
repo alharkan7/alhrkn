@@ -1,4 +1,5 @@
 # Al's Experiments
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alharkan7/alhrkn)
 
 A collection of personal software experiments and AI-powered applications. This repository serves as a playground for exploring various web technologies and AI integrations.
 
