@@ -1,6 +1,6 @@
 import { Send, Paperclip, Image } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { FilePreview } from '../ui/FilePreview'
+import { FilePreview } from '@/components/ui/FilePreview'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form } from '@/components/ui/form'

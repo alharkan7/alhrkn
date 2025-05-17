@@ -3,7 +3,7 @@ import { Message } from '@/types/types';
 import { FilePreview } from '@/components/ui/FilePreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { TypingIndicator } from './TypingIndicator';
 import { Copy } from 'lucide-react';
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

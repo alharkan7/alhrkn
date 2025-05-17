@@ -9,16 +9,16 @@ export interface AppConfig {
 
 export const apps: AppConfig[] = [
   {
-    name: 'AI Chat',
-    icon: Sparkles,
-    slug: '',
-    description: 'Ask Anything to AI',
-  },
-  {
     name: 'Papermap',
     icon: Waypoints,
-    slug: 'papermap',
-    description: 'Turn any PDF into Interactive Mindmap with AI',
+    slug: '',
+    description: 'Learn Anything with Interactive AI Mindmap',
+  },
+  {
+    name: 'AI Chat',
+    icon: Sparkles,
+    slug: 'chat',
+    description: 'Learn Anything with AI',
   },
   {
     name: 'Japanese Flashcards',

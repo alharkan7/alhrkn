@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { apps } from '@/config/apps';
 import { useRouter } from 'next/navigation';
 import { Mail } from 'lucide-react';
