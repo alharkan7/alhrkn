@@ -156,7 +156,8 @@ export default function PaperMap() {
       }
     }
     setHasCreatedMindmap(true);
-  }, [handleFileUpload, handleTextInput]);
+    setIsDraggingOver(false);
+  }, [handleFileUpload, handleTextInput, setIsDraggingOver]);
 
   // Use combined error from multiple sources
   const combinedError = inputError || error || null;
