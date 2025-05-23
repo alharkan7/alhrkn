@@ -5,9 +5,8 @@ import { useMindMap } from '../hooks/useMindMap';
 import MindMapFlow from '../components/MindMapFlow';
 import TopBar from '../components/TopBar';
 import PdfViewer from '../components/PdfViewer';
-import { AppsHeader } from '@/components/apps-header';
-import AppsFooter from '@/components/apps-footer';
 import { MindMapNode } from '../types';
+import { ReactFlowProvider } from 'reactflow';
 
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
@@ -27,19 +26,15 @@ export default function MindmapClientView({ mindMapNodes }: MindmapClientViewPro
   return (
     <PdfViewerProvider>
       <MindMapProvider value={mindMap}>
-        <div className="flex flex-col h-[100dvh] relative">
-          <AppsHeader />
-          <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={null} />
-          <PdfViewer />
-          <div className="flex-grow h-[calc(100vh-4rem)]">
-            <MindMapFlow />
-          </div>
-          <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center text-gray-600 text-xs bg-background">
-            <div className="flex-none">
-              <AppsFooter />
+        <ReactFlowProvider>
+          <div className="flex flex-col h-[100dvh] relative">
+            <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={null} />
+            <PdfViewer />
+            <div className="flex-grow h-[calc(100vh-4rem)]">
+              <MindMapFlow />
             </div>
           </div>
-        </div>
+        </ReactFlowProvider>
       </MindMapProvider>
     </PdfViewerProvider>
   );
