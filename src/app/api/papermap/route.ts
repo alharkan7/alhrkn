@@ -2,6 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 // Import the sample text
 import { EXAMPLE_PDF_TEXT } from '@/app/papermap/data/sampleMindmap';
+import { db } from '@/db';
+import { mindmaps, mindmapNodes } from '@/db/schema';
+import { v4 as uuidv4 } from 'uuid';
 
 // Initialize Google AI services
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
@@ -368,9 +371,48 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // --- DB INSERTION LOGIC ---
+    let mindmapId: string | null = null;
+    if (!isFollowUp && responseData && responseData.nodes && Array.isArray(responseData.nodes)) {
+      // Create a new mindmap record
+      mindmapId = uuidv4();
+      const rootNode = responseData.nodes.find((n: any) => n.parentId === null);
+      const title = rootNode ? rootNode.title : 'Untitled Mindmap';
+      const inputType = textInput ? (sourceUrl ? 'url' : 'text') : 'pdf';
+      const pdfUrlToSave = blobUrl || null;
+      const fileNameToSave = null; // You can enhance this if you have fileName
+      const sourceUrlToSave = sourceUrl || null;
+      const now = new Date();
+      await db.insert(mindmaps).values({
+        id: mindmapId,
+        title,
+        inputType,
+        pdfUrl: pdfUrlToSave,
+        fileName: fileNameToSave,
+        sourceUrl: sourceUrlToSave,
+        createdAt: now,
+        updatedAt: now,
+      });
+      // Insert nodes
+      const nodeInserts = responseData.nodes.map((node: any) => ({
+        mindmapId,
+        nodeId: node.id,
+        title: node.title,
+        description: node.description,
+        parentId: node.parentId,
+        level: node.level,
+        pageNumber: node.pageNumber ?? null,
+        // positionX, positionY can be null for now
+      }));
+      if (nodeInserts.length > 0) {
+        await db.insert(mindmapNodes).values(nodeInserts);
+      }
+    }
+    // --- END DB INSERTION LOGIC ---
+
     const responseObject = {
       success: true,
-      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: responseData }),
+      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: responseData, mindmapId }),
       chatHistory: newChatHistory,
       inputType: textInput ? 'text' : 'pdf'
     };

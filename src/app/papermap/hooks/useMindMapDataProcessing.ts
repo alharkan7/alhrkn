@@ -148,10 +148,34 @@ export function useMindMapDataProcessing({
       setCollapsedNodes(new Set());
       
       // setLoadingStage('processing'); // generateInitialMindMap sets this
-      await generateInitialMindMap(file.name, uploadedBlobUrl);
+      const response = await fetch('/api/papermap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blobUrl: uploadedBlobUrl, fileName: file.name, chatHistory: [] }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process PDF');
+      }
+      const data = await response.json();
+      setLoadingStage('building');
+      if (data && data.mindmap && typeof data.mindmap === 'object') {
+        setMindMapData(data.mindmap);
+        if (data.chatHistory) {
+          try {
+            const formattedChatHistory = data.chatHistory.map((msg: any) => ({ ...msg, role: msg.role === 'assistant' ? 'model' : msg.role }));
+            localStorage.setItem('chatHistory', JSON.stringify(formattedChatHistory));
+          } catch (storageError) { console.warn('Failed to store chat history:', storageError); }
+        }
+      } else { throw new Error('Invalid mind map data received'); }
+      setTimeout(() => {
+        if (reactFlowInstanceRef.current) {
+          reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
+        }
+      }, 100);
       setLoading(false);
       setLoadingStage(null);
-      return uploadedBlobUrl;
+      return data; // Return full API response (with mindmapId)
     } catch (error) {
       console.error('Error handling file upload:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process PDF';
@@ -163,7 +187,7 @@ export function useMindMapDataProcessing({
     }
   }, [ setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName, 
        setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes, 
-       generateInitialMindMap ]);
+       reactFlowInstanceRef ]);
 
   const handleTextInput = useCallback(async (text: string, sourceUrl?: string) => {
     setLoading(true);
@@ -213,17 +237,14 @@ export function useMindMapDataProcessing({
           } catch (storageError) { console.warn('Failed to store chat history:', storageError); }
         }
       } else { throw new Error('Invalid mind map data received'); }
-
-      // Nodes/edges will be set by the layout effect
       setTimeout(() => {
         if (reactFlowInstanceRef.current) {
           reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
         }
       }, 100); 
-
       setLoading(false);
       setLoadingStage(null);
-      return true;
+      return data; // Return full API response (with mindmapId)
     } catch (error) {
       console.error('Error handling text input:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process text input';
@@ -231,7 +252,7 @@ export function useMindMapDataProcessing({
       setError(errorMessage);
       setLoading(false);
       setLoadingStage(null);
-      return false;
+      return null;
     }
   }, [ setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges, 
        setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef ]);

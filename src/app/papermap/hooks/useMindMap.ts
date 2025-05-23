@@ -118,6 +118,7 @@ export function useMindMap() {
     error, // This is the error from useMindMapState, potentially general errors
     // uploadError, // If UI needs to distinguish upload errors specifically
     mindMapData,
+    setMindMapData, // Expose this for hydration
     nodes,
     edges,
     nodePositions, // From useMindMapNodeManagement

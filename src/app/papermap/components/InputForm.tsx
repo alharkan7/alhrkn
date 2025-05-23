@@ -501,7 +501,7 @@ const InputForm: React.FC<InputFormProps> = ({
             <div className="mb-4">
 
                 {fileSizeError && (
-                    <div className="text-destructive text-sm mb-0 p-3 bg-destructive/10 rounded-base flex items-start">
+                    <div className="text-destructive text-sm mb-0 p-3 bg-destructive/10 rounded-base flex items-start  max-w-2xl mx-auto w-full">
                         <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                         <span>{fileSizeError}</span>
                     </div>
@@ -608,7 +608,7 @@ const InputForm: React.FC<InputFormProps> = ({
                         )}
 
                         {urlError && (
-                            <div className="text-destructive text-sm mt-1 p-3 bg-destructive/10 rounded-base flex items-start">
+                            <div className="text-destructive text-sm mt-1 p-3 bg-destructive/10 rounded-base flex items-start  max-w-2xl mx-auto w-full">
                                 <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                                 <span>{urlError}</span>
                             </div>
@@ -677,8 +677,9 @@ const InputForm: React.FC<InputFormProps> = ({
                 </Form>
             </div>
 
+            {/* Move error message inside the form container for width alignment */}
             {error && (
-                <div className="text-destructive text-sm mt-4 p-3 bg-destructive/10 rounded-base">
+                <div className="text-destructive text-sm mt-4 p-3 bg-destructive/10 rounded-base max-w-2xl mx-auto w-full">
                     {error.includes("[GoogleGenerativeAI Error]")
                         ? "AI service unavailable. Please try again later."
                         : error.includes("File is too large") || error.includes("too large") || error.includes("size exceeds")
