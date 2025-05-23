@@ -42,6 +42,7 @@
     "@reactflow/node-resizer": "^2.2.14",
     "@types/d3": "^7.4.3",
     "@types/dom-to-image": "^2.6.7",
+    "@types/uuid": "^10.0.0",
     "@vercel/blob": "^1.0.0",
     "@vercel/og": "^0.6.5",
     "@xyflow/react": "^12.4.4",
@@ -77,6 +78,7 @@
     "tailwind-merge": "^3.0.1",
     "tailwind-scrollbar": "^4.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
