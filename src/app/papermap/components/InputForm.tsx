@@ -702,8 +702,8 @@ const InputForm: React.FC<InputFormProps> = ({
                                     variant={isHovered ? "default" : "neutral"}
                                     className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
                                     onClick={isFormDisabled ? undefined : handleExampleClick}
-                                    onMouseEnter={() => setIsHovered(true)}
-                                    onMouseLeave={() => setIsHovered(false)}
+                                    onMouseEnter={isFormDisabled ? undefined : () => setIsHovered(true)}
+                                    onMouseLeave={isFormDisabled ? undefined : () => setIsHovered(false)}
                                     aria-disabled={isFormDisabled}
                                     tabIndex={isFormDisabled ? -1 : 0}
                                 >
