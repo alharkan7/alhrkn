@@ -20,13 +20,15 @@ interface InputFormProps {
     loading: boolean;
     error: string | null;
     onExampleClick?: () => void;
+    loadingStage?: string;
 }
 
 const InputForm: React.FC<InputFormProps> = ({
     onFileUpload,
     loading,
     error,
-    onExampleClick
+    onExampleClick,
+    loadingStage: loadingStageProp
 }) => {
     const [url, setUrl] = useState<string>('');
     const [text, setText] = useState<string>('');
@@ -45,6 +47,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const form = useForm();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const router = useRouter();
+    const [loadingStage, setLoadingStage] = useState<string | null>(null);
 
     const handleInputModeChange = (value: string) => {
         setInputMode(value as InputMode);
@@ -166,6 +169,7 @@ const InputForm: React.FC<InputFormProps> = ({
     // Upload file to Vercel Blob storage using direct client upload
     const uploadFileToBlob = async (fileToUpload: File): Promise<string | null> => {
         try {
+            setLoadingStage('Uploading');
             setIsUploading(true);
             setUploadProgress(10); // Start progress
 
@@ -217,12 +221,14 @@ const InputForm: React.FC<InputFormProps> = ({
             return null;
         } finally {
             setIsUploading(false);
+            setLoadingStage(null);
         }
     };
 
     // Upload URL content to Vercel Blob storage
     const uploadUrlToBlob = async (pdfUrl: string): Promise<string | null> => {
         try {
+            setLoadingStage('Uploading');
             setIsUploading(true);
             setUploadProgress(10); // Start progress
 
@@ -272,7 +278,7 @@ const InputForm: React.FC<InputFormProps> = ({
                     // Clear interval and complete progress
                     clearInterval(progressInterval);
                     setUploadProgress(100);
-
+                    setLoadingStage('Parsing');
                     // Return the direct URL
                     return data.directUrl;
                 }
@@ -282,7 +288,7 @@ const InputForm: React.FC<InputFormProps> = ({
                     // Clear interval and complete progress
                     clearInterval(progressInterval);
                     setUploadProgress(100);
-
+                    setLoadingStage('Parsing');
                     // Return special object for web content
                     return JSON.stringify({
                         isWebContent: true,
@@ -312,6 +318,7 @@ const InputForm: React.FC<InputFormProps> = ({
                 const fileName = data.fileName || 'document.pdf';
 
                 // Use direct client upload
+                setLoadingStage('Uploading');
                 const blob = await upload(fileName, pdfBlob, {
                     access: 'public',
                     handleUploadUrl: '/api/papermap/blob',
@@ -321,6 +328,7 @@ const InputForm: React.FC<InputFormProps> = ({
                 // Clear interval and complete progress
                 clearInterval(progressInterval);
                 setUploadProgress(100);
+                setLoadingStage('Parsing');
 
                 return blob.url;
             } catch (error) {
@@ -365,6 +373,7 @@ const InputForm: React.FC<InputFormProps> = ({
             return null;
         } finally {
             setIsUploading(false);
+            setLoadingStage(null);
         }
     };
 
@@ -372,13 +381,16 @@ const InputForm: React.FC<InputFormProps> = ({
         e.preventDefault();
 
         if (inputMode === 'file' && file) {
+            setLoadingStage('Uploading');
             // Upload file to Vercel Blob first
             const blobUrl = await uploadFileToBlob(file);
 
             if (blobUrl) {
+                setLoadingStage('Parsing');
                 // Pass both the file and the blob URL to ensure it's properly stored
                 // Also pass the original file name
                 onFileUpload({ file, blobUrl, originalFileName: file.name });
+                setLoadingStage(null);
             }
             return;
         }
@@ -391,6 +403,7 @@ const InputForm: React.FC<InputFormProps> = ({
 
             setUrlError(null);
             setUrlLoading(true);
+            setLoadingStage('Uploading');
 
             try {
                 // Upload URL to Vercel Blob
@@ -400,6 +413,7 @@ const InputForm: React.FC<InputFormProps> = ({
                     throw new Error(`Failed to process URL. Please check the URL and try again or upload the PDF file.`);
                 }
 
+                setLoadingStage('Parsing');
                 // Check if the result is web content
                 try {
                     const parsedResult = JSON.parse(result);
@@ -411,6 +425,7 @@ const InputForm: React.FC<InputFormProps> = ({
                             isWebContent: true,
                             sourceUrl: parsedResult.sourceUrl
                         });
+                        setLoadingStage(null);
                         return;
                     }
                 } catch (e) {
@@ -432,6 +447,7 @@ const InputForm: React.FC<InputFormProps> = ({
 
                 // Pass both the file and blob URL to the handler, and always include sourceUrl
                 onFileUpload({ file: fileFromUrl, blobUrl: result, originalFileName: fileFromUrl.name, sourceUrl: url.trim() });
+                setLoadingStage(null);
             } catch (err) {
                 // Use the specific error message when available
                 let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";
@@ -464,8 +480,10 @@ const InputForm: React.FC<InputFormProps> = ({
             }
 
             try {
+                setLoadingStage('Parsing');
                 // Add a special flag to identify this as a text input request
                 onFileUpload({ text: text.trim(), isTextInput: true });
+                setLoadingStage(null);
             } catch (err) {
                 let errorMessage = "Failed to process the text. Please try again.";
 
@@ -496,6 +514,9 @@ const InputForm: React.FC<InputFormProps> = ({
         (inputMode === 'text' && !text.trim()) ||
         !!fileSizeError;
 
+    // Disable the whole form when loading or uploading
+    const isFormDisabled = loading || urlLoading || isUploading;
+
     // Convert File to the format expected by FilePreview
     const filePreviewData = file ? {
         name: file.name,
@@ -503,6 +524,10 @@ const InputForm: React.FC<InputFormProps> = ({
         url: URL.createObjectURL(file),
         uploaded: !isUploading
     } : null;
+
+    // Compute the current loading stage to display
+    let displayLoadingStage = loadingStageProp || loadingStage;
+    if (loading && !displayLoadingStage) displayLoadingStage = 'Analyzing'; // fallback
 
     return (
         <div className="w-full max-w-7xl px-4 py-2 rounded-lg">
@@ -540,21 +565,24 @@ const InputForm: React.FC<InputFormProps> = ({
                                         ? 'border-2 border-primary bg-primary/5 border-dashed'
                                         : 'border-none border-border'
                                     }`}
-                                onDrop={handleFileDrop}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
+                                onDrop={isFormDisabled ? undefined : handleFileDrop}
+                                onDragOver={isFormDisabled ? undefined : handleDragOver}
+                                onDragLeave={isFormDisabled ? undefined : handleDragLeave}
+                                aria-disabled={isFormDisabled}
                             >
                                 {file ? (
                                     <div className="text-primary">
                                         <Button
                                             variant="neutral"
                                             size="icon"
-                                            onClick={(e) => {
+                                            onClick={isFormDisabled ? undefined : (e => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setFile(null);
                                                 setFileSizeError(null);
-                                            }}
+                                            })}
+                                            disabled={isFormDisabled}
+                                            aria-disabled={isFormDisabled}
                                             className="absolute top-2 right-2"
                                         >
                                             <X className="h-5 w-5" />
@@ -573,7 +601,9 @@ const InputForm: React.FC<InputFormProps> = ({
                                             type="button"
                                             variant="default"
                                             className="mt-2"
-                                            onClick={() => fileInputRef.current?.click()}
+                                            onClick={isFormDisabled ? undefined : (() => fileInputRef.current?.click())}
+                                            disabled={isFormDisabled}
+                                            aria-disabled={isFormDisabled}
                                         >
                                             Browse Files
                                             <input
@@ -582,6 +612,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                                 accept=".pdf"
                                                 onChange={handleFileChange}
                                                 className="hidden"
+                                                disabled={isFormDisabled}
                                             />
                                         </Button>
                                     </div>
@@ -599,6 +630,8 @@ const InputForm: React.FC<InputFormProps> = ({
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                                 rows={1}
+                                disabled={isFormDisabled}
+                                aria-disabled={isFormDisabled}
                             />
                         )}
 
@@ -612,6 +645,8 @@ const InputForm: React.FC<InputFormProps> = ({
                                 onFocus={handleFocus}
                                 onBlur={handleBlur}
                                 rows={1}
+                                disabled={isFormDisabled}
+                                aria-disabled={isFormDisabled}
                             />
                         )}
 
@@ -634,23 +669,29 @@ const InputForm: React.FC<InputFormProps> = ({
 
                         <div className="flex justify-between items-center gap-4 w-full">
                             <div className="flex items-center gap-1">
-                                <Tabs defaultValue="text" onValueChange={handleInputModeChange} className="w-fit">
+                                <Tabs defaultValue="text" onValueChange={isFormDisabled ? undefined : handleInputModeChange} className="w-fit">
                                     <TabsList className="h-8 p-1 bg-muted/50 border border-muted-foreground border-2">
                                         <TabsTrigger 
                                             value="file" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            disabled={isFormDisabled}
+                                            aria-disabled={isFormDisabled}
                                         >
                                             PDF
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="text" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            disabled={isFormDisabled}
+                                            aria-disabled={isFormDisabled}
                                         >
                                             Text
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="url" 
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            disabled={isFormDisabled}
+                                            aria-disabled={isFormDisabled}
                                         >
                                             URL
                                         </TabsTrigger>
@@ -660,9 +701,11 @@ const InputForm: React.FC<InputFormProps> = ({
                                 <Badge
                                     variant={isHovered ? "default" : "neutral"}
                                     className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
-                                    onClick={handleExampleClick}
+                                    onClick={isFormDisabled ? undefined : handleExampleClick}
                                     onMouseEnter={() => setIsHovered(true)}
                                     onMouseLeave={() => setIsHovered(false)}
+                                    aria-disabled={isFormDisabled}
+                                    tabIndex={isFormDisabled ? -1 : 0}
                                 >
                                     Example
                                 </Badge>
@@ -674,8 +717,11 @@ const InputForm: React.FC<InputFormProps> = ({
                                 disabled={isCreateButtonDisabled}
                                 aria-label="Create mindmap"
                             >
-                                {loading || urlLoading || isUploading ? (
-                                    <LoaderCircle className="size-4 animate-spin" />
+                                {(loading || urlLoading || isUploading) ? (
+                                    <span className="flex items-center gap-2">
+                                        <LoaderCircle className="size-4 animate-spin" />
+                                        <span className="capitalize text-xs font-medium">{displayLoadingStage}</span>
+                                    </span>
                                 ) : (
                                     "Create"
                                 )}
