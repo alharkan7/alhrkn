@@ -3,8 +3,9 @@ import { mindmaps } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import type { Metadata } from 'next';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const mindmap = await db.query.mindmaps.findFirst({ where: eq(mindmaps.id, params.id) });
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const mindmap = await db.query.mindmaps.findFirst({ where: eq(mindmaps.id, id) });
   const title = mindmap?.title ? `Papermap - ${mindmap.title}` : 'Papermap - Interactive AI Mindmap';
   return {
     title,
@@ -20,4 +21,4 @@ export default function MindmapIdLayout({ children }: { children: React.ReactNod
       </main>
     </div>
   );
-} 
+}
