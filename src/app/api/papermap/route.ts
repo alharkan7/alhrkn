@@ -481,8 +481,8 @@ export async function POST(request: NextRequest) {
 
         // Asynchronously fetch from Jina and update the mindmap record
         if (persistedPdfUrl && (persistedInputType === 'pdf' || persistedInputType === 'url')) {
-          // Fire and forget - no await here in the main request path
-          fetchPdfMarkdownAndUpdateDb(mindmapId, persistedPdfUrl);
+          // Change to synchronous: wait for parsed_pdf_content to be fetched and saved
+          await fetchPdfMarkdownAndUpdateDb(mindmapId, persistedPdfUrl);
         }
       }
       // --- END DB INSERTION LOGIC ---
