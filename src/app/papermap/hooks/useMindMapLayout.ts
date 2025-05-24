@@ -27,6 +27,7 @@ interface UseMindMapLayoutProps {
   setCurrentLayoutIndex: Dispatch<SetStateAction<number>>;
   currentLayout: LayoutOptions; // Pass the derived currentLayout object
   loading: boolean; // Added loading state from main hook
+  layoutInitialized: boolean; // Added for initial layout stability
 }
 
 export function useMindMapLayout({
@@ -49,6 +50,7 @@ export function useMindMapLayout({
   setCurrentLayoutIndex,
   currentLayout, // Use this directly
   loading, // Added
+  layoutInitialized, // Added
 }: UseMindMapLayoutProps) {
 
   const handleResetView = useCallback(() => {
@@ -85,7 +87,7 @@ export function useMindMapLayout({
 
   // Effect to create/update layout when mindMapData or currentLayout changes
   useEffect(() => {
-    if (mindMapData && !loading) {
+    if (mindMapData && !loading && layoutInitialized) {
       const isContentOnlyUpdate = (mindMapData as any).__contentOnlyUpdate === true;
       const isNodeAddition = (mindMapData as any).__nodeAddition === true;
 
@@ -198,26 +200,38 @@ export function useMindMapLayout({
       setEdges(flowEdges);
 
       // If it\'s an initial load or a layout change, update nodePositions state with the new layout\'s positions
-      // and fit the view.
       if (isInitialLoad || isLayoutChange) {
-        const newPositionsFromLayout: Record<string, NodePosition> = {};
-        nodesWithFunctions.forEach(n => {
-          if (n.position) { // Ensure position is defined
-            newPositionsFromLayout[n.id] = n.position;
-          }
-        });
-        setNodePositions(newPositionsFromLayout); // Update nodePositions to reflect the new layout
-
-        setTimeout(() => {
-          if (reactFlowInstanceRef.current) {
-            reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
-          }
-        }, 100);
+        const newPositions: Record<string, NodePosition> = {};
+        nodesWithFunctions.forEach(n => { newPositions[n.id] = n.position; });
+        setNodePositions(newPositions);
+        positionsToApplyRef.current = newPositions; // Store for potential reapplication
       }
-      // Removed the previous logic that used positionsToApplyRef for setNodePositions,
-      // as it could conflict with applying the new layout positions.
+
+      // Fit view on initial load or significant layout change, only if reactFlowInstance is available
+      if ((isInitialLoad || isLayoutChange) && reactFlowInstanceRef.current) {
+        setTimeout(() => {
+          reactFlowInstanceRef.current?.fitView({ padding: 0.4, duration: 800 });
+        }, 100); // Small delay to ensure nodes are rendered
+      }
     }
-  }, [mindMapData, currentLayout, loading, nodes.length, updateNodeData, toggleChildrenVisibility, collapsedNodes, setNodes, setEdges, setNodePositions, reactFlowInstanceRef, nodePositions, addFollowUpNodeRef, deleteNodeRef, previousLayoutIndexRef, currentLayoutIndex]);
+  }, [
+    mindMapData, 
+    currentLayout, 
+    updateNodeData, 
+    setNodes, 
+    setEdges, 
+    reactFlowInstanceRef, 
+    previousLayoutIndexRef, 
+    positionsToApplyRef, 
+    addFollowUpNodeRef, 
+    deleteNodeRef, 
+    toggleChildrenVisibility, 
+    collapsedNodes, 
+    setNodePositions, 
+    loading, 
+    layoutInitialized, // Added new dependency
+    currentLayoutIndex, // Added currentLayoutIndex to ensure re-run on explicit layout changes
+  ]);
 
   // Effect to update node handlers, hasChildren, and layoutDirection in nodes data (similar to original lines ~744-781)
   useEffect(() => {

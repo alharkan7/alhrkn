@@ -37,10 +37,12 @@ export function useMindMap() {
   // Layout Index State - managed here to pass currentLayout down
   const [currentLayoutIndex, setCurrentLayoutIndex] = useState<number>(() => getDefaultLayoutIndex());
   const currentLayout = useMemo(() => LAYOUT_PRESETS[currentLayoutIndex], [currentLayoutIndex]);
+  const [layoutInitialized, setLayoutInitialized] = useState(false); // New state
 
   // Client-side effect for initial layout index (if getDefaultLayoutIndex depends on window)
   useEffect(() => {
     setCurrentLayoutIndex(getDefaultLayoutIndex());
+    setLayoutInitialized(true); // Set layout as initialized
   }, []);
 
   const {
@@ -90,6 +92,7 @@ export function useMindMap() {
     setCurrentLayoutIndex,
     currentLayout, // Pass the derived layout object
     loading, // Pass loading state
+    layoutInitialized, // Pass new state
   });
 
   const {
@@ -139,5 +142,6 @@ export function useMindMap() {
     currentLayoutIndex, // From this hook's state
     cycleLayout,      // From useMindMapLayout
     // fileLoading, // Expose if needed by UI, from useMindMapState
+    layoutInitialized, // Expose for MindMapFlow if needed, or for debugging
   };
 }
