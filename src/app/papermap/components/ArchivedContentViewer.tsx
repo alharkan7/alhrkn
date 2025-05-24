@@ -30,13 +30,39 @@ const ArchivedContentViewer: React.FC<ArchivedContentViewerProps> = ({
       `}
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Archived Content</h2>
+        <h2 className="text-xl font-semibold">Parsed PDF Content</h2>
         <Button variant="neutral" size="icon" onClick={onClose}>
           <X className="h-6 w-6" />
         </Button>
       </div>
-      <div className="prose prose-sm dark:prose-invert max-w-none overflow-y-auto flex-grow scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent">
-        <ReactMarkdown>{markdownContent}</ReactMarkdown>
+      <div className="markdown-content prose prose-sm dark:prose-invert max-w-none prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-1 prose-blockquote:my-1 overflow-y-auto flex-grow scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent">
+        <ReactMarkdown>{
+          (() => {
+            const marker = 'Markdown Content:';
+            const idx = markdownContent.indexOf(marker);
+            let content = idx !== -1 ? markdownContent.slice(idx + marker.length).trimStart() : markdownContent;
+
+            // Split into paragraphs by double line breaks
+            const paragraphs = content.split(/\r?\n\r?\n/);
+            const processedParagraphs = paragraphs.map(paragraph => {
+              const lines = paragraph.split(/\r?\n/);
+              let result = [];
+              let buffer = '';
+              for (let line of lines) {
+                line = line.trim();
+                if (buffer) buffer += ' ';
+                buffer += line;
+                if (line.endsWith('.')) {
+                  result.push(buffer.trim());
+                  buffer = '';
+                }
+              }
+              if (buffer) result.push(buffer.trim());
+              return result.join(' ');
+            });
+            return processedParagraphs.join('\n\n');
+          })()
+        }</ReactMarkdown>
       </div>
     </div>
   );
