@@ -115,7 +115,7 @@ export default function TopBar({
         <div className="flex-1 text-center min-w-0 mx-[72px] sm:mx-[85px]">
           {loading && (
             <div className="flex items-center justify-center text-primary">
-              <span>Creating Mindmap</span>
+              <span>Loading Mindmap</span>
             </div>
           )}
 

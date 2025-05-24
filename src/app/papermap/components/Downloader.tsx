@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { Download,FileImage, FileText, Braces, List } from 'lucide-react';
+import { Share2,FileImage, FileText, Braces, List, Link } from 'lucide-react';
 import { getNodesBounds, getViewportForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import EmailForm from './EmailForm';
+import { toast } from "sonner";
 
 interface DownloaderProps {
   // No props needed anymore as we'll use context
@@ -312,6 +313,20 @@ export default function Downloader({}: DownloaderProps) {
     URL.revokeObjectURL(url);
   };
 
+  // Function to copy URL to clipboard
+  const copyUrlToClipboard = async () => {
+    const url = window.location.href;
+    const textToCopy = `Checkout this interactive AI mindmap on "${fileName}"\n\nPapermap: ${url}`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      toast.success("URL copied to clipboard!");
+    } catch (err) {
+      console.error('Failed to copy URL: ', err);
+      toast.error("Failed to copy URL. Please try again.");
+    }
+    setShowDropdown(false); // Close dropdown after attempting to copy
+  };
+
   const handleEmailSubmit = async (email: string) => {
     try {
       setLoading(true);
@@ -369,8 +384,8 @@ export default function Downloader({}: DownloaderProps) {
         onClick={() => setShowDropdown(!showDropdown)}
         title="Download"
       >
-        <Download className="h-4 w-4" />
-        <span className="sm:inline hidden">Download</span>
+        <Share2 className="h-4 w-4" />
+        <span className="sm:inline hidden">Share</span>
       </Button>
 
       {showDropdown && (
@@ -406,6 +421,17 @@ export default function Downloader({}: DownloaderProps) {
                 <div className="flex items-center">
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
+                </div>
+              </button>
+            </li>
+            <li key="copy-url">
+              <button
+                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
+                onClick={copyUrlToClipboard}
+              >
+                <div className="flex items-center">
+                  <Link className="mr-2 h-4 w-4" />
+                  URL
                 </div>
               </button>
             </li>
