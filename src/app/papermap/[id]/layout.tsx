@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const mindmap = await db.query.mindmaps.findFirst({ where: eq(mindmaps.id, params.id) });
-  const title = mindmap?.title ? `Papermap - ${mindmap.title}` : 'Papermap';
+  const title = mindmap?.title ? `Papermap - ${mindmap.title}` : 'Papermap - Interactive AI Mindmap';
   return {
     title,
     description: 'Learn Anything with Interactive AI Mindmap',
