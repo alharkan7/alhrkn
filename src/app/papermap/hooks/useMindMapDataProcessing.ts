@@ -242,6 +242,17 @@ export function useMindMapDataProcessing({
             localStorage.setItem('chatHistory', JSON.stringify(formattedChatHistory));
           } catch (storageError) { console.warn('Failed to store chat history:', storageError); }
         }
+        if (data.mindmapId && sourceUrl) {
+          fetch(`/api/papermap/proxy?url=${encodeURIComponent(sourceUrl)}&mindmapId=${encodeURIComponent(data.mindmapId)}`)
+            .then(res => {
+              if (!res.ok) {
+                console.warn('Proxy Jina save failed:', res.status, res.statusText);
+              }
+            })
+            .catch(err => {
+              console.warn('Proxy Jina save error:', err);
+            });
+        }
       } else { throw new Error('Invalid mind map data received'); }
       setTimeout(() => {
         if (reactFlowInstanceRef.current) {

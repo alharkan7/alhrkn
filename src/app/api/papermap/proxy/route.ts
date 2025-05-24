@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/db';
+import { mindmaps } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Define constants
 const MAX_FILE_SIZE_MB = 25; // Same limit as in Sidebar.tsx
@@ -13,6 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     // Get URL from query parameters
     const url = request.nextUrl.searchParams.get('url');
+    // Get mindmapId from query parameters (optional)
+    const mindmapId = request.nextUrl.searchParams.get('mindmapId') || undefined;
     
     // Validate URL
     if (!url) {
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
       return await handlePdfUrl(url);
     } else {
       // For non-PDF URLs, use Jina AI Reader for text extraction
-      return await handleWebUrl(url);
+      return await handleWebUrl(url, mindmapId);
     }
 
   } catch (error) {
@@ -130,7 +135,7 @@ async function handlePdfUrl(url: string) {
 /**
  * Handle web URLs by using Jina AI Reader for text extraction
  */
-async function handleWebUrl(url: string) {
+async function handleWebUrl(url: string, mindmapId?: string) {
   try {
     // Use Jina AI Reader to extract text from URL
     const jinaUrl = `https://r.jina.ai/${encodeURIComponent(url)}`;
@@ -153,6 +158,19 @@ async function handleWebUrl(url: string) {
     
     // Get the extracted text
     const extractedText = await jinaResponse.text();
+
+    // If mindmapId is provided, update the parsed_pdf_content column
+    if (mindmapId) {
+      try {
+        const sanitizedText = extractedText.replace(/\0/g, '');
+        await db.update(mindmaps)
+          .set({ parsed_pdf_content: sanitizedText, updatedAt: new Date() })
+          .where(eq(mindmaps.id, mindmapId));
+        console.log(`[Proxy] Updated mindmap ${mindmapId} with parsed content from Jina.`);
+      } catch (dbError) {
+        console.error(`[Proxy] Failed to update mindmap ${mindmapId}:`, dbError);
+      }
+    }
     
     // Return the extracted text
     return NextResponse.json({
