@@ -7,6 +7,7 @@ import { mindmaps, mindmapNodes } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { jsonrepair } from "jsonrepair";
 import { MindmapSchema, AnswerSchema } from "./schemas";
+import { eq } from 'drizzle-orm';
 
 // Initialize Google AI services
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
@@ -420,10 +421,6 @@ export async function POST(request: NextRequest) {
         } else if (blobUrl) { // If only blobUrl is present (e.g. URL processed to blob, but not original file)
            persistedInputType = 'url';
         } else {
-          // Fallback: if no specific conditions met, but it's not a followup,
-          // and we have nodes, it implies some form of input that generated a mindmap.
-          // Defaulting to 'text' or 'pdf' might be context-dependent or require more info.
-          // For now, let's assume 'text' as a generic fallback if no blob/source info.
           persistedInputType = 'text'; 
         }
 
@@ -453,17 +450,21 @@ export async function POST(request: NextRequest) {
         }
         
         persistedSourceUrl = sourceUrl || null;
+
+        // Initial insert into mindmaps table (without parsed_pdf_content yet)
         const now = new Date();
         await db.insert(mindmaps).values({
           id: mindmapId,
-          title, // This is the mindmap's title, can be different from PDF filename
+          title, 
           inputType: persistedInputType,
           pdfUrl: persistedPdfUrl,
           fileName: persistedFileName,
           sourceUrl: persistedSourceUrl,
+          // parsed_pdf_content will be updated asynchronously
           createdAt: now,
           updatedAt: now,
         });
+
         // Insert nodes
         const nodeInserts = mindmapData.nodes.map((node: any) => ({
           mindmapId,
@@ -476,6 +477,12 @@ export async function POST(request: NextRequest) {
         }));
         if (nodeInserts.length > 0) {
           await db.insert(mindmapNodes).values(nodeInserts);
+        }
+
+        // Asynchronously fetch from Jina and update the mindmap record
+        if (persistedPdfUrl && (persistedInputType === 'pdf' || persistedInputType === 'url')) {
+          // Fire and forget - no await here in the main request path
+          fetchPdfMarkdownAndUpdateDb(mindmapId, persistedPdfUrl);
         }
       }
       // --- END DB INSERTION LOGIC ---
@@ -515,5 +522,39 @@ export async function POST(request: NextRequest) {
       { error: errorMessage },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to fetch PDF markdown from Jina and update the database
+// This function is designed to be called without awaiting its completion (fire and forget)
+async function fetchPdfMarkdownAndUpdateDb(mindmapId: string, pdfUrl: string) {
+  try {
+    const jinaReaderApiUrl = `https://r.jina.ai/${encodeURIComponent(pdfUrl)}`;
+    console.log(`[Background] Fetching PDF content from Jina Reader for mindmap ${mindmapId}: ${jinaReaderApiUrl}`);
+    
+    const jinaResponse = await fetch(jinaReaderApiUrl, {
+      headers: {
+        "Accept": "text/markdown, text/plain;q=0.9, */*;q=0.8", // Prefer markdown
+      }
+    });
+
+    if (jinaResponse.ok) {
+      const parsedPdfMarkdown = await jinaResponse.text();
+      console.log(`[Background] Successfully fetched PDF content from Jina Reader for mindmap ${mindmapId}. Length: ${parsedPdfMarkdown.length}`);
+      
+      // Sanitize the markdown content to remove null characters
+      const sanitizedMarkdown = parsedPdfMarkdown.replace(/\0/g, '');
+
+      // Update the mindmaps table
+      await db.update(mindmaps)
+        .set({ parsed_pdf_content: sanitizedMarkdown, updatedAt: new Date() })
+        .where(eq(mindmaps.id, mindmapId));
+      console.log(`[Background] Successfully updated mindmap ${mindmapId} with parsed PDF content.`);
+    } else {
+      const errorText = await jinaResponse.text();
+      console.warn(`[Background] Jina Reader failed for mindmap ${mindmapId} (URL: ${pdfUrl}): ${jinaResponse.status} ${jinaResponse.statusText}. Response: ${errorText.substring(0, 200)}`);
+    }
+  } catch (jinaError: any) {
+    console.error(`[Background] Error calling Jina Reader or updating DB for mindmap ${mindmapId} (URL: ${pdfUrl}):`, jinaError.message);
   }
 }

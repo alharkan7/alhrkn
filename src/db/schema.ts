@@ -23,6 +23,7 @@ import {
     sourceUrl: text('source_url'),
     isExample: boolean('is_example').default(false),
     expiresAt: timestamp('expires_at', { withTimezone: true }).defaultNow(),
+    parsed_pdf_content: text('parsed_pdf_content'),
   });
   
   // Nodes table
