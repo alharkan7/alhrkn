@@ -135,6 +135,7 @@ export function useMindMap() {
     pdfUrl,           // From useMindMapState
     fileName,         // From useMindMapState
     setFileName,      // <-- Expose setFileName here
+    setLoading,       // <-- Expose setLoading here
     currentLayoutIndex, // From this hook's state
     cycleLayout,      // From useMindMapLayout
     // fileLoading, // Expose if needed by UI, from useMindMapState

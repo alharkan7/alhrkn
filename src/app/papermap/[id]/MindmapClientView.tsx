@@ -15,13 +15,17 @@ interface MindmapClientViewProps {
 
 export default function MindmapClientView({ mindMapNodes, mindmapTitle }: MindmapClientViewProps) {
   // Use the main mindmap hook
-  const mindMap = useMindMap();
+  const mindMap = useMindMap() as ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
 
   // On mount, set the loaded mindmap data and fileName
   useEffect(() => {
     if (mindMapNodes && mindMapNodes.length > 0) {
+      mindMap.setLoading(true); // Show loader
       mindMap.setMindMapData({ nodes: mindMapNodes });
       mindMap.setFileName(mindmapTitle || 'MMindmap');
+      setTimeout(() => {
+        mindMap.setLoading(false); // Hide loader after hydration
+      }, 400); // Adjust duration as needed
     }
   }, [mindMapNodes, mindmapTitle]);
 
