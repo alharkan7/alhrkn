@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { Download,FileImage, FileText, Braces, List } from 'lucide-react';
-import { getNodesBounds, getTransformForBounds } from 'reactflow';
+import { getNodesBounds, getViewportForBounds } from 'reactflow';
 import { Button } from "@/components/ui/button";
 import { useMindMapContext, usePdfViewerContext } from '../context';
 import EmailForm from './EmailForm';
@@ -22,6 +22,12 @@ export default function Downloader({}: DownloaderProps) {
   const [pendingDownloadFormat, setPendingDownloadFormat] = useState<string>('');
   const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
 
+  // Log context values on render/change
+  useEffect(() => {
+    console.log('[Downloader Render] mindMapData:', JSON.stringify(mindMapData));
+    console.log('[Downloader Render] nodes:', JSON.stringify(nodes?.map(n => ({ id: n.id, type: n.type, data: { label: n.data.label } }))));
+  }, [mindMapData, nodes]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,7 +44,15 @@ export default function Downloader({}: DownloaderProps) {
 
   // Helper function to prepare the flow for image export
   const prepareExport = (exportType: 'image' | 'pdf') => {
-    if (!reactFlowInstance.current || !nodes.length || !reactFlowWrapper.current) return null;
+    if (!reactFlowInstance.current || !nodes.length || !reactFlowWrapper.current) {
+      console.error('[PrepareExport Error] Conditions not met:', {
+        hasReactFlowInstance: !!reactFlowInstance.current,
+        nodesLength: nodes?.length,
+        hasReactFlowWrapper: !!reactFlowWrapper.current,
+        nodes: JSON.stringify(nodes?.map(n => ({ id: n.id, type: n.type, data: { label: n.data.label } })))
+      });
+      return null;
+    }
 
     // Calculate bounds for all nodes - using nodes passed through props
     const nodesBounds = getNodesBounds(nodes);
@@ -49,12 +63,13 @@ export default function Downloader({}: DownloaderProps) {
     const imageHeight = nodesBounds.height + padding * 2;
     
     // Calculate transform to ensure all nodes are visible
-    const transform = getTransformForBounds(
+    const viewport = getViewportForBounds(
       nodesBounds,
       imageWidth,
       imageHeight,
       0.5, // minZoom
-      2    // maxZoom
+      2,   // maxZoom
+      0    // padding for getViewportForBounds, set to 0 as we manually added padding to imageWidth/Height
     );
     
     // Get the viewport element for export
@@ -72,7 +87,7 @@ export default function Downloader({}: DownloaderProps) {
         style: {
           width: `${imageWidth}px`,
           height: `${imageHeight}px`,
-          transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           background: exportType === 'image' ? 'transparent' : isDarkMode ? '#020817' : '#ffffff',
         },
         filter: (node: any) => {
@@ -88,8 +103,12 @@ export default function Downloader({}: DownloaderProps) {
 
   // Download as JPEG
   const downloadAsJpeg = () => {
+    console.log('[DownloadAsJpeg] Attempting download. mindMapData:', JSON.stringify(mindMapData), 'Nodes length:', nodes?.length);
     const exportData = prepareExport('image');
-    if (!exportData) return;
+    if (!exportData) {
+      console.error('[DownloadAsJpeg Error] prepareExport returned null.');
+      return;
+    }
 
     const { viewportElement, exportOptions } = exportData;
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -117,8 +136,12 @@ export default function Downloader({}: DownloaderProps) {
 
   // Download as PNG with transparent background
   const downloadAsPng = () => {
+    console.log('[DownloadAsPng] Attempting download. mindMapData:', JSON.stringify(mindMapData), 'Nodes length:', nodes?.length);
     const exportData = prepareExport('image');
-    if (!exportData) return;
+    if (!exportData) {
+      console.error('[DownloadAsPng Error] prepareExport returned null.');
+      return;
+    }
 
     const { viewportElement, exportOptions } = exportData;
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -150,8 +173,12 @@ export default function Downloader({}: DownloaderProps) {
 
   // Download as PDF
   const downloadAsPdf = () => {
+    console.log('[DownloadAsPdf] Attempting download. mindMapData:', JSON.stringify(mindMapData), 'Nodes length:', nodes?.length);
     const exportData = prepareExport('pdf');
-    if (!exportData) return;
+    if (!exportData) {
+      console.error('[DownloadAsPdf Error] prepareExport returned null.');
+      return;
+    }
 
     const { viewportElement, exportOptions } = exportData;
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -195,7 +222,11 @@ export default function Downloader({}: DownloaderProps) {
   };
 
   const downloadAsJSON = () => {
-    if (!mindMapData) return;
+    console.log('[DownloadAsJSON] Attempting download. mindMapData:', JSON.stringify(mindMapData));
+    if (!mindMapData || !mindMapData.nodes || mindMapData.nodes.length === 0) {
+      console.error('[DownloadAsJSON Error] mindMapData is null, has no nodes, or nodes array is empty.', { mindMapDataExists: !!mindMapData, hasNodes: !!mindMapData?.nodes, nodesLength: mindMapData?.nodes?.length });
+      return;
+    }
 
     const dataStr = JSON.stringify(mindMapData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -212,7 +243,11 @@ export default function Downloader({}: DownloaderProps) {
 
   // Generate and download as bullet point list
   const downloadAsBulletList = () => {
-    if (!mindMapData || !mindMapData.nodes.length) return;
+    console.log('[DownloadAsBulletList] Attempting download. mindMapData:', JSON.stringify(mindMapData));
+    if (!mindMapData || !mindMapData.nodes || mindMapData.nodes.length === 0) {
+      console.error('[DownloadAsBulletList Error] mindMapData is null, has no nodes, or nodes array is empty.', { mindMapDataExists: !!mindMapData, hasNodes: !!mindMapData?.nodes, nodesLength: mindMapData?.nodes?.length });
+      return;
+    }
 
     // Create a map of parent ID to child nodes for easier traversal
     const nodeMap = new Map<string | null, Array<typeof mindMapData.nodes[0]>>();
@@ -321,7 +356,10 @@ export default function Downloader({}: DownloaderProps) {
     setShowDropdown(false);
   };
 
-  if (nodes.length === 0) return null;
+  if (nodes.length === 0) {
+    console.log('[Downloader] nodes.length is 0, rendering null.');
+    return null;
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>

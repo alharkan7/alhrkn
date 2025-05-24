@@ -33,6 +33,7 @@ const MindMapFlow = () => {
     onNodesChange, 
     onEdgesChange, 
     reactFlowInstance,
+    reactFlowWrapper,
     loading,
     loadingStage,
     currentLayoutIndex,
@@ -141,7 +142,7 @@ const MindMapFlow = () => {
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={reactFlowWrapper} className="relative w-full h-full">
       {/* Keep only essential styles, portal handles the FollowUpCard positioning */}
       <style jsx global>{reactFlowStyles}</style>
       
