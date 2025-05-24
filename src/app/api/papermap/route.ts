@@ -5,6 +5,8 @@ import { EXAMPLE_PDF_TEXT } from '@/app/papermap/data/sampleMindmap';
 import { db } from '@/db';
 import { mindmaps, mindmapNodes } from '@/db/schema';
 import { v4 as uuidv4 } from 'uuid';
+import { jsonrepair } from "jsonrepair";
+import { MindmapSchema, AnswerSchema } from "./schemas";
 
 // Initialize Google AI services
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
@@ -331,15 +333,34 @@ export async function POST(request: NextRequest) {
     // Send the message and get response
     const response = await chat.sendMessage(messageParts);
     const responseText = response.response.text();
-    
-    // Extract the JSON response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No valid JSON found in response');
+
+    // --- Robust JSON extraction and validation ---
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      try {
+        responseData = JSON.parse(jsonrepair(responseText));
+      } catch (err) {
+        console.error("JSON parse/repair failed. Raw AI output:", responseText);
+        return NextResponse.json({ success: false, error: "Could not parse AI response as JSON" }, { status: 500 });
+      }
     }
-    
-    const responseData = JSON.parse(jsonMatch[0]);
-    
+
+    // Validate against schema
+    let validated;
+    if (isFollowUp) {
+      validated = AnswerSchema.safeParse(responseData);
+    } else {
+      validated = MindmapSchema.safeParse(responseData);
+    }
+    if (!validated.success) {
+      console.error("Schema validation failed:", validated.error, "Raw data:", responseData);
+      return NextResponse.json({ success: false, error: "Response did not match expected schema" }, { status: 500 });
+    }
+    responseData = validated.data;
+    // --- End robust JSON extraction and validation ---
+
     // Create the response data
     const newChatHistory = [
       ...(chatHistory || []),
@@ -356,27 +377,31 @@ export async function POST(request: NextRequest) {
         content: responseText
       }
     ];
-    
+
     // Ensure the answer is consistently formatted for follow-up questions
     let formattedAnswer;
+    let mindmapData;
     if (isFollowUp) {
-      if (typeof responseData.answer === 'string') {
-        formattedAnswer = responseData.answer;
-      } else if (responseData.answer) {
-        // If it's not a string but exists, stringify it
-        formattedAnswer = JSON.stringify(responseData.answer);
+      // responseData is { answer: string }
+      const answerData = responseData as { answer: string };
+      if (typeof answerData.answer === 'string') {
+        formattedAnswer = answerData.answer;
+      } else if (answerData.answer) {
+        formattedAnswer = JSON.stringify(answerData.answer);
       } else {
-        // If there's no answer field, use the whole response
-        formattedAnswer = JSON.stringify(responseData);
+        formattedAnswer = JSON.stringify(answerData);
       }
+    } else {
+      // responseData is { nodes: ... }
+      mindmapData = responseData as { nodes: any[] };
     }
-    
+
     // --- DB INSERTION LOGIC ---
-    let mindmapId: string | null = null;
-    if (!isFollowUp && responseData && responseData.nodes && Array.isArray(responseData.nodes)) {
+    let mindmapId: string = "";
+    if (!isFollowUp && mindmapData && mindmapData.nodes && Array.isArray(mindmapData.nodes)) {
       // Create a new mindmap record
       mindmapId = uuidv4();
-      const rootNode = responseData.nodes.find((n: any) => n.parentId === null);
+      const rootNode = mindmapData.nodes.find((n: any) => n.parentId === null);
       const title = rootNode ? rootNode.title : 'Untitled Mindmap';
       const inputType = textInput ? (sourceUrl ? 'url' : 'text') : 'pdf';
       const pdfUrlToSave = blobUrl || null;
@@ -394,7 +419,7 @@ export async function POST(request: NextRequest) {
         updatedAt: now,
       });
       // Insert nodes
-      const nodeInserts = responseData.nodes.map((node: any) => ({
+      const nodeInserts = mindmapData.nodes.map((node: any) => ({
         mindmapId,
         nodeId: node.id,
         title: node.title,
@@ -410,13 +435,15 @@ export async function POST(request: NextRequest) {
     }
     // --- END DB INSERTION LOGIC ---
 
+    // --- Consistent response envelope ---
     const responseObject = {
       success: true,
-      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: responseData, mindmapId }),
+      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: mindmapData, mindmapId }),
       chatHistory: newChatHistory,
       inputType: textInput ? 'text' : 'pdf'
     };
-    
+    // --- End consistent response envelope ---
+
     return NextResponse.json(responseObject);
     
   } catch (error) {
