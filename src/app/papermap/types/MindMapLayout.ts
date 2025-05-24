@@ -35,12 +35,12 @@ export const getDefaultLayoutIndex = (): number => {
   if (isBrowser) {
     // Use Top to Bottom for mobile (index 1)
     if (window.innerWidth < 768) {
-      return 1; // TB layout
+      return 0; // TB layout
     }
   }
   
   // Default to Left to Right for desktop (index 0) or server-side rendering
-  return 0; // LR layout
+  return 1; // LR layout
 };
 
 // Default layout option is now determined by device type
