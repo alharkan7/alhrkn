@@ -9,7 +9,6 @@ export default function ExampleMindmapPage() {
       mindmapTitle={exampleTitle}
       mindmapInputType="pdf"
       mindmapPdfUrl={EXAMPLE_PDF_URL}
-      originalFileName={exampleTitle}
       mindmapSourceUrl={undefined}
     />
   );
