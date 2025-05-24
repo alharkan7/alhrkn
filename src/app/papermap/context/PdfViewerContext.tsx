@@ -11,6 +11,11 @@ interface PdfViewerContextType {
   fileName: string;
   sourceUrl: string | null;
   inputType: 'pdf' | 'text' | 'url' | null;
+  isPdfAccessExpired: boolean;
+  parsedPdfContent: string | null;
+  viewMode: 'pdf' | 'archived' | null;
+  openArchivedContentViewer: () => void;
+  closeViewer: () => void;
   
   // Operations
   setPdfBase64: (base64: string | null) => void;
@@ -39,6 +44,8 @@ interface PdfViewerProviderProps {
   initialFileName?: string;
   initialSourceUrl?: string | null;
   initialInputType?: 'pdf' | 'text' | 'url' | null;
+  initialExpiresAt?: string | null; // ISO date string or null
+  initialParsedPdfContent?: string | null;
 }
 
 export function PdfViewerProvider({ 
@@ -46,7 +53,9 @@ export function PdfViewerProvider({
   initialPdfUrl = null,
   initialFileName = 'mindmap',
   initialSourceUrl = null,
-  initialInputType = null
+  initialInputType = null,
+  initialExpiresAt = null,
+  initialParsedPdfContent = null
 }: PdfViewerProviderProps) {
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(initialPdfUrl);
@@ -55,29 +64,52 @@ export function PdfViewerProvider({
   const [fileName, setFileName] = useState<string>(initialFileName);
   const [sourceUrl, setSourceUrl] = useState<string | null>(initialSourceUrl);
   const [inputType, setInputType] = useState<'pdf' | 'text' | 'url' | null>(initialInputType);
+  
+  const [expiresAt, setExpiresAt] = useState<Date | null>(initialExpiresAt ? new Date(initialExpiresAt) : null);
+  const [parsedPdfContent, setParsedPdfContent] = useState<string | null>(initialParsedPdfContent);
+  const [isPdfAccessExpired, setIsPdfAccessExpired] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'pdf' | 'archived' | null>(null);
 
-  // --- Add useEffect to update internal state when props change --- 
+  // --- Effects to sync initial props to state ---
   useEffect(() => {
-    // Update internal pdfUrl state if the initialPdfUrl prop changes
     setPdfUrl(initialPdfUrl);
-    // Clear base64 if we now have a URL from the prop
     if (initialPdfUrl) {
       setPdfBase64(null);
     }
-  }, [initialPdfUrl]); // Only depend on the prop
+  }, [initialPdfUrl]);
 
   useEffect(() => {
-    // Update internal fileName state if the initialFileName prop changes
-     setFileName(initialFileName);
-  }, [initialFileName]); // Only depend on the prop
+    setFileName(initialFileName);
+  }, [initialFileName]);
 
   useEffect(() => {
     setSourceUrl(initialSourceUrl);
-  }, [initialSourceUrl]); // Only depend on the prop
+  }, [initialSourceUrl]);
 
   useEffect(() => {
     setInputType(initialInputType);
-  }, [initialInputType]); // Only depend on the prop
+  }, [initialInputType]);
+  // --- End effects to sync initial props ---
+
+  useEffect(() => {
+    setExpiresAt(initialExpiresAt ? new Date(initialExpiresAt) : null);
+  }, [initialExpiresAt]);
+
+  useEffect(() => {
+    setParsedPdfContent(initialParsedPdfContent);
+  }, [initialParsedPdfContent]);
+
+  useEffect(() => {
+    if (expiresAt) {
+      // Check if current time is past expiresAt
+      // Ensure comparison is robust (e.g. both UTC)
+      // new Date() is local, but comparison works because Date objects compare based on their UTC ms value.
+      setIsPdfAccessExpired(new Date() > expiresAt);
+    } else {
+      // If no expiresAt date, assume it's not expired (e.g. for example PDF, or if feature isn't used)
+      setIsPdfAccessExpired(false);
+    }
+  }, [expiresAt]);
 
   // Function to process PDF file
   const handlePdfFile = useCallback(async (file: File, blobUrl?: string) => {
@@ -119,22 +151,36 @@ export function PdfViewerProvider({
     // Ensure pageNumber is valid, default to page 1 if invalid
     const validPage = pageNumber && pageNumber > 0 ? pageNumber : 1;
     setCurrentPdfPage(validPage);
-    setIsPdfViewerOpen(true);
+    setViewMode('pdf');
   }, []);
   
   // Function to close PDF viewer
   const closePdfViewer = useCallback(() => {
-    setIsPdfViewerOpen(false);
+    setViewMode(null);
+  }, []);
+
+  const openArchivedContentViewer = useCallback(() => {
+    if (parsedPdfContent) {
+      setViewMode('archived');
+    } else {
+      console.warn("Attempted to open archived content viewer, but no content is available.");
+    }
+  }, [parsedPdfContent]);
+
+  const closeViewer = useCallback(() => {
+    setViewMode(null);
   }, []);
 
   const value = {
     pdfBase64,
     pdfUrl,
-    isPdfViewerOpen,
+    isPdfViewerOpen: viewMode === 'pdf',
     currentPdfPage,
     fileName,
     sourceUrl,
     inputType,
+    isPdfAccessExpired,
+    parsedPdfContent,
     setPdfBase64,
     setPdfUrl,
     setFileName,
@@ -142,7 +188,10 @@ export function PdfViewerProvider({
     setInputType,
     openPdfViewer,
     closePdfViewer,
-    handlePdfFile
+    handlePdfFile,
+    viewMode,
+    openArchivedContentViewer,
+    closeViewer
   };
 
   return (

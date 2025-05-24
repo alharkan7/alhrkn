@@ -33,5 +33,7 @@ export default async function MindmapIdPage({ params }: { params: Promise<{ id: 
     mindmapPdfUrl={mindmap.pdfUrl ?? undefined} 
     mindmapSourceUrl={mindmap.sourceUrl ?? undefined}
     originalFileName={mindmap.fileName ?? undefined}
+    mindmapExpiresAt={mindmap.expiresAt ? mindmap.expiresAt.toISOString() : undefined}
+    mindmapParsedPdfContent={mindmap.parsed_pdf_content ?? undefined}
   />;
 } 

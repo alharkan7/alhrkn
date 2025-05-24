@@ -55,7 +55,15 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const descriptionContainerRef = useRef<HTMLDivElement>(null); // Ref for the scrollable description container
   const nodeRef = useRef<HTMLDivElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
-  const { inputType: contextInputType, pdfUrl: contextPdfUrl, sourceUrl: contextSourceUrl, openPdfViewer: contextOpenPdfViewer } = usePdfViewerContext(); // Get context values
+  const { 
+    inputType: contextInputType, 
+    pdfUrl: contextPdfUrl, 
+    // sourceUrl: contextSourceUrl, // Not directly needed here for button logic if relying on isPdfAccessExpired
+    openPdfViewer: contextOpenPdfViewer, 
+    isPdfAccessExpired, 
+    parsedPdfContent: contextParsedPdfContent, 
+    openArchivedContentViewer // Use new function
+  } = usePdfViewerContext(); // Get context values
 
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
@@ -257,11 +265,20 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   // Function to handle document button click
   const handleDocumentButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Use contextOpenPdfViewer and check isPdfNode
-    if (contextOpenPdfViewer && isPdfNode) {
-      // Ensure pageNumber is valid, default to page 1 if not
-      const pageToOpen = data.pageNumber && data.pageNumber > 0 ? data.pageNumber : 1;
-      contextOpenPdfViewer(pageToOpen);
+    if (isPdfNode) {
+      if (isPdfAccessExpired) {
+        if (contextParsedPdfContent) {
+          openArchivedContentViewer(); // This is the new way
+        } else {
+          // Optionally, handle the case where PDF is expired AND no archived content exists
+          // (e.g., alert the user, or the button might be disabled/hidden by other logic)
+          console.warn('PDF expired and no archived content available for this node.');
+        }
+      } else if (contextOpenPdfViewer) {
+        // PDF not expired, open PDF viewer
+        const pageToOpen = data.pageNumber && data.pageNumber > 0 ? data.pageNumber : 1;
+        contextOpenPdfViewer(pageToOpen);
+      }
     }
   };
 
@@ -824,7 +841,13 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleDocumentButtonClick}
-                title={`View page ${data.pageNumber} in the PDF`}
+                title={
+                  isPdfAccessExpired 
+                    ? (contextParsedPdfContent ? "View Archived Text" : "PDF Expired (No Archive)") 
+                    : `View page ${data.pageNumber} in the PDF`
+                }
+                // Disable button if PDF expired and no archived content
+                disabled={isPdfAccessExpired && !contextParsedPdfContent}
               >
                 <FileText className="h-6 w-6 text-foreground" />
               </button>

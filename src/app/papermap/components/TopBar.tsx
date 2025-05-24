@@ -34,7 +34,16 @@ export default function TopBar({
     loadExampleMindMap 
   } = useMindMapContext();
   
-  const { fileName, openPdfViewer, handlePdfFile, sourceUrl: contextSourceUrl, inputType: contextInputType } = usePdfViewerContext();
+  const { 
+    fileName, 
+    openPdfViewer, 
+    handlePdfFile, 
+    sourceUrl: contextSourceUrl, 
+    inputType: contextInputType,
+    isPdfAccessExpired,
+    parsedPdfContent: contextParsedPdfContent,
+    openArchivedContentViewer
+  } = usePdfViewerContext();
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const router = useRouter();
 
@@ -59,11 +68,19 @@ export default function TopBar({
     onFileUpload(file, blobUrl);
   }, [onFileUpload, handlePdfFile]);
 
-  // Function to handle file name click and open PDF viewer
+  // Function to handle file name click and open PDF viewer or archived content
   const handleFileNameClick = () => {
-    // Use contextInputType to determine behavior
     if (contextInputType === 'pdf') {
-      openPdfViewer(1); // Open to the first page
+      if (isPdfAccessExpired) {
+        if (contextParsedPdfContent) {
+          openArchivedContentViewer();
+        } else {
+          // Optionally, inform user that PDF is expired and no archive exists
+          alert('The PDF for this mindmap has expired, and no archived text is available.');
+        }
+      } else {
+        openPdfViewer(1); // Open to the first page if not expired
+      }
     }
   };
 
@@ -148,7 +165,9 @@ export default function TopBar({
               }
               title={
                 contextInputType === 'pdf' 
-                  ? "Click to open PDF" 
+                  ? (isPdfAccessExpired 
+                      ? (contextParsedPdfContent ? "View Archived Text" : "PDF Expired (No Archive)") 
+                      : "Click to open PDF")
                   : isUrlType && sourceUrl 
                     ? "Click to open URL in new tab" 
                     : ""
