@@ -42,6 +42,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const [inputMode, setInputMode] = useState<InputMode>('text');
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isActive, setIsActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const urlTextareaRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
@@ -700,10 +701,10 @@ const InputForm: React.FC<InputFormProps> = ({
 
                                 <Badge
                                     variant={isHovered ? "default" : "neutral"}
-                                    className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
-                                    onClick={isFormDisabled ? undefined : handleExampleClick}
-                                    onMouseEnter={isFormDisabled ? undefined : () => setIsHovered(true)}
-                                    onMouseLeave={isFormDisabled ? undefined : () => setIsHovered(false)}
+                                    className={`cursor-pointer h-8 text-muted-foreground hover:text-primary${isActive ? " mb-1 mr-2" : ""}`}
+                                    onClick={isFormDisabled ? undefined : (() => { handleExampleClick(); setIsActive(true); })}
+                                    onMouseEnter={isFormDisabled ? undefined : (() => { setIsHovered(true); setIsActive(true); })}
+                                    onMouseLeave={isFormDisabled ? undefined : (() => { setIsHovered(false); setIsActive(false); })}
                                     aria-disabled={isFormDisabled}
                                     tabIndex={isFormDisabled ? -1 : 0}
                                 >
