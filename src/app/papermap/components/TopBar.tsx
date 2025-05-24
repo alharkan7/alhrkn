@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
 interface TopBarProps {
   onFileUpload: (file: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => void;
   onNewClick: () => void;
-  inputType: 'pdf' | 'text' | null;
+  inputType: 'pdf' | 'text' | 'url' | null;
 }
 
 export default function TopBar({
@@ -34,19 +34,20 @@ export default function TopBar({
     loadExampleMindMap 
   } = useMindMapContext();
   
-  const { fileName, openPdfViewer, handlePdfFile } = usePdfViewerContext();
+  const { fileName, openPdfViewer, handlePdfFile, sourceUrl: contextSourceUrl, inputType: contextInputType } = usePdfViewerContext();
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const router = useRouter();
 
-  // Load sourceUrl from localStorage when component mounts
+  // Load sourceUrl from context when component mounts or context changes
   useEffect(() => {
-    const url = localStorage.getItem('sourceUrl');
-    if (url) {
-      setSourceUrl(url);
+    if (contextSourceUrl) {
+      setSourceUrl(contextSourceUrl);
     } else {
-      setSourceUrl(null);
+      // Fallback to localStorage if not in context (e.g. for initial load before context is fully populated)
+      const lsSourceUrl = localStorage.getItem('sourceUrl');
+      setSourceUrl(lsSourceUrl);
     }
-  }, [fileName]); // Re-check when filename changes
+  }, [contextSourceUrl]);
 
   // Custom file upload handler for PDF files
   const handleUpload = useCallback(async (file: File, blobUrl?: string) => {
@@ -60,7 +61,8 @@ export default function TopBar({
 
   // Function to handle file name click and open PDF viewer
   const handleFileNameClick = () => {
-    if (inputType === 'pdf') {
+    // Use contextInputType to determine behavior
+    if (contextInputType === 'pdf') {
       openPdfViewer(1); // Open to the first page
     }
   };
@@ -72,8 +74,8 @@ export default function TopBar({
     }
   };
 
-  // Determine if the title is a URL (starts with "URL:")
-  const isUrl = fileName?.startsWith('URL:');
+  // Determine if the title is a URL based on contextInputType
+  const isUrlType = contextInputType === 'url';
 
   // Replace the onNewClick handler to navigate to root
   const handleNewClick = () => {
@@ -135,39 +137,39 @@ export default function TopBar({
           {!loading && !error && (
             <div 
               className={`font-extrabold text-primary relative inline-flex items-center max-w-[calc(100%-2rem)] ${
-                inputType === 'pdf' || isUrl ? 'cursor-pointer hover:text-blue-600 group' : ''
+                contextInputType === 'pdf' || (isUrlType && sourceUrl) ? 'cursor-pointer hover:text-blue-600 group' : ''
               }`}
               onClick={
-                inputType === 'pdf' 
+                contextInputType === 'pdf' 
                   ? handleFileNameClick 
-                  : isUrl && sourceUrl 
+                  : isUrlType && sourceUrl 
                     ? handleUrlClick 
                     : undefined
               }
               title={
-                inputType === 'pdf' 
+                contextInputType === 'pdf' 
                   ? "Click to open PDF" 
-                  : isUrl && sourceUrl 
+                  : isUrlType && sourceUrl 
                     ? "Click to open URL in new tab" 
                     : ""
               }
             >
-              <div className={`${inputType === 'pdf' || isUrl ? "group-hover:text-blue-600 mr-2" : "mr-2"}`}>
-                {inputType === 'pdf' ? (
+              <div className={`${contextInputType === 'pdf' || (isUrlType && sourceUrl) ? "group-hover:text-blue-600 mr-2" : "mr-2"}`}>
+                {contextInputType === 'pdf' ? (
                   <FileText className="h-4 w-4" />
-                ) : isUrl ? (
+                ) : isUrlType && sourceUrl ? (
                   <ExternalLink className="h-4 w-4 text-blue-600" />
                 ) : (
                   <MessageSquare className="h-4 w-4" />
                 )}
               </div>
               <div className="truncate max-w-full">
-                {inputType === 'pdf' 
+                {contextInputType === 'pdf' 
                   ? (fileName !== 'mindmap' ? fileName : "Example: Steve Jobs' Stanford Commencement Speech")
-                  : isUrl 
+                  : isUrlType && sourceUrl 
                     ? (
                       <span className="flex items-center gap-1 text-blue-600 group-hover:underline">
-                        {fileName}
+                        {fileName || "Web Content"} 
                       </span>
                     )
                     : (fileName || "Topic Mindmap")

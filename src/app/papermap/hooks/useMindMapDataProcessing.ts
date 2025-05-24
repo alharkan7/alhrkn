@@ -104,7 +104,7 @@ export function useMindMapDataProcessing({
     }
   }, [setMindMapData, setError, setLoadingStage, reactFlowInstanceRef]); // Removed setNodes, setEdges as layout hook handles this
 
-  const handleFileUpload = useCallback(async (file: File, blobUrl?: string) => {
+  const handleFileUpload = useCallback(async (file: File, blobUrl?: string, originalFileName?: string) => {
     if (!file) return null;
     setLoading(true);
     setLoadingStage('uploading');
@@ -151,7 +151,12 @@ export function useMindMapDataProcessing({
       const response = await fetch('/api/papermap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blobUrl: uploadedBlobUrl, fileName: file.name, chatHistory: [] }),
+        body: JSON.stringify({ 
+          blobUrl: uploadedBlobUrl, 
+          // Use originalFileName if provided, otherwise fall back to file.name
+          originalFileName: originalFileName || file.name, 
+          chatHistory: [] 
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json();

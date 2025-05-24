@@ -9,11 +9,15 @@ interface PdfViewerContextType {
   isPdfViewerOpen: boolean;
   currentPdfPage: number;
   fileName: string;
+  sourceUrl: string | null;
+  inputType: 'pdf' | 'text' | 'url' | null;
   
   // Operations
   setPdfBase64: (base64: string | null) => void;
   setPdfUrl: (url: string | null) => void;
   setFileName: (name: string) => void;
+  setSourceUrl: (url: string | null) => void;
+  setInputType: (type: 'pdf' | 'text' | 'url' | null) => void;
   openPdfViewer: (pageNumber: number) => void;
   closePdfViewer: () => void;
   handlePdfFile: (file: File, blobUrl?: string) => Promise<void>;
@@ -33,37 +37,47 @@ interface PdfViewerProviderProps {
   children: ReactNode;
   initialPdfUrl?: string | null;
   initialFileName?: string;
+  initialSourceUrl?: string | null;
+  initialInputType?: 'pdf' | 'text' | 'url' | null;
 }
 
 export function PdfViewerProvider({ 
   children,
   initialPdfUrl = null,
-  initialFileName = 'mindmap'
+  initialFileName = 'mindmap',
+  initialSourceUrl = null,
+  initialInputType = null
 }: PdfViewerProviderProps) {
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(initialPdfUrl);
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState<boolean>(false);
   const [currentPdfPage, setCurrentPdfPage] = useState<number>(1);
   const [fileName, setFileName] = useState<string>(initialFileName);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(initialSourceUrl);
+  const [inputType, setInputType] = useState<'pdf' | 'text' | 'url' | null>(initialInputType);
 
   // --- Add useEffect to update internal state when props change --- 
   useEffect(() => {
     // Update internal pdfUrl state if the initialPdfUrl prop changes
-    if (initialPdfUrl !== pdfUrl) { // Avoid unnecessary updates
-      setPdfUrl(initialPdfUrl);
-      // Clear base64 if we now have a URL
-      if (initialPdfUrl) {
-        setPdfBase64(null);
-      }
+    setPdfUrl(initialPdfUrl);
+    // Clear base64 if we now have a URL from the prop
+    if (initialPdfUrl) {
+      setPdfBase64(null);
     }
-  }, [initialPdfUrl, pdfUrl]); // Depend on the prop and the internal state
+  }, [initialPdfUrl]); // Only depend on the prop
 
   useEffect(() => {
     // Update internal fileName state if the initialFileName prop changes
-    if (initialFileName !== fileName) { // Avoid unnecessary updates
-       setFileName(initialFileName);
-    }
-  }, [initialFileName, fileName]); // Depend on the prop and the internal state
+     setFileName(initialFileName);
+  }, [initialFileName]); // Only depend on the prop
+
+  useEffect(() => {
+    setSourceUrl(initialSourceUrl);
+  }, [initialSourceUrl]); // Only depend on the prop
+
+  useEffect(() => {
+    setInputType(initialInputType);
+  }, [initialInputType]); // Only depend on the prop
 
   // Function to process PDF file
   const handlePdfFile = useCallback(async (file: File, blobUrl?: string) => {
@@ -119,9 +133,13 @@ export function PdfViewerProvider({
     isPdfViewerOpen,
     currentPdfPage,
     fileName,
+    sourceUrl,
+    inputType,
     setPdfBase64,
     setPdfUrl,
     setFileName,
+    setSourceUrl,
+    setInputType,
     openPdfViewer,
     closePdfViewer,
     handlePdfFile

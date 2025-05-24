@@ -90,7 +90,11 @@ export default function PaperMap() {
     return typeof input === 'object' && input !== null && 'text' in input && typeof input.text === 'string';
   };
 
-  const handleInput = useCallback(async (input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string }, blobUrl?: string) => {
+  const isFileUploadObject = (input: any): input is { file: File, blobUrl: string, originalFileName: string } => {
+    return typeof input === 'object' && input !== null && 'file' in input && input.file instanceof File && 'blobUrl' in input && 'originalFileName' in input;
+  };
+
+  const handleInput = useCallback(async (input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string } | { file: File, blobUrl: string, originalFileName: string }, blobUrl?: string) => {
     let apiResponse = null;
     if (isTextInputObject(input)) {
       if (input.isWebContent === true && input.sourceUrl) {
@@ -101,6 +105,13 @@ export default function PaperMap() {
         apiResponse = await handleTextInput(input.text);
       } else {
         setInputError('Please upload a PDF file instead of a text file, or use the Text tab for questions.');
+      }
+    } else if (isFileUploadObject(input)) {
+      setInputType('pdf');
+      if (input.file.type === 'application/pdf') {
+        apiResponse = await handleFileUpload(input.file, input.blobUrl, input.originalFileName);
+      } else {
+        setInputError('Only PDF files are supported for file upload.');
       }
     } else if (input instanceof File) {
       setInputType('pdf');

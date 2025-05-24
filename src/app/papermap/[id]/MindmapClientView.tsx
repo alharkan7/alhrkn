@@ -11,30 +11,52 @@ import { ReactFlowProvider } from 'reactflow';
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
   mindmapTitle: string;
+  mindmapInputType: 'pdf' | 'text' | 'url';
+  mindmapPdfUrl?: string;
+  mindmapSourceUrl?: string;
+  originalFileName?: string;
 }
 
-export default function MindmapClientView({ mindMapNodes, mindmapTitle }: MindmapClientViewProps) {
+export default function MindmapClientView({ 
+  mindMapNodes, 
+  mindmapTitle, 
+  mindmapInputType, 
+  mindmapPdfUrl,
+  mindmapSourceUrl,
+  originalFileName
+}: MindmapClientViewProps) {
   // Use the main mindmap hook
   const mindMap = useMindMap() as ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
 
   // On mount, set the loaded mindmap data and fileName
   useEffect(() => {
+    // Destructure setters for clarity and to use in dependency array
+    const { setLoading, setMindMapData, setFileName } = mindMap;
+
     if (mindMapNodes && mindMapNodes.length > 0) {
-      mindMap.setLoading(true); // Show loader
-      mindMap.setMindMapData({ nodes: mindMapNodes });
-      mindMap.setFileName(mindmapTitle || 'MMindmap');
+      setLoading(true); // Show loader
+      setMindMapData({ nodes: mindMapNodes });
+      // Use originalFileName if available and inputType is 'pdf', otherwise mindmapTitle
+      const displayFileName = (mindmapInputType === 'pdf' && originalFileName) ? originalFileName : mindmapTitle;
+      setFileName(displayFileName || 'Mindmap');
+      
       setTimeout(() => {
-        mindMap.setLoading(false); // Hide loader after hydration
+        setLoading(false); // Hide loader after hydration
       }, 400); // Adjust duration as needed
     }
-  }, [mindMapNodes, mindmapTitle]);
+  }, [mindMapNodes, mindmapTitle, mindmapInputType, originalFileName, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
 
   return (
-    <PdfViewerProvider initialFileName={mindmapTitle || 'Mindmap'}>
+    <PdfViewerProvider 
+      initialFileName={originalFileName || mindmapTitle || 'Mindmap'} 
+      initialPdfUrl={mindmapPdfUrl}
+      initialSourceUrl={mindmapSourceUrl} // Pass sourceUrl to PdfViewerProvider
+      initialInputType={mindmapInputType} // Pass inputType to PdfViewerProvider
+    >
       <MindMapProvider value={mindMap}>
         <ReactFlowProvider>
           <div className="flex flex-col h-[100dvh] relative">
-            <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={null} />
+            <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={mindmapInputType || null} />
             <PdfViewer />
             <div className="flex-grow h-[calc(100vh-4rem)]">
               <MindMapFlow />

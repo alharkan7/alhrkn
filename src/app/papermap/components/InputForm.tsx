@@ -16,7 +16,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 type InputMode = 'file' | 'url' | 'text';
 
 interface InputFormProps {
-    onFileUpload: (file: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string }, blobUrl?: string) => void;
+    onFileUpload: (input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string } | { file: File, blobUrl: string, originalFileName: string }, blobUrl?: string) => void;
     loading: boolean;
     error: string | null;
     onExampleClick?: () => void;
@@ -377,7 +377,8 @@ const InputForm: React.FC<InputFormProps> = ({
 
             if (blobUrl) {
                 // Pass both the file and the blob URL to ensure it's properly stored
-                onFileUpload(file, blobUrl);
+                // Also pass the original file name
+                onFileUpload({ file, blobUrl, originalFileName: file.name });
             }
             return;
         }

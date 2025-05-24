@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     // Get request data
     const data = await request.json();
-    const { blobUrl, textInput, isFollowUp, question, nodeContext, chatHistory, sourceUrl } = data;
+    const { blobUrl, textInput, isFollowUp, question, nodeContext, chatHistory, sourceUrl, originalFileName } = data;
 
     // Log request parameters for debugging
     console.log("API Request params:", { 
@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
       hasTextInput: !!textInput, 
       isFollowUp,
       hasSourceUrl: !!sourceUrl,
+      originalFileName,
       blobUrlType: blobUrl ? typeof blobUrl : null,
       textInputType: textInput ? typeof textInput : null
     });
@@ -378,9 +379,16 @@ export async function POST(request: NextRequest) {
       }
     ];
 
-    // Ensure the answer is consistently formatted for follow-up questions
-    let formattedAnswer;
-    let mindmapData;
+    let formattedAnswer: string | undefined;
+    let mindmapData: { nodes: any[] } | undefined;
+    let mindmapId: string = ""; // Initialize mindmapId
+
+    // Variables for persisted details, scoped for the non-follow-up case
+    let persistedInputType: 'pdf' | 'text' | 'url' | undefined;
+    let persistedPdfUrl: string | null | undefined;
+    let persistedFileName: string | null | undefined;
+    let persistedSourceUrl: string | null | undefined;
+
     if (isFollowUp) {
       // responseData is { answer: string }
       const answerData = responseData as { answer: string };
@@ -392,55 +400,102 @@ export async function POST(request: NextRequest) {
         formattedAnswer = JSON.stringify(answerData);
       }
     } else {
-      // responseData is { nodes: ... }
+      // Not a follow-up, so it's a mindmap creation request
       mindmapData = responseData as { nodes: any[] };
-    }
 
-    // --- DB INSERTION LOGIC ---
-    let mindmapId: string = "";
-    if (!isFollowUp && mindmapData && mindmapData.nodes && Array.isArray(mindmapData.nodes)) {
-      // Create a new mindmap record
-      mindmapId = uuidv4();
-      const rootNode = mindmapData.nodes.find((n: any) => n.parentId === null);
-      const title = rootNode ? rootNode.title : 'Untitled Mindmap';
-      const inputType = textInput ? (sourceUrl ? 'url' : 'text') : 'pdf';
-      const pdfUrlToSave = blobUrl || null;
-      const fileNameToSave = null; // You can enhance this if you have fileName
-      const sourceUrlToSave = sourceUrl || null;
-      const now = new Date();
-      await db.insert(mindmaps).values({
-        id: mindmapId,
-        title,
-        inputType,
-        pdfUrl: pdfUrlToSave,
-        fileName: fileNameToSave,
-        sourceUrl: sourceUrlToSave,
-        createdAt: now,
-        updatedAt: now,
-      });
-      // Insert nodes
-      const nodeInserts = mindmapData.nodes.map((node: any) => ({
-        mindmapId,
-        nodeId: node.id,
-        title: node.title,
-        description: node.description,
-        parentId: node.parentId,
-        level: node.level,
-        pageNumber: node.pageNumber ?? null,
-        // positionX, positionY can be null for now
-      }));
-      if (nodeInserts.length > 0) {
-        await db.insert(mindmapNodes).values(nodeInserts);
+      // --- DB INSERTION LOGIC ---
+      // This 'if' block populates mindmapId and the persisted... variables
+      if (mindmapData && mindmapData.nodes && Array.isArray(mindmapData.nodes) && mindmapData.nodes.length > 0) {
+        mindmapId = uuidv4();
+        const rootNode = mindmapData.nodes.find((n: any) => n.parentId === null);
+        const title = rootNode ? rootNode.title : 'Untitled Mindmap';
+        
+        // Determine persistedInputType
+        if (blobUrl && !textInput) { 
+          persistedInputType = originalFileName ? 'pdf' : 'url';
+        } else if (textInput && sourceUrl) {
+          persistedInputType = 'url';
+        } else if (textInput) {
+          persistedInputType = 'text';
+        } else if (blobUrl) { // If only blobUrl is present (e.g. URL processed to blob, but not original file)
+           persistedInputType = 'url';
+        } else {
+          // Fallback: if no specific conditions met, but it's not a followup,
+          // and we have nodes, it implies some form of input that generated a mindmap.
+          // Defaulting to 'text' or 'pdf' might be context-dependent or require more info.
+          // For now, let's assume 'text' as a generic fallback if no blob/source info.
+          persistedInputType = 'text'; 
+        }
+
+        persistedPdfUrl = blobUrl || null;
+        
+        // Determine persistedFileName
+        if (persistedInputType === 'pdf' && originalFileName) {
+          persistedFileName = originalFileName;
+        } else if (persistedInputType === 'url' && sourceUrl) {
+          try {
+            const parsedUrl = new URL(sourceUrl);
+            const pathSegments = parsedUrl.pathname.split('/');
+            const lastSegment = pathSegments.pop();
+            if (lastSegment && lastSegment.trim() !== '' && lastSegment !== '/') {
+              persistedFileName = decodeURIComponent(lastSegment);
+            } else {
+              persistedFileName = parsedUrl.hostname;
+            }
+            if (persistedFileName === '/' || !persistedFileName) persistedFileName = parsedUrl.hostname || "Web Document";
+          } catch {
+            persistedFileName = title || "Web Document"; // Fallback if URL parsing fails
+          }
+        } else if (title) {
+          persistedFileName = title;
+        } else {
+          persistedFileName = 'Untitled Mindmap';
+        }
+        
+        persistedSourceUrl = sourceUrl || null;
+        const now = new Date();
+        await db.insert(mindmaps).values({
+          id: mindmapId,
+          title, // This is the mindmap's title, can be different from PDF filename
+          inputType: persistedInputType,
+          pdfUrl: persistedPdfUrl,
+          fileName: persistedFileName,
+          sourceUrl: persistedSourceUrl,
+          createdAt: now,
+          updatedAt: now,
+        });
+        // Insert nodes
+        const nodeInserts = mindmapData.nodes.map((node: any) => ({
+          mindmapId,
+          nodeId: node.id,
+          title: node.title,
+          description: node.description,
+          parentId: node.parentId,
+          level: node.level,
+          pageNumber: node.pageNumber ?? null,
+        }));
+        if (nodeInserts.length > 0) {
+          await db.insert(mindmapNodes).values(nodeInserts);
+        }
       }
+      // --- END DB INSERTION LOGIC ---
     }
-    // --- END DB INSERTION LOGIC ---
 
     // --- Consistent response envelope ---
     const responseObject = {
       success: true,
-      ...(isFollowUp ? { answer: formattedAnswer } : { mindmap: mindmapData, mindmapId }),
+      ...(isFollowUp 
+        ? { answer: formattedAnswer } 
+        : { 
+            mindmap: mindmapData, 
+            mindmapId,
+            persistedInputType, 
+            persistedPdfUrl,    
+            persistedFileName,  
+            persistedSourceUrl  
+          }),
       chatHistory: newChatHistory,
-      inputType: textInput ? 'text' : 'pdf'
+      inputType: textInput ? (sourceUrl ? 'url' : 'text') : (blobUrl ? (originalFileName ? 'pdf' : 'url') : 'unknown')
     };
     // --- End consistent response envelope ---
 

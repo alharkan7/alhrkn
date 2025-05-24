@@ -5,6 +5,7 @@ import FollowUpCard from './FollowUpCard';
 import ReactMarkdown from 'react-markdown';
 import { MessageCircle, FileText, ChevronDown, ChevronUp, Plus, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { STICKY_NOTE_COLORS, BLANK_NODE_COLOR, ANSWER_NODE_COLOR, stickyNoteStyles, nodeAnimationStyles } from '../styles/styles';
+import { usePdfViewerContext } from '../context'; // Import usePdfViewerContext
 
 // Node component props type
 interface CustomNodeProps {
@@ -54,6 +55,7 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   const descriptionContainerRef = useRef<HTMLDivElement>(null); // Ref for the scrollable description container
   const nodeRef = useRef<HTMLDivElement>(null);
   const updateNodeInternals = useUpdateNodeInternals();
+  const { inputType: contextInputType, pdfUrl: contextPdfUrl, sourceUrl: contextSourceUrl, openPdfViewer: contextOpenPdfViewer } = usePdfViewerContext(); // Get context values
 
   // Check if this is a QnA node
   const isQnANode = data.nodeType === 'qna';
@@ -61,8 +63,14 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   // Check if this is a blank node by nodeType first, then fallback to title check for backward compatibility
   const isBlankNode = data.nodeType === 'blank' || (data.nodeType !== 'qna' && data.title === 'Double Click to Edit');
 
-  // Check if this is a PDF-based node or text-based node
-  const isPdfNode = data.pageNumber !== undefined && data.pageNumber !== null;
+  // Determine if a PDF is available and what its source is.
+  // A PDF is considered available if:
+  // 1. The mindmap inputType is 'pdf' (meaning it originated from a PDF upload or direct PDF URL).
+  // 2. There's a valid pdfUrl in the context (this could be a blob URL or a direct PDF URL).
+  const isPdfAvailable = contextInputType === 'pdf' && !!contextPdfUrl;
+
+  // Check if this is a PDF-based node (i.e., it has a pageNumber and a PDF is available for the mindmap)
+  const isPdfNode = isPdfAvailable && data.pageNumber !== undefined && data.pageNumber !== null;
 
   // Get color based on node type or column level
   let nodeColor;
@@ -249,10 +257,11 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
   // Function to handle document button click
   const handleDocumentButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (data.openPdfViewer && isPdfNode) {
+    // Use contextOpenPdfViewer and check isPdfNode
+    if (contextOpenPdfViewer && isPdfNode) {
       // Ensure pageNumber is valid, default to page 1 if not
       const pageToOpen = data.pageNumber && data.pageNumber > 0 ? data.pageNumber : 1;
-      data.openPdfViewer(pageToOpen);
+      contextOpenPdfViewer(pageToOpen);
     }
   };
 
@@ -810,7 +819,8 @@ const CustomNodeComponent = ({ data, id, selected }: CustomNodeProps) => {
             style={{ zIndex: 1000 }} 
             data-exclude-from-export="true"
           >
-            {isPdfNode && data.pageNumber && data.openPdfViewer && !isBlankNode && (
+            {/* Show FileText icon only if it's a PDF node and not a blank node */}
+            {isPdfNode && !isBlankNode && (
               <button
                 className="bg-card hover:outline outline-1.5 outline-border p-2 rounded-full shadow-md transition-all flex items-center justify-center w-8 h-8 border border-border dark:bg-slate-800 dark:border-slate-700"
                 onClick={handleDocumentButtonClick}

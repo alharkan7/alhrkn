@@ -26,5 +26,12 @@ export default async function MindmapIdPage({ params }: { params: Promise<{ id: 
     pageNumber: n.pageNumber ?? undefined,
   }));
 
-  return <MindmapClientView mindMapNodes={mindMapNodes} mindmapTitle={mindmap.title ?? 'Mindmap'} />;
+  return <MindmapClientView 
+    mindMapNodes={mindMapNodes} 
+    mindmapTitle={mindmap.title ?? 'Mindmap'} 
+    mindmapInputType={mindmap.inputType}
+    mindmapPdfUrl={mindmap.pdfUrl ?? undefined} 
+    mindmapSourceUrl={mindmap.sourceUrl ?? undefined}
+    originalFileName={mindmap.fileName ?? undefined}
+  />;
 } 
