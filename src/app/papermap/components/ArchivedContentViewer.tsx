@@ -26,7 +26,7 @@ const ArchivedContentViewer: React.FC<ArchivedContentViewerProps> = ({
         fixed top-0 right-0 h-full w-full md:w-2/5 bg-card shadow-xl z-50 
         transform transition-transform duration-300 ease-in-out 
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        flex flex-col p-4 border-l border-border
+        flex flex-col py-4 pr-4 pl-6 border-l border-border
       `}
     >
       <div className="flex justify-between items-center mb-4">

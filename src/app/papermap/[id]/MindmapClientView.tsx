@@ -16,7 +16,6 @@ interface MindmapClientViewProps {
   mindmapInputType: 'pdf' | 'text' | 'url';
   mindmapPdfUrl?: string;
   mindmapSourceUrl?: string;
-  originalFileName?: string;
   mindmapExpiresAt?: string;
   mindmapParsedPdfContent?: string;
 }
@@ -65,7 +64,6 @@ export default function MindmapClientView({
   mindmapInputType, 
   mindmapPdfUrl,
   mindmapSourceUrl,
-  originalFileName,
   mindmapExpiresAt,
   mindmapParsedPdfContent
 }: MindmapClientViewProps) {
@@ -77,17 +75,16 @@ export default function MindmapClientView({
     if (mindMapNodes && mindMapNodes.length > 0) {
       setLoading(true);
       setMindMapData({ nodes: mindMapNodes });
-      const displayFileName = (mindmapInputType === 'pdf' && originalFileName) ? originalFileName : mindmapTitle;
-      setFileName(displayFileName || 'Mindmap');
+      setFileName(mindmapTitle || 'Mindmap');
       setTimeout(() => {
         setLoading(false);
       }, 400);
     }
-  }, [mindMapNodes, mindmapTitle, mindmapInputType, originalFileName, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
+  }, [mindMapNodes, mindmapTitle, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
 
   return (
     <PdfViewerProvider 
-      initialFileName={originalFileName || mindmapTitle || 'Mindmap'} 
+      initialFileName={mindmapTitle || 'Mindmap'} 
       initialPdfUrl={mindmapPdfUrl}
       initialSourceUrl={mindmapSourceUrl}
       initialInputType={mindmapInputType}

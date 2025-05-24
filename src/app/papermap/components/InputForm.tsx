@@ -430,8 +430,8 @@ const InputForm: React.FC<InputFormProps> = ({
                 const fileName = url.split('/').pop() || 'document.pdf';
                 const fileFromUrl = new File([blob], fileName, { type: 'application/pdf' });
 
-                // Pass both the file and blob URL to the handler 
-                onFileUpload(fileFromUrl, result);
+                // Pass both the file and blob URL to the handler, and always include sourceUrl
+                onFileUpload({ file: fileFromUrl, blobUrl: result, originalFileName: fileFromUrl.name, sourceUrl: url.trim() });
             } catch (err) {
                 // Use the specific error message when available
                 let errorMessage = "Failed to process the URL. Please try again or upload the PDF file.";

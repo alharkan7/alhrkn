@@ -104,7 +104,7 @@ export function useMindMapDataProcessing({
     }
   }, [setMindMapData, setError, setLoadingStage, reactFlowInstanceRef]); // Removed setNodes, setEdges as layout hook handles this
 
-  const handleFileUpload = useCallback(async (file: File, blobUrl?: string, originalFileName?: string) => {
+  const handleFileUpload = useCallback(async (file: File, blobUrl?: string, originalFileName?: string, sourceUrl?: string) => {
     if (!file) return null;
     setLoading(true);
     setLoadingStage('uploading');
@@ -155,6 +155,7 @@ export function useMindMapDataProcessing({
           blobUrl: uploadedBlobUrl, 
           // Use originalFileName if provided, otherwise fall back to file.name
           originalFileName: originalFileName || file.name, 
+          sourceUrl,
           chatHistory: [] 
         }),
       });
