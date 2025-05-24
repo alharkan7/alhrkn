@@ -1,20 +1,12 @@
 'use client';
 
-import { ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useEffect, useState, useCallback, DragEvent } from 'react';
 import { useTheme } from 'next-themes';
-import { FileUp, X, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
-import MindMapFlow from './papermap/components/MindMapFlow';
-import PdfViewer from './papermap/components/PdfViewer';
-import TopBar from './papermap/components/TopBar';
 import InputForm from './papermap/components/InputForm';
 import { useMindMap } from './papermap/hooks/useMindMap';
-import { combinedStyles } from './papermap/styles';
-import { MindMapProvider, PdfViewerProvider, UIStateProvider } from './papermap/context';
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 

@@ -10,21 +10,23 @@ import { ReactFlowProvider } from 'reactflow';
 
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
+  mindmapTitle: string;
 }
 
-export default function MindmapClientView({ mindMapNodes }: MindmapClientViewProps) {
+export default function MindmapClientView({ mindMapNodes, mindmapTitle }: MindmapClientViewProps) {
   // Use the main mindmap hook
   const mindMap = useMindMap();
 
-  // On mount, set the loaded mindmap data
+  // On mount, set the loaded mindmap data and fileName
   useEffect(() => {
     if (mindMapNodes && mindMapNodes.length > 0) {
       mindMap.setMindMapData({ nodes: mindMapNodes });
+      mindMap.setFileName(mindmapTitle || 'MMindmap');
     }
-  }, [mindMapNodes]);
+  }, [mindMapNodes, mindmapTitle]);
 
   return (
-    <PdfViewerProvider>
+    <PdfViewerProvider initialFileName={mindmapTitle || 'Mindmap'}>
       <MindMapProvider value={mindMap}>
         <ReactFlowProvider>
           <div className="flex flex-col h-[100dvh] relative">

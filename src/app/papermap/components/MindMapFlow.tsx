@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
-  useReactFlow
+  useReactFlow,
+  EdgeTypes
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
@@ -18,6 +19,9 @@ import MindMapLoader from './MindMapLoader';
 const nodeTypes = {
   custom: CustomNode,
 };
+
+// Edge types for ReactFlow
+const edgeTypes: EdgeTypes = {};
 
 // Pro options to remove attribution
 const proOptions = { hideAttribution: true };
@@ -147,6 +151,7 @@ const MindMapFlow = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onInit={(instance) => {
           reactFlowInstance.current = instance;
         }}
@@ -157,7 +162,7 @@ const MindMapFlow = () => {
         minZoom={0.2} // Set the minimum zoom level (max zoom-out)
         maxZoom={4} // Set the maximum zoom level (max zoom-in)
         defaultEdgeOptions={{
-          type: 'bezier',
+          type: 'default',
           style: { 
             stroke: '#3182CE', 
             strokeWidth: 1.5, 

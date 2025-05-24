@@ -7,6 +7,7 @@ import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from 'next/navigation';
 
 // Define file size limit constant - increased with Vercel Blob
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
@@ -43,6 +44,7 @@ const InputForm: React.FC<InputFormProps> = ({
     const urlTextareaRef = useRef<HTMLTextAreaElement>(null);
     const form = useForm();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const router = useRouter();
 
     const handleInputModeChange = (value: string) => {
         setInputMode(value as InputMode);
@@ -479,6 +481,11 @@ const InputForm: React.FC<InputFormProps> = ({
         setUrlError("Please provide input in the selected format.");
     };
 
+    // Replace the Example button handler to navigate to /papermap/example
+    const handleExampleClick = () => {
+        router.push('/papermap/example');
+    };
+
     // Determine if the Create button should be disabled
     const isCreateButtonDisabled = loading ||
         urlLoading ||
@@ -652,7 +659,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 <Badge
                                     variant={isHovered ? "default" : "neutral"}
                                     className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
-                                    onClick={onExampleClick}
+                                    onClick={handleExampleClick}
                                     onMouseEnter={() => setIsHovered(true)}
                                     onMouseLeave={() => setIsHovered(false)}
                                 >

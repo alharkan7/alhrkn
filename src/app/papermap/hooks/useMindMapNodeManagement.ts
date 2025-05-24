@@ -183,7 +183,7 @@ export function useMindMapNodeManagement({
 
     const newEdge: Edge = {
       id: `e-${parentId}-${newNodeId}`, source: parentId, target: newNodeId,
-      sourceHandle: 'source', targetHandle: 'target', type: 'bezier',
+      sourceHandle: 'source', targetHandle: 'target', type: 'default',
       style: { stroke: '#3182CE', strokeWidth: 1.5, strokeOpacity: 0.8, zIndex: 1000 },
       animated: false, className: 'mindmap-edge'
     };
@@ -259,7 +259,7 @@ export function useMindMapNodeManagement({
           const uniqueEdgeId = `e-${parentId}-${childId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           updatedEdges.push({
             id: uniqueEdgeId, source: parentId!, target: childId, sourceHandle: 'source', targetHandle: 'target',
-            type: 'bezier', style: { stroke: '#3182CE', strokeWidth: 1.5, strokeOpacity: 0.8 }, animated: false, className: 'mindmap-edge'
+            type: 'default', style: { stroke: '#3182CE', strokeWidth: 1.5, strokeOpacity: 0.8 }, animated: false, className: 'mindmap-edge'
           });
         });
       }

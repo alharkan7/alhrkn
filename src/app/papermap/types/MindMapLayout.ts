@@ -259,7 +259,7 @@ export const createMindMapLayout = (
         target: node.id,
         sourceHandle: 'source',
         targetHandle: 'target',
-        type: 'bezier',
+        type: 'default',
         style: { 
           stroke: edgeColor, 
           strokeWidth: 1.5, 

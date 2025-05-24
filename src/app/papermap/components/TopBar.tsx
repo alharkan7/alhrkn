@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useRouter } from 'next/navigation';
 
 interface TopBarProps {
   onFileUpload: (file: File | { text: string, isTextInput?: boolean }, blobUrl?: string) => void;
@@ -35,6 +36,7 @@ export default function TopBar({
   
   const { fileName, openPdfViewer, handlePdfFile } = usePdfViewerContext();
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const router = useRouter();
 
   // Load sourceUrl from localStorage when component mounts
   useEffect(() => {
@@ -73,6 +75,11 @@ export default function TopBar({
   // Determine if the title is a URL (starts with "URL:")
   const isUrl = fileName?.startsWith('URL:');
 
+  // Replace the onNewClick handler to navigate to root
+  const handleNewClick = () => {
+    router.push('/');
+  };
+
   return (
     <div className="sticky top-0 py-4 px-2 bg-muted/50 backdrop-blur-sm print:hidden z-50 overscroll-none">
       <div className="flex items-center justify-between gap-4 relative">
@@ -93,12 +100,12 @@ export default function TopBar({
               <AlertDialogHeader>
                 <AlertDialogTitle>Create New Mindmap?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will clear your current mindmap.
+                  Make sure you have downloaded the mindmap or saved the URL.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onNewClick}>Continue</AlertDialogAction>
+                <AlertDialogAction onClick={handleNewClick}>Continue</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
