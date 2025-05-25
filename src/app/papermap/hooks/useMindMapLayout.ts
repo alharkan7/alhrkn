@@ -92,6 +92,10 @@ export function useMindMapLayout({
       const isNodeAddition = (mindMapData as any).__nodeAddition === true;
 
       if (isContentOnlyUpdate) {
+        // For content-only updates, we might not need to re-calculate hidden,
+        // assuming it's handled by useMindMapVisibility or nodes already have it.
+        // However, to be safe and consistent, let's ensure data props are updated.
+        // The hidden status itself is more critical in the main layouting path below.
         setNodes(currentNodes =>
           currentNodes.map(node => {
             const mmNode = mindMapData.nodes.find(n => n.id === node.id);
@@ -106,6 +110,10 @@ export function useMindMapLayout({
                   deleteNode: deleteNodeRef.current,
                   toggleChildrenVisibility,
                   layoutDirection: node.data.layoutDirection || currentLayout.direction,
+                  // hasChildren and childrenCollapsed should ideally be from node.data if already set
+                  // by useMindMapVisibility, or re-evaluated if necessary.
+                  hasChildren: node.data.hasChildren !== undefined ? node.data.hasChildren : !!(mindMapData.nodes.find(n => n.parentId === node.id)),
+                  childrenCollapsed: node.data.childrenCollapsed !== undefined ? node.data.childrenCollapsed : collapsedNodes.has(node.id),
                 },
               };
             }
@@ -157,9 +165,40 @@ export function useMindMapLayout({
         }
       }
 
+      // --- Logic for determining hidden nodes ---
+      const parentToChildrenMapForLayout: Record<string, string[]> = {};
+      if (updatedMindMapData) {
+        updatedMindMapData.nodes.forEach(n => {
+          if (n.parentId) {
+            if (!parentToChildrenMapForLayout[n.parentId]) {
+              parentToChildrenMapForLayout[n.parentId] = [];
+            }
+            parentToChildrenMapForLayout[n.parentId].push(n.id);
+          }
+        });
+      }
+
+      // Pure function, can be defined here or outside if preferred and passed in.
+      const getDescendantIdsForLayout = (nodeId: string, nodeMap: Record<string, string[]>): string[] => {
+        const children = nodeMap[nodeId] || [];
+        const descendants = [...children];
+        children.forEach(childId => {
+          const childDescendants = getDescendantIdsForLayout(childId, nodeMap);
+          descendants.push(...childDescendants);
+        });
+        return descendants;
+      };
+
+      const nodesToHideForLayout = new Set<string>();
+      collapsedNodes.forEach(collapsedId => {
+        const descendants = getDescendantIdsForLayout(collapsedId, parentToChildrenMapForLayout);
+        descendants.forEach(id => nodesToHideForLayout.add(id));
+      });
+      // --- End of logic for determining hidden nodes ---
+
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
         updatedMindMapData,
-        updateNodeData,
+        updateNodeData, // updateNodeData is used by createMindMapLayout
         currentLayout
       );
 
@@ -167,29 +206,30 @@ export function useMindMapLayout({
       const isInitialLoad = nodes.length === 0;
 
       const nodesWithFunctions = flowNodes.map(node => {
-        // For layout changes or initial load, the position from createMindMapLayout (in `node.position`) is authoritative.
-        // For other updates (e.g., mindMapData change not triggering layout type change),
-        // we might preserve existing user-dragged positions if the layout algorithm doesn't account for them.
-        // However, createMindMapLayout should ideally manage this.
-        // The simplest approach for cycleLayout to work is to always take `node.position` from `createMindMapLayout`.
-        
-        // If NOT a layout change, and an existing position is available, preserve it.
-        // Otherwise, use the position from createMindMapLayout.
-        // This attempts to keep user-dragged positions unless the layout type itself changes.
         const preservePosition = !isLayoutChange && !isInitialLoad && (currentPositionsFromInstance[node.id] || nodePositions[node.id]);
         
+        // Determine if this node itself is a child of a collapsed node.
+        // This is slightly different from nodesToHideForLayout which contains descendants.
+        // A node is hidden if it's in nodesToHideForLayout.
+        const nodeIsHidden = nodesToHideForLayout.has(node.id);
+        const nodeHasChildren = !!parentToChildrenMapForLayout[node.id]?.length;
+        const childrenAreCollapsed = collapsedNodes.has(node.id);
+
         return {
-          ...node, // Contains node.position from createMindMapLayout
-          position: preservePosition ? preservePosition : node.position, // Apply preserved position if applicable
+          ...node,
+          hidden: nodeIsHidden, // Apply hidden status
+          position: preservePosition ? preservePosition : node.position,
           data: {
             ...node.data,
             addFollowUpNode: addFollowUpNodeRef.current,
             deleteNode: deleteNodeRef.current,
             toggleChildrenVisibility,
             layoutDirection: currentLayout.direction,
-            hasChildren: !!(updatedMindMapData.nodes.find(n => n.parentId === node.id)),
-            childrenCollapsed: collapsedNodes.has(node.id),
+            hasChildren: nodeHasChildren,
+            childrenCollapsed: childrenAreCollapsed,
             pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : updatedMindMapData.nodes.find(n => n.id === node.id)?.pageNumber,
+            // Ensure updateNodeData is passed if CustomNode needs it directly from layout-generated nodes
+            updateNodeData: updateNodeData, 
           },
         };
       });
@@ -199,19 +239,17 @@ export function useMindMapLayout({
       setNodes(nodesWithFunctions);
       setEdges(flowEdges);
 
-      // If it\'s an initial load or a layout change, update nodePositions state with the new layout\'s positions
       if (isInitialLoad || isLayoutChange) {
         const newPositions: Record<string, NodePosition> = {};
-        nodesWithFunctions.forEach(n => { newPositions[n.id] = n.position; });
+        nodesWithFunctions.forEach(n => { if (!n.hidden) newPositions[n.id] = n.position; }); // Store positions only for visible nodes
         setNodePositions(newPositions);
-        positionsToApplyRef.current = newPositions; // Store for potential reapplication
+        positionsToApplyRef.current = newPositions;
       }
 
-      // Fit view on initial load or significant layout change, only if reactFlowInstance is available
       if ((isInitialLoad || isLayoutChange) && reactFlowInstanceRef.current) {
         setTimeout(() => {
-          reactFlowInstanceRef.current?.fitView({ padding: 0.4, duration: 800 });
-        }, 100); // Small delay to ensure nodes are rendered
+          reactFlowInstanceRef.current?.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
+        }, 100);
       }
     }
   }, [
@@ -227,42 +265,84 @@ export function useMindMapLayout({
     deleteNodeRef, 
     toggleChildrenVisibility, 
     collapsedNodes, 
+    nodePositions, // Keep for preservePosition logic, but monitor for loops
     setNodePositions, 
     loading, 
-    layoutInitialized, // Added new dependency
-    currentLayoutIndex, // Added currentLayoutIndex to ensure re-run on explicit layout changes
+    layoutInitialized,
+    currentLayoutIndex,
   ]);
 
-  // Effect to update node handlers, hasChildren, and layoutDirection in nodes data (similar to original lines ~744-781)
+  // Effect to update node handlers, hasChildren, and layoutDirection in nodes data
   useEffect(() => {
     if (mindMapData && nodes.length > 0) {
-      const parentToChildren: Record<string, boolean> = {};
+      const parentToChildrenForEffect: Record<string, string[]> = {};
       mindMapData.nodes.forEach((node: MindMapNode) => {
-        if (node.parentId) parentToChildren[node.parentId] = true;
+        if (node.parentId) {
+          if (!parentToChildrenForEffect[node.parentId]) {
+            parentToChildrenForEffect[node.parentId] = [];
+          }
+          parentToChildrenForEffect[node.parentId].push(node.id);
+        }
+      });
+
+      const getDescendantIdsForEffect = (nodeId: string, nodeMap: Record<string, string[]>): string[] => {
+        const children = nodeMap[nodeId] || [];
+        const descendants = [...children];
+        children.forEach(childId => {
+          const childDescendants = getDescendantIdsForEffect(childId, nodeMap);
+          descendants.push(...childDescendants);
+        });
+        return descendants;
+      };
+      
+      const nodesToHideForEffect = new Set<string>();
+      collapsedNodes.forEach(collapsedId => {
+        const descendants = getDescendantIdsForEffect(collapsedId, parentToChildrenForEffect);
+        descendants.forEach(id => nodesToHideForEffect.add(id));
       });
 
       setNodes(currentNodes =>
         currentNodes.map(node => {
           const mindMapNode = mindMapData.nodes.find(n => n.id === node.id);
-          const position = nodePositions[node.id] || node.position; // Prefer tracked position
+          const position = nodePositions[node.id] || node.position;
+          const nodeIsHidden = nodesToHideForEffect.has(node.id);
+          const nodeHasChildren = !!parentToChildrenForEffect[node.id]?.length;
+          const childrenAreCollapsed = collapsedNodes.has(node.id);
+
           return {
             ...node,
+            hidden: nodeIsHidden, // Apply hidden status
             position,
             data: {
               ...node.data,
+              title: mindMapNode ? mindMapNode.title : node.data.title,
+              description: mindMapNode ? mindMapNode.description : node.data.description,
               addFollowUpNode: addFollowUpNodeRef.current,
               deleteNode: deleteNodeRef.current,
-              hasChildren: !!parentToChildren[node.id],
-              childrenCollapsed: collapsedNodes.has(node.id),
               toggleChildrenVisibility,
-              pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : mindMapNode?.pageNumber,
-              layoutDirection: node.data.layoutDirection || currentLayout.direction, // Ensure layoutDirection is set
+              hasChildren: nodeHasChildren,
+              childrenCollapsed: childrenAreCollapsed,
+              layoutDirection: currentLayout.direction,
+              nodeType: mindMapNode?.type || node.data.nodeType,
+              pageNumber: mindMapNode?.pageNumber !== undefined ? mindMapNode.pageNumber : node.data.pageNumber,
+              updateNodeData: updateNodeData,
             },
           };
         })
       );
     }
-  }, [mindMapData, nodes.length, collapsedNodes, toggleChildrenVisibility, nodePositions, setNodes, addFollowUpNodeRef, deleteNodeRef, currentLayout.direction]); // Added currentLayout.direction
+  }, [
+    mindMapData, 
+    edges,
+    nodePositions, 
+    collapsedNodes, 
+    setNodes, 
+    currentLayout, 
+    addFollowUpNodeRef, 
+    deleteNodeRef, 
+    toggleChildrenVisibility, 
+    updateNodeData
+  ]);
 
   return {
     handleResetView,
