@@ -197,8 +197,8 @@ export function useMindMapLayout({
       // --- End of logic for determining hidden nodes ---
 
       const { nodes: flowNodes, edges: flowEdges } = createMindMapLayout(
-        updatedMindMapData,
-        updateNodeData, // updateNodeData is used by createMindMapLayout
+        mindMapData,
+        updateNodeData,
         currentLayout
       );
 
@@ -208,9 +208,6 @@ export function useMindMapLayout({
       const nodesWithFunctions = flowNodes.map(node => {
         const preservePosition = !isLayoutChange && !isInitialLoad && (currentPositionsFromInstance[node.id] || nodePositions[node.id]);
         
-        // Determine if this node itself is a child of a collapsed node.
-        // This is slightly different from nodesToHideForLayout which contains descendants.
-        // A node is hidden if it's in nodesToHideForLayout.
         const nodeIsHidden = nodesToHideForLayout.has(node.id);
         const nodeHasChildren = !!parentToChildrenMapForLayout[node.id]?.length;
         const childrenAreCollapsed = collapsedNodes.has(node.id);
@@ -227,8 +224,9 @@ export function useMindMapLayout({
             layoutDirection: currentLayout.direction,
             hasChildren: nodeHasChildren,
             childrenCollapsed: childrenAreCollapsed,
-            pageNumber: node.data.pageNumber !== undefined ? node.data.pageNumber : updatedMindMapData.nodes.find(n => n.id === node.id)?.pageNumber,
-            // Ensure updateNodeData is passed if CustomNode needs it directly from layout-generated nodes
+            pageNumber: mindMapData.nodes.find(n => n.id === node.id)?.pageNumber !== undefined 
+                        ? mindMapData.nodes.find(n => n.id === node.id)?.pageNumber 
+                        : node.data.pageNumber,
             updateNodeData: updateNodeData, 
           },
         };
@@ -324,7 +322,9 @@ export function useMindMapLayout({
               childrenCollapsed: childrenAreCollapsed,
               layoutDirection: currentLayout.direction,
               nodeType: mindMapNode?.type || node.data.nodeType,
-              pageNumber: mindMapNode?.pageNumber !== undefined ? mindMapNode.pageNumber : node.data.pageNumber,
+              pageNumber: mindMapNode?.pageNumber !== undefined 
+                          ? mindMapNode.pageNumber 
+                          : node.data.pageNumber,
               updateNodeData: updateNodeData,
             },
           };

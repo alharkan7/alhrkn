@@ -1,4 +1,4 @@
-import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
+import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL, EXAMPLE_PDF_TEXT } from '../data/sampleMindmap';
 import MindmapClientView from '../[id]/MindmapClientView';
 
 export default function ExampleMindmapPage() {
@@ -10,6 +10,8 @@ export default function ExampleMindmapPage() {
       mindmapInputType="pdf"
       mindmapPdfUrl={EXAMPLE_PDF_URL}
       mindmapSourceUrl={undefined}
+      mindmapExpiresAt={undefined}
+      mindmapParsedPdfContent={EXAMPLE_PDF_TEXT}
     />
   );
 } 
