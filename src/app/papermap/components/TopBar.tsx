@@ -111,7 +111,7 @@ export default function TopBar({
                 className="flex items-center"
                 title="New Mindmap"
               >
-                <span className=""><RefreshCw className="h-4 w-4" /></span>
+                <span className=""><Plus className="h-4 w-4" /></span>
                 <span className="sm:inline hidden">New</span>
               </Button>
             </AlertDialogTrigger>
