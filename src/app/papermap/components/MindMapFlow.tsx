@@ -177,7 +177,7 @@ const MindMapFlow = () => {
         style={{ width: '100%', height: '100%', background: bgColor }}
         fitView
       >
-        <Controls className="print:hidden" />
+        <Controls className="print:hidden text-foreground dark:text-foreground !fill-current" />
         <Background color={dotColor} gap={dotGap} size={dotSize} />
       </ReactFlow>
       

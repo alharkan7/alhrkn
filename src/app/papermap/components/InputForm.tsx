@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { LoaderCircle, AlertTriangle, Waypoints, X } from "lucide-react";
+import { LoaderCircle, AlertTriangle, Waypoints, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { upload } from '@vercel/blob/client';
@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from 'next/navigation';
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 // Define file size limit constant - increased with Vercel Blob
 const MAX_FILE_SIZE_MB = 25; // Maximum file size for PDF uploads
@@ -699,6 +700,24 @@ const InputForm: React.FC<InputFormProps> = ({
                                     </TabsList>
                                 </Tabs>
 
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge
+                                            variant={isHovered ? "default" : "neutral"}
+                                            className={`cursor-pointer h-8 text-muted-foreground hover:text-primary${isActive ? " mb-1 mr-2" : ""}`}
+                                            onClick={isFormDisabled ? undefined : (() => { handleExampleClick(); setIsActive(true); })}
+                                            onMouseEnter={isFormDisabled ? undefined : (() => { setIsHovered(true); setIsActive(true); })}
+                                            onMouseLeave={isFormDisabled ? undefined : (() => { setIsHovered(false); setIsActive(false); })}
+                                            aria-disabled={isFormDisabled}
+                                            tabIndex={isFormDisabled ? -1 : 0}
+                                        >
+                                            <Lightbulb className="h-5 w-5" />
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" align="center">
+                                        Show Example
+                                    </TooltipContent>
+                                </Tooltip>
                             </div>
 
                             <Button
@@ -718,21 +737,6 @@ const InputForm: React.FC<InputFormProps> = ({
                             </Button>
                         </div>
                     </form>
-
-                    {/* Example Badge moved here */}
-  <div className="flex justify-center mt-4">
-    <Badge
-      variant={isHovered ? "default" : "neutral"}
-      className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
-      onClick={isFormDisabled ? undefined : (() => { handleExampleClick(); setIsActive(true); })}
-      onMouseEnter={isFormDisabled ? undefined : (() => { setIsHovered(true); setIsActive(true); })}
-      onMouseLeave={isFormDisabled ? undefined : (() => { setIsHovered(false); setIsActive(false); })}
-      aria-disabled={isFormDisabled}
-      tabIndex={isFormDisabled ? -1 : 0}
-    >
-      Example
-    </Badge>
-  </div>
                 </Form>
             </div>
 

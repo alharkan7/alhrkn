@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { Space_Grotesk } from 'next/font/google';
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -121,15 +122,17 @@ export default function RootLayout({
         `}</style>
       </head>
       <body className={`${spaceGrotesk.className} font-sans`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster position="top-center"/>
-        </ThemeProvider>
+        <TooltipProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster position="top-center"/>
+          </ThemeProvider>
+        </TooltipProvider>
       </body>
     </html>
   )
