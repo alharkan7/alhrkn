@@ -699,17 +699,6 @@ const InputForm: React.FC<InputFormProps> = ({
                                     </TabsList>
                                 </Tabs>
 
-                                <Badge
-                                    variant={isHovered ? "default" : "neutral"}
-                                    className={`cursor-pointer h-8 text-muted-foreground hover:text-primary${isActive ? " mb-1 mr-2" : ""}`}
-                                    onClick={isFormDisabled ? undefined : (() => { handleExampleClick(); setIsActive(true); })}
-                                    onMouseEnter={isFormDisabled ? undefined : (() => { setIsHovered(true); setIsActive(true); })}
-                                    onMouseLeave={isFormDisabled ? undefined : (() => { setIsHovered(false); setIsActive(false); })}
-                                    aria-disabled={isFormDisabled}
-                                    tabIndex={isFormDisabled ? -1 : 0}
-                                >
-                                    Example
-                                </Badge>
                             </div>
 
                             <Button
@@ -729,6 +718,21 @@ const InputForm: React.FC<InputFormProps> = ({
                             </Button>
                         </div>
                     </form>
+
+                    {/* Example Badge moved here */}
+  <div className="flex justify-center mt-4">
+    <Badge
+      variant={isHovered ? "default" : "neutral"}
+      className="cursor-pointer h-8 text-muted-foreground hover:text-primary"
+      onClick={isFormDisabled ? undefined : (() => { handleExampleClick(); setIsActive(true); })}
+      onMouseEnter={isFormDisabled ? undefined : (() => { setIsHovered(true); setIsActive(true); })}
+      onMouseLeave={isFormDisabled ? undefined : (() => { setIsHovered(false); setIsActive(false); })}
+      aria-disabled={isFormDisabled}
+      tabIndex={isFormDisabled ? -1 : 0}
+    >
+      Example
+    </Badge>
+  </div>
                 </Form>
             </div>
 
