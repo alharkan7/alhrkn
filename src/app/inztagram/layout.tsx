@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Inztagram (Instant Diagram)',
+  title: 'Inztagram - Instant Diagram',
   description: 'Create Any Diagram in Seconds with AI',
 }
 

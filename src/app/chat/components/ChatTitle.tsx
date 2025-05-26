@@ -35,7 +35,7 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
                 <span className="text-primary whitespace-nowrap">Ask</span>{' '}
                 <span className="whitespace-nowrap">Al</span>
             </h1>
-            <div className="text-sm text-muted-foreground">
+            {/* <div className="text-sm text-muted-foreground">
                 <a 
                     href="https://x.com/alhrkn" 
                     target="_blank" 
@@ -45,7 +45,7 @@ export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear 
                     @alhrkn
                 </a>
                 's Experimental Apps
-            </div>
+            </div> */}
         </div>
     );
 }
