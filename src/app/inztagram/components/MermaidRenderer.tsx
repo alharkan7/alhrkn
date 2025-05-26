@@ -164,7 +164,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
             .then((dataUrl) => {
                 const a = document.createElement('a');
                 a.href = dataUrl;
-                a.download = 'diagram from raihankalla-id.jpeg';
+                a.download = 'diagram (raihankalla-id).jpeg';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -187,7 +187,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'diagram from raihankalla-id.svg';
+        a.download = 'diagram (raihankalla-id).svg';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -252,7 +252,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                 <Download className="size-5" />
                             </Button>
                             {showDownloadDropdown && (
-                                <div className="absolute right-0 mt-2 w-32 bg-card rounded-md shadow-lg z-10 border border-border">
+                                <div className="absolute right-0 mt-2 w-auto bg-card rounded-md shadow-lg z-10 border border-border">
                                     <ul className="py-1">
                                         <li>
                                             <button
