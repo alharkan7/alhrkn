@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { NextRequest } from 'next/server';
 import { DIAGRAM_TYPES } from '../../inztagram/components/diagram-types';
 
@@ -18,6 +18,16 @@ const model = genAI.getGenerativeModel({
 });
 
 const SYSTEM_PROMPT = `You are an expert in Mermaid.js diagrams. Given a natural language description, output a JSON object with two fields: { "diagramType": string, "code": string }. The diagramType must be one of the following: [${DIAGRAM_TYPES.map(t => t.value).join(', ')}]. The code must be the Mermaid.js diagram BODY (not the type declaration, not markdown, not explanations). Do not include code fences or any extra text. Output ONLY the JSON object.`;
+
+const responseSchema = {
+  type: "object",
+  properties: {
+    diagramType: { type: "string" },
+    code: { type: "string" }
+  },
+  required: ["diagramType", "code"],
+  propertyOrdering: ["diagramType", "code"]
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,6 +78,14 @@ export async function POST(req: NextRequest) {
           { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
           { role: 'user', parts: [{ text: prompt }] },
         ],
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+          responseSchema: responseSchema as any
+        }
       });
     }
 

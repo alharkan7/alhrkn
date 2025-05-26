@@ -141,12 +141,12 @@ export default function InztagramPage() {
               transition={{ duration: 0.4, ease: 'easeInOut' }}
               className="w-full mt-[25vh]"
             >
-              <div className="text-center py-4">
+              <div className="text-center pt-4 pb-8">
                 <h1 className="text-5xl font-black mb-2">
                   <span className="text-primary whitespace-nowrap">Inztagram</span>{' '}
                 </h1>
                 <div className="text-lg text-muted-foreground">
-                  Create <span className="font-bold text-primary">Instant Diagram</span> with AI
+                  Create <span className="font-bold text-primary">Instant Diagram</span> in Seconds
                 </div>
               </div>
               <div className="w-full flex justify-center">
@@ -169,7 +169,11 @@ export default function InztagramPage() {
                     onFileSelect={handleFileSelect}
                     onClearFile={clearFile}
                   />
-                  {error && <div className="text-center text-red-500 mt-2">{error}</div>}
+                  {error && (
+                    <div className="text-center text-red-500 mt-2">
+                      {error.length > 200 ? error.slice(0, 200) + '…' : error}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

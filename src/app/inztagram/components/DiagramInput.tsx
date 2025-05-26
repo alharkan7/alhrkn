@@ -90,21 +90,13 @@ export function DiagramInput({
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
-            <Button
-              type="button"
-              onClick={handleFileButtonClick}
-              className="shrink-0 p-2 transition-colors disabled:opacity-50"
-              disabled={disabled || loading || !!pdfFile}
-              aria-label="Attach PDF"
-            >
-              <Paperclip className="size-5" />
-            </Button>
+
             <Select
               value={diagramType ?? "auto"}
               onValueChange={v => setDiagramType(v === "auto" ? undefined : v)}
               disabled={disabled || loading}
             >
-              <SelectTrigger className="w-full min-w-[80px] max-w-[180px] md:w-auto md:min-w-[120px] md:max-w-[220px]">
+              <SelectTrigger className="w-auto max-w-[180px] md:max-w-[220px]" >
                 <SelectValue placeholder="Auto" />
               </SelectTrigger>
               <SelectContent>
@@ -116,9 +108,18 @@ export function DiagramInput({
             </Select>
           </div>
           <Button
+            type="button"
+            onClick={handleFileButtonClick}
+            className="shrink-0 p-2 transition-colors disabled:opacity-50"
+            disabled={disabled || loading || !!pdfFile}
+            aria-label="Attach PDF"
+          >
+            <Paperclip className="size-5" />
+          </Button>
+          <Button
             type="submit"
             className="shrink-0 grow-0 p-2 transition-colors disabled:opacity-50 w-auto"
-            disabled={disabled || loading || (!value.trim() && !pdfFile)}
+            disabled={disabled || loading || uploading || (!value.trim() && !pdfFile)}
             aria-label="Send diagram"
           >
             {loading ? (

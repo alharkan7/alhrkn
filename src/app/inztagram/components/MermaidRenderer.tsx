@@ -2,20 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Maximize, LoaderCircle, Download } from 'lucide-react';
+import { Maximize, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DIAGRAM_THEMES, DIAGRAM_TYPES } from './diagram-types';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import panzoom from 'panzoom';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toPng, toJpeg } from 'html-to-image';
@@ -316,8 +305,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                         </div>
                     )}
                     {renderError ? (
-                        <div className="text-center text-red-500 min-h-[300px] flex items-center justify-center">
-                            {renderError}
+                        <div className="text-center text-red-500 min-h-[300px] flex flex-col items-center justify-center">
+                            <div className="mb-2 text-base font-semibold">Failed to Display Diagram; Try Again or Use Text Editor</div>
+                            <div>
+                                {renderError.length > 200 ? renderError.slice(0, 200) + '…' : renderError}
+                            </div>
                         </div>
                     ) : (
                         <div
