@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Maximize } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DIAGRAM_THEMES } from './diagram-types';
 import {
@@ -28,6 +28,13 @@ interface MermaidRendererProps {
 
 export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramType, diagramTheme, onThemeChange, onNewDiagram }) => {
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Helper to reset panzoom
+    const handleResetZoom = () => {
+        if (containerRef.current && (containerRef.current as any).__panzoomInstance) {
+            (containerRef.current as any).__panzoomInstance.reset();
+        }
+    };
 
     useEffect(() => {
         if (!code) return;
@@ -107,6 +114,16 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                     </Select>
                 </div>
                 <CardContent className="p-4">
+                    {/* Maximize (reset zoom) button */}
+                    <button
+                        type="button"
+                        onClick={handleResetZoom}
+                        className="absolute bottom-4 right-4 z-10 bg-primary-foreground rounded-full p-2 shadow hover:bg-primary/10 transition-colors"
+                        aria-label="Reset zoom and pan"
+                        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                    >
+                        <Maximize className="w-5 h-5" />
+                    </button>
                     <div
                         ref={containerRef}
                         className="w-full flex justify-center items-center min-h-[300px] overflow-hidden"
