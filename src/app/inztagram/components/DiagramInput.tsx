@@ -2,30 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles } from 'lucide-react';
-
-const DIAGRAM_TYPES = [
-  { value: 'graph TD', label: 'Flowchart (Top-Down)' },
-  { value: 'graph LR', label: 'Flowchart (Left-Right)' },
-  { value: 'sequenceDiagram', label: 'Sequence Diagram' },
-  { value: 'classDiagram', label: 'Class Diagram' },
-  { value: 'stateDiagram-v2', label: 'State Diagram' },
-  { value: 'erDiagram', label: 'ER Diagram' },
-  { value: 'journey', label: 'User Journey' },
-  { value: 'gantt', label: 'Gantt Chart' },
-  { value: 'pie', label: 'Pie Chart' },
-  { value: 'requirementDiagram', label: 'Requirement Diagram' },
-  { value: 'gitGraph', label: 'Gitgraph Diagram' },
-  { value: 'mindmap', label: 'Mind Map' },
-  { value: 'timeline', label: 'Timeline' },
-];
-
-const DIAGRAM_THEMES = [
-  { value: 'default', label: 'Default' },
-  { value: 'neutral', label: 'Neutral' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'forest', label: 'Forest' },
-  { value: 'base', label: 'Base' },
-];
+import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
 
 interface DiagramInputProps {
   value: string;
