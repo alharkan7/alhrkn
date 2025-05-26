@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest } from 'next/server';
+import { DIAGRAM_TYPES } from '../../inztagram/components/diagram-types';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
@@ -16,20 +17,25 @@ const model = genAI.getGenerativeModel({
   },
 });
 
-const SYSTEM_PROMPT = `You are an expert in Mermaid.js diagrams. Given a diagram type and a natural language description, output ONLY the Mermaid.js diagram BODY (not the type declaration, not markdown, not explanations). Do not include code fences or any extra text.`;
+const SYSTEM_PROMPT = `You are an expert in Mermaid.js diagrams. Given a natural language description, output a JSON object with two fields: { "diagramType": string, "code": string }. The diagramType must be one of the following: [${DIAGRAM_TYPES.map(t => t.value).join(', ')}]. The code must be the Mermaid.js diagram BODY (not the type declaration, not markdown, not explanations). Do not include code fences or any extra text. Output ONLY the JSON object.`;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { description, diagramType } = body;
-    if (!description || !diagramType) {
-      return new Response(JSON.stringify({ error: 'Missing description or diagramType' }), {
+    if (!description) {
+      return new Response(JSON.stringify({ error: 'Missing description' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const prompt = `Diagram type: ${diagramType}\nDescription: ${description}\n\nOutput ONLY the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
+    let prompt;
+    if (diagramType) {
+      prompt = `Diagram type: ${diagramType}\nDescription: ${description}\n\nOutput ONLY a JSON object: {\n  "diagramType": "${diagramType}",\n  "code": "..."\n}\nThe code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
+    } else {
+      prompt = `Description: ${description}\n\nChoose the best diagram type from this list: [${DIAGRAM_TYPES.map(t => t.value).join(', ')}]. Output ONLY a JSON object: {\n  "diagramType": "...",\n  "code": "..."\n}\nThe diagramType must be one of the allowed types. The code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
+    }
 
     const result = await model.generateContent({
       contents: [
@@ -38,14 +44,38 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    let code = result.response.text().trim();
-    // Remove code fences and diagram type if present
+    let responseText = result.response.text().trim();
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      // Try to extract JSON from text
+      const match = responseText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      } else {
+        return new Response(JSON.stringify({ error: 'Failed to parse model response as JSON', raw: responseText }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    // Validate diagramType
+    const allowedTypes = DIAGRAM_TYPES.map(t => t.value);
+    if (!parsed.diagramType || !allowedTypes.includes(parsed.diagramType)) {
+      return new Response(JSON.stringify({ error: 'Invalid or missing diagramType in model response', raw: responseText }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    // Clean code
+    let code = parsed.code.trim();
     if (code.startsWith("```mermaid")) code = code.slice(9).trim();
     if (code.startsWith("```")) code = code.slice(3).trim();
     if (code.endsWith("```")) code = code.slice(0, -3).trim();
-    if (code.toLowerCase().startsWith(diagramType.toLowerCase())) code = code.slice(diagramType.length).trim();
+    if (code.toLowerCase().startsWith(parsed.diagramType.toLowerCase())) code = code.slice(parsed.diagramType.length).trim();
 
-    return new Response(JSON.stringify({ code }), {
+    return new Response(JSON.stringify({ code, diagramType: parsed.diagramType }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

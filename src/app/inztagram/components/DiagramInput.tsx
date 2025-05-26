@@ -25,7 +25,7 @@ export function DiagramInput({
 }: DiagramInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [diagramType, setDiagramType] = useState(DIAGRAM_TYPES[0].value);
+  const [diagramType, setDiagramType] = useState<string | undefined>(undefined);
   const [diagramTheme, setDiagramTheme] = useState(DIAGRAM_THEMES[0].value);
 
   const handleFocus = () => {
@@ -41,7 +41,7 @@ export function DiagramInput({
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSend) {
-      onSend(value, diagramType, diagramTheme);
+      onSend(value, diagramType ?? '', diagramTheme);
     }
   };
 
@@ -70,11 +70,16 @@ export function DiagramInput({
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
-            <Select value={diagramType} onValueChange={setDiagramType} disabled={disabled || loading}>
+            <Select
+              value={diagramType ?? "auto"}
+              onValueChange={v => setDiagramType(v === "auto" ? undefined : v)}
+              disabled={disabled || loading}
+            >
               <SelectTrigger className="w-full min-w-[80px] max-w-[180px] md:w-auto md:min-w-[120px] md:max-w-[220px]">
-                <SelectValue />
+                <SelectValue placeholder="Auto" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem key="auto" value="auto">Auto</SelectItem>
                 {DIAGRAM_TYPES.map((type) => (
                   <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                 ))}

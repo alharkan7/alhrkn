@@ -16,23 +16,24 @@ export default function InztagramPage() {
   const [diagramCode, setDiagramCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [diagramType, setDiagramType] = useState<string>('graph TD');
+  const [diagramType, setDiagramType] = useState<string | null>(null);
   const [diagramTheme, setDiagramTheme] = useState<string>('default');
 
   const handleSend = async (value: string, type: string, theme: string) => {
     setLoading(true);
     setError(null);
-    setDiagramType(type);
+    setDiagramType(type || null);
     setDiagramTheme(theme);
     try {
       const res = await fetch("/api/inztagram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: value, diagramType: type }),
+        body: JSON.stringify({ description: value, diagramType: type || undefined }),
       });
       const data = await res.json();
-      if (res.ok && data.code) {
+      if (res.ok && data.code && data.diagramType) {
         setDiagramCode(data.code);
+        setDiagramType(data.diagramType);
       } else {
         setError(data.error || "Failed to generate diagram");
       }
@@ -65,6 +66,7 @@ export default function InztagramPage() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={() => {
                     setDiagramCode(null);
+                    setDiagramType(null);
                     setInput("");
                   }}>Continue</AlertDialogAction>
                 </AlertDialogFooter>
@@ -86,11 +88,12 @@ export default function InztagramPage() {
             >
               <MermaidRenderer
                 code={diagramCode}
-                diagramType={diagramType}
+                diagramType={diagramType || ''}
                 diagramTheme={diagramTheme}
                 onThemeChange={setDiagramTheme}
                 onNewDiagram={() => {
                   setDiagramCode(null);
+                  setDiagramType(null);
                   setInput("");
                 }}
                 onCodeChange={setDiagramCode}
