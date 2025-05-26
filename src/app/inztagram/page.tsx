@@ -10,6 +10,7 @@ import { Plus } from 'lucide-react';
 import { DIAGRAM_THEMES } from './components/diagram-types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FilePreview } from './components/PDFPreview';
 
 export default function InztagramPage() {
   const [input, setInput] = useState("");
@@ -18,6 +19,8 @@ export default function InztagramPage() {
   const [error, setError] = useState<string | null>(null);
   const [diagramType, setDiagramType] = useState<string | null>(null);
   const [diagramTheme, setDiagramTheme] = useState<string>('default');
+  const [pdfFile, setPdfFile] = useState<{ name: string; type: string; url: string; uploaded?: boolean } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleSend = async (value: string, type: string, theme: string, pdfUrl?: string, pdfName?: string) => {
     setLoading(true);
@@ -46,6 +49,33 @@ export default function InztagramPage() {
       setLoading(false);
     }
   };
+
+  // Handles file selection and upload
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') return;
+    // Show preview immediately
+    const localUrl = URL.createObjectURL(file);
+    setPdfFile({ name: file.name, type: file.type, url: localUrl, uploaded: false });
+    setUploading(true);
+    try {
+      // Upload to Vercel Blob
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/inztagram/blob?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setPdfFile({ name: file.name, type: file.type, url: data.url, uploaded: true });
+        URL.revokeObjectURL(localUrl);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+  const clearFile = () => setPdfFile(null);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -116,11 +146,17 @@ export default function InztagramPage() {
                   <span className="text-primary whitespace-nowrap">Inztagram</span>{' '}
                 </h1>
                 <div className="text-lg text-muted-foreground">
-                  Create Instant Diagram with AI
+                  Create <span className="font-bold text-primary">Instant Diagram</span> with AI
                 </div>
               </div>
               <div className="w-full flex justify-center">
                 <div className="w-full h-full max-w-2xl">
+                  {/* File preview above the form */}
+                  {pdfFile && (
+                    <div className="w-full flex flex-col items-center mb-2">
+                      <FilePreview file={pdfFile} isUploading={uploading} onRemove={clearFile} />
+                    </div>
+                  )}
                   <DiagramInput
                     value={input}
                     onChange={setInput}
@@ -128,6 +164,10 @@ export default function InztagramPage() {
                     onSend={handleSend}
                     disabled={loading}
                     loading={loading}
+                    pdfFile={pdfFile}
+                    uploading={uploading}
+                    onFileSelect={handleFileSelect}
+                    onClearFile={clearFile}
                   />
                   {error && <div className="text-center text-red-500 mt-2">{error}</div>}
                 </div>

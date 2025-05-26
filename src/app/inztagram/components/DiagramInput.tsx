@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles, LoaderCircle, Paperclip } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
 import { Input } from '@/components/ui/input';
-import { FilePreview } from '@/components/ui/FilePreview';
+import { FilePreview } from './PDFPreview';
 
 interface DiagramInputProps {
   value: string;
@@ -14,6 +14,10 @@ interface DiagramInputProps {
   loading?: boolean;
   onFocusChange?: (focused: boolean) => void;
   onSend?: (value: string, type: string, theme: string, pdfUrl?: string, pdfName?: string) => void;
+  pdfFile?: { name: string; type: string; url: string; uploaded?: boolean } | null;
+  uploading?: boolean;
+  onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearFile?: () => void;
 }
 
 export function DiagramInput({
@@ -24,14 +28,16 @@ export function DiagramInput({
   loading = false,
   onFocusChange,
   onSend,
+  pdfFile,
+  uploading,
+  onFileSelect,
+  onClearFile,
 }: DiagramInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [diagramType, setDiagramType] = useState<string | undefined>(undefined);
   const [diagramTheme, setDiagramTheme] = useState(DIAGRAM_THEMES[0].value);
-  const [pdfFile, setPdfFile] = useState<{ name: string; type: string; url: string; uploaded?: boolean } | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   const handleFocus = () => {
     setIsFocused(true);
@@ -43,42 +49,17 @@ export function DiagramInput({
     onFocusChange?.(false);
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || file.type !== 'application/pdf') return;
-    setUploading(true);
-    try {
-      // Upload to Vercel Blob
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch(`/api/inztagram/blob?filename=${encodeURIComponent(file.name)}`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        setPdfFile({ name: file.name, type: file.type, url: data.url, uploaded: true });
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const clearFile = () => setPdfFile(null);
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSend) {
-      onSend(value, diagramType ?? '', diagramTheme, pdfFile?.url, pdfFile?.name);
-    }
-  };
-
   const handleFileButtonClick = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
 
   return (
-    <form onSubmit={handleSend} className={`relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full 
+    <form onSubmit={e => {
+      e.preventDefault();
+      if (onSend) {
+        onSend(value, diagramType ?? '', diagramTheme, pdfFile?.url, pdfFile?.name);
+      }
+    }} className={`relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full 
         ${isFocused ? 'border-[3px] border-ring shadow-[3px_3px_0px_0px_var(--ring)]' : 'border-[2px] border-border shadow-[var(--shadow)]'}
         bg-bw rounded-lg p-2`}>
 
@@ -100,18 +81,12 @@ export function DiagramInput({
             target.style.height = `${target.scrollHeight}px`;
           }}
         />
-        {pdfFile && (
-          <div className="w-full flex flex-col items-center mb-2">
-            <div className="text-xs text-muted-foreground mb-1">PDF attached:</div>
-            <FilePreview file={pdfFile} isUploading={uploading} onRemove={clearFile} />
-          </div>
-        )}
         <Input
           type="file"
           ref={fileInputRef}
           className="hidden"
           accept="application/pdf"
-          onChange={handleFileSelect}
+          onChange={onFileSelect}
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
@@ -139,18 +114,6 @@ export function DiagramInput({
                 ))}
               </SelectContent>
             </Select>
-            {/* <div className="hidden md:block">
-              <Select value={diagramTheme} onValueChange={setDiagramTheme} disabled={disabled || loading}>
-                <SelectTrigger className="w-auto min-w-[100px] max-w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DIAGRAM_THEMES.map((theme) => (
-                    <SelectItem key={theme.value} value={theme.value}>{theme.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div> */}
           </div>
           <Button
             type="submit"
