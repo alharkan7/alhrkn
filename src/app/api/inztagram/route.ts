@@ -22,9 +22,9 @@ const SYSTEM_PROMPT = `You are an expert in Mermaid.js diagrams. Given a natural
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { description, diagramType } = body;
-    if (!description) {
-      return new Response(JSON.stringify({ error: 'Missing description' }), {
+    const { description, diagramType, pdfUrl, pdfName } = body;
+    if (!description && !pdfUrl) {
+      return new Response(JSON.stringify({ error: 'Missing description or pdfUrl' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -32,17 +32,44 @@ export async function POST(req: NextRequest) {
 
     let prompt;
     if (diagramType) {
-      prompt = `Diagram type: ${diagramType}\nDescription: ${description}\n\nOutput ONLY a JSON object: {\n  "diagramType": "${diagramType}",\n  "code": "..."\n}\nThe code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
+      prompt = `Diagram type: ${diagramType}\nDescription: ${description || pdfName || 'PDF'}\n\nOutput ONLY a JSON object: {\n  "diagramType": "${diagramType}",\n  "code": "..."\n}\nThe code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
     } else {
-      prompt = `Description: ${description}\n\nChoose the best diagram type from this list: [${DIAGRAM_TYPES.map(t => t.value).join(', ')}]. Output ONLY a JSON object: {\n  "diagramType": "...",\n  "code": "..."\n}\nThe diagramType must be one of the allowed types. The code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
+      prompt = `Description: ${description || pdfName || 'PDF'}\n\nChoose the best diagram type from this list: [${DIAGRAM_TYPES.map(t => t.value).join(', ')}]. Output ONLY a JSON object: {\n  "diagramType": "...",\n  "code": "..."\n}\nThe diagramType must be one of the allowed types. The code must be the Mermaid.js diagram BODY (do not include the diagram type declaration, code fences, or any explanations).`;
     }
 
-    const result = await model.generateContent({
-      contents: [
-        { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
-        { role: 'user', parts: [{ text: prompt }] },
-      ],
-    });
+    let result;
+    if (pdfUrl) {
+      const chat = model.startChat();
+      let messageParts;
+      if (pdfUrl.includes('vercel-blob.com')) {
+        // Use remote file reference
+        messageParts = [
+          { text: prompt },
+          { fileData: { mimeType: 'application/pdf', fileUri: pdfUrl } }
+        ];
+      } else {
+        // Download and send as inlineData (base64)
+        const pdfResponse = await fetch(pdfUrl);
+        if (!pdfResponse.ok) {
+          throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+        }
+        const pdfBuffer = await pdfResponse.arrayBuffer();
+        const base64Data = Buffer.from(pdfBuffer).toString('base64');
+        messageParts = [
+          { text: prompt },
+          { inlineData: { mimeType: 'application/pdf', data: base64Data } }
+        ];
+      }
+      result = await chat.sendMessage(messageParts);
+    } else {
+      // Text only
+      result = await model.generateContent({
+        contents: [
+          { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
+          { role: 'user', parts: [{ text: prompt }] },
+        ],
+      });
+    }
 
     let responseText = result.response.text().trim();
     let parsed;

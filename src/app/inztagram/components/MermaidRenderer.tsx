@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Maximize, LoaderCircle, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DIAGRAM_THEMES } from './diagram-types';
+import { DIAGRAM_THEMES, DIAGRAM_TYPES } from './diagram-types';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -38,6 +38,25 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     const [editableCode, setEditableCode] = useState(code);
     const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
     const downloadDropdownRef = useRef<HTMLDivElement>(null);
+    const [autoCorrected, setAutoCorrected] = useState(false);
+
+    // Pre-validation: ensure code starts with a valid diagram type and auto-correct '--' to '-->' for flowcharts
+    function getRenderableCode(rawCode: string, diagramType: string) {
+        const typeValues = DIAGRAM_TYPES.map(t => t.value);
+        const trimmed = rawCode.trim();
+        const startsWithType = typeValues.some(type => trimmed.startsWith(type));
+        let codeBody = startsWithType ? trimmed : `${diagramType}\n${trimmed}`;
+        let corrected = false;
+        // Auto-correct '--' to '-->' for flowcharts
+        if (diagramType === 'graph TD' || diagramType === 'graph LR') {
+            // Replace -- not followed by > or - with -->
+            const before = codeBody;
+            codeBody = codeBody.replace(/--(?![->-])/g, '-->');
+            if (before !== codeBody) corrected = true;
+        }
+        setAutoCorrected(corrected);
+        return codeBody;
+    }
 
     useEffect(() => {
         if (!code) return;
@@ -46,7 +65,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
 
         if (containerRef.current) {
             const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-            const graphDefinition = `${diagramType}\n${code}`;
+            const graphDefinition = getRenderableCode(code, diagramType);
             containerRef.current.innerHTML = ""; // Clear previous
 
             // Use mermaid.render for async error handling
@@ -291,6 +310,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                     </div>
                 </div>
                 <CardContent className="p-0">
+                    {autoCorrected && (
+                        <div className="text-center text-yellow-600 text-xs py-2">
+                            Auto-corrected '--' to {'-->'} for Mermaid flowchart syntax.
+                        </div>
+                    )}
                     {renderError ? (
                         <div className="text-center text-red-500 min-h-[300px] flex items-center justify-center">
                             {renderError}

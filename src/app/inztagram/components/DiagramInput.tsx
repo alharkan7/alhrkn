@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, LoaderCircle } from 'lucide-react';
+import { Sparkles, LoaderCircle, Paperclip } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
+import { Input } from '@/components/ui/input';
+import { FilePreview } from '@/components/ui/FilePreview';
 
 interface DiagramInputProps {
   value: string;
@@ -11,7 +13,7 @@ interface DiagramInputProps {
   disabled?: boolean;
   loading?: boolean;
   onFocusChange?: (focused: boolean) => void;
-  onSend?: (value: string, type: string, theme: string) => void;
+  onSend?: (value: string, type: string, theme: string, pdfUrl?: string, pdfName?: string) => void;
 }
 
 export function DiagramInput({
@@ -24,9 +26,12 @@ export function DiagramInput({
   onSend,
 }: DiagramInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [diagramType, setDiagramType] = useState<string | undefined>(undefined);
   const [diagramTheme, setDiagramTheme] = useState(DIAGRAM_THEMES[0].value);
+  const [pdfFile, setPdfFile] = useState<{ name: string; type: string; url: string; uploaded?: boolean } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleFocus = () => {
     setIsFocused(true);
@@ -38,11 +43,38 @@ export function DiagramInput({
     onFocusChange?.(false);
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') return;
+    setUploading(true);
+    try {
+      // Upload to Vercel Blob
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/inztagram/blob?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setPdfFile({ name: file.name, type: file.type, url: data.url, uploaded: true });
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearFile = () => setPdfFile(null);
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSend) {
-      onSend(value, diagramType ?? '', diagramTheme);
+      onSend(value, diagramType ?? '', diagramTheme, pdfFile?.url, pdfFile?.name);
     }
+  };
+
+  const handleFileButtonClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   return (
@@ -68,8 +100,30 @@ export function DiagramInput({
             target.style.height = `${target.scrollHeight}px`;
           }}
         />
+        {pdfFile && (
+          <div className="w-full flex flex-col items-center mb-2">
+            <div className="text-xs text-muted-foreground mb-1">PDF attached:</div>
+            <FilePreview file={pdfFile} isUploading={uploading} onRemove={clearFile} />
+          </div>
+        )}
+        <Input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="application/pdf"
+          onChange={handleFileSelect}
+        />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
+            <Button
+              type="button"
+              onClick={handleFileButtonClick}
+              className="shrink-0 p-2 transition-colors disabled:opacity-50"
+              disabled={disabled || loading || !!pdfFile}
+              aria-label="Attach PDF"
+            >
+              <Paperclip className="size-5" />
+            </Button>
             <Select
               value={diagramType ?? "auto"}
               onValueChange={v => setDiagramType(v === "auto" ? undefined : v)}
@@ -101,7 +155,7 @@ export function DiagramInput({
           <Button
             type="submit"
             className="shrink-0 grow-0 p-2 transition-colors disabled:opacity-50 w-auto"
-            disabled={disabled || loading || !value.trim()}
+            disabled={disabled || loading || (!value.trim() && !pdfFile)}
             aria-label="Send diagram"
           >
             {loading ? (

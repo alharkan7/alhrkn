@@ -19,16 +19,19 @@ export default function InztagramPage() {
   const [diagramType, setDiagramType] = useState<string | null>(null);
   const [diagramTheme, setDiagramTheme] = useState<string>('default');
 
-  const handleSend = async (value: string, type: string, theme: string) => {
+  const handleSend = async (value: string, type: string, theme: string, pdfUrl?: string, pdfName?: string) => {
     setLoading(true);
     setError(null);
     setDiagramType(type || null);
     setDiagramTheme(theme);
     try {
+      const body: any = pdfUrl
+        ? { pdfUrl, pdfName, diagramType: type || undefined }
+        : { description: value, diagramType: type || undefined };
       const res = await fetch("/api/inztagram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: value, diagramType: type || undefined }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (res.ok && data.code && data.diagramType) {
