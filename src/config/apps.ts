@@ -1,4 +1,4 @@
-import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather } from 'lucide-react'
+import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareChartGantt } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -13,6 +13,12 @@ export const apps: AppConfig[] = [
     icon: Waypoints,
     slug: '',
     description: 'Learn Anything with Interactive AI Mindmap',
+  },
+  {
+    name: 'Inztagram',
+    icon: SquareChartGantt,
+    slug: 'inztagram',
+    description: 'Create Any Diagram in Seconds with AI',
   },
   {
     name: 'AI Chat',
