@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { DIAGRAM_THEMES } from './components/diagram-types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function InztagramPage() {
   const [input, setInput] = useState("");
@@ -72,43 +73,63 @@ export default function InztagramPage() {
           ) : null}
         />
       </div>
-      {diagramCode ? (
-        <MermaidRenderer
-          code={diagramCode}
-          diagramType={diagramType}
-          diagramTheme={diagramTheme}
-          onThemeChange={setDiagramTheme}
-          onNewDiagram={() => {
-            setDiagramCode(null);
-            setInput("");
-          }}
-          onCodeChange={setDiagramCode}
-        />
-      ) : (
-        <div className="flex-1 flex flex-col justify-start items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[25vh]">
-          <div className="text-center py-4">
-            <h1 className="text-5xl font-black mb-2">
-              <span className="text-primary whitespace-nowrap">Inztagram</span>{' '}
-            </h1>
-            <div className="text-lg text-muted-foreground">
-              Create Instant Diagram with AI
-            </div>
-          </div>
-          <div className="w-full flex justify-center">
-            <div className="w-full h-full max-w-2xl">
-              <DiagramInput
-                value={input}
-                onChange={setInput}
-                placeholder="Describe your diagram..."
-                onSend={handleSend}
-                disabled={loading}
-                loading={loading}
+      <div className="flex-1 flex flex-col justify-start items-center max-w-4xl mx-auto w-full px-1 md:px-4">
+        <AnimatePresence mode="wait" initial={false}>
+          {diagramCode ? (
+            <motion.div
+              key="mermaid-renderer"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="w-full"
+            >
+              <MermaidRenderer
+                code={diagramCode}
+                diagramType={diagramType}
+                diagramTheme={diagramTheme}
+                onThemeChange={setDiagramTheme}
+                onNewDiagram={() => {
+                  setDiagramCode(null);
+                  setInput("");
+                }}
+                onCodeChange={setDiagramCode}
               />
-              {error && <div className="text-center text-red-500 mt-2">{error}</div>}
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="diagram-input"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="w-full mt-[25vh]"
+            >
+              <div className="text-center py-4">
+                <h1 className="text-5xl font-black mb-2">
+                  <span className="text-primary whitespace-nowrap">Inztagram</span>{' '}
+                </h1>
+                <div className="text-lg text-muted-foreground">
+                  Create Instant Diagram with AI
+                </div>
+              </div>
+              <div className="w-full flex justify-center">
+                <div className="w-full h-full max-w-2xl">
+                  <DiagramInput
+                    value={input}
+                    onChange={setInput}
+                    placeholder="Describe your diagram..."
+                    onSend={handleSend}
+                    disabled={loading}
+                    loading={loading}
+                  />
+                  {error && <div className="text-center text-red-500 mt-2">{error}</div>}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
       <div className="flex-none mb-1">
         <AppsFooter />
       </div>

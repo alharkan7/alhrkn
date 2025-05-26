@@ -140,36 +140,42 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
 
     // Download as PNG
     const handleDownloadPng = () => {
-        if (!containerRef.current) return;
-        const svgElem = containerRef.current.querySelector('svg');
-        if (!svgElem) return;
-        toPng(svgElem as unknown as HTMLElement, { backgroundColor: 'transparent' })
-            .then((dataUrl) => {
-                const a = document.createElement('a');
-                a.href = dataUrl;
-                a.download = 'diagram from raihankalla-id.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            });
-        setShowDownloadDropdown(false);
+        handleResetZoom();
+        setTimeout(() => {
+            if (!containerRef.current) return;
+            const svgElem = containerRef.current.querySelector('svg');
+            if (!svgElem) return;
+            toPng(svgElem as unknown as HTMLElement, { backgroundColor: 'transparent' })
+                .then((dataUrl) => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = 'diagram from raihankalla-id.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+            setShowDownloadDropdown(false);
+        }, 50);
     };
 
     // Download as JPEG
     const handleDownloadJpeg = () => {
-        if (!containerRef.current) return;
-        const svgElem = containerRef.current.querySelector('svg');
-        if (!svgElem) return;
-        toJpeg(svgElem as unknown as HTMLElement, { backgroundColor: 'white' })
-            .then((dataUrl) => {
-                const a = document.createElement('a');
-                a.href = dataUrl;
-                a.download = 'diagram (raihankalla-id).jpeg';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            });
-        setShowDownloadDropdown(false);
+        handleResetZoom();
+        setTimeout(() => {
+            if (!containerRef.current) return;
+            const svgElem = containerRef.current.querySelector('svg');
+            if (!svgElem) return;
+            toJpeg(svgElem as unknown as HTMLElement, { backgroundColor: 'white' })
+                .then((dataUrl) => {
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = 'diagram (raihankalla-id).jpeg';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+            setShowDownloadDropdown(false);
+        }, 50);
     };
 
     // Download as SVG
