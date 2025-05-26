@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, LoaderCircle } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
 
 interface DiagramInputProps {
@@ -9,6 +9,7 @@ interface DiagramInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  loading?: boolean;
   onFocusChange?: (focused: boolean) => void;
   onSend?: (value: string, type: string, theme: string) => void;
 }
@@ -18,6 +19,7 @@ export function DiagramInput({
   onChange,
   placeholder = 'Type a message...',
   disabled = false,
+  loading = false,
   onFocusChange,
   onSend,
 }: DiagramInputProps) {
@@ -59,7 +61,7 @@ export function DiagramInput({
           onBlur={handleBlur}
           rows={1}
           style={{ height: 'auto' }}
-          disabled={disabled}
+          disabled={disabled || loading}
           onInput={e => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
@@ -68,7 +70,7 @@ export function DiagramInput({
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
-            <Select value={diagramType} onValueChange={setDiagramType}>
+            <Select value={diagramType} onValueChange={setDiagramType} disabled={disabled || loading}>
               <SelectTrigger className="w-full min-w-[80px] max-w-[180px] md:w-auto md:min-w-[120px] md:max-w-[220px]">
                 <SelectValue />
               </SelectTrigger>
@@ -78,8 +80,8 @@ export function DiagramInput({
                 ))}
               </SelectContent>
             </Select>
-            <div className="hidden md:block">
-              <Select value={diagramTheme} onValueChange={setDiagramTheme}>
+            {/* <div className="hidden md:block">
+              <Select value={diagramTheme} onValueChange={setDiagramTheme} disabled={disabled || loading}>
                 <SelectTrigger className="w-auto min-w-[100px] max-w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -89,15 +91,23 @@ export function DiagramInput({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
           </div>
           <Button
             type="submit"
             className="shrink-0 grow-0 p-2 transition-colors disabled:opacity-50 w-auto"
-            disabled={disabled || !value.trim()}
+            disabled={disabled || loading || !value.trim()}
             aria-label="Send diagram"
           >
-            <Sparkles className="size-5" /> Create
+            {loading ? (
+              <>
+                <LoaderCircle className="size-5 animate-spin" /> Creating
+              </>
+            ) : (
+              <>
+                <Sparkles className="size-5" /> Create
+              </>
+            )}
           </Button>
         </div>
       </div>

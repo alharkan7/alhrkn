@@ -54,7 +54,11 @@ export default function InztagramPage() {
           diagramType={diagramType}
           diagramTheme={diagramTheme}
           onThemeChange={setDiagramTheme}
-          onNewDiagram={() => setDiagramCode(null)}
+          onNewDiagram={() => {
+            setDiagramCode(null);
+            setInput("");
+          }}
+          onCodeChange={setDiagramCode}
         />
       ) : (
         <div className="flex-1 flex flex-col justify-start items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[25vh]">
@@ -74,8 +78,8 @@ export default function InztagramPage() {
                 placeholder="Describe your diagram..."
                 onSend={handleSend}
                 disabled={loading}
+                loading={loading}
               />
-              {loading && <div className="text-center text-muted-foreground mt-2">Generating diagram...</div>}
               {error && <div className="text-center text-red-500 mt-2">{error}</div>}
             </div>
           </div>
