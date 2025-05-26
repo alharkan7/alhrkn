@@ -5,11 +5,10 @@ import { DiagramInput } from "./components/DiagramInput";
 import { AppsHeader } from '@/components/apps-header';
 import AppsFooter from '@/components/apps-footer';
 import { MermaidRenderer } from "./components/MermaidRenderer";
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DIAGRAM_THEMES } from './components/diagram-types';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export default function InztagramPage() {
   const [input, setInput] = useState("");
@@ -46,7 +45,32 @@ export default function InztagramPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <div className="fixed top-0 left-0 right-0 z-50">
-        <AppsHeader />
+        <AppsHeader
+          leftButton={diagramCode ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="neutral" aria-label="Create new diagram">
+                  <Plus className="size-5" /> New
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Create New Diagram?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Make sure you have saved your current diagram. It will be erased.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => {
+                    setDiagramCode(null);
+                    setInput("");
+                  }}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+        />
       </div>
       {diagramCode ? (
         <MermaidRenderer

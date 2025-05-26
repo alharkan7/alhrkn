@@ -123,27 +123,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     return (
         <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[80px] mb-[20px]">
             <Card className="w-full max-w-2xl shadow-lg">
-                <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b">
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="neutral" aria-label="Create new diagram">
-                                <Plus className="size-5" /> New
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Create New Diagram?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Make sure you have saved your current diagram. It will be erased.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onNewDiagram}>Continue</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    <div className="flex-1" />
+                <div className="flex items-center justify-between px-4 py-2 border-b">
                     <div className="flex items-center gap-2">
                         <Select value={diagramTheme} onValueChange={onThemeChange}>
                             <SelectTrigger className="w-auto min-w-[100px] max-w-[160px] bg-primary-foreground">
@@ -155,6 +135,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
                         <Sheet open={editOpen} onOpenChange={setEditOpen}>
                             <SheetTrigger asChild>
                                 <Button
@@ -187,7 +169,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                         </Button>
                     </div>
                 </div>
-                <CardContent className="p-4">
+                <CardContent className="p-0">
                     {renderError ? (
                         <div className="text-center text-red-500 min-h-[300px] flex items-center justify-center">
                             {renderError}

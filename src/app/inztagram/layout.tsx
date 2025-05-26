@@ -12,7 +12,7 @@ export default function FinanceTrackerLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <main className="container">
+      <main className="container !px-2">
         {children}
       </main>
     </div>
