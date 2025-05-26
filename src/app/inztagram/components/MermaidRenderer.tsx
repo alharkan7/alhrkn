@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Maximize, LoaderCircle } from 'lucide-react';
+import { Plus, Maximize, LoaderCircle, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DIAGRAM_THEMES } from './diagram-types';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import panzoom from 'panzoom';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { toPng, toJpeg } from 'html-to-image';
 
 interface MermaidRendererProps {
     code: string;
@@ -35,6 +36,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     const [renderError, setRenderError] = useState<string | null>(null);
     const [editOpen, setEditOpen] = useState(false);
     const [editableCode, setEditableCode] = useState(code);
+    const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+    const downloadDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!code) return;
@@ -120,6 +123,78 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
         }
     };
 
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(event.target as Node)) {
+                setShowDownloadDropdown(false);
+            }
+        }
+        if (showDownloadDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showDownloadDropdown]);
+
+    // Download as PNG
+    const handleDownloadPng = () => {
+        if (!containerRef.current) return;
+        const svgElem = containerRef.current.querySelector('svg');
+        if (!svgElem) return;
+        toPng(svgElem as unknown as HTMLElement, { backgroundColor: 'transparent' })
+            .then((dataUrl) => {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'diagram from raihankalla-id.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+        setShowDownloadDropdown(false);
+    };
+
+    // Download as JPEG
+    const handleDownloadJpeg = () => {
+        if (!containerRef.current) return;
+        const svgElem = containerRef.current.querySelector('svg');
+        if (!svgElem) return;
+        toJpeg(svgElem as unknown as HTMLElement, { backgroundColor: 'white' })
+            .then((dataUrl) => {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'diagram from raihankalla-id.jpeg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+        setShowDownloadDropdown(false);
+    };
+
+    // Download as SVG
+    const handleDownloadSvg = () => {
+        if (!containerRef.current) return;
+        const svgElem = containerRef.current.querySelector('svg');
+        if (!svgElem) return;
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svgElem);
+        // Add XML declaration
+        if (!source.startsWith('<?xml')) {
+            source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+        }
+        const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'diagram from raihankalla-id.svg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setShowDownloadDropdown(false);
+    };
+
     return (
         <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[80px] mb-[20px]">
             <Card className="w-full max-w-2xl shadow-lg">
@@ -167,6 +242,46 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                         >
                             <Maximize className="size-5" />
                         </Button>
+                        <div className="relative ml-1" ref={downloadDropdownRef}>
+                            <Button
+                                variant="neutral"
+                                size="icon"
+                                aria-label="Download diagram"
+                                onClick={() => setShowDownloadDropdown((v) => !v)}
+                            >
+                                <Download className="size-5" />
+                            </Button>
+                            {showDownloadDropdown && (
+                                <div className="absolute right-0 mt-2 w-32 bg-card rounded-md shadow-lg z-10 border border-border">
+                                    <ul className="py-1">
+                                        <li>
+                                            <button
+                                                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
+                                                onClick={handleDownloadJpeg}
+                                            >
+                                                JPEG
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button
+                                                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
+                                                onClick={handleDownloadPng}
+                                            >
+                                                PNG
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button
+                                                className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
+                                                onClick={handleDownloadSvg}
+                                            >
+                                                SVG
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <CardContent className="p-0">
