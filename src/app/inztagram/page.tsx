@@ -130,6 +130,8 @@ export default function InztagramPage() {
                   setInput("");
                 }}
                 onCodeChange={setDiagramCode}
+                fileName={pdfFile?.name}
+                description={input}
               />
             </motion.div>
           ) : (

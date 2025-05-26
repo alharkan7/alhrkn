@@ -8,6 +8,7 @@ import { DIAGRAM_THEMES, DIAGRAM_TYPES } from './diagram-types';
 import panzoom from 'panzoom';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toPng, toJpeg } from 'html-to-image';
+import EmailForm from '../../papermap/components/EmailForm';
 
 interface MermaidRendererProps {
     code: string;
@@ -16,9 +17,11 @@ interface MermaidRendererProps {
     onThemeChange: (theme: string) => void;
     onNewDiagram: () => void;
     onCodeChange?: (code: string) => void;
+    fileName?: string;
+    description?: string;
 }
 
-export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramType, diagramTheme, onThemeChange, onNewDiagram, onCodeChange }) => {
+export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramType, diagramTheme, onThemeChange, onNewDiagram, onCodeChange, fileName, description }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const panzoomRef = useRef<any>(null);
     const initialTransformRef = useRef<{ x: number, y: number, scale: number } | null>(null);
@@ -28,6 +31,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
     const downloadDropdownRef = useRef<HTMLDivElement>(null);
     const [autoCorrected, setAutoCorrected] = useState(false);
+    const [showEmailForm, setShowEmailForm] = useState(false);
+    const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
+    const [pendingDownloadFormat, setPendingDownloadFormat] = useState<string>('');
+    const [emailLoading, setEmailLoading] = useState(false);
+    const [emailError, setEmailError] = useState<string | null>(null);
 
     // Pre-validation: ensure code starts with a valid diagram type and auto-correct '--' to '-->' for flowcharts
     function getRenderableCode(rawCode: string, diagramType: string) {
@@ -145,6 +153,35 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showDownloadDropdown]);
+
+    const initiateDownload = (format: string, downloadAction: () => void) => {
+        setPendingDownloadFormat(format);
+        setPendingDownloadAction(() => downloadAction);
+        setShowEmailForm(true);
+        setShowDownloadDropdown(false);
+    };
+
+    const handleEmailSubmit = async (email: string) => {
+        setEmailLoading(true);
+        setEmailError(null);
+        try {
+            // Send email, fileName, and description to backend
+            fetch('/api/inztagram/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, downloadFormat: pendingDownloadFormat, fileName, description }),
+            }).catch(() => {});
+            // Trigger the download immediately
+            if (pendingDownloadAction) pendingDownloadAction();
+            setShowEmailForm(false);
+            setPendingDownloadAction(null);
+            setPendingDownloadFormat('');
+        } catch (err) {
+            setEmailError('Failed to process your request. Please try again.');
+        } finally {
+            setEmailLoading(false);
+        }
+    };
 
     // Download as PNG
     const handleDownloadPng = () => {
@@ -271,7 +308,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                         <li>
                                             <button
                                                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                                                onClick={handleDownloadJpeg}
+                                                onClick={() => initiateDownload('jpeg', handleDownloadJpeg)}
                                             >
                                                 JPEG
                                             </button>
@@ -279,7 +316,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                         <li>
                                             <button
                                                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                                                onClick={handleDownloadPng}
+                                                onClick={() => initiateDownload('png', handleDownloadPng)}
                                             >
                                                 PNG
                                             </button>
@@ -287,7 +324,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                         <li>
                                             <button
                                                 className="block w-full text-left px-3 py-2 text-card-foreground hover:bg-muted"
-                                                onClick={handleDownloadSvg}
+                                                onClick={() => initiateDownload('svg', handleDownloadSvg)}
                                             >
                                                 SVG
                                             </button>
@@ -320,6 +357,19 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                     )}
                 </CardContent>
             </Card>
+            {showEmailForm && (
+                <EmailForm
+                    onSubmit={handleEmailSubmit}
+                    onCancel={() => {
+                        setShowEmailForm(false);
+                        setPendingDownloadAction(null);
+                        setPendingDownloadFormat('');
+                    }}
+                    loading={emailLoading}
+                    error={emailError}
+                    downloadFormat={pendingDownloadFormat}
+                />
+            )}
         </div>
     );
 }; 
