@@ -120,19 +120,19 @@ export function DiagramInput({
                 <Button
                   type="button"
                   variant="default"
-                  className="w-auto max-w-[220px] sm:max-w-[120px] flex items-center gap-2 justify-between px-3 min-w-0"
+                  className="w-auto max-w-[220px] sm:max-w-[150px] flex items-center gap-2 justify-between px-3 min-w-0"
                   disabled={disabled || loading}
                   aria-label="Select diagram type"
                 >
                   {diagramType
                     ? (
                       <span className="flex items-center gap-2 min-w-0">
-                        <span className="truncate block max-w-[80px] sm:max-w-[60px]">
+                        <span className="truncate block max-w-[120px] sm:max-w-[80px]">
                           {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
                         </span>
                       </span>
                     )
-                    : <span className="text-primary truncate block max-w-[100px] sm:max-w-[60px]">Auto</span>
+                    : <span className="text-primary truncate block max-w-[120px] sm:max-w-[80px]">Auto</span>
                   }
                   <ChevronDown className="size-4 shrink-0" />
                 </Button>
