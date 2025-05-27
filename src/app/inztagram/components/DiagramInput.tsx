@@ -1,10 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, LoaderCircle, Paperclip } from 'lucide-react';
+import { Sparkles, LoaderCircle, Paperclip, Dices, ChevronDown } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
 import { Input } from '@/components/ui/input';
-import { FilePreview } from './PDFPreview';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -22,6 +20,7 @@ interface DiagramInputProps {
   uploading?: boolean;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearFile?: () => void;
+  onRandomize?: () => void;
 }
 
 export function DiagramInput({
@@ -36,6 +35,7 @@ export function DiagramInput({
   uploading,
   onFileSelect,
   onClearFile,
+  onRandomize,
 }: DiagramInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,16 +73,27 @@ export function DiagramInput({
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full mt-4 mb-2 bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[120px] overflow-y-auto px-1 pb-1 text-md"
+          className="w-full mt-4 mb-2 bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[150px] overflow-y-auto px-1 pb-1 text-md break-words whitespace-pre-wrap"
           onFocus={handleFocus}
           onBlur={handleBlur}
           rows={1}
-          style={{ height: 'auto' }}
+          style={{ height: 'auto', maxHeight: '150px', overflowY: 'auto' }}
           disabled={disabled || loading}
           onInput={e => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
             target.style.height = `${target.scrollHeight}px`;
+          }}
+          {...{
+            ...(typeof window !== 'undefined' && {
+              ref: (el: HTMLTextAreaElement | null) => {
+                inputRef.current = el;
+                if (el) {
+                  el.style.height = 'auto';
+                  el.style.height = `${el.scrollHeight}px`;
+                }
+              }
+            })
           }}
         />
         <Input
@@ -105,26 +116,26 @@ export function DiagramInput({
                 >
                   {diagramType
                     ? (
-                        <>
-                          <span className="flex items-center gap-2">
-                            <Image
-                              src={
-                                DIAGRAM_TYPES.find(t => t.value === diagramType)?.image || ''
-                              }
-                              alt={
-                                DIAGRAM_TYPES.find(t => t.value === diagramType)?.label || ''
-                              }
-                              width={24}
-                              height={24}
-                              className="rounded-sm border border-border bg-muted"
-                            />
-                            {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
-                          </span>
-                        </>
-                      )
+                      <>
+                        <span className="flex items-center gap-2">
+                          {/* <Image
+                            src={
+                              DIAGRAM_TYPES.find(t => t.value === diagramType)?.image || ''
+                            }
+                            alt={
+                              DIAGRAM_TYPES.find(t => t.value === diagramType)?.label || ''
+                            }
+                            width={24}
+                            height={24}
+                            className="rounded-sm border border-border bg-muted"
+                          /> */}
+                          {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
+                        </span>
+                      </>
+                    )
                     : <span className="text-primary">Auto</span>
                   }
-                  <svg className="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <ChevronDown className="size-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="py-2 !pl-2 pr-2 md:pr-1 w-[350px] max-w-[95vw] !mx-2">
@@ -167,6 +178,16 @@ export function DiagramInput({
                 </div>
               </PopoverContent>
             </Popover>
+            <Button
+              variant="default" size="icon"
+              className="shrink-0 p-2 transition-colors disabled:opacity-50"
+              disabled={disabled || loading || !!pdfFile}
+              aria-label="Randomize Diagram"
+              type="button"
+              onClick={onRandomize}
+            >
+              <Dices className="size-5" />
+            </Button>
           </div>
           <Button
             type="button"

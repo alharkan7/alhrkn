@@ -8,6 +8,7 @@ import { MermaidRenderer } from "./components/MermaidRenderer";
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { DIAGRAM_THEMES } from './components/diagram-types';
+import { DIAGRAM_TYPES } from './components/diagram-types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilePreview } from './components/PDFPreview';
@@ -76,6 +77,18 @@ export default function InztagramPage() {
     }
   };
   const clearFile = () => setPdfFile(null);
+
+  // Handler for randomize button
+  const handleRandomize = () => {
+    // Pick a random diagram type
+    const randomIndex = Math.floor(Math.random() * DIAGRAM_TYPES.length);
+    const randomType = DIAGRAM_TYPES[randomIndex];
+    setInput(randomType.example.trim());
+    setDiagramCode(randomType.example.trim());
+    setDiagramType(randomType.value);
+    setDiagramTheme('default');
+    setError(null);
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -170,6 +183,7 @@ export default function InztagramPage() {
                     uploading={uploading}
                     onFileSelect={handleFileSelect}
                     onClearFile={clearFile}
+                    onRandomize={handleRandomize}
                   />
                   {error && (
                     <div className="text-center text-red-500 mt-2">

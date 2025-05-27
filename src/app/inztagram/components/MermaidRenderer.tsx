@@ -279,6 +279,23 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                                     className="w-full h-[60vh] mt-4 p-2 border rounded bg-background text-foreground font-mono text-sm resize-vertical"
                                     style={{ minHeight: 200 }}
                                 />
+                                {(() => {
+                                    const type = DIAGRAM_TYPES.find(t => t.value === diagramType);
+                                    if (!type) return null;
+                                    return (
+                                        <div className="mt-3 text-sm text-muted-foreground">
+                                            Learn to customize Mermaid Diagram{' '}
+                                            <a
+                                                href={`https://mermaid.js.org/syntax/${type.docs}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary underline hover:text-primary/80"
+                                            >
+                                                here
+                                            </a>.
+                                        </div>
+                                    );
+                                })()}
                             </SheetContent>
                         </Sheet>
                         <Button

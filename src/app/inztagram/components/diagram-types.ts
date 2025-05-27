@@ -18,34 +18,41 @@ export interface DiagramType {
   label: string;
   example: string;
   image: string;
+  docs: string;
 }
-
-
 
 export const DIAGRAM_TYPES: DiagramType[] = [
   {
     value: 'graph TD',
     label: 'Flowchart (Top-Down)',
     example: `
-    graph TD;
-        A-->B;
-        A-->C;
-        B-->D;
-        C-->D;
+    graph TD
+        A[Enter Chart Definition] --> B(Preview)
+        B --> C{decide}
+        C --> D[Keep]
+        C --> E[Edit Definition]
+        E --> B
+        D --> F[Save Image and Code]
+        F --> B
     `,
-    image: '/inztagram/graph-td.svg'
+    image: '/inztagram/graph-td.svg',
+    docs: 'flowchart'
   },
   {
     value: 'graph LR',
     label: 'Flowchart (Left-Right)',
     example: `
-    graph LR;
-        A-->B;
-        A-->C;
-        B-->D;
-        C-->D;
+    graph LR
+        A[Enter Chart Definition] --> B(Preview)
+        B --> C{decide}
+        C --> D[Keep]
+        C --> E[Edit Definition]
+        E --> B
+        D --> F[Save Image and Code]
+        F --> B
     `,
-    image: '/inztagram/graph-lr.svg'
+    image: '/inztagram/graph-lr.svg',
+    docs: 'flowchart'
   },
   {
     value: 'sequenceDiagram',
@@ -56,7 +63,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
       John-->>Alice: Great!
       Alice-)John: See you later!
     `,
-    image: '/inztagram/sequenceDiagram.svg'
+    image: '/inztagram/sequenceDiagram.svg',
+    docs: 'sequenceDiagram'
   },
   {
     value: 'classDiagram',
@@ -86,22 +94,30 @@ export const DIAGRAM_TYPES: DiagramType[] = [
             +run()
         }
         `,
-    image: '/inztagram/classDiagram.svg'
+    image: '/inztagram/classDiagram.svg',
+    docs: 'classDiagram'
   },
   {
     value: 'stateDiagram',
     label: 'State Diagram',
     example: `
     stateDiagram
-        [*] --> Still
-        Still --> [*]
+        [*] --> First
+        state First {
+            [*] --> second
+            second --> [*]
+        }
 
-        Still --> Moving
-        Moving --> Still
-        Moving --> Crash
-        Crash --> [*]
+        [*] --> NamedComposite
+        NamedComposite: Another Composite
+        state NamedComposite {
+            [*] --> namedSimple
+            namedSimple --> [*]
+            namedSimple: Another simple
+        }
     `,
-    image: '/inztagram/stateDiagram.svg'
+    image: '/inztagram/stateDiagram.svg',
+    docs: 'stateDiagram'
   },
   {
     value: 'erDiagram',
@@ -112,7 +128,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         ORDER ||--|{ LINE-ITEM : contains
         CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
     `,
-    image: '/inztagram/erDiagram.svg'
+    image: '/inztagram/erDiagram.svg',
+    docs: 'entityRelationshipDiagram'
   },
   {
     value: 'journey',
@@ -128,7 +145,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
           Go downstairs: 5: Me
           Sit down: 5: Me
     `,
-    image: '/inztagram/journey.svg'
+    image: '/inztagram/journey.svg',
+    docs: 'userJourney'
   },
   {
     value: 'gantt',
@@ -145,7 +163,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
     Future task               :         des3, after des2, 5d
     Future task2              :         des4, after des3, 5d
     `,
-    image: '/inztagram/gantt.svg'
+    image: '/inztagram/gantt.svg',
+    docs: 'gantt'
   },
   {
     value: 'pie',
@@ -156,7 +175,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         "Cats" : 85
         "Rats" : 15
     `,
-    image: '/inztagram/pie.svg'
+    image: '/inztagram/pie.svg',
+    docs: 'pie'
   },
   {
     value: 'quadrantChart',
@@ -177,7 +197,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         Campaign E: [0.40, 0.34]
         Campaign F: [0.35, 0.78]
     `,
-    image: '/inztagram/quadrantChart.svg'
+    image: '/inztagram/quadrantChart.svg',
+    docs: 'quadrantChart'
   },
   {
     value: 'requirementDiagram',
@@ -198,7 +219,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
 
     test_entity - satisfies -> test_req
     `,
-    image: '/inztagram/requirementDiagram.svg'
+    image: '/inztagram/requirementDiagram.svg',
+    docs: 'requirementDiagram'
   },
   {
     value: 'gitGraph',
@@ -215,7 +237,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         commit
         commit
     `,
-    image: '/inztagram/gitGraph.svg'
+    image: '/inztagram/gitGraph.svg',
+    docs: 'gitGraph'
   },
   {
     value: 'mindmap',
@@ -239,7 +262,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
           Pen and paper
           Mermaid
     `,
-    image: '/inztagram/mindmap.svg'
+    image: '/inztagram/mindmap.svg',
+    docs: 'mindmap'
   },
   {
     value: 'timeline',
@@ -253,7 +277,8 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         2005 : YouTube
         2006 : Twitter
     `,
-    image: '/inztagram/timeline.svg'
+    image: '/inztagram/timeline.svg',
+    docs: 'timeline'
   },
 ];
 
