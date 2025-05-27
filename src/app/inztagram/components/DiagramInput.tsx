@@ -127,7 +127,7 @@ export function DiagramInput({
                   <svg className="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="py-2 !pl-2 pr-2 md:pr-1 w-[380px] max-w-[95vw] !mx-2">
+              <PopoverContent className="py-2 !pl-2 pr-2 md:pr-1 w-[350px] max-w-[95vw] !mx-2">
                 <div className={cn(styles['diagram-scrollbar'], 'grid grid-cols-2 gap-2 max-h-[300px] overflow-auto')} style={{ scrollbarWidth: 'thin' }}>
                   <button
                     type="button"
