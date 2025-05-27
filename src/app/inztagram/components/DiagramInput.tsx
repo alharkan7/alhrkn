@@ -114,38 +114,27 @@ export function DiagramInput({
           onChange={onFileSelect}
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
-          <div className="flex flex-row gap-2 flex-1">
+          <div className="flex flex-row flex-wrap gap-2 flex-1 min-w-0">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
                   variant="default"
-                  className="w-auto max-w-[220px] flex items-center gap-2 justify-between px-3"
+                  className="w-auto max-w-[220px] sm:max-w-[120px] flex items-center gap-2 justify-between px-3 min-w-0"
                   disabled={disabled || loading}
                   aria-label="Select diagram type"
                 >
                   {diagramType
                     ? (
-                      <>
-                        <span className="flex items-center gap-2">
-                          {/* <Image
-                            src={
-                              DIAGRAM_TYPES.find(t => t.value === diagramType)?.image || ''
-                            }
-                            alt={
-                              DIAGRAM_TYPES.find(t => t.value === diagramType)?.label || ''
-                            }
-                            width={24}
-                            height={24}
-                            className="rounded-sm border border-border bg-muted"
-                          /> */}
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="truncate block max-w-[80px] sm:max-w-[60px]">
                           {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
                         </span>
-                      </>
+                      </span>
                     )
-                    : <span className="text-primary">Auto</span>
+                    : <span className="text-primary truncate block max-w-[100px] sm:max-w-[60px]">Auto</span>
                   }
-                  <ChevronDown className="size-4" />
+                  <ChevronDown className="size-4 shrink-0" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="py-2 !pl-2 pr-2 md:pr-1 w-[350px] max-w-[95vw] !mx-2">

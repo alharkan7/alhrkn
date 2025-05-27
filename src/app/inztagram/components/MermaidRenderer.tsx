@@ -167,7 +167,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, downloadFormat: pendingDownloadFormat, fileName, description }),
-            }).catch(() => {});
+            }).catch(() => { });
             // Trigger the download immediately
             if (pendingDownloadAction) pendingDownloadAction();
             setShowEmailForm(false);
