@@ -108,7 +108,7 @@ export default function InztagramPage() {
           ) : null}
         />
       </div>
-      <div className="flex-1 flex flex-col justify-start items-center max-w-4xl mx-auto w-full px-1 md:px-4">
+      <div className="flex-1 flex flex-col justify-start items-center max-w-6xl mx-auto w-full px-1 md:px-4">
         <AnimatePresence mode="wait" initial={false}>
           {diagramCode ? (
             <motion.div
@@ -116,7 +116,7 @@ export default function InztagramPage() {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -40 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              transition={{ duration: 0.1, ease: 'easeOut' }}
               className="w-full"
             >
               <MermaidRenderer
@@ -152,7 +152,7 @@ export default function InztagramPage() {
                 </div>
               </div>
               <div className="w-full flex justify-center">
-                <div className="w-full h-full max-w-2xl">
+                <div className="w-full h-full max-w-6xl">
                   {/* File preview above the form */}
                   {pdfFile && (
                     <div className="w-full flex flex-col items-center mb-2">

@@ -33,7 +33,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         B-->D;
         C-->D;
     `,
-    image: 'https://mermaid.ink/img/graph-TD'
+    image: '/inztagram/graph-td.svg'
   },
   {
     value: 'graph LR',
@@ -45,7 +45,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         B-->D;
         C-->D;
     `,
-    image: 'https://mermaid.ink/img/graph-LR'
+    image: '/inztagram/graph-lr.svg'
   },
   {
     value: 'sequenceDiagram',
@@ -56,7 +56,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
       John-->>Alice: Great!
       Alice-)John: See you later!
     `,
-    image: 'https://mermaid.ink/img/sequenceDiagram'
+    image: '/inztagram/sequenceDiagram.svg'
   },
   {
     value: 'classDiagram',
@@ -86,7 +86,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
             +run()
         }
         `,
-    image: 'https://mermaid.ink/img/classDiagram'
+    image: '/inztagram/classDiagram.svg'
   },
   {
     value: 'stateDiagram',
@@ -101,7 +101,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         Moving --> Crash
         Crash --> [*]
     `,
-    image: 'https://mermaid.ink/img/stateDiagram-v2'
+    image: '/inztagram/stateDiagram.svg'
   },
   {
     value: 'erDiagram',
@@ -112,7 +112,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         ORDER ||--|{ LINE-ITEM : contains
         CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
     `,
-    image: 'https://mermaid.ink/img/erDiagram'
+    image: '/inztagram/erDiagram.svg'
   },
   {
     value: 'journey',
@@ -128,7 +128,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
           Go downstairs: 5: Me
           Sit down: 5: Me
     `,
-    image: 'https://mermaid.ink/img/journey'
+    image: '/inztagram/journey.svg'
   },
   {
     value: 'gantt',
@@ -145,7 +145,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
     Future task               :         des3, after des2, 5d
     Future task2              :         des4, after des3, 5d
     `,
-    image: 'https://mermaid.ink/img/gantt'
+    image: '/inztagram/gantt.svg'
   },
   {
     value: 'pie',
@@ -156,7 +156,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         "Cats" : 85
         "Rats" : 15
     `,
-    image: 'https://mermaid.ink/img/pie'
+    image: '/inztagram/pie.svg'
   },
   {
     value: 'quadrantChart',
@@ -177,13 +177,28 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         Campaign E: [0.40, 0.34]
         Campaign F: [0.35, 0.78]
     `,
-    image: 'https://mermaid.ink/img/quadrantChart'
+    image: '/inztagram/quadrantChart.svg'
   },
   {
     value: 'requirementDiagram',
     label: 'Requirement Diagram',
-    example: 'requirementDiagram\n    title My Requirement Diagram\n    "Requirement 1" : 10\n    "Requirement 2" : 20\n    "Requirement 3" : 30\n    "Requirement 4" : 40',
-    image: 'https://mermaid.ink/img/requirementDiagram'
+    example: `
+    requirementDiagram
+
+    requirement test_req {
+    id: 1
+    text: the test text.
+    risk: high
+    verifymethod: test
+    }
+
+    element test_entity {
+    type: simulation
+    }
+
+    test_entity - satisfies -> test_req
+    `,
+    image: '/inztagram/requirementDiagram.svg'
   },
   {
     value: 'gitGraph',
@@ -200,7 +215,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         commit
         commit
     `,
-    image: 'https://mermaid.ink/img/gitGraph'
+    image: '/inztagram/gitGraph.svg'
   },
   {
     value: 'mindmap',
@@ -224,7 +239,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
           Pen and paper
           Mermaid
     `,
-    image: 'https://mermaid.ink/img/mindmap'
+    image: '/inztagram/mindmap.svg'
   },
   {
     value: 'timeline',
@@ -238,7 +253,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
         2005 : YouTube
         2006 : Twitter
     `,
-    image: 'https://mermaid.ink/img/timeline'
+    image: '/inztagram/timeline.svg'
   },
 ];
 

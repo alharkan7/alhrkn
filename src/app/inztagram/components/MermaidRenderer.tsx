@@ -39,14 +39,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
 
     // Pre-validation: ensure code starts with a valid diagram type and auto-correct '--' to '-->' for flowcharts
     function getRenderableCode(rawCode: string, diagramType: string) {
-        const typeValues = DIAGRAM_TYPES.map(t => t.value);
         const trimmed = rawCode.trim();
-        const startsWithType = typeValues.some(type => trimmed.startsWith(type));
-        let codeBody = startsWithType ? trimmed : `${diagramType}\n${trimmed}`;
+        let codeBody = trimmed;
         let corrected = false;
-        // Auto-correct '--' to '-->' for flowcharts
-        if (diagramType === 'graph TD' || diagramType === 'graph LR') {
-            // Replace -- not followed by > or - with -->
+        // Auto-correct '--' to '-->' for flowcharts if code starts with 'graph TD' or 'graph LR'
+        if (codeBody.startsWith('graph TD') || codeBody.startsWith('graph LR')) {
             const before = codeBody;
             codeBody = codeBody.replace(/--(?![->-])/g, '-->');
             if (before !== codeBody) corrected = true;
@@ -247,8 +244,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     };
 
     return (
-        <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[80px] mb-[20px]">
-            <Card className="w-full max-w-2xl shadow-lg">
+        <div className="flex-1 flex flex-col justify-center items-center max-w-6xl mx-auto w-full px-1 md:px-4 mt-[80px] mb-[20px]">
+            <Card className="w-full max-w-6xl shadow-lg">
                 <div className="flex items-center justify-between p-2 border-b">
                     <div className="flex items-center gap-2">
                         <Select value={diagramTheme} onValueChange={onThemeChange}>
