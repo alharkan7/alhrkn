@@ -5,6 +5,10 @@ import { Sparkles, LoaderCircle, Paperclip } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
 import { Input } from '@/components/ui/input';
 import { FilePreview } from './PDFPreview';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import styles from './DiagramInput.module.css';
 
 interface DiagramInputProps {
   value: string;
@@ -90,22 +94,79 @@ export function DiagramInput({
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row gap-2 flex-1">
-
-            <Select
-              value={diagramType ?? "auto"}
-              onValueChange={v => setDiagramType(v === "auto" ? undefined : v)}
-              disabled={disabled || loading}
-            >
-              <SelectTrigger className="w-auto max-w-[180px] md:max-w-[220px]" >
-                <SelectValue placeholder="Auto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem key="auto" value="auto">Auto</SelectItem>
-                {DIAGRAM_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="default"
+                  className="w-auto max-w-[220px] flex items-center gap-2 justify-between px-3"
+                  disabled={disabled || loading}
+                  aria-label="Select diagram type"
+                >
+                  {diagramType
+                    ? (
+                        <>
+                          <span className="flex items-center gap-2">
+                            <Image
+                              src={
+                                DIAGRAM_TYPES.find(t => t.value === diagramType)?.image || ''
+                              }
+                              alt={
+                                DIAGRAM_TYPES.find(t => t.value === diagramType)?.label || ''
+                              }
+                              width={24}
+                              height={24}
+                              className="rounded-sm border border-border bg-muted"
+                            />
+                            {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
+                          </span>
+                        </>
+                      )
+                    : <span className="text-primary">Auto</span>
+                  }
+                  <svg className="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="py-2 !pl-2 !pr-1 w-[380px] max-w-[95vw]">
+                <div className={cn(styles['diagram-scrollbar'], 'grid grid-cols-2 gap-2 max-h-[350px] overflow-auto')} style={{ scrollbarWidth: 'thin' }}>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
+                      !diagramType && 'ring-2 ring-primary border-primary',
+                    )}
+                    onClick={() => setDiagramType(undefined)}
+                  >
+                    <div className="flex-1 w-full flex items-center justify-center">
+                      <div className="w-full h-[60px] flex items-center justify-center rounded text-xs text-muted-foreground/80"><Sparkles className="size-6" /></div>
+                    </div>
+                    <span className="text-xs font-medium mt-1 mb-0">Auto</span>
+                  </button>
+                  {DIAGRAM_TYPES.map((type) => (
+                    <button
+                      type="button"
+                      key={type.value}
+                      className={cn(
+                        'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
+                        diagramType === type.value && 'ring-2 ring-primary border-primary',
+                      )}
+                      onClick={() => setDiagramType(type.value)}
+                    >
+                      <div className="flex-1 w-full flex items-center justify-center">
+                        <Image
+                          src={type.image}
+                          alt={type.label}
+                          width={80}
+                          height={60}
+                          className="w-full h-[60px] object-contain rounded border border-border"
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-center line-clamp-2 mt-1 mb-0 w-full">{type.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button
             type="button"

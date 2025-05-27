@@ -1,0 +1,19 @@
+/* Minimalist, only thumb visible, everything else hidden/transparent */
+.diagram-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #272933 transparent; /* thumb color, track color (transparent) */
+}
+.diagram-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.diagram-scrollbar::-webkit-scrollbar-thumb {
+  background: #272933;
+  border-radius: 6px;
+}
+.diagram-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.diagram-scrollbar::-webkit-scrollbar-button {
+  display: none;
+} 
