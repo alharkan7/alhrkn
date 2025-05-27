@@ -249,7 +249,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
     return (
         <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto w-full px-1 md:px-4 mt-[80px] mb-[20px]">
             <Card className="w-full max-w-2xl shadow-lg">
-                <div className="flex items-center justify-between px-4 py-2 border-b">
+                <div className="flex items-center justify-between p-2 border-b">
                     <div className="flex items-center gap-2">
                         <Select value={diagramTheme} onValueChange={onThemeChange}>
                             <SelectTrigger className="w-auto min-w-[100px] max-w-[160px] bg-primary-foreground">
@@ -262,7 +262,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center gap-1 ml-auto">
                         <Sheet open={editOpen} onOpenChange={setEditOpen}>
                             <SheetTrigger asChild>
                                 <Button
@@ -336,11 +336,11 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                     </div>
                 </div>
                 <CardContent className="p-0">
-                    {autoCorrected && (
+                    {/* {autoCorrected && (
                         <div className="text-center text-yellow-600 text-xs py-2">
                             Auto-corrected '--' to {'-->'} for Mermaid flowchart syntax.
                         </div>
-                    )}
+                    )} */}
                     {renderError ? (
                         <div className="text-center text-red-500 min-h-[300px] flex flex-col items-center justify-center">
                             <div className="mb-2 text-base font-semibold">Failed to Display Diagram; Try Again or Use Text Editor</div>
