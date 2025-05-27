@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import { LayoutGrid } from 'lucide-react'
 import { AppsGrid } from '@/components/ui/apps-grid';
