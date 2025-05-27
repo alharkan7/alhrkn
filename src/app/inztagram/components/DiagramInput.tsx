@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, LoaderCircle, Paperclip, Dices, ChevronDown } from 'lucide-react';
 import { DIAGRAM_TYPES, DIAGRAM_THEMES } from './diagram-types';
@@ -42,6 +42,16 @@ export function DiagramInput({
   const [isFocused, setIsFocused] = useState(false);
   const [diagramType, setDiagramType] = useState<string | undefined>(undefined);
   const [diagramTheme, setDiagramTheme] = useState(DIAGRAM_THEMES[0].value);
+
+  // Preload all diagram type images on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      DIAGRAM_TYPES.forEach(type => {
+        const img = new window.Image();
+        img.src = type.image;
+      });
+    }
+  }, []);
 
   const handleFocus = () => {
     setIsFocused(true);
