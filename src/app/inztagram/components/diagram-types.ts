@@ -24,7 +24,7 @@ export interface DiagramType {
 export const DIAGRAM_TYPES: DiagramType[] = [
   {
     value: 'graph TD',
-    label: 'Flowchart (Top-Down)',
+    label: 'Flowchart (TD)',
     example: `
     graph TD
         A[Enter Chart Definition] --> B(Preview)
@@ -40,7 +40,7 @@ export const DIAGRAM_TYPES: DiagramType[] = [
   },
   {
     value: 'graph LR',
-    label: 'Flowchart (Left-Right)',
+    label: 'Flowchart (LR)',
     example: `
     graph LR
         A[Enter Chart Definition] --> B(Preview)
