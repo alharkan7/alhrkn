@@ -127,7 +127,7 @@ export function DiagramInput({
                   {diagramType
                     ? (
                       <span className="flex items-center gap-2 min-w-0">
-                        <span className="truncate block max-w-[120px] sm:max-w-[80px]">
+                        <span className="truncate block max-w-[100px] sm:max-w-[80px]">
                           {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
                         </span>
                       </span>
