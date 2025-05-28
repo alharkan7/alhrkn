@@ -160,7 +160,7 @@ export default function InztagramPage() {
                 <h1 className="text-5xl font-black mb-2">
                   <span className="text-primary whitespace-nowrap">Inztagram</span>{' '}
                 </h1>
-                <div className="text-lg text-muted-foreground">
+                <div className="text-base text-muted-foreground">
                   Create <span className="font-bold text-primary">Instant Diagram</span> in Seconds
                 </div>
               </div>
