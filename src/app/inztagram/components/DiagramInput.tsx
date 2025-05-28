@@ -42,6 +42,7 @@ export function DiagramInput({
   const [isFocused, setIsFocused] = useState(false);
   const [diagramType, setDiagramType] = useState<string | undefined>(undefined);
   const [diagramTheme, setDiagramTheme] = useState(DIAGRAM_THEMES[0].value);
+  const [open, setOpen] = useState(false);
 
   // Preload all diagram type images on mount
   useEffect(() => {
@@ -83,7 +84,7 @@ export function DiagramInput({
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full mt-4 mb-2 bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[40px] max-h-[150px] overflow-y-auto px-1 pb-1 text-md break-words whitespace-pre-wrap"
+          className="w-full mt-4 mb-2 bg-transparent border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none disabled:opacity-50 p-0 resize-none min-h-[80px] max-h-[150px] overflow-y-auto px-1 pb-1 text-md break-words whitespace-pre-wrap"
           onFocus={handleFocus}
           onBlur={handleBlur}
           rows={1}
@@ -115,24 +116,24 @@ export function DiagramInput({
         />
         <div className="flex flex-row md:flex-row gap-2 mb-2 items-center md:justify-between w-full">
           <div className="flex flex-row flex-wrap gap-2 flex-1 min-w-0">
-            <Popover>
+            <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
                   variant="default"
-                  className="w-auto max-w-[220px] sm:max-w-[150px] flex items-center gap-2 justify-between px-3 min-w-0"
+                  className="w-auto max-w-[200px] md:max-w-[100px] sm:max-w-[80px] flex items-center gap-2 justify-between px-3 min-w-0"
                   disabled={disabled || loading}
                   aria-label="Select diagram type"
                 >
                   {diagramType
                     ? (
                       <span className="flex items-center gap-2 min-w-0">
-                        <span className="truncate block max-w-[100px] sm:max-w-[80px]">
+                        <span className="truncate block max-w-[80px] sm:max-w-[60px]">
                           {DIAGRAM_TYPES.find(t => t.value === diagramType)?.label}
                         </span>
                       </span>
                     )
-                    : <span className="text-primary truncate block max-w-[120px] sm:max-w-[80px]">Auto</span>
+                    : <span className="truncate block max-w-[80px] sm:max-w-[60px]">Auto</span>
                   }
                   <ChevronDown className="size-4 shrink-0" />
                 </Button>
@@ -145,7 +146,10 @@ export function DiagramInput({
                       'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
                       !diagramType && 'ring-2 ring-primary border-primary',
                     )}
-                    onClick={() => setDiagramType(undefined)}
+                    onClick={() => {
+                      setDiagramType(undefined);
+                      setOpen(false);
+                    }}
                   >
                     <div className="flex-1 w-full flex items-center justify-center">
                       <div className="w-full h-[60px] flex items-center justify-center rounded text-xs text-muted-foreground/80"><Sparkles className="size-6" /></div>
@@ -160,7 +164,10 @@ export function DiagramInput({
                         'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
                         diagramType === type.value && 'ring-2 ring-primary border-primary',
                       )}
-                      onClick={() => setDiagramType(type.value)}
+                      onClick={() => {
+                        setDiagramType(type.value);
+                        setOpen(false);
+                      }}
                     >
                       <div className="flex-1 w-full flex items-center justify-center">
                         <Image
@@ -168,7 +175,7 @@ export function DiagramInput({
                           alt={type.label}
                           width={80}
                           height={60}
-                          className="w-full h-[60px] object-contain rounded border border-border"
+                          className="w-full h-[60px] bg-white object-contain rounded border border-border"
                         />
                       </div>
                       <span className="text-xs font-medium text-center line-clamp-2 mt-1 mb-0 w-full">{type.label}</span>

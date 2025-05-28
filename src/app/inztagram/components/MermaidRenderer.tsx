@@ -249,12 +249,12 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                 <div className="flex items-center justify-between p-2 border-b">
                     <div className="flex items-center gap-2">
                         <Select value={diagramTheme} onValueChange={onThemeChange}>
-                            <SelectTrigger className="w-auto min-w-[100px] max-w-[160px] bg-primary-foreground">
+                            <SelectTrigger className="w-auto min-w-[100px] max-w-[160px] bg-secondary text-primary">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-primary-foreground">
+                            <SelectContent className="bg-secondary">
                                 {DIAGRAM_THEMES.map((theme) => (
-                                    <SelectItem key={theme.value} value={theme.value} className="bg-primary-foreground">{theme.label}</SelectItem>
+                                    <SelectItem key={theme.value} value={theme.value} className="text-primary"><span className='text-primary'>{theme.label}</span></SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
