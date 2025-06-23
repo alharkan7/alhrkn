@@ -232,11 +232,11 @@ export default function SuspaAnalisPage() {
                   </Label>
                 </div>
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 {inputMode === 'text'
                   ? 'Enter your long text here'
                   : 'Upload a PDF or TXT file for analysis'}
-              </CardDescription>
+              </CardDescription> */}
             </CardHeader>
             <CardContent
               className="space-y-4 flex-1 flex flex-col overflow-hidden"
@@ -336,7 +336,7 @@ export default function SuspaAnalisPage() {
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Table className="h-5 w-5" />
-                  Analysis Results
+                  Extraction
                 </div>
                 {result && (
                   <Button
@@ -360,9 +360,9 @@ export default function SuspaAnalisPage() {
                   </Button>
                 )}
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 {result ? 'Extracted structured information' : 'Results will appear here'}
-              </CardDescription>
+              </CardDescription> */}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden">
               {result ? (
