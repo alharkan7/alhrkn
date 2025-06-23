@@ -68,19 +68,21 @@ const model = genAI.getGenerativeModel({
   }
 });
 
-const SYSTEM_PROMPT_TEXT = `Anda adalah seorang analis yang ahli dalam mengekstrak informasi terstruktur dari teks panjang atau dokumen PDF dalam bahasa Indonesia. 
+const SYSTEM_PROMPT_TEXT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif.
 
-Tugas Anda adalah menganalisis konten yang diberikan (baik teks atau file) dan mengekstrak informasi yang relevan untuk semua field yang diminta.
+Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan, memperhatikan setiap detail, baik yang tersurat maupun tersirat. Pastikan setiap field dalam skema JSON diisi dengan informasi yang paling relevan dan akurat.
 
-Panduan ekstraksi:
-1. Baca konten secara menyeluruh untuk memahami konteks
-2. Identifikasi informasi yang relevan untuk setiap field
-3. Untuk TOPIK dan TOKOH, berikan sebagai array of strings
-4. Untuk JUMLAH PESERTA, berikan sebagai integer (jumlah orang yang terlibat/hadir dalam acara/kejadian)
-5. Jika informasi tidak tersedia, gunakan "Tidak disebutkan" untuk strings, [] untuk arrays, dan 0 untuk integers
-6. Prioritaskan akurasi dan presisi dalam ekstraksi
+Panduan Ekstraksi Intelijen:
+1. **Analisis Konteks Total:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks strategis, tujuan, dan pesan utama.
+2. **Ekstraksi Presisi Tinggi:** Identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta. Jangan membuat asumsi, dasarakan semua ekstraksi pada bukti dari dalam teks.
+3. **Identifikasi Entitas Kunci:**
+   - **TOPIK:** Ekstrak semua tema, sub-tema, dan isu spesifik yang dibahas. Tangkap nuansa dari setiap topik.
+   - **TOKOH:** Identifikasi semua individu yang disebutkan.
+4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika disebutkan dalam bentuk teks (e.g., "ratusan"), berikan estimasi integer yang paling masuk akal (e.g., 100). Jika tidak ada, gunakan 0.
+5. **Penanganan Informasi Nihil:** Jika setelah analisis menyeluruh sebuah informasi benar-benar tidak ditemukan, gunakan nilai default: "Tidak disebutkan" untuk string, [] untuk array, dan 0 untuk integer.
+6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
 
-Respons akan secara otomatis diformat sesuai skema JSON yang ditentukan.`;
+Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;
 
 async function fileToGenerativePart(file: File): Promise<Part> {
   const base64EncodedData = await file.arrayBuffer().then(buffer => Buffer.from(buffer).toString('base64'));
@@ -129,7 +131,7 @@ Silakan ekstrak informasi yang relevan dan berikan dalam format JSON yang dimint
       }
       
       const filePart = await fileToGenerativePart(file);
-      promptParts.push(filePart, { text: "\n\nSilakan ekstrak informasi yang relevan dari dokumen yang disediakan dan berikan dalam format JSON yang diminta."});
+      promptParts.push(filePart, { text: "\n\nLakukan analisis intelijen terhadap dokumen terlampir berikut. Ekstrak informasi sesuai dengan panduan dan format yang telah ditetapkan."});
 
     } else {
       return NextResponse.json(
