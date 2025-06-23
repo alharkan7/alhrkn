@@ -97,11 +97,13 @@ async function fileToGenerativePart(file: File): Promise<Part> {
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') || '';
-    let promptParts: Part[] = [{ text: SYSTEM_PROMPT_TEXT }];
+    let promptParts: Part[];
+    let systemPrompt: string | null | undefined;
 
     if (contentType.includes('application/json')) {
       const body = await req.json();
       const { text } = body;
+      systemPrompt = body.systemPrompt;
 
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return NextResponse.json(
@@ -110,18 +112,29 @@ export async function POST(req: NextRequest) {
         );
       }
       
-      promptParts.push({ text: `
+      if (!systemPrompt || typeof systemPrompt !== 'string') {
+        return NextResponse.json(
+          { error: 'System prompt is required' },
+          { status: 400 }
+        );
+      }
+
+      promptParts = [
+        { text: systemPrompt },
+        { text: `
 
 Teks yang akan dianalisis:
 """
 ${text}
 """
 
-Silakan ekstrak informasi yang relevan dan berikan dalam format JSON yang diminta.`});
+Silakan ekstrak informasi yang relevan dan berikan dalam format JSON yang diminta.`}
+      ];
 
     } else if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
+      systemPrompt = formData.get('systemPrompt') as string | null;
 
       if (!file) {
         return NextResponse.json(
@@ -129,9 +142,20 @@ Silakan ekstrak informasi yang relevan dan berikan dalam format JSON yang dimint
           { status: 400 }
         );
       }
+
+      if (!systemPrompt) {
+        return NextResponse.json(
+          { error: 'System prompt is required' },
+          { status: 400 }
+        );
+      }
       
       const filePart = await fileToGenerativePart(file);
-      promptParts.push(filePart, { text: "\n\nLakukan analisis intelijen terhadap dokumen terlampir berikut. Ekstrak informasi sesuai dengan panduan dan format yang telah ditetapkan."});
+      promptParts = [
+        { text: systemPrompt },
+        filePart, 
+        { text: "\n\nLakukan analisis intelijen terhadap dokumen terlampir berikut. Ekstrak informasi sesuai dengan panduan dan format yang telah ditetapkan."}
+      ];
 
     } else {
       return NextResponse.json(

@@ -6,9 +6,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
-import { Upload, Loader2, FileText, Table, Copy, Check } from 'lucide-react'
+import { Upload, Loader2, FileText, Table, Copy, Check, SlidersHorizontal } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetDescription
+} from '@/components/ui/sheet'
+import ReactMarkdown from 'react-markdown'
 
 type AnalysisResult = {
   TANGGAL: string
@@ -22,6 +31,22 @@ type AnalysisResult = {
   'JUMLAH PESERTA': number
 }
 
+const DEFAULT_SYSTEM_PROMPT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif.
+
+Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan, memperhatikan setiap detail, baik yang tersurat maupun tersirat. Pastikan setiap field dalam skema JSON diisi dengan informasi yang paling relevan dan akurat.
+
+Panduan Ekstraksi Intelijen:
+1. **Analisis Konteks Total:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks strategis, tujuan, dan pesan utama.
+2. **Ekstraksi Presisi Tinggi:** Identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta. Jangan membuat asumsi, dasarakan semua ekstraksi pada bukti dari dalam teks.
+3. **Identifikasi Entitas Kunci:**
+   - **TOPIK:** Ekstrak semua tema, sub-tema, dan isu spesifik yang dibahas. Tangkap nuansa dari setiap topik.
+   - **TOKOH:** Identifikasi semua individu yang disebutkan.
+4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika disebutkan dalam bentuk teks (e.g., "ratusan"), berikan estimasi integer yang paling masuk akal (e.g., 100). Jika tidak ada, gunakan 0.
+5. **Penanganan Informasi Nihil:** Jika setelah analisis menyeluruh sebuah informasi benar-benar tidak ditemukan, gunakan nilai default: "Tidak disebutkan" untuk string, [] untuk array, dan 0 untuk integer.
+6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
+
+Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;
+
 export default function SuspaAnalisPage() {
   const [text, setText] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -31,6 +56,8 @@ export default function SuspaAnalisPage() {
   const [isCopied, setIsCopied] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text')
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT)
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false)
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0]
@@ -74,6 +101,7 @@ export default function SuspaAnalisPage() {
       if (file) {
         const formData = new FormData()
         formData.append('file', file)
+        formData.append('systemPrompt', systemPrompt)
         response = await fetch('/api/suspa-analis', {
           method: 'POST',
           body: formData,
@@ -84,7 +112,7 @@ export default function SuspaAnalisPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, systemPrompt }),
         })
       }
 
@@ -175,15 +203,48 @@ export default function SuspaAnalisPage() {
     }
   }
 
+  const promptSettingsButton = (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="default" size="icon">
+          <SlidersHorizontal className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle>System Prompt</SheetTitle>
+          <SheetDescription>
+            Tweak to guide how the AI do the extraction
+          </SheetDescription>
+        </SheetHeader>
+        <div className="py-4 flex-1 flex flex-col min-h-0">
+          {isEditingPrompt ? (
+            <Textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              onBlur={() => setIsEditingPrompt(false)}
+              className="flex-1 resize-none text-sm"
+              placeholder="Enter your system prompt here..."
+              autoFocus
+            />
+          ) : (
+            <div
+              onDoubleClick={() => setIsEditingPrompt(true)}
+              className="prose prose-sm dark:prose-invert max-w-none w-full h-full overflow-y-auto p-2 border rounded-md"
+            >
+              <ReactMarkdown>{systemPrompt}</ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <AppsHeader />
-      
-      <div className="w-full px-4 pb-8 flex-1 flex flex-col">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2">Suspa Analis Tools</h1>
-        </div>
+      <AppsHeader title="Suspa Analis Tools" leftButton={promptSettingsButton} />
 
+      <div className="w-full px-4 py-4 flex-1 flex flex-col">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
           {/* Input Section */}
           <Card className="flex flex-col h-full">
@@ -196,11 +257,10 @@ export default function SuspaAnalisPage() {
                 <div className="flex items-center gap-2">
                   <Label
                     htmlFor="input-mode-switch"
-                    className={`transition-colors ${
-                      inputMode === 'text'
+                    className={`transition-colors ${inputMode === 'text'
                         ? 'font-medium'
                         : 'text-muted-foreground'
-                    }`}
+                      }`}
                   >
                     Text
                   </Label>
@@ -219,11 +279,10 @@ export default function SuspaAnalisPage() {
                   />
                   <Label
                     htmlFor="input-mode-switch"
-                    className={`transition-colors ${
-                      inputMode === 'file'
+                    className={`transition-colors ${inputMode === 'file'
                         ? 'font-medium'
                         : 'text-muted-foreground'
-                    }`}
+                      }`}
                   >
                     File
                   </Label>
@@ -464,6 +523,9 @@ export default function SuspaAnalisPage() {
         </div>
       </div>
 
+      <div className="flex-shrink-0 mb-2 mt-0">
+        <AppsFooter />
+      </div>
     </div>
   )
 }
