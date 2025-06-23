@@ -7,57 +7,71 @@ if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
-const responseSchema = {
+const domainProperties = {
+  TANGGAL: {
+    type: SchemaType.STRING as const,
+    description: "Tanggal kejadian atau laporan. Jika tidak ada, gunakan 'Tidak disebutkan'.",
+  },
+  PULAU: {
+    type: SchemaType.STRING as const,
+    description: "Nama pulau lokasi isu. Jika tidak ada, gunakan 'Tidak disebutkan'.",
+  },
+  PROVINSI: {
+    type: SchemaType.STRING as const,
+    description: "Nama provinsi lokasi isu. Jika tidak ada, gunakan 'Tidak disebutkan'.",
+  },
+  "KABUPATEN / KOTA": {
+    type: SchemaType.STRING as const,
+    description: "Nama kabupaten atau kota lokasi isu. Jika tidak ada, gunakan 'Tidak disebutkan'.",
+  },
+  "ISU UTAMA": {
+    type: SchemaType.STRING as const,
+    description: "Ringkasan atau judul utama dari isu yang dibahas untuk domain ini. Jika tidak ada isu relevan, gunakan 'Nihil'.",
+  },
+  BIDANG: {
+    type: SchemaType.STRING as const,
+    description: "Sektor atau bidang yang relevan, harus sesuai nama domain (e.g., 'SOSBUD', 'IDEOLOGI').",
+  },
+  TOPIK: {
+    type: SchemaType.ARRAY as const,
+    description: "Daftar topik-topik spesifik yang terkait dengan isu utama. Jika tidak ada, gunakan array kosong [].",
+    items: {
+      type: SchemaType.STRING as const,
+    },
+  },
+  TOKOH: {
+    type: SchemaType.ARRAY as const,
+    description: "Daftar nama tokoh atau figur publik yang terlibat atau disebutkan. Jika tidak ada, gunakan array kosong [].",
+    items: {
+      type: SchemaType.STRING as const,
+    },
+  },
+  "JUMLAH PESERTA": {
+    type: SchemaType.INTEGER as const,
+    description: "Jumlah total peserta dalam acara/kejadian yang dilaporkan. Jika tidak ada, gunakan 0.",
+  },
+};
+
+const singleDomainSchema = {
   type: SchemaType.OBJECT as const,
   required: ["TANGGAL", "PULAU", "PROVINSI", "KABUPATEN / KOTA", "ISU UTAMA", "BIDANG", "TOPIK", "TOKOH", "JUMLAH PESERTA"],
+  properties: domainProperties,
+}
+
+const responseSchema = {
+  type: SchemaType.OBJECT as const,
+  required: ["SOSBUD", "IDEOLOGI", "POLITIK", "HANKAM", "EKONOMI"],
   properties: {
-    TANGGAL: {
-      type: SchemaType.STRING as const,
-      description: "Tanggal kejadian atau laporan.",
-    },
-    PULAU: {
-      type: SchemaType.STRING as const,
-      description: "Nama pulau lokasi isu.",
-    },
-    PROVINSI: {
-      type: SchemaType.STRING as const,
-      description: "Nama provinsi lokasi isu.",
-    },
-    "KABUPATEN / KOTA": {
-      type: SchemaType.STRING as const,
-      description: "Nama kabupaten atau kota lokasi isu.",
-    },
-    "ISU UTAMA": {
-      type: SchemaType.STRING as const,
-      description: "Ringkasan atau judul utama dari isu yang dibahas.",
-    },
-    BIDANG: {
-      type: SchemaType.STRING as const,
-      description: "Sektor atau bidang yang relevan dengan isu (e.g., Pertanian, Ekonomi, Politik).",
-    },
-    TOPIK: {
-      type: SchemaType.ARRAY as const,
-      description: "Daftar topik-topik spesifik yang terkait dengan isu utama.",
-      items: {
-        type: SchemaType.STRING as const,
-      },
-    },
-    TOKOH: {
-      type: SchemaType.ARRAY as const,
-      description: "Daftar nama tokoh atau figur publik yang terlibat atau disebutkan.",
-      items: {
-        type: SchemaType.STRING as const,
-      },
-    },
-    "JUMLAH PESERTA": {
-      type: SchemaType.INTEGER as const,
-      description: "Jumlah total peserta dalam acara/kejadian yang dilaporkan.",
-    },
+    SOSBUD: { ...singleDomainSchema, description: "Analisis untuk bidang Sosial-Budaya (SOSBUD). Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
+    IDEOLOGI: { ...singleDomainSchema, description: "Analisis untuk bidang Ideologi. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
+    POLITIK: { ...singleDomainSchema, description: "Analisis untuk bidang Politik. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
+    HANKAM: { ...singleDomainSchema, description: "Analisis untuk bidang Pertahanan dan Keamanan (HANKAM). Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
+    EKONOMI: { ...singleDomainSchema, description: "Analisis untuk bidang Ekonomi. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
   },
 };
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
+  model: "gemini-1.5-flash",
   generationConfig: {
     temperature: 0.1,
     topP: 0.8,
@@ -68,18 +82,26 @@ const model = genAI.getGenerativeModel({
   }
 });
 
-const SYSTEM_PROMPT_TEXT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif.
+const SYSTEM_PROMPT_TEXT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif, dipecah menjadi lima domain strategis.
 
-Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan, memperhatikan setiap detail, baik yang tersurat maupun tersirat. Pastikan setiap field dalam skema JSON diisi dengan informasi yang paling relevan dan akurat.
+Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan dan mengkategorikannya ke dalam domain yang sesuai:
+- **SOSBUD** (Sosial-Budaya)
+- **IDEOLOGI**
+- **POLITIK**
+- **HANKAM** (Pertahanan dan Keamanan)
+- **EKONOMI**
+
+Pastikan setiap field dalam skema JSON untuk setiap domain diisi dengan informasi yang paling relevan dan akurat.
 
 Panduan Ekstraksi Intelijen:
-1. **Analisis Konteks Total:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks strategis, tujuan, dan pesan utama.
-2. **Ekstraksi Presisi Tinggi:** Identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta. Jangan membuat asumsi, dasarakan semua ekstraksi pada bukti dari dalam teks.
-3. **Identifikasi Entitas Kunci:**
-   - **TOPIK:** Ekstrak semua tema, sub-tema, dan isu spesifik yang dibahas. Tangkap nuansa dari setiap topik.
-   - **TOKOH:** Identifikasi semua individu yang disebutkan.
-4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika disebutkan dalam bentuk teks (e.g., "ratusan"), berikan estimasi integer yang paling masuk akal (e.g., 100). Jika tidak ada, gunakan 0.
-5. **Penanganan Informasi Nihil:** Jika setelah analisis menyeluruh sebuah informasi benar-benar tidak ditemukan, gunakan nilai default: "Tidak disebutkan" untuk string, [] untuk array, dan 0 untuk integer.
+1. **Analisis Komprehensif:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks, tujuan, dan pesan utama.
+2. **Klasifikasi Domain:** Tentukan informasi mana yang termasuk dalam domain SOSBUD, IDEOLOGI, POLITIK, HANKAM, dan EKONOMI. Satu informasi bisa relevan untuk beberapa domain.
+3. **Ekstraksi Presisi Tinggi:** Untuk setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
+   - **BIDANG:** Isi dengan nama domain yang sesuai (e.g., "SOSBUD", "IDEOLOGI").
+   - **ISU UTAMA:** Ringkas isu utama untuk domain tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, tulis **"Nihil"**.
+   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk domain tersebut.
+4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika tidak ada, gunakan 0.
+5. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, tandai "ISU UTAMA" sebagai "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
 6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
 
 Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;

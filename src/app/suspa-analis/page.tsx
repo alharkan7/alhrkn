@@ -18,31 +18,42 @@ import {
   SheetDescription
 } from '@/components/ui/sheet'
 import ReactMarkdown from 'react-markdown'
+import React from 'react'
 
-type AnalysisResult = {
+type DomainResult = {
   TANGGAL: string
   PULAU: string
   PROVINSI: string
   'KABUPATEN / KOTA': string
   'ISU UTAMA': string
   BIDANG: string
-  TOPIK: string[]
-  TOKOH: string[]
+  TOPIK: string[] | string
+  TOKOH: string[] | string
   'JUMLAH PESERTA': number
 }
 
-const DEFAULT_SYSTEM_PROMPT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif.
+type AnalysisResult = Record<string, DomainResult>
 
-Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan, memperhatikan setiap detail, baik yang tersurat maupun tersirat. Pastikan setiap field dalam skema JSON diisi dengan informasi yang paling relevan dan akurat.
+const DEFAULT_SYSTEM_PROMPT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif, dipecah menjadi lima domain strategis.
+
+Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang disediakan dan mengkategorikannya ke dalam domain yang sesuai:
+- **SOSBUD** (Sosial-Budaya)
+- **IDEOLOGI**
+- **POLITIK**
+- **HANKAM** (Pertahanan dan Keamanan)
+- **EKONOMI**
+
+Pastikan setiap field dalam skema JSON untuk setiap domain diisi dengan informasi yang paling relevan dan akurat.
 
 Panduan Ekstraksi Intelijen:
-1. **Analisis Konteks Total:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks strategis, tujuan, dan pesan utama.
-2. **Ekstraksi Presisi Tinggi:** Identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta. Jangan membuat asumsi, dasarakan semua ekstraksi pada bukti dari dalam teks.
-3. **Identifikasi Entitas Kunci:**
-   - **TOPIK:** Ekstrak semua tema, sub-tema, dan isu spesifik yang dibahas. Tangkap nuansa dari setiap topik.
-   - **TOKOH:** Identifikasi semua individu yang disebutkan.
-4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika disebutkan dalam bentuk teks (e.g., "ratusan"), berikan estimasi integer yang paling masuk akal (e.g., 100). Jika tidak ada, gunakan 0.
-5. **Penanganan Informasi Nihil:** Jika setelah analisis menyeluruh sebuah informasi benar-benar tidak ditemukan, gunakan nilai default: "Tidak disebutkan" untuk string, [] untuk array, dan 0 untuk integer.
+1. **Analisis Komprehensif:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks, tujuan, dan pesan utama.
+2. **Klasifikasi Domain:** Tentukan informasi mana yang termasuk dalam domain SOSBUD, IDEOLOGI, POLITIK, HANKAM, dan EKONOMI. Satu informasi bisa relevan untuk beberapa domain.
+3. **Ekstraksi Presisi Tinggi:** Untuk setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
+   - **BIDANG:** Isi dengan nama domain yang sesuai (e.g., "SOSBUD", "IDEOLOGI").
+   - **ISU UTAMA:** Ringkas isu utama untuk domain tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, tulis **"Nihil"**.
+   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk domain tersebut.
+4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika tidak ada, gunakan 0.
+5. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, tandai "ISU UTAMA" sebagai "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
 6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
 
 Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;
@@ -169,21 +180,36 @@ export default function SuspaAnalisPage() {
   const handleCopyResults = async () => {
     if (!result) return
 
-    // Extract only the values (no headers)
-    const values = [
-      result.TANGGAL,
-      result.PULAU,
-      result.PROVINSI,
-      result['KABUPATEN / KOTA'],
-      result['ISU UTAMA'],
-      result.BIDANG,
-      Array.isArray(result.TOPIK) ? result.TOPIK.join(', ') : result.TOPIK,
-      Array.isArray(result.TOKOH) ? result.TOKOH.join(', ') : result.TOKOH,
-      result['JUMLAH PESERTA']
-    ]
+    const header = [
+      "DOMAIN",
+      "TANGGAL",
+      "PULAU",
+      "PROVINSI",
+      "KABUPATEN / KOTA",
+      "ISU UTAMA",
+      "BIDANG",
+      "TOPIK",
+      "TOKOH",
+      "JUMLAH PESERTA"
+    ].join('\t');
 
-    // Create tab-separated values for Excel (single row)
-    const copyData = values.join('\t')
+    const rows = Object.entries(result).map(([domain, domainResult]) => {
+      const values = [
+        domain,
+        domainResult.TANGGAL,
+        domainResult.PULAU,
+        domainResult.PROVINSI,
+        domainResult['KABUPATEN / KOTA'],
+        domainResult['ISU UTAMA'],
+        domainResult.BIDANG,
+        Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join('; ') : domainResult.TOPIK,
+        Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join('; ') : domainResult.TOKOH,
+        domainResult['JUMLAH PESERTA']
+      ];
+      return values.join('\t');
+    });
+
+    const copyData = [header, ...rows].join('\n');
 
     try {
       await navigator.clipboard.writeText(copyData)
@@ -244,7 +270,7 @@ export default function SuspaAnalisPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <AppsHeader title="Suspa Analis Tools" leftButton={promptSettingsButton} />
 
-      <div className="w-full px-4 py-4 flex-1 flex flex-col">
+      <div className="max-w-8xl px-4 py-4 flex-1 flex flex-col">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
           {/* Input Section */}
           <Card className="flex flex-col h-full">
@@ -422,91 +448,43 @@ export default function SuspaAnalisPage() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden">
               {result ? (
-                <div className="overflow-y-auto flex-1">
-                  <table className="w-full border-collapse border border-border bg-white">
-                    <thead className="sticky top-0 bg-background">
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full min-w-max border-collapse border border-border bg-white">
+                    <thead className="sticky top-0 bg-background z-10">
                       <tr className="bg-muted/50">
-                        <th className="border border-border p-3 text-left text-sm font-medium">
-                          Field
-                        </th>
-                        <th className="border border-border p-3 text-left text-sm font-medium">
-                          Value
-                        </th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">DOMAIN</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">TANGGAL</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">PULAU</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">PROVINSI</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">KABUPATEN / KOTA</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">ISU UTAMA</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">BIDANG</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">TOPIK</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">TOKOH</th>
+                        <th className="border border-border p-3 text-left text-sm font-medium">JUMLAH PESERTA</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          TANGGAL
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result.TANGGAL}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          PULAU
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result.PULAU}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          PROVINSI
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result.PROVINSI}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          KABUPATEN / KOTA
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result['KABUPATEN / KOTA']}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          ISU UTAMA
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result['ISU UTAMA']}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          BIDANG
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result.BIDANG}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          TOPIK
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {Array.isArray(result.TOPIK) ? result.TOPIK.join(', ') : result.TOPIK}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          TOKOH
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {Array.isArray(result.TOKOH) ? result.TOKOH.join(', ') : result.TOKOH}
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-muted/25">
-                        <td className="border border-border p-3 text-sm font-medium">
-                          JUMLAH PESERTA
-                        </td>
-                        <td className="border border-border p-3 text-sm">
-                          {result['JUMLAH PESERTA']}
-                        </td>
-                      </tr>
+                      {Object.entries(result)
+                        .filter(([, domainResult]) =>
+                          domainResult &&
+                          typeof domainResult['ISU UTAMA'] === 'string' &&
+                          domainResult['ISU UTAMA'].toLowerCase() !== 'nihil'
+                        )
+                        .map(([domain, domainResult]) => (
+                          <tr key={domain} className="hover:bg-muted/25">
+                            <td className="border border-border p-3 text-sm font-bold">{domain}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult.TANGGAL}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult.PULAU}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult.PROVINSI}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult['KABUPATEN / KOTA']}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult['ISU UTAMA']}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult.BIDANG}</td>
+                            <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join(', ') : domainResult.TOPIK}</td>
+                            <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join(', ') : domainResult.TOKOH}</td>
+                            <td className="border border-border p-3 text-sm">{domainResult['JUMLAH PESERTA']}</td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
