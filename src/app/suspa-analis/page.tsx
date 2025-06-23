@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { Upload, Loader2, FileText, Table, Copy, Check } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 type AnalysisResult = {
   TANGGAL: string
@@ -27,22 +29,40 @@ export default function SuspaAnalisPage() {
   const [error, setError] = useState<string | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [inputMode, setInputMode] = useState<'text' | 'file'>('text')
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && file.type === 'text/plain') {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        setText(content)
+    const selectedFile = event.target.files?.[0]
+    if (!selectedFile) return
+
+    if (
+      selectedFile.type === 'application/pdf' ||
+      selectedFile.type === 'text/plain'
+    ) {
+      if (selectedFile.type === 'text/plain') {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const content = e.target?.result as string
+          setText(content)
+          setFile(null)
+          setError(null)
+        }
+        reader.readAsText(selectedFile)
+      } else {
+        setFile(selectedFile)
+        setText('')
+        setError(null)
       }
-      reader.readAsText(file)
+    } else {
+      setError('Unsupported file type. Please upload a PDF or TXT file.')
+      setFile(null)
     }
   }
 
   const handleProcess = async () => {
-    if (!text.trim()) {
-      setError('Please enter text to analyze')
+    if (!text.trim() && !file) {
+      setError('Please enter text to analyze or upload a file')
       return
     }
 
@@ -50,13 +70,23 @@ export default function SuspaAnalisPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/suspa-analis', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      })
+      let response
+      if (file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        response = await fetch('/api/suspa-analis', {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        response = await fetch('/api/suspa-analis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text }),
+        })
+      }
 
       const data = await response.json()
 
@@ -75,14 +105,32 @@ export default function SuspaAnalisPage() {
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const file = e.dataTransfer.files[0]
-    if (file && file.type === 'text/plain') {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        setText(content)
+    if (inputMode !== 'file') return
+
+    const droppedFile = e.dataTransfer.files?.[0]
+    if (!droppedFile) return
+
+    if (
+      droppedFile.type === 'application/pdf' ||
+      droppedFile.type === 'text/plain'
+    ) {
+      if (droppedFile.type === 'text/plain') {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const content = e.target?.result as string
+          setText(content)
+          setFile(null)
+          setError(null)
+        }
+        reader.readAsText(droppedFile)
+      } else {
+        setFile(droppedFile)
+        setText('')
+        setError(null)
       }
-      reader.readAsText(file)
+    } else {
+      setError('Unsupported file type. Please upload a PDF or TXT file.')
+      setFile(null)
     }
   }
 
@@ -135,7 +183,7 @@ export default function SuspaAnalisPage() {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">Suspa Analis</h1>
           <p className="text-muted-foreground">
-            Analyze long text content to extract structured information using AI
+            Extract Structured Information Instantly
           </p>
         </div>
 
@@ -143,27 +191,120 @@ export default function SuspaAnalisPage() {
           {/* Input Section */}
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Text Input
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Input
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="input-mode-switch"
+                    className={`transition-colors ${
+                      inputMode === 'text'
+                        ? 'font-medium'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    Text
+                  </Label>
+                  <Switch
+                    id="input-mode-switch"
+                    checked={inputMode === 'file'}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setInputMode('file')
+                        setText('')
+                      } else {
+                        setInputMode('text')
+                        setFile(null)
+                      }
+                    }}
+                  />
+                  <Label
+                    htmlFor="input-mode-switch"
+                    className={`transition-colors ${
+                      inputMode === 'file'
+                        ? 'font-medium'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    File
+                  </Label>
+                </div>
               </CardTitle>
               <CardDescription>
-                Enter your long text here
+                {inputMode === 'text'
+                  ? 'Enter your long text here'
+                  : 'Upload a PDF or TXT file for analysis'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 flex-1 flex flex-col overflow-hidden">
-              <div className="space-y-2 flex-1 flex flex-col overflow-hidden">
-                <Textarea
-                  id="text-content"
-                  placeholder="Enter your long text content here..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  className="flex-1 resize-none bg-white"
-                />
-                <p className="text-xs text-muted-foreground flex justify-between flex-shrink-0">
-                  <span>{text.length} characters</span>
-                </p>
-              </div>
+            <CardContent
+              className="space-y-4 flex-1 flex flex-col overflow-hidden"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {inputMode === 'text' ? (
+                <div className="space-y-2 flex-1 flex flex-col overflow-hidden">
+                  <Textarea
+                    id="text-content"
+                    placeholder="Enter your long text content here..."
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    className="flex-1 resize-none bg-white"
+                  />
+                  <p className="text-xs text-muted-foreground flex justify-between flex-shrink-0">
+                    <span>{text.length} characters</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 text-center transition-colors bg-white">
+                  <input
+                    id="file-upload"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.txt"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
+                  >
+                    <Upload className="h-8 w-8 mb-4 opacity-50" />
+                    {file ? (
+                      <div>
+                        <p className="font-semibold">{file.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Click or drag another file to replace
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-semibold">
+                          Drag & drop a file or click to upload
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          PDF or TXT
+                        </p>
+                      </div>
+                    )}
+                  </label>
+                  {file && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setFile(null)
+                        const fileInput = document.getElementById(
+                          'file-upload'
+                        ) as HTMLInputElement
+                        if (fileInput) fileInput.value = ''
+                      }}
+                      className="mt-4 text-destructive text-sm font-semibold"
+                    >
+                      Remove file
+                    </button>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex-shrink-0">
@@ -173,7 +314,7 @@ export default function SuspaAnalisPage() {
 
               <Button
                 onClick={handleProcess}
-                disabled={isProcessing || !text.trim()}
+                disabled={isProcessing || (!text.trim() && !file)}
                 className="w-full flex-shrink-0"
                 variant="neutral"
               >
@@ -183,7 +324,7 @@ export default function SuspaAnalisPage() {
                     Processing...
                   </>
                 ) : (
-                  'Process Text'
+                  'Process'
                 )}
               </Button>
             </CardContent>
@@ -317,7 +458,7 @@ export default function SuspaAnalisPage() {
                 <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
                   <div>
                     <Table className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Enter text on the left and click "Process Text" to see results here</p>
+                    <p>Enter text on the left and click "Process" to see results here</p>
                   </div>
                 </div>
               )}
