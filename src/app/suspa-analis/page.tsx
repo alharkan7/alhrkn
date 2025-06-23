@@ -179,12 +179,9 @@ export default function SuspaAnalisPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <AppsHeader />
       
-      <div className="w-full px-4 py-8 flex-1 flex flex-col">
+      <div className="w-full px-4 pb-8 flex-1 flex flex-col">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-2">Suspa Analis</h1>
-          <p className="text-muted-foreground">
-            Extract Structured Information Instantly
-          </p>
+          <h1 className="text-4xl font-bold mb-2">Suspa Analis Tools</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
