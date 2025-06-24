@@ -32,7 +32,7 @@ type DomainResult = {
   'JUMLAH PESERTA': number
 }
 
-type AnalysisResult = Record<string, DomainResult>
+type AnalysisResult = Record<string, DomainResult[]>
 
 const DEFAULT_SYSTEM_PROMPT = `Anda adalah seorang Analis Intelijen Strategis yang sangat teliti dan berpengalaman. Misi Anda adalah melakukan analisis mendalam terhadap dokumen atau teks yang diberikan untuk menyusun laporan intelijen yang akurat dan komprehensif, dipecah menjadi lima domain strategis.
 
@@ -43,20 +43,51 @@ Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang dis
 - **HANKAM** (Pertahanan dan Keamanan)
 - **EKONOMI**
 
-Pastikan setiap field dalam skema JSON untuk setiap domain diisi dengan informasi yang paling relevan dan akurat.
+**PENTING**: Setiap domain dapat memiliki MULTIPLE ISU UTAMA yang berbeda. Jika dalam suatu domain terdapat beberapa isu yang berbeda, buatlah entri terpisah untuk setiap isu dalam array domain tersebut.
 
 Panduan Ekstraksi Intelijen:
 1. **Analisis Komprehensif:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks, tujuan, dan pesan utama.
 2. **Klasifikasi Domain:** Tentukan informasi mana yang termasuk dalam domain SOSBUD, IDEOLOGI, POLITIK, HANKAM, dan EKONOMI. Satu informasi bisa relevan untuk beberapa domain.
-3. **Ekstraksi Presisi Tinggi:** Untuk setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
+3. **Identifikasi Multiple Issues:** Jika dalam satu domain terdapat beberapa isu yang berbeda, pisahkan menjadi entri yang berbeda dalam array domain tersebut.
+4. **Ekstraksi Presisi Tinggi:** Untuk setiap isu dalam setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
    - **BIDANG:** Isi dengan nama domain yang sesuai (e.g., "SOSBUD", "IDEOLOGI").
-   - **ISU UTAMA:** Ringkas isu utama untuk domain tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, tulis **"Nihil"**.
-   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk domain tersebut.
-4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika tidak ada, gunakan 0.
-5. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, tandai "ISU UTAMA" sebagai "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
-6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
+   - **ISU UTAMA:** Ringkas isu utama spesifik untuk entri tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, buat satu entri dengan "ISU UTAMA" = "Nihil".
+   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk isu spesifik tersebut.
+5. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik untuk setiap isu. Jika tidak ada, gunakan 0.
+6. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, buat array dengan satu objek yang "ISU UTAMA" diisi "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
+7. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
 
-Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;
+Contoh output untuk domain dengan multiple issues:
+\`\`\`json
+{
+  "POLITIK": [
+    {
+      "TANGGAL": "2024-01-15",
+      "PULAU": "Jawa",
+      "PROVINSI": "DKI Jakarta", 
+      "KABUPATEN / KOTA": "Jakarta Pusat",
+      "ISU UTAMA": "Demonstrasi mahasiswa menuntut transparansi anggaran",
+      "BIDANG": "POLITIK",
+      "TOPIK": ["demonstrasi", "transparansi", "anggaran"],
+      "TOKOH": ["Ketua BEM UI"],
+      "JUMLAH PESERTA": 500
+    },
+    {
+      "TANGGAL": "2024-01-15",
+      "PULAU": "Jawa",
+      "PROVINSI": "DKI Jakarta",
+      "KABUPATEN / KOTA": "Jakarta Selatan", 
+      "ISU UTAMA": "Pertemuan koalisi partai politik",
+      "BIDANG": "POLITIK",
+      "TOPIK": ["koalisi", "partai politik", "pertemuan"],
+      "TOKOH": ["Ketua Partai A", "Ketua Partai B"],
+      "JUMLAH PESERTA": 50
+    }
+  ]
+}
+\`\`\`
+
+Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi dan identifikasi multiple issues per domain.`;
 
 export default function SuspaAnalisPage() {
   const [text, setText] = useState('')
@@ -193,21 +224,29 @@ export default function SuspaAnalisPage() {
       "JUMLAH PESERTA"
     ].join('\t');
 
-    const rows = Object.entries(result).map(([domain, domainResult]) => {
-      const values = [
-        domain,
-        domainResult.TANGGAL,
-        domainResult.PULAU,
-        domainResult.PROVINSI,
-        domainResult['KABUPATEN / KOTA'],
-        domainResult['ISU UTAMA'],
-        domainResult.BIDANG,
-        Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join('; ') : domainResult.TOPIK,
-        Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join('; ') : domainResult.TOKOH,
-        domainResult['JUMLAH PESERTA']
-      ];
-      return values.join('\t');
-    });
+    const rows = Object.entries(result).flatMap(([domain, domainResults]) =>
+      domainResults
+        .filter(domainResult =>
+          domainResult &&
+          typeof domainResult['ISU UTAMA'] === 'string' &&
+          domainResult['ISU UTAMA'].toLowerCase() !== 'nihil'
+        )
+        .map(domainResult => {
+          const values = [
+            domain,
+            domainResult.TANGGAL,
+            domainResult.PULAU,
+            domainResult.PROVINSI,
+            domainResult['KABUPATEN / KOTA'],
+            domainResult['ISU UTAMA'],
+            domainResult.BIDANG,
+            Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join('; ') : domainResult.TOPIK,
+            Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join('; ') : domainResult.TOKOH,
+            domainResult['JUMLAH PESERTA']
+          ];
+          return values.join('\t');
+        })
+    );
 
     const copyData = [header, ...rows].join('\n');
 
@@ -466,25 +505,28 @@ export default function SuspaAnalisPage() {
                     </thead>
                     <tbody>
                       {Object.entries(result)
-                        .filter(([, domainResult]) =>
-                          domainResult &&
-                          typeof domainResult['ISU UTAMA'] === 'string' &&
-                          domainResult['ISU UTAMA'].toLowerCase() !== 'nihil'
-                        )
-                        .map(([domain, domainResult]) => (
-                          <tr key={domain} className="hover:bg-muted/25">
-                            <td className="border border-border p-3 text-sm font-bold">{domain}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult.TANGGAL}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult.PULAU}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult.PROVINSI}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult['KABUPATEN / KOTA']}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult['ISU UTAMA']}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult.BIDANG}</td>
-                            <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join(', ') : domainResult.TOPIK}</td>
-                            <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join(', ') : domainResult.TOKOH}</td>
-                            <td className="border border-border p-3 text-sm">{domainResult['JUMLAH PESERTA']}</td>
-                          </tr>
-                        ))}
+                        .flatMap(([domain, domainResults]) =>
+                          domainResults
+                            .filter(domainResult =>
+                              domainResult &&
+                              typeof domainResult['ISU UTAMA'] === 'string' &&
+                              domainResult['ISU UTAMA'].toLowerCase() !== 'nihil'
+                            )
+                            .map((domainResult, index) => (
+                              <tr key={`${domain}-${index}`} className="hover:bg-muted/25">
+                                <td className="border border-border p-3 text-sm font-bold">{domain}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult.TANGGAL}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult.PULAU}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult.PROVINSI}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult['KABUPATEN / KOTA']}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult['ISU UTAMA']}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult.BIDANG}</td>
+                                <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOPIK) ? domainResult.TOPIK.join(', ') : domainResult.TOPIK}</td>
+                                <td className="border border-border p-3 text-sm">{Array.isArray(domainResult.TOKOH) ? domainResult.TOKOH.join(', ') : domainResult.TOKOH}</td>
+                                <td className="border border-border p-3 text-sm">{domainResult['JUMLAH PESERTA']}</td>
+                              </tr>
+                            ))
+                        )}
                     </tbody>
                   </table>
                 </div>

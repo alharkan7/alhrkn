@@ -62,11 +62,31 @@ const responseSchema = {
   type: SchemaType.OBJECT as const,
   required: ["SOSBUD", "IDEOLOGI", "POLITIK", "HANKAM", "EKONOMI"],
   properties: {
-    SOSBUD: { ...singleDomainSchema, description: "Analisis untuk bidang Sosial-Budaya (SOSBUD). Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
-    IDEOLOGI: { ...singleDomainSchema, description: "Analisis untuk bidang Ideologi. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
-    POLITIK: { ...singleDomainSchema, description: "Analisis untuk bidang Politik. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
-    HANKAM: { ...singleDomainSchema, description: "Analisis untuk bidang Pertahanan dan Keamanan (HANKAM). Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
-    EKONOMI: { ...singleDomainSchema, description: "Analisis untuk bidang Ekonomi. Jika tidak ada informasi relevan, isi 'ISU UTAMA' dengan 'Nihil'." },
+    SOSBUD: { 
+      type: SchemaType.ARRAY as const,
+      description: "Array analisis untuk bidang Sosial-Budaya (SOSBUD). Jika tidak ada informasi relevan, berikan array dengan satu objek yang 'ISU UTAMA' diisi dengan 'Nihil'.",
+      items: singleDomainSchema
+    },
+    IDEOLOGI: { 
+      type: SchemaType.ARRAY as const,
+      description: "Array analisis untuk bidang Ideologi. Jika tidak ada informasi relevan, berikan array dengan satu objek yang 'ISU UTAMA' diisi dengan 'Nihil'.",
+      items: singleDomainSchema
+    },
+    POLITIK: { 
+      type: SchemaType.ARRAY as const,
+      description: "Array analisis untuk bidang Politik. Jika tidak ada informasi relevan, berikan array dengan satu objek yang 'ISU UTAMA' diisi dengan 'Nihil'.",
+      items: singleDomainSchema
+    },
+    HANKAM: { 
+      type: SchemaType.ARRAY as const,
+      description: "Array analisis untuk bidang Pertahanan dan Keamanan (HANKAM). Jika tidak ada informasi relevan, berikan array dengan satu objek yang 'ISU UTAMA' diisi dengan 'Nihil'.",
+      items: singleDomainSchema
+    },
+    EKONOMI: { 
+      type: SchemaType.ARRAY as const,
+      description: "Array analisis untuk bidang Ekonomi. Jika tidak ada informasi relevan, berikan array dengan satu objek yang 'ISU UTAMA' diisi dengan 'Nihil'.",
+      items: singleDomainSchema
+    },
   },
 };
 
@@ -91,20 +111,49 @@ Tugas Anda adalah mengekstrak informasi kunci secara cermat dari konten yang dis
 - **HANKAM** (Pertahanan dan Keamanan)
 - **EKONOMI**
 
-Pastikan setiap field dalam skema JSON untuk setiap domain diisi dengan informasi yang paling relevan dan akurat.
+**PENTING**: Setiap domain dapat memiliki MULTIPLE ISU UTAMA yang berbeda. Jika dalam suatu domain terdapat beberapa isu yang berbeda, buatlah entri terpisah untuk setiap isu dalam array domain tersebut.
 
 Panduan Ekstraksi Intelijen:
 1. **Analisis Komprehensif:** Pindai dan pahami keseluruhan dokumen untuk mengidentifikasi konteks, tujuan, dan pesan utama.
 2. **Klasifikasi Domain:** Tentukan informasi mana yang termasuk dalam domain SOSBUD, IDEOLOGI, POLITIK, HANKAM, dan EKONOMI. Satu informasi bisa relevan untuk beberapa domain.
-3. **Ekstraksi Presisi Tinggi:** Untuk setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
+3. **Identifikasi Multiple Issues:** Jika dalam satu domain terdapat beberapa isu yang berbeda, pisahkan menjadi entri yang berbeda dalam array domain tersebut.
+4. **Ekstraksi Presisi Tinggi:** Untuk setiap isu dalam setiap domain, identifikasi dengan tepat data yang sesuai untuk setiap field yang diminta.
    - **BIDANG:** Isi dengan nama domain yang sesuai (e.g., "SOSBUD", "IDEOLOGI").
-   - **ISU UTAMA:** Ringkas isu utama untuk domain tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, tulis **"Nihil"**.
-   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk domain tersebut.
-4. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik. Jika tidak ada, gunakan 0.
-5. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, tandai "ISU UTAMA" sebagai "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
-6. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
+   - **ISU UTAMA:** Ringkas isu utama spesifik untuk entri tersebut. Jika tidak ada informasi yang relevan untuk suatu domain, buat satu entri dengan "ISU UTAMA" = "Nihil".
+   - **TOPIK & TOKOH:** Ekstrak semua tema dan individu yang relevan untuk isu spesifik tersebut.
+5. **Kuantifikasi Data:** Untuk **JUMLAH PESERTA**, cari angka spesifik untuk setiap isu. Jika tidak ada, gunakan 0.
+6. **Penanganan Informasi Nihil:** Jika suatu domain sama sekali tidak memiliki informasi relevan dalam teks, buat array dengan satu objek yang "ISU UTAMA" diisi "Nihil" dan gunakan nilai default untuk field lainnya ("Tidak disebutkan" untuk string, [] untuk array, 0 untuk integer).
+7. **Kualitas di Atas Segalanya:** Akurasi, kelengkapan, dan presisi adalah prioritas utama. Hasil analisis Anda akan menjadi dasar bagi pengambilan keputusan strategis.
 
-Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi.`;
+Contoh output untuk domain dengan multiple issues:
+{
+  "POLITIK": [
+    {
+      "TANGGAL": "2024-01-15",
+      "PULAU": "Jawa",
+      "PROVINSI": "DKI Jakarta", 
+      "KABUPATEN / KOTA": "Jakarta Pusat",
+      "ISU UTAMA": "Demonstrasi mahasiswa menuntut transparansi anggaran",
+      "BIDANG": "POLITIK",
+      "TOPIK": ["demonstrasi", "transparansi", "anggaran"],
+      "TOKOH": ["Ketua BEM UI"],
+      "JUMLAH PESERTA": 500
+    },
+    {
+      "TANGGAL": "2024-01-15",
+      "PULAU": "Jawa",
+      "PROVINSI": "DKI Jakarta",
+      "KABUPATEN / KOTA": "Jakarta Selatan", 
+      "ISU UTAMA": "Pertemuan koalisi partai politik",
+      "BIDANG": "POLITIK",
+      "TOPIK": ["koalisi", "partai politik", "pertemuan"],
+      "TOKOH": ["Ketua Partai A", "Ketua Partai B"],
+      "JUMLAH PESERTA": 50
+    }
+  ]
+}
+
+Sistem akan secara otomatis memformat output Anda ke dalam skema JSON yang telah ditentukan. Fokuslah pada kualitas ekstraksi dan identifikasi multiple issues per domain.`;
 
 async function fileToGenerativePart(file: File): Promise<Part> {
   const base64EncodedData = await file.arrayBuffer().then(buffer => Buffer.from(buffer).toString('base64'));
