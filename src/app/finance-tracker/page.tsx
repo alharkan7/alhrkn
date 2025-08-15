@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { motion, AnimatePresence } from "framer-motion";
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
-import { Info } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 export default function FinanceTrackerPage() {
@@ -24,7 +24,7 @@ export default function FinanceTrackerPage() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [showValidation, setShowValidation] = useState(false);
   const [activeTab, setActiveTab] = useState('expense');
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(true);
 
   const timestamp = (() => {
     const date = new Date();
@@ -265,8 +265,14 @@ export default function FinanceTrackerPage() {
             className="max-w-md w-full mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <CardHeader>
+            <CardHeader className="relative">
               <CardTitle className="text-xl text-center">About this (Demo) App</CardTitle>
+              <button
+                className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setShowInfoModal(false)}
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
             </CardHeader>
             <CardContent className="space-y-4">
               <p>
