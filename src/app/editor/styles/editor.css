@@ -20,39 +20,19 @@
 
 /* Position block controls on the left */
 .ce-toolbar__plus {
-  left: -100px !important;
+  left: -30px !important;
   right: auto !important;
 }
 
 .ce-toolbar__actions {
-  left: -100px !important;
   right: auto !important;
+  left: -30px !important;
 }
 
-/* Ensure any drag handle variant also sits outside of text */
-.ce-toolbar__drag {
-  left: -100px !important;
-  right: auto !important;
+.ce-block:hover .ce-block__content {
+  padding-left: 40px;
+  padding-right: 0;
 }
-
-/* Make sure negative-offset controls are not clipped */
-.ce-block,
-.ce-block__content {
-  overflow: visible !important;
-}
-
-/* Bring controls closer on small screens so they remain visible */
-@media (max-width: 640px) {
-  .ce-toolbar__plus,
-  .ce-toolbar__actions,
-  .ce-toolbar__drag {
-    left: -20px !important;
-  }
-}
-
-/* Do not shift content on hover; keep text stationary while controls appear */
-/* Previously added padding on hover caused the content to move. */
-/* .ce-block:hover .ce-block__content { padding-left: 40px; padding-right: 0; } */
 
 .citation-block {
   position: relative;
@@ -88,31 +68,4 @@
   color: #1a73e8;
   text-decoration: underline;
   cursor: help;
-}
-
-/* Fix EditorJS excessive bottom padding */
-.codex-editor__redactor {
-  padding-bottom: 50px !important; /* Reduce from default 300px */
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-/* Ensure symmetric padding for editor content */
-.ce-block__content {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-/* Fix overall editor container padding */
-.codex-editor {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-/* Ensure blocks have consistent spacing */
-.ce-block {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
 } 

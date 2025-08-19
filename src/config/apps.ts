@@ -21,6 +21,12 @@ export const apps: AppConfig[] = [
     description: 'Create Any Diagram in Seconds with AI',
   },
   {
+    name: 'Outliner',
+    icon: Feather,
+    slug: 'outliner',
+    description: 'Quickly Draft Research Paper',
+  },
+  {
     name: 'AI Chat',
     icon: Sparkles,
     slug: 'chat',
