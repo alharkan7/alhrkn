@@ -28,6 +28,7 @@ export default function OutlinerPage() {
     const [error, setError] = useState<string | null>(null);
     const [hasResponded, setHasResponded] = useState<boolean>(false);
     const controllerRef = useRef<AbortController | null>(null);
+    // removed expectedCount-based skeleton logic
 
     // Initialize from URL parameter (?q=...)
     useEffect(() => {
@@ -79,11 +80,16 @@ export default function OutlinerPage() {
                     if (!trimmed) continue;
                     try {
                         const idea = JSON.parse(trimmed) as ResearchIdea;
+                        console.log('Processing idea from stream:', { title: idea.title, currentCount: ideas?.length || 0 });
                         setIdeas((prev) => {
                             const existing = Array.isArray(prev) ? prev : [];
                             const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
                             const key = String(idea?.title || '').toLowerCase().trim();
-                            if (!key || seen.has(key)) return existing;
+                            if (!key || seen.has(key)) {
+                                console.log('Filtered out duplicate idea:', { title: idea?.title, existingCount: existing.length });
+                                return existing;
+                            }
+                            console.log('Adding new idea:', { title: idea?.title, newCount: existing.length + 1 });
                             return [...existing, idea];
                         });
                     } catch {}
@@ -132,6 +138,7 @@ export default function OutlinerPage() {
         setIsLoadingMore(true);
         setError(null);
         try {
+            // rely on isLoadingMore to control skeleton visibility
             const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -156,11 +163,16 @@ export default function OutlinerPage() {
                     if (!trimmed) continue;
                     try {
                         const idea = JSON.parse(trimmed) as ResearchIdea;
+                        console.log('Processing idea from appendIdeas:', { title: idea.title, currentCount: ideas?.length || 0 });
                         setIdeas((prev) => {
                             const existing = Array.isArray(prev) ? prev : [];
                             const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
                             const key = String(idea?.title || '').toLowerCase().trim();
-                            if (!key || seen.has(key)) return existing;
+                            if (!key || seen.has(key)) {
+                                console.log('Filtered out duplicate idea (append):', { title: idea?.title, existingCount: existing.length });
+                                return existing;
+                            }
+                            console.log('Adding new idea (append):', { title: idea?.title, newCount: existing.length + 1 });
                             return [...existing, idea];
                         });
                     } catch {}
@@ -191,9 +203,9 @@ export default function OutlinerPage() {
             <div className="fixed top-0 left-0 right-0 z-50">
                 <AppsHeader />
             </div>
-            <div className={`w-full max-w-5xl ${hasResults ? 'pt-20' : 'pt-24'} pb-28 px-4`}>
-                <div className={!hasResponded ? 'min-h-[calc(100vh-13rem)] flex flex-col justify-center' : ''}>
-                    {!hasResponded && (
+            <div className={`w-full max-w-5xl ${(hasResults || isLoading) ? 'pt-20' : 'pt-24'} pb-28 px-4`}>
+                <div className={!isLoading && !hasResponded ? 'min-h-[calc(100vh-13rem)] flex flex-col justify-center' : ''}>
+                    {!isLoading && !hasResponded && (
                         <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-6 text-center">
                             What do you want to research?
                         </h1>
@@ -222,7 +234,19 @@ export default function OutlinerPage() {
                     <div className="mt-6 text-center text-red-500 text-sm">{error}</div>
                 )}
 
-                {ideas && <IdeasGrid ideas={ideas} />}
+                {ideas && (
+                    <IdeasGrid
+                        ideas={ideas}
+                        isLoading={isLoading}
+                        isLoadingMore={isLoadingMore}
+                    />
+                )}
+                {/* Debug info */}
+                {/* {ideas && (
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                        Debug: {ideas.length} ideas, Loading: {isLoading ? 'Yes' : 'No'}, LoadingMore: {isLoadingMore ? 'Yes' : 'No'}
+                    </div>
+                )} */}
                 {hasResults && (
                     <div className="mt-6 flex justify-center">
                         <Button

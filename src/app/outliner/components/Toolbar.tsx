@@ -17,7 +17,7 @@ interface ToolbarProps {
 export function Toolbar({ onDownload }: ToolbarProps) {
   const router = useRouter();
   return (
-    <div className="flex items-center justify-between border-b border-border bg-bw pb-2 shadow-[var(--shadow)]">
+    <div className="flex items-center justify-between border-b border-border py-2 shadow-[var(--shadow)]">
       
       {/* Left side - back button */}
       <div className="flex items-center space-x-2">
@@ -37,7 +37,7 @@ export function Toolbar({ onDownload }: ToolbarProps) {
         <Button
           variant="noShadow"
           size="sm"
-          className="bg-bw text-text border border-border hover:bg-bw/90"
+          className="text-text border border-border"
           aria-label="Open Citations"
           onClick={() => {
             if (typeof window !== 'undefined') {

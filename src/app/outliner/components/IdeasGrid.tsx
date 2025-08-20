@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ResearchIdea = {
     title: string;
@@ -18,7 +19,7 @@ type ResearchIdea = {
     };
 };
 
-export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
+export default function IdeasGrid({ ideas, isLoading, isLoadingMore }: { ideas: ResearchIdea[], isLoading: boolean, isLoadingMore: boolean }) {
     const [open, setOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const router = useRouter();
@@ -27,6 +28,17 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
         if (selectedIndex === null) return null;
         return ideas?.[selectedIndex] ?? null;
     }, [ideas, selectedIndex]);
+
+    // Show a single skeleton while loading
+    const showSkeleton = isLoading || isLoadingMore;
+    
+    // Debug logging
+    console.log('IdeasGrid render:', { 
+        ideasCount: ideas.length, 
+        isLoading, 
+        isLoadingMore, 
+        showSkeleton 
+    });
 
     function navigateToExpanded(idea: ResearchIdea) {
         const id = crypto.randomUUID();
@@ -53,6 +65,30 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
             return next < ideas.length ? next : idx;
         });
     }
+
+    const renderSkeletonCard = () => (
+        <Card className="h-full">
+            <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+            </CardHeader>
+            <CardContent className="space-y-3 pb-10">
+                <div>
+                    <Skeleton className="h-4 w-20 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-4 w-5/6 mb-1" />
+                    <Skeleton className="h-4 w-4/6" />
+                </div>
+                <div>
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-4 w-4/5 mb-1" />
+                    <Skeleton className="h-4 w-3/4" />
+                </div>
+                <Skeleton className="h-4 w-3/5" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 md:h-32 bg-gradient-to-t from-main/95 via-main/60 to-transparent" />
+            </CardContent>
+        </Card>
+    );
 
     return (
         <>
@@ -87,6 +123,9 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                         </CardContent>
                     </Card>
                 ))}
+                
+                {/* Show skeleton for next expected card */}
+                {showSkeleton && renderSkeletonCard()}
             </div>
 
             <Dialog open={open} onOpenChange={setOpen}>
