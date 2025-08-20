@@ -98,7 +98,7 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                             </section>
                             <DialogFooter>
                                 <Button onClick={() => selected && navigateToExpanded(selected)}>
-                                    Expand the Paper
+                                     Open Editor
                                 </Button>
                             </DialogFooter>
                         </div>

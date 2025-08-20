@@ -7,6 +7,7 @@ export class ExpandInlineTool {
 
     private api: any;
     private button: HTMLButtonElement;
+    private skeletonEl: HTMLElement | null = null;
     private config: {
         endpoint: string;
         getDocument: () => Promise<any>;
@@ -43,6 +44,9 @@ export class ExpandInlineTool {
             const selection = range?.cloneRange?.() || range;
             const selectedText = selection?.toString?.().trim?.() || '';
 
+            // Insert a temporary skeleton just below the current block while loading
+            this.skeletonEl = this.insertSkeletonBelowCurrentBlock(range);
+
             const doc = await this.config.getDocument();
             const blocks: Array<any> = Array.isArray(doc?.blocks) ? doc.blocks : [];
 
@@ -76,6 +80,7 @@ export class ExpandInlineTool {
             const focusText = selectedText || currentText || '';
             if (!focusText) {
                 this.config.notify?.('Select text or place cursor in a paragraph to expand.');
+                this.removeSkeleton();
                 return;
             }
 
@@ -102,6 +107,7 @@ export class ExpandInlineTool {
             const paragraphs: string[] = Array.isArray(json?.paragraphs) ? json.paragraphs : [];
             if (!paragraphs.length) {
                 this.config.notify?.('No expanded content returned.');
+                this.removeSkeleton();
                 return;
             }
 
@@ -138,6 +144,41 @@ export class ExpandInlineTool {
         } finally {
             this.working = false;
             this.button.disabled = false;
+            this.removeSkeleton();
         }
+    }
+
+    private insertSkeletonBelowCurrentBlock(range: Range): HTMLElement | null {
+        try {
+            const anchorNode: Node | null = range?.startContainer || null;
+            const element = (anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement) as Element | null;
+            const blockEl = element?.closest?.('.ce-block') as HTMLElement | null;
+            if (!blockEl || !blockEl.parentElement) return null;
+
+            const skeleton = document.createElement('div');
+            skeleton.setAttribute('data-outliner-skeleton', 'true');
+            skeleton.className = 'my-2';
+            skeleton.innerHTML = `
+                <div class="animate-pulse space-y-2">
+                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+            `;
+            blockEl.insertAdjacentElement('afterend', skeleton);
+            return skeleton;
+        } catch {
+            return null;
+        }
+    }
+
+    private removeSkeleton() {
+        try {
+            if (this.skeletonEl && this.skeletonEl.parentNode) {
+                this.skeletonEl.parentNode.removeChild(this.skeletonEl);
+            }
+        } catch { /* noop */ }
+        this.skeletonEl = null;
     }
 }

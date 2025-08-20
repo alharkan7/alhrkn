@@ -14,6 +14,7 @@ export class CitationTool {
     };
     private working: boolean = false;
     private modal: HTMLDivElement | null = null;
+    private loadingOverlay: HTMLDivElement | null = null;
 
     constructor({ api, config }: { api: any; config: any; }) {
         this.api = api;
@@ -60,6 +61,9 @@ export class CitationTool {
                 return;
             }
 
+            // Show loading overlay
+            this.showLoading('Researching...');
+
             // Call the citation API
             const res = await fetch(this.config.endpoint, {
                 method: 'POST',
@@ -76,11 +80,13 @@ export class CitationTool {
             }
 
             const data = await res.json();
+            this.hideLoading();
             this.showCitationModal(data, selectedText);
 
         } catch (e: any) {
             this.config.notify?.(e?.message || 'Failed to find citations');
         } finally {
+            this.hideLoading();
             this.working = false;
             this.button.disabled = false;
         }
@@ -100,7 +106,7 @@ export class CitationTool {
         `;
 
         const modalContent = document.createElement('div');
-        modalContent.className = 'max-w-4xl max-h-[80vh] w-[90vw] overflow-hidden rounded-lg';
+        modalContent.className = 'max-w-4xl max-h-[90vh] w-[90vw] overflow-hidden rounded-lg';
         modalContent.style.cssText = `
             background-color: var(--bg);
             border: 1px solid var(--border);
@@ -146,7 +152,7 @@ export class CitationTool {
 
         // Content
         const content = document.createElement('div');
-        content.className = 'p-5 overflow-y-auto max-h-[60vh]';
+        content.className = 'p-5 overflow-y-auto max-h-[78vh]';
         content.style.cssText = `
             background-color: var(--bg);
         `;
@@ -331,6 +337,61 @@ export class CitationTool {
             document.body.removeChild(this.modal);
             this.modal = null;
         }
+    }
+
+    private showLoading(message: string = 'Loading...') {
+        try {
+            if (this.loadingOverlay) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
+            overlay.style.cssText = `
+                background-color: var(--overlay);
+            `;
+
+            const box = document.createElement('div');
+            box.className = 'flex items-center gap-3 rounded-md px-4 py-3';
+            box.style.cssText = `
+                background-color: var(--bw);
+                border: 1px solid var(--border);
+                box-shadow: var(--shadow);
+                color: var(--text);
+            `;
+
+            const spinner = document.createElement('div');
+            spinner.style.cssText = `
+                width: 20px;
+                height: 20px;
+                border: 3px solid var(--border);
+                border-top-color: var(--main);
+                border-radius: 50%;
+                animation: outliner-spin 1s linear infinite;
+            `;
+
+            const text = document.createElement('span');
+            text.textContent = message;
+            text.style.cssText = `
+                font-weight: var(--base-font-weight);
+            `;
+
+            const style = document.createElement('style');
+            style.textContent = `@keyframes outliner-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+
+            box.appendChild(spinner);
+            box.appendChild(text);
+            overlay.appendChild(style);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            this.loadingOverlay = overlay;
+        } catch { }
+    }
+
+    private hideLoading() {
+        try {
+            if (this.loadingOverlay) {
+                document.body.removeChild(this.loadingOverlay);
+                this.loadingOverlay = null;
+            }
+        } catch { }
     }
 
     private async getCurrentBlockInfo(): Promise<{ currentBlockIndex: number; currentBlock: any } | null> {

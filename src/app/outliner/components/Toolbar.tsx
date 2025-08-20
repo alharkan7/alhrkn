@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileText, FileCode, FileType, File } from 'lucide-react';
+import { Download, FileText, FileCode, FileType, File, ArrowLeft } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface ToolbarProps {
   onDownload: (format: 'pdf' | 'markdown' | 'txt' | 'docx') => void;
@@ -17,9 +18,13 @@ export function Toolbar({ onDownload }: ToolbarProps) {
   return (
     <div className="flex items-center justify-between border-b border-border bg-bw pb-2 shadow-[var(--shadow)]">
       
-      {/* Left side - placeholder for future tools */}
+      {/* Left side - back button */}
       <div className="flex items-center space-x-2">
-        {/* Add your left-side tools here */}
+        <Button asChild variant="noShadow" size="sm" className="bg-main text-mtext border-border hover:bg-main/90">
+          <Link href="/outliner" aria-label="Back to Outliner">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
       </div>
 
       {/* Right side - download dropdown */}

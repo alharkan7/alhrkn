@@ -23,6 +23,7 @@ export default function OutlinerPage() {
     const [ideas, setIdeas] = useState<ResearchIdea[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [hasResponded, setHasResponded] = useState<boolean>(false);
 
     const fetchIdeas = async (keywords: string) => {
         setIsLoading(true);
@@ -44,41 +45,50 @@ export default function OutlinerPage() {
             setError(e?.message || 'Something went wrong');
         } finally {
             setIsLoading(false);
+            setHasResponded(true);
         }
     };
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!queryText.trim()) return;
+        setHasResponded(false);
         fetchIdeas(queryText.trim());
     };
+
+    const hasResults = Array.isArray(ideas) && ideas.length > 0;
 
     return (
         <div className="min-h-[100vh] flex flex-col items-center">
             <div className="fixed top-0 left-0 right-0 z-50">
                 <AppsHeader />
             </div>
-            <div className="w-full max-w-5xl pt-24 pb-28 px-4">
-                <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-6 text-center">
-                    What do you want to research?
-                </h1>
+            <div className={`w-full max-w-5xl ${hasResults ? 'pt-20' : 'pt-24'} pb-28 px-4`}>
+                <div className={!hasResponded ? 'min-h-[calc(100vh-13rem)] flex flex-col justify-center' : ''}>
+                    {!hasResponded && (
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-6 text-center">
+                            What do you want to research?
+                        </h1>
+                    )}
 
-                <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
-                    <div className="w-full">
-                        <Input
-                            value={queryText}
-                            onChange={(e) => setQueryText(e.target.value)}
-                            placeholder="Search or type something..."
-                            className="w-full h-12 text-base rounded-full"
-                        />
-                    </div>
-                    <div className="flex justify-center gap-3 mt-4">
-                        <Button type="submit" className="h-12 px-6 text-base" disabled={isLoading}>
-                            {isLoading ? 'Searching…' : 'Search'}
-                        </Button>
-                        <Button type="button" className="h-12 px-6 text-base" disabled={isLoading}>Config</Button>
-                    </div>
-                </form>
+                    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
+                        <div className="w-full flex items-center gap-2">
+                            <Input
+                                value={queryText}
+                                onChange={(e) => setQueryText(e.target.value)}
+                                placeholder="Type your keywords or school major..."
+                                className="h-12 text-base rounded-full flex-1 pl-5"
+                            />
+                            <Button
+                                type="submit"
+                                className="h-12 px-6 text-base rounded-full"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? 'Researching...' : 'Outline'}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
 
                 {error && (
                     <div className="mt-6 text-center text-red-500 text-sm">{error}</div>
