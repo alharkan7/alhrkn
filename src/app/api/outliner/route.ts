@@ -50,10 +50,44 @@ const responseSchema = {
   propertyOrdering: ['ideas']
 };
 
+// Language-specific response schemas
+const responseSchemaId = {
+  type: 'object',
+  properties: {
+    ideas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          abstract: {
+            type: 'object',
+            properties: {
+              background: { type: 'string' },
+              literatureReview: { type: 'string' },
+              method: { type: 'string' },
+              analysisTechnique: { type: 'string' },
+              impact: { type: 'string' }
+            },
+            required: ['background', 'literatureReview', 'method', 'analysisTechnique', 'impact'],
+            propertyOrdering: ['background', 'literatureReview', 'method', 'analysisTechnique', 'impact']
+          }
+        },
+        required: ['title', 'abstract'],
+        propertyOrdering: ['title', 'abstract']
+      },
+      minItems: 1,
+      maxItems: 10
+    }
+  },
+  required: ['ideas'],
+  propertyOrdering: ['ideas']
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { keywords, numIdeas } = body || {};
+    const { keywords, numIdeas, language = 'en' } = body || {};
 
     if (!keywords || typeof keywords !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid "keywords"' }), {
@@ -64,10 +98,11 @@ export async function POST(req: NextRequest) {
 
     const ideasCount = Math.min(Math.max(Number(numIdeas) || 6, 1), 10);
 
-    const systemInstruction =
-      'You are an academic research assistant. Generate concise, high-quality research ideas with structured abstracts.';
-
-    const userPrompt = `Task: Propose ${ideasCount} distinct research ideas based on the following keywords.
+    // Language-specific instructions
+    const languageConfig = {
+      en: {
+        systemInstruction: 'You are an academic research assistant. Generate concise, high-quality research ideas with structured abstracts.',
+        userPrompt: `Task: Propose ${ideasCount} distinct research ideas based on the following keywords.
 Keywords: ${keywords}
 
 For each idea, produce a title and a general abstract broken into:
@@ -77,12 +112,30 @@ For each idea, produce a title and a general abstract broken into:
 - analysis technique
 - impact
 
-Keep sections compact and concrete (2–4 sentences each). Avoid duplication across ideas.`;
+Keep sections compact and concrete (2–4 sentences each). Avoid duplication across ideas.`
+      },
+      id: {
+        systemInstruction: 'Anda adalah asisten penelitian akademik. Buat ide penelitian yang ringkas dan berkualitas tinggi dengan abstrak yang terstruktur.',
+        userPrompt: `Tugas: Usulkan ${ideasCount} ide penelitian yang berbeda berdasarkan kata kunci berikut.
+Kata kunci: ${keywords}
+
+Untuk setiap ide, buat judul dan abstrak umum yang dibagi menjadi:
+- latar belakang penelitian
+- tinjauan literatur
+- metode penelitian
+- teknik analisis
+- dampak
+
+Jaga agar setiap bagian ringkas dan konkret (2–4 kalimat). Hindari duplikasi antar ide.`
+      }
+    };
+
+    const config = languageConfig[language as keyof typeof languageConfig] || languageConfig.en;
 
     const result = await model.generateContent({
       contents: [
-        { role: 'user', parts: [{ text: systemInstruction }] },
-        { role: 'user', parts: [{ text: userPrompt }] }
+        { role: 'user', parts: [{ text: config.systemInstruction }] },
+        { role: 'user', parts: [{ text: config.userPrompt }] }
       ],
       generationConfig: {
         temperature: 0.7,
@@ -90,7 +143,7 @@ Keep sections compact and concrete (2–4 sentences each). Avoid duplication acr
         topK: 40,
         maxOutputTokens: 2048,
         responseMimeType: 'application/json',
-        responseSchema: responseSchema as any
+        responseSchema: (language === 'id' ? responseSchemaId : responseSchema) as any
       }
     });
 

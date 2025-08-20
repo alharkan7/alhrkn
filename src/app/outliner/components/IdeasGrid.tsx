@@ -19,7 +19,19 @@ type ResearchIdea = {
     };
 };
 
-export default function IdeasGrid({ ideas, isLoading, isLoadingMore }: { ideas: ResearchIdea[], isLoading: boolean, isLoadingMore: boolean }) {
+type Language = 'en' | 'id';
+
+export default function IdeasGrid({ 
+    ideas, 
+    isLoading, 
+    isLoadingMore, 
+    language = 'en' 
+}: { 
+    ideas: ResearchIdea[], 
+    isLoading: boolean, 
+    isLoadingMore: boolean,
+    language?: Language 
+}) {
     const [open, setOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const router = useRouter();
@@ -84,7 +96,10 @@ export default function IdeasGrid({ ideas, isLoading, isLoadingMore }: { ideas: 
                     <Skeleton className="h-4 w-4/5 mb-1" />
                     <Skeleton className="h-4 w-3/4" />
                 </div>
-                <Skeleton className="h-4 w-3/5" />
+                <div>
+                    <Skeleton className="h-4 w-16 mb-2" />
+                    <Skeleton className="h-4 w-3/5" />
+                </div>
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 md:h-32 bg-gradient-to-t from-main/95 via-main/60 to-transparent" />
             </CardContent>
         </Card>
@@ -109,16 +124,17 @@ export default function IdeasGrid({ ideas, isLoading, isLoadingMore }: { ideas: 
                         </CardHeader>
                         <CardContent className="relative space-y-3 pb-10 overflow-hidden">
                             <div>
-                                <div className="font-medium">Background</div>
+                                <div className="font-medium">{language === 'en' ? 'Background' : 'Latar Belakang'}</div>
                                 <p className="text-sm opacity-90 line-clamp-3">{idea.abstract.background}</p>
                             </div>
                             <div>
-                                <div className="font-medium">Literature Review</div>
+                                <div className="font-medium">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</div>
                                 <p className="text-sm opacity-90 line-clamp-3">{idea.abstract.literatureReview}</p>
                             </div>
-                            <p className="text-sm opacity-80 line-clamp-1">
-                                {idea.abstract.method}
-                            </p>
+                            <div>
+                                <div className="font-medium">{language === 'en' ? 'Method' : 'Metode'}</div>
+                                <p className="text-sm opacity-80 line-clamp-1">{idea.abstract.method}</p>
+                            </div>
                             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 md:h-32 bg-gradient-to-t from-main/95 via-main/60 to-transparent" />
                         </CardContent>
                     </Card>
@@ -138,37 +154,37 @@ export default function IdeasGrid({ ideas, isLoading, isLoadingMore }: { ideas: 
                                 </DialogTitle>
                             </DialogHeader>
                             <section className="space-y-1">
-                                <h4 className="font-medium">Background</h4>
+                                <h4 className="font-medium">{language === 'en' ? 'Background' : 'Latar Belakang'}</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.background}</p>
                             </section>
                             <section className="space-y-1">
-                                <h4 className="font-medium">Literature Review</h4>
+                                <h4 className="font-medium">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.literatureReview}</p>
                             </section>
                             <section className="space-y-1">
-                                <h4 className="font-medium">Method</h4>
+                                <h4 className="font-medium">{language === 'en' ? 'Method' : 'Metode'}</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.method}</p>
                             </section>
                             <section className="space-y-1">
-                                <h4 className="font-medium">Analysis Technique</h4>
+                                <h4 className="font-medium">{language === 'en' ? 'Analysis Technique' : 'Teknik Analisis'}</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.analysisTechnique}</p>
                             </section>
                             <section className="space-y-1">
-                                <h4 className="font-medium">Impact</h4>
+                                <h4 className="font-medium">{language === 'en' ? 'Impact' : 'Dampak'}</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.impact}</p>
                             </section>
                             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                                 <Button className="order-1 sm:order-2" onClick={() => selected && navigateToExpanded(selected)}>
-                                     Open Editor
+                                     {language === 'en' ? 'Open Editor' : 'Buka Editor'}
                                 </Button>
                                 <div className="flex items-center gap-2 order-2 sm:order-1 justify-center sm:justify-start w-full sm:w-auto">
-                                    <Button size="icon" variant="neutral" aria-label="Previous"
+                                    <Button size="icon" variant="neutral" aria-label={language === 'en' ? 'Previous' : 'Sebelumnya'}
                                         onClick={goPrev}
                                         disabled={selectedIndex === null || selectedIndex <= 0}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </Button>
-                                    <Button size="icon" variant="neutral" aria-label="Next"
+                                    <Button size="icon" variant="neutral" aria-label={language === 'en' ? 'Next' : 'Selanjutnya'}
                                         onClick={goNext}
                                         disabled={selectedIndex === null || selectedIndex >= ideas.length - 1}
                                     >

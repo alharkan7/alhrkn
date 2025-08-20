@@ -3,6 +3,13 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Globe } from 'lucide-react';
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import IdeasGrid from './components/IdeasGrid'
@@ -19,9 +26,12 @@ type ResearchIdea = {
     };
 };
 
+type Language = 'en' | 'id';
+
 export default function OutlinerPage() {
     const router = useRouter();
     const [queryText, setQueryText] = useState<string>('');
+    const [language, setLanguage] = useState<Language>('en');
     const [ideas, setIdeas] = useState<ResearchIdea[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -30,9 +40,26 @@ export default function OutlinerPage() {
     const controllerRef = useRef<AbortController | null>(null);
     // removed expectedCount-based skeleton logic
 
-    // Initialize from URL parameter (?q=...)
+    // Function to handle language change
+    const handleLanguageChange = (newLanguage: Language) => {
+        setLanguage(newLanguage);
+        localStorage.setItem('outliner-language', newLanguage);
+        
+        // Refetch ideas if we have a query and results, so they appear in the new language
+        if (queryText.trim() && ideas && ideas.length > 0) {
+            fetchIdeas(queryText.trim());
+        }
+    };
+
+    // Initialize from URL parameter (?q=...) and localStorage for language
     useEffect(() => {
         try {
+            // Load language preference from localStorage
+            const savedLanguage = localStorage.getItem('outliner-language') as Language;
+            if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'id')) {
+                setLanguage(savedLanguage);
+            }
+
             const params = new URLSearchParams(window.location.search);
             const q = params.get('q');
             if (q && q.trim()) {
@@ -55,12 +82,12 @@ export default function OutlinerPage() {
             const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keywords, numIdeas: 6 }),
+                body: JSON.stringify({ keywords, numIdeas: 6, language }),
                 signal: controllerRef.current.signal,
             });
             if (!res.ok || !res.body) {
                 const data = await res.json().catch(() => ({} as any));
-                throw new Error(data?.error || 'Failed to get ideas');
+                throw new Error(data?.error || (language === 'en' ? 'Failed to get ideas' : 'Gagal mendapatkan ide'));
             }
 
             const reader = res.body.getReader();
@@ -111,7 +138,7 @@ export default function OutlinerPage() {
             }
         } catch (e: any) {
             if (e?.name !== 'AbortError') {
-                setError(e?.message || 'Something went wrong');
+                setError(e?.message || (language === 'en' ? 'Something went wrong' : 'Terjadi kesalahan'));
             }
         } finally {
             setIsLoading(false);
@@ -142,11 +169,11 @@ export default function OutlinerPage() {
             const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keywords: queryText.trim(), numIdeas: 6 })
+                body: JSON.stringify({ keywords: queryText.trim(), numIdeas: 6, language })
             });
             if (!res.ok || !res.body) {
                 const data = await res.json().catch(() => ({}));
-                throw new Error(data?.error || 'Failed to get more ideas');
+                throw new Error(data?.error || (language === 'en' ? 'Failed to get more ideas' : 'Gagal mendapatkan ide tambahan'));
             }
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -192,7 +219,7 @@ export default function OutlinerPage() {
                 } catch {}
             }
         } catch (e: any) {
-            setError(e?.message || 'Something went wrong');
+            setError(e?.message || (language === 'en' ? 'Something went wrong' : 'Terjadi kesalahan'));
         } finally {
             setIsLoadingMore(false);
         }
@@ -207,31 +234,63 @@ export default function OutlinerPage() {
                 <div className={!isLoading && !hasResponded ? 'min-h-[calc(100vh-13rem)] flex flex-col justify-center' : ''}>
                     {!isLoading && !hasResponded && (
                         <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-6 text-center">
-                            What do you want to research?
+                            {language === 'en' ? 'What do you want to research?' : 'Apa yang ingin Anda teliti?'}
                         </h1>
                     )}
 
                     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
                         <div className="w-full flex items-center gap-2">
-                            <Input
-                                value={queryText}
-                                onChange={(e) => setQueryText(e.target.value)}
-                                placeholder="Type your keywords or school major..."
-                                className="h-12 text-base rounded-full flex-1 pl-5"
-                            />
+                            <div className="relative flex-1">
+                                <Input
+                                    value={queryText}
+                                    onChange={(e) => setQueryText(e.target.value)}
+                                    placeholder={language === 'en' ? "Type your keywords or school major..." : "Ketik kata kunci atau jurusan sekolah..."}
+                                    className="h-12 text-base rounded-full flex-1 pl-5 pr-20"
+                                />
+                                <div className="absolute right-3 top-[47%] transform -translate-y-1/2">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="neutral"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+                                            >
+                                                <Globe className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem 
+                                                onClick={() => handleLanguageChange('en')}
+                                                className={language === 'en' ? 'bg-secondary' : ''}
+                                            >
+                                                English
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem 
+                                                onClick={() => handleLanguageChange('id')}
+                                                className={language === 'id' ? 'bg-secondary' : ''}
+                                            >
+                                                Bahasa Indonesia
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </div>
                             <Button
                                 type="submit"
                                 className="h-12 px-6 text-base rounded-full"
                                 disabled={isLoading}
                             >
-                                {isLoading ? 'Researching...' : 'Outline'}
+                                {isLoading ? (language === 'en' ? 'Researching...' : 'Mencari...') : (language === 'en' ? 'Outline' : 'Buat Outline')}
                             </Button>
                         </div>
                     </form>
                 </div>
 
                 {error && (
-                    <div className="mt-6 text-center text-red-500 text-sm">{error}</div>
+                    <div className="mt-6 text-center text-red-500 text-sm">
+                        {language === 'en' ? error : (error === 'Failed to get ideas' ? 'Gagal mendapatkan ide' : error === 'Failed to get more ideas' ? 'Gagal mendapatkan ide tambahan' : error)}
+                    </div>
                 )}
 
                 {ideas && (
@@ -239,6 +298,7 @@ export default function OutlinerPage() {
                         ideas={ideas}
                         isLoading={isLoading}
                         isLoadingMore={isLoadingMore}
+                        language={language}
                     />
                 )}
                 {/* Debug info */}
@@ -254,7 +314,7 @@ export default function OutlinerPage() {
                             className="h-11 px-6 text-base rounded-full"
                             disabled={isLoading || isLoadingMore}
                         >
-                            {isLoadingMore ? 'Loading more...' : 'Show More'}
+                            {isLoadingMore ? (language === 'en' ? 'Loading more...' : 'Memuat lebih banyak...') : (language === 'en' ? 'Show More' : 'Tampilkan Lebih Banyak')}
                         </Button>
                     </div>
                 )}
