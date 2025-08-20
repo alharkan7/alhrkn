@@ -770,7 +770,7 @@ export default function OutlinerDetailPage() {
     }, [id]);
 
     return (
-        <div className="min-h-[100vh] w-full max-w-3xl mx-auto px-4 py-10">
+        <div className="min-h-[100vh] w-full max-w-3xl mx-auto px-4 py-4">
             {!idea ? (
                 <div className="text-center">
                     <p className="opacity-70 mb-4">No content found for this paper. It may have expired from your browser storage.</p>

@@ -8,6 +8,9 @@ export class ExpandInlineTool {
     private api: any;
     private button: HTMLButtonElement;
     private skeletonEl: HTMLElement | null = null;
+    private streamContainerEl: HTMLElement | null = null;
+    private originalBlockEl: HTMLElement | null = null;
+    private originalBlockPrevDisplay: string | null = null;
     private config: {
         endpoint: string;
         getDocument: () => Promise<any>;
@@ -66,6 +69,7 @@ export class ExpandInlineTool {
 
             // Insert a temporary skeleton just below the current block while loading
             this.skeletonEl = this.insertSkeletonBelowCurrentBlock(range);
+            this.streamContainerEl = this.ensureStreamContainer(this.skeletonEl);
 
             const doc = await this.config.getDocument();
             const blocks: Array<any> = Array.isArray(doc?.blocks) ? doc.blocks : [];
@@ -113,50 +117,99 @@ export class ExpandInlineTool {
             contextParts.push(focusText);
             const contextText = contextParts.join('\n\n');
 
-            // Call API
+            // Call API with streaming header
             const res = await fetch(this.config.endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/plain, application/json',
+                    'x-stream': '1'
+                },
                 body: JSON.stringify({ text: contextText })
             });
+
+            // If server does not support streaming, fall back to JSON mode
+            const contentType = (res.headers.get('Content-Type') || '').toLowerCase();
             if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err?.error || `Request failed with ${res.status}`);
+                let errMsg = `Request failed with ${res.status}`;
+                try {
+                    const e = await res.json();
+                    if (e?.error) errMsg = e.error;
+                } catch {}
+                throw new Error(errMsg);
             }
-            const json = await res.json();
-            const paragraphs: string[] = Array.isArray(json?.paragraphs) ? json.paragraphs : [];
-            if (!paragraphs.length) {
+
+            let finalText = '';
+            if (contentType.includes('text/plain')) {
+                const reader = res.body?.getReader();
+                const decoder = new TextDecoder();
+                let buffered = '';
+                let firstChunk = true;
+                if (reader) {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        const chunk = decoder.decode(value, { stream: true });
+                        buffered += chunk;
+                        finalText = buffered;
+                        if (firstChunk) {
+                            firstChunk = false;
+                            this.hideSkeletonPulse();
+                            this.hideOriginalBlock(range);
+                        }
+                        this.renderStreamingPreview(buffered);
+                    }
+                    try { buffered += decoder.decode(); } catch {}
+                    finalText = buffered;
+                } else {
+                    // Environments without stream reader
+                    finalText = await res.text();
+                    this.hideSkeletonPulse();
+                    this.hideOriginalBlock(range);
+                    this.renderStreamingPreview(finalText);
+                }
+            } else {
+                // JSON fallback
+                const json = await res.json();
+                const paragraphs: string[] = Array.isArray(json?.paragraphs) ? json.paragraphs : [];
+                finalText = paragraphs.join('\n\n');
+                this.hideSkeletonPulse();
+                this.hideOriginalBlock(range);
+                this.renderStreamingPreview(finalText);
+            }
+
+            // Compute paragraphs from finalText
+            const paragraphsFromText: string[] = String(finalText || '')
+                .split(/\n\n+/)
+                .map(p => p.trim())
+                .filter(Boolean);
+
+            if (!paragraphsFromText.length) {
                 this.config.notify?.('No expanded content returned.');
                 this.removeSkeleton();
                 return;
             }
 
             // Replace current paragraph block with the expanded paragraphs as separate blocks
-            // 1) Remove current block
             if (currentIndex >= 0) {
-                try {
-                    this.api.blocks.delete(currentIndex);
-                } catch { }
+                try { this.api.blocks.delete(currentIndex); this.originalBlockEl = null; } catch {}
             }
 
-            // 2) Insert new paragraphs at the same index
             let insertionIndex = currentIndex >= 0 ? currentIndex : undefined as any;
-            for (let i = 0; i < paragraphs.length; i++) {
-                const p = String(paragraphs[i] || '').trim();
+            for (let i = 0; i < paragraphsFromText.length; i++) {
+                const p = String(paragraphsFromText[i] || '').trim();
                 if (!p) continue;
-                // Replace newlines with <br> for EditorJS paragraph tool
                 const html = p.replace(/\n/g, '<br>');
                 try {
                     this.api.blocks.insert('paragraph', { text: html }, {}, insertionIndex, false);
                     if (typeof insertionIndex === 'number') insertionIndex++;
-                } catch { }
+                } catch {}
             }
 
-            // Focus the last inserted block
             try {
                 const lastIndex = (typeof insertionIndex === 'number' ? insertionIndex : this.api.blocks.getBlocksCount()) - 1;
                 if (lastIndex >= 0) this.api.caret?.setToBlock?.(lastIndex, 'end');
-            } catch { }
+            } catch {}
 
             this.config.notify?.('Expanded passage inserted.');
         } catch (e: any) {
@@ -164,6 +217,7 @@ export class ExpandInlineTool {
         } finally {
             this.working = false;
             this.button.disabled = false;
+            this.unhideOriginalBlockIfPresent();
             this.removeSkeleton();
         }
     }
@@ -179,12 +233,13 @@ export class ExpandInlineTool {
             skeleton.setAttribute('data-outliner-skeleton', 'true');
             skeleton.className = 'my-2';
             skeleton.innerHTML = `
-                <div class="animate-pulse space-y-2">
+                <div class="animate-pulse space-y-2" data-skeleton-pulse="true">
                     <div class="h-4 bg-gray-200 rounded w-5/6"></div>
                     <div class="h-4 bg-gray-200 rounded w-5/6"></div>
                     <div class="h-4 bg-gray-200 rounded w-5/6"></div>
                     <div class="h-4 bg-gray-200 rounded w-5/6"></div>
                 </div>
+                <div data-stream-container="true" class="mt-3"></div>
             `;
             blockEl.insertAdjacentElement('afterend', skeleton);
             return skeleton;
@@ -195,10 +250,74 @@ export class ExpandInlineTool {
 
     private removeSkeleton() {
         try {
+            if (this.streamContainerEl) {
+                this.streamContainerEl.innerHTML = '';
+            }
             if (this.skeletonEl && this.skeletonEl.parentNode) {
                 this.skeletonEl.parentNode.removeChild(this.skeletonEl);
             }
         } catch { /* noop */ }
         this.skeletonEl = null;
+        this.streamContainerEl = null;
+    }
+
+    private ensureStreamContainer(parent: HTMLElement | null): HTMLElement | null {
+        if (!parent) return null;
+        const existing = parent.querySelector('[data-stream-container="true"]') as HTMLElement | null;
+        if (existing) return existing;
+        const el = document.createElement('div');
+        el.setAttribute('data-stream-container', 'true');
+        el.className = 'mt-3';
+        parent.appendChild(el);
+        return el;
+    }
+
+    private renderStreamingPreview(text: string) {
+        try {
+            if (!this.streamContainerEl) return;
+            const safe = this.escapeHTML(text);
+            const paragraphs = safe.split(/\n\n+/).filter(Boolean);
+            const html = paragraphs.map(p => `<p class="text-[0.95rem] leading-7 text-gray-800">${p.replace(/\n/g, '<br>')}</p>`).join('');
+            this.streamContainerEl.innerHTML = html;
+        } catch { /* noop */ }
+    }
+
+    private escapeHTML(s: string): string {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    private hideSkeletonPulse() {
+        try {
+            if (!this.skeletonEl) return;
+            const pulse = this.skeletonEl.querySelector('[data-skeleton-pulse="true"]') as HTMLElement | null;
+            if (pulse) pulse.style.display = 'none';
+        } catch { /* noop */ }
+    }
+
+    private hideOriginalBlock(range: Range) {
+        try {
+            const anchorNode: Node | null = range?.startContainer || null;
+            const element = (anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement) as Element | null;
+            const blockEl = element?.closest?.('.ce-block') as HTMLElement | null;
+            if (!blockEl) return;
+            this.originalBlockEl = blockEl;
+            this.originalBlockPrevDisplay = blockEl.style.display || '';
+            blockEl.style.display = 'none';
+        } catch { /* noop */ }
+    }
+
+    private unhideOriginalBlockIfPresent() {
+        try {
+            if (this.originalBlockEl && document.body.contains(this.originalBlockEl)) {
+                this.originalBlockEl.style.display = this.originalBlockPrevDisplay || '';
+            }
+        } catch { /* noop */ }
+        this.originalBlockEl = null;
+        this.originalBlockPrevDisplay = null;
     }
 }

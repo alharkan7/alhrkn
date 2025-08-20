@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import AppsFooter from '@/components/apps-footer'
@@ -27,6 +27,7 @@ export default function OutlinerPage() {
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [hasResponded, setHasResponded] = useState<boolean>(false);
+    const controllerRef = useRef<AbortController | null>(null);
 
     // Initialize from URL parameter (?q=...)
     useEffect(() => {
@@ -45,24 +46,69 @@ export default function OutlinerPage() {
     const fetchIdeas = async (keywords: string) => {
         setIsLoading(true);
         setError(null);
-        setIdeas(null);
+        setIdeas([]);
         try {
-            const res = await fetch('/api/outliner', {
+            if (controllerRef.current) controllerRef.current.abort();
+            controllerRef.current = new AbortController();
+
+            const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keywords, numIdeas: 6 })
+                body: JSON.stringify({ keywords, numIdeas: 6 }),
+                signal: controllerRef.current.signal,
             });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
+            if (!res.ok || !res.body) {
+                const data = await res.json().catch(() => ({} as any));
                 throw new Error(data?.error || 'Failed to get ideas');
             }
-            const data = await res.json();
-            setIdeas(data.ideas as ResearchIdea[]);
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            setHasResponded(true);
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx: number;
+                while ((idx = buffer.indexOf('\n')) !== -1) {
+                    const line = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 1);
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    try {
+                        const idea = JSON.parse(trimmed) as ResearchIdea;
+                        setIdeas((prev) => {
+                            const existing = Array.isArray(prev) ? prev : [];
+                            const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+                            const key = String(idea?.title || '').toLowerCase().trim();
+                            if (!key || seen.has(key)) return existing;
+                            return [...existing, idea];
+                        });
+                    } catch {}
+                }
+            }
+
+            const last = buffer.trim();
+            if (last) {
+                try {
+                    const idea = JSON.parse(last) as ResearchIdea;
+                    setIdeas((prev) => {
+                        const existing = Array.isArray(prev) ? prev : [];
+                        const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+                        const key = String(idea?.title || '').toLowerCase().trim();
+                        if (!key || seen.has(key)) return existing;
+                        return [...existing, idea];
+                    });
+                } catch {}
+            }
         } catch (e: any) {
-            setError(e?.message || 'Something went wrong');
+            if (e?.name !== 'AbortError') {
+                setError(e?.message || 'Something went wrong');
+            }
         } finally {
             setIsLoading(false);
-            setHasResponded(true);
         }
     };
 
@@ -86,28 +132,53 @@ export default function OutlinerPage() {
         setIsLoadingMore(true);
         setError(null);
         try {
-            const res = await fetch('/api/outliner', {
+            const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ keywords: queryText.trim(), numIdeas: 6 })
             });
-            if (!res.ok) {
+            if (!res.ok || !res.body) {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data?.error || 'Failed to get more ideas');
             }
-            const data = await res.json();
-            const newIdeas = (data.ideas || []) as ResearchIdea[];
-            setIdeas((prev) => {
-                const existing = prev || [];
-                const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
-                const filtered = newIdeas.filter((i) => {
-                    const key = i.title.toLowerCase().trim();
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                });
-                return [...existing, ...filtered];
-            });
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx: number;
+                while ((idx = buffer.indexOf('\n')) !== -1) {
+                    const line = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 1);
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    try {
+                        const idea = JSON.parse(trimmed) as ResearchIdea;
+                        setIdeas((prev) => {
+                            const existing = Array.isArray(prev) ? prev : [];
+                            const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+                            const key = String(idea?.title || '').toLowerCase().trim();
+                            if (!key || seen.has(key)) return existing;
+                            return [...existing, idea];
+                        });
+                    } catch {}
+                }
+            }
+            const last = buffer.trim();
+            if (last) {
+                try {
+                    const idea = JSON.parse(last) as ResearchIdea;
+                    setIdeas((prev) => {
+                        const existing = Array.isArray(prev) ? prev : [];
+                        const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+                        const key = String(idea?.title || '').toLowerCase().trim();
+                        if (!key || seen.has(key)) return existing;
+                        return [...existing, idea];
+                    });
+                } catch {}
+            }
         } catch (e: any) {
             setError(e?.message || 'Something went wrong');
         } finally {
