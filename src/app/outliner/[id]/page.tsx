@@ -405,7 +405,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             <div className="border-t">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">References</h2>
                 <div id="bibliography-container" className="space-y-4">
-                    <p className="text-gray-500 italic">
+                    <p data-bibliography-placeholder="true" className="text-gray-500 italic">
                         Citations will appear here as you add them to your document using the citation tool.
                     </p>
                 </div>

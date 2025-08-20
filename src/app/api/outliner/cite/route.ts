@@ -236,7 +236,7 @@ function convertOpenAlexWorkToPaper(work: OpenAlexWork): any {
     // Create URL from DOI if no direct URL available
     let url = '';
     if (work.doi) {
-        url = `https://doi.org/${work.doi}`;
+        url = `${work.doi}`;
     }
 
     return {
