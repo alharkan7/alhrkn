@@ -21,12 +21,12 @@ export class CitationTool {
         this.button = document.createElement('button');
         this.button.type = 'button';
         this.button.className = 'ce-inline-tool';
-        
+        this.button.title = 'Find citations';
+
         // Create citation icon (using a book icon)
         const icon = document.createElement('div');
         icon.innerHTML = CITE_ICON_SVG;
         this.button.appendChild(icon);
-        this.button.title = 'Find citations';
 
         // Listen for document changes to update bibliography display
         window.addEventListener('outliner-document-changed', () => {
@@ -92,68 +92,53 @@ export class CitationTool {
             document.body.removeChild(this.modal);
         }
 
-        // Create modal
+        // Create modal with custom CSS variables
         this.modal = document.createElement('div');
+        this.modal.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
         this.modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--overlay);
         `;
 
         const modalContent = document.createElement('div');
+        modalContent.className = 'max-w-4xl max-h-[80vh] w-[90vw] overflow-hidden rounded-lg';
         modalContent.style.cssText = `
-            background: white;
-            border-radius: 8px;
-            max-width: 800px;
-            max-height: 80vh;
-            width: 90vw;
-            overflow: hidden;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         `;
 
         // Header
         const header = document.createElement('div');
+        header.className = 'p-5 border-b flex justify-between items-center';
         header.style.cssText = `
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-bottom-color: var(--border);
+            background-color: var(--bw);
         `;
         
         const title = document.createElement('h3');
-        title.textContent = 'Citations Found';
+        const citationCount = data.papers ? data.papers.length : 0;
+        title.textContent = `Found ${citationCount} Reference${citationCount !== 1 ? 's' : ''}`;
+        title.className = 'm-0 text-lg font-semibold';
         title.style.cssText = `
-            margin: 0;
-            font-size: 18px;
-            font-weight: 600;
-            color: #111827;
+            color: var(--text);
+            font-weight: var(--heading-font-weight);
         `;
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
+        closeBtn.className = 'border-none text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded transition-colors duration-200';
         closeBtn.style.cssText = `
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6b7280;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
+            background-color: transparent;
+            color: var(--text);
         `;
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.backgroundColor = 'var(--main)';
+            closeBtn.style.color = 'var(--mtext)';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.backgroundColor = 'transparent';
+            closeBtn.style.color = 'var(--text)';
+        });
         closeBtn.onclick = () => this.closeModal();
 
         header.appendChild(title);
@@ -161,32 +146,23 @@ export class CitationTool {
 
         // Content
         const content = document.createElement('div');
+        content.className = 'p-5 overflow-y-auto max-h-[60vh]';
         content.style.cssText = `
-            padding: 20px;
-            overflow-y: auto;
-            max-height: 60vh;
+            background-color: var(--bg);
         `;
 
         // Search info
         const searchInfo = document.createElement('div');
+        searchInfo.className = 'mb-5 p-3 rounded-md text-sm';
         searchInfo.style.cssText = `
-            margin-bottom: 20px;
-            padding: 12px;
-            background: #f3f4f6;
-            border-radius: 6px;
-            font-size: 14px;
+            background-color: var(--bw);
+            border: 1px solid var(--border);
+            color: var(--text);
         `;
         
         let searchInfoHTML = `
-            <strong>Selected text:</strong> "${selectedText.substring(0, 100)}${selectedText.length > 100 ? '...' : ''}"<br>
-            <strong>Keywords extracted:</strong> ${data.keywords?.join(', ') || 'N/A'}<br>
-            <strong>Papers found:</strong> ${data.totalFound || 0}
+            <strong>Keywords:</strong> ${data.keywords?.join(', ') || 'N/A'}<br>
         `;
-        
-        // Add warning if present
-        if (data.warning) {
-            searchInfoHTML += `<br><br><strong style="color: #f59e0b;">⚠️ ${data.warning}</strong>`;
-        }
         
         searchInfo.innerHTML = searchInfoHTML;
         content.appendChild(searchInfo);
@@ -194,11 +170,7 @@ export class CitationTool {
         // Papers list
         if (data.papers && data.papers.length > 0) {
             const papersList = document.createElement('div');
-            papersList.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            `;
+            papersList.className = 'flex flex-col gap-4';
 
             data.papers.forEach((paper: any, index: number) => {
                 const paperCard = this.createPaperCard(paper, index + 1);
@@ -207,15 +179,15 @@ export class CitationTool {
 
             content.appendChild(papersList);
         } else {
-            const noResults = document.createElement('div');
-            noResults.style.cssText = `
-                text-align: center;
-                padding: 40px 20px;
-                color: #6b7280;
-                font-size: 16px;
-            `;
-            noResults.textContent = 'No relevant papers found. Try selecting different text or adjusting your search.';
-            content.appendChild(noResults);
+                    const noResults = document.createElement('div');
+        noResults.className = 'text-center py-10 px-5 text-base rounded-md';
+        noResults.style.cssText = `
+            color: var(--text);
+            background-color: var(--bw);
+            border: 1px solid var(--border);
+        `;
+        noResults.textContent = 'No relevant papers found. Try selecting different text or adjusting your search.';
+        content.appendChild(noResults);
         }
 
         modalContent.appendChild(header);
@@ -233,49 +205,52 @@ export class CitationTool {
 
     private createPaperCard(paper: any, index: number): HTMLDivElement {
         const card = document.createElement('div');
+        card.className = 'rounded-md p-4 transition-all duration-200 hover:-translate-y-0.5';
         card.style.cssText = `
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            background: #fafafa;
+            border: 1px solid var(--border);
+            background-color: var(--bw);
+            box-shadow: var(--shadow);
         `;
+        card.addEventListener('mouseenter', () => {
+            card.style.transform = 'translateY(-2px)';
+            card.style.boxShadow = 'var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border)';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'translateY(0)';
+            card.style.boxShadow = 'var(--shadow)';
+        });
 
         const title = document.createElement('h4');
-        title.textContent = `${index}. ${paper.title || 'Untitled'}`;
+        title.textContent = paper.title || 'Untitled';
+        title.className = 'm-0 mb-2 text-base font-semibold leading-relaxed';
         title.style.cssText = `
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-            line-height: 1.4;
+            color: var(--text);
+            font-weight: var(--heading-font-weight);
         `;
 
         const authors = document.createElement('div');
+        authors.className = 'text-sm mb-2';
         authors.style.cssText = `
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 8px;
+            color: var(--text);
+            opacity: 0.8;
         `;
         authors.textContent = paper.authors?.map((a: any) => a.name).join(', ') || 'Unknown authors';
 
         const abstract = document.createElement('p');
+        abstract.className = 'm-0 mb-3 text-sm leading-relaxed';
         abstract.style.cssText = `
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            color: #374151;
-            line-height: 1.5;
+            color: var(--text);
+            opacity: 0.9;
         `;
         abstract.textContent = paper.abstract ? 
             (paper.abstract.length > 200 ? paper.abstract.substring(0, 200) + '...' : paper.abstract) : 
             'No abstract available';
 
         const metaInfo = document.createElement('div');
+        metaInfo.className = 'flex gap-4 text-xs mb-3';
         metaInfo.style.cssText = `
-            display: flex;
-            gap: 16px;
-            font-size: 12px;
-            color: #6b7280;
-            margin-bottom: 12px;
+            color: var(--text);
+            opacity: 0.7;
         `;
 
         if (paper.year) {
@@ -297,57 +272,32 @@ export class CitationTool {
         }
 
         const actions = document.createElement('div');
-        actions.style.cssText = `
-            display: flex;
-            gap: 8px;
-        `;
+        actions.className = 'flex gap-2 flex-wrap';
 
         if (paper.url) {
             const viewBtn = document.createElement('a');
             viewBtn.textContent = 'View Paper';
             viewBtn.href = paper.url;
             viewBtn.target = '_blank';
+            viewBtn.className = 'px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
             viewBtn.style.cssText = `
-                background: #3b82f6;
-                color: white;
-                padding: 6px 12px;
-                border-radius: 4px;
-                text-decoration: none;
-                font-size: 12px;
-                font-weight: 500;
+                background-color: var(--main);
+                color: var(--mtext);
+                border-color: var(--border);
+                font-weight: var(--base-font-weight);
             `;
             actions.appendChild(viewBtn);
-        }
-
-        if (paper.openAccessPdf?.url) {
-            const pdfBtn = document.createElement('a');
-            pdfBtn.textContent = 'Download PDF';
-            pdfBtn.href = paper.openAccessPdf.url;
-            pdfBtn.target = '_blank';
-            pdfBtn.style.cssText = `
-                background: #10b981;
-                color: white;
-                padding: 6px 12px;
-                border-radius: 4px;
-                text-decoration: none;
-                font-size: 12px;
-                font-weight: 500;
-            `;
-            actions.appendChild(pdfBtn);
         }
 
         // Add Cite button
         const citeBtn = document.createElement('button');
         citeBtn.textContent = 'Cite';
+        citeBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
         citeBtn.style.cssText = `
-            background: #8b5cf6;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            border: none;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
+            background-color: var(--main);
+            color: var(--mtext);
+            border-color: var(--border);
+            font-weight: var(--base-font-weight);
         `;
         citeBtn.onclick = () => this.insertCitation(paper);
         actions.appendChild(citeBtn);
@@ -357,6 +307,21 @@ export class CitationTool {
         card.appendChild(abstract);
         card.appendChild(metaInfo);
         card.appendChild(actions);
+
+        if (paper.openAccessPdf?.url) {
+            const pdfBtn = document.createElement('a');
+            pdfBtn.textContent = 'View PDF';
+            pdfBtn.href = paper.openAccessPdf.url;
+            pdfBtn.target = '_blank';
+            pdfBtn.className = 'px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
+            pdfBtn.style.cssText = `
+                background-color: var(--main);
+                color: var(--mtext);
+                border-color: var(--border);
+                font-weight: var(--base-font-weight);
+            `;
+            actions.appendChild(pdfBtn);
+        }
 
         return card;
     }
@@ -626,12 +591,23 @@ export class CitationTool {
             placeholder.remove();
         }
 
-        // Create new reference entry
+        // Create new reference entry with custom CSS variables
         const referenceDiv = document.createElement('div');
-        referenceDiv.className = 'reference-entry p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500';
-        referenceDiv.innerHTML = `<p class="text-gray-800 leading-relaxed">${referenceText}</p>`;
+        referenceDiv.className = 'reference-entry p-4 rounded-md border-l-4 mb-2 border';
+        referenceDiv.style.cssText = `
+            background-color: var(--bw);
+            border-left-color: var(--main);
+            border-color: var(--border);
+        `;
         
-        // Add to container
+        const referenceTextElement = document.createElement('p');
+        referenceTextElement.className = 'leading-relaxed m-0 text-sm';
+        referenceTextElement.style.cssText = `
+            color: var(--text);
+        `;
+        referenceTextElement.textContent = referenceText;
+        
+        referenceDiv.appendChild(referenceTextElement);
         container.appendChild(referenceDiv);
     }
 
@@ -649,7 +625,7 @@ export class CitationTool {
             });
 
             // Clear container and re-add sorted references
-            const placeholder = container.querySelector('.text-gray-500.italic');
+            const placeholder = container.querySelector('p[class*="opacity-60"]');
             container.innerHTML = '';
             
             // Re-add placeholder if it was there
@@ -695,8 +671,16 @@ export class CitationTool {
             const existingReferences = container.querySelectorAll('.reference-entry');
             
             if (existingReferences.length === 0) {
-                // No references yet, show placeholder
-                container.innerHTML = '<p class="text-gray-500 italic">Citations will appear here as you add them to your document using the citation tool.</p>';
+                            // No references yet, show placeholder
+            const placeholder = document.createElement('p');
+            placeholder.className = 'italic text-center py-5 px-5 m-0';
+            placeholder.style.cssText = `
+                color: var(--text);
+                opacity: 0.6;
+            `;
+            placeholder.textContent = 'Citations will appear here as you add them to your document using the citation tool.';
+            container.innerHTML = '';
+            container.appendChild(placeholder);
             }
 
         } catch (error) {

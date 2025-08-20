@@ -11,6 +11,7 @@ import Underline from '@editorjs/underline';
 import '../styles/editor.css';
 import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
+import { Toolbar } from '../components/Toolbar';
 
 type ResearchIdea = {
     title: string;
@@ -56,11 +57,172 @@ function buildInitialDocumentData(idea: ResearchIdea) {
     return { blocks };
 }
 
+// Helper functions to convert EditorJS data to different formats
+function convertToHTML(data: any): string {
+    if (!data.blocks || !Array.isArray(data.blocks)) return '';
+    
+    return data.blocks.map((block: any) => {
+        switch (block.type) {
+            case 'header':
+                const level = block.data.level || 1;
+                return `<h${level}>${block.data.text}</h${level}>`;
+            case 'paragraph':
+                return `<p>${block.data.text}</p>`;
+            case 'list':
+                const listType = block.data.style === 'ordered' ? 'ol' : 'ul';
+                const items = block.data.items.map((item: string) => `<li>${item}</li>`).join('');
+                return `<${listType}>${items}</${listType}>`;
+            case 'inlineCode':
+                return `<code class="code">${block.data.text}</code>`;
+            case 'marker':
+                return `<mark>${block.data.text}</mark>`;
+            case 'underline':
+                return `<u>${block.data.text}</u>`;
+            default:
+                return `<p>${block.data.text || ''}</p>`;
+        }
+    }).join('\n');
+}
+
+function convertToMarkdown(data: any): string {
+    if (!data.blocks || !Array.isArray(data.blocks)) return '';
+    
+    return data.blocks.map((block: any) => {
+        switch (block.type) {
+            case 'header':
+                const level = block.data.level || 1;
+                const hashes = '#'.repeat(level);
+                return `${hashes} ${block.data.text}\n`;
+            case 'paragraph':
+                return `${block.data.text}\n\n`;
+            case 'list':
+                const listType = block.data.style === 'ordered' ? '1.' : '-';
+                const items = block.data.items.map((item: string) => `  ${listType} ${item}`).join('\n');
+                return `${items}\n\n`;
+            case 'inlineCode':
+                return `\`${block.data.text}\``;
+            case 'marker':
+                return `==${block.data.text}==`;
+            case 'underline':
+                return `<u>${block.data.text}</u>`;
+            default:
+                return `${block.data.text || ''}\n\n`;
+        }
+    }).join('');
+}
+
+function convertToPlainText(data: any): string {
+    if (!data.blocks || !Array.isArray(data.blocks)) return '';
+    
+    return data.blocks.map((block: any) => {
+        switch (block.type) {
+            case 'header':
+                return `${block.data.text}\n`;
+            case 'paragraph':
+                return `${block.data.text}\n\n`;
+            case 'list':
+                const items = block.data.items.map((item: string) => `  • ${item}`).join('\n');
+                return `${items}\n\n`;
+            case 'inlineCode':
+                return block.data.text;
+            case 'marker':
+                return block.data.text;
+            case 'underline':
+                return block.data.text;
+            default:
+                return `${block.data.text || ''}\n\n`;
+        }
+    }).join('');
+}
+
 function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
     const editorRef = useRef<EditorJS | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isReady, setIsReady] = useState(false);
     const holderId = `outliner-editor-${id}`;
+
+    const handleDownload = useCallback(async (format: 'pdf' | 'markdown' | 'txt' | 'docx') => {
+        if (!editorRef.current) return;
+        
+        try {
+            const data = await editorRef.current.save();
+            console.log(`Downloading as ${format}...`, data);
+            
+            let content: string;
+            let filename: string;
+            let mimeType: string;
+            
+            switch (format) {
+                case 'pdf':
+                    // For PDF, we'll create a simple HTML representation and use browser's print to PDF
+                    content = convertToHTML(data);
+                    filename = `${idea.title || 'document'}.html`;
+                    mimeType = 'text/html';
+                    // Open in new tab for PDF conversion
+                    const newWindow = window.open('', '_blank');
+                    if (newWindow) {
+                        newWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <title>${idea.title || 'Document'}</title>
+                                <style>
+                                    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                                    h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                                    h2 { color: #555; margin-top: 30px; }
+                                    p { margin-bottom: 15px; }
+                                    .code { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; }
+                                </style>
+                            </head>
+                            <body>
+                                ${content}
+                            </body>
+                            </html>
+                        `);
+                        newWindow.document.close();
+                        newWindow.focus();
+                        // User can now use browser's print to PDF functionality
+                        setTimeout(() => {
+                            newWindow.print();
+                        }, 500);
+                    }
+                    return;
+                    
+                case 'markdown':
+                    content = convertToMarkdown(data);
+                    filename = `${idea.title || 'document'}.md`;
+                    mimeType = 'text/markdown';
+                    break;
+                    
+                case 'txt':
+                    content = convertToPlainText(data);
+                    filename = `${idea.title || 'document'}.txt`;
+                    mimeType = 'text/plain';
+                    break;
+                    
+                case 'docx':
+                    // For DOCX, we'll create a simple HTML that can be opened in Word
+                    content = convertToHTML(data);
+                    filename = `${idea.title || 'document'}.html`;
+                    mimeType = 'text/html';
+                    break;
+            }
+            
+            // Create and download the file
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error('Error preparing download:', error);
+        }
+    }, [idea.title]);
 
     const saveDoc = useCallback(async () => {
         if (!editorRef.current) return;
@@ -221,6 +383,8 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
 
     return (
         <div className="prose prose-neutral max-w-none">
+            <Toolbar onDownload={handleDownload} />
+            
             {!isReady && (
                 <div className="text-center py-8 text-gray-500">
                     Loading editor...
@@ -238,7 +402,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             />
             
             {/* Bibliography Section */}
-            <div className="mt-12 border-t pt-8">
+            <div className="border-t">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">References</h2>
                 <div id="bibliography-container" className="space-y-4">
                     <p className="text-gray-500 italic">

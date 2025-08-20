@@ -17,8 +17,8 @@ const model = genAI.getGenerativeModel({
   },
 });
 
-// Semantic Scholar API base URL
-const SEMANTIC_SCHOLAR_API = 'https://api.semanticscholar.org/graph/v1';
+// OpenAlex API base URL
+const OPENALEX_API = 'https://api.openalex.org';
 
 interface CitationRequest {
   text: string;
@@ -30,27 +30,41 @@ interface KeywordExtractionResponse {
   searchQuery: string;
 }
 
-interface SemanticScholarPaper {
-  paperId: string;
+interface OpenAlexWork {
+  id: string;
   title: string;
-  abstract: string;
-  year?: number;
-  authors: Array<{
-    name: string;
-    authorId?: string;
+  abstract_inverted_index?: Record<string, number[]>;
+  publication_year?: number;
+  authorships?: Array<{
+    author: {
+      display_name: string;
+      id?: string;
+    };
   }>;
-  url: string;
-  venue?: string;
-  citationCount?: number;
-  openAccessPdf?: {
-    url: string;
+  primary_location?: {
+    source?: {
+      display_name?: string;
+    };
+    pdf_url?: string;
+  };
+  locations?: Array<{
+    source?: {
+      display_name?: string;
+    };
+    pdf_url?: string;
+  }>;
+  cited_by_count?: number;
+  doi?: string;
+  open_access?: {
+    is_oa?: boolean;
+    oa_url?: string;
   };
 }
 
 interface CitationResponse {
   keywords: string[];
   searchQuery: string;
-  papers: SemanticScholarPaper[];
+  papers: OpenAlexWork[];
   totalFound: number;
 }
 
@@ -116,17 +130,17 @@ Focus on technical terms, concepts, methodologies, and domain-specific vocabular
   }
 }
 
-async function searchSemanticScholar(query: string, maxResults: number = 10): Promise<SemanticScholarPaper[]> {
+async function searchOpenAlex(query: string, maxResults: number = 10): Promise<OpenAlexWork[]> {
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second base delay
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const searchUrl = `${SEMANTIC_SCHOLAR_API}/paper/search`;
+            const searchUrl = `${OPENALEX_API}/works`;
             const params = new URLSearchParams({
-                query: query,
-                limit: maxResults.toString(),
-                fields: 'paperId,title,abstract,year,authors,url,venue,citationCount,openAccessPdf'
+                search: query,
+                per_page: maxResults.toString(),
+                select: 'id,title,abstract_inverted_index,publication_year,authorships,primary_location,locations,cited_by_count,doi,open_access'
             });
 
             const response = await fetch(`${searchUrl}?${params}`, {
@@ -149,23 +163,21 @@ async function searchSemanticScholar(query: string, maxResults: number = 10): Pr
             }
 
             if (!response.ok) {
-                throw new Error(`Semantic Scholar API error: ${response.status}`);
+                throw new Error(`OpenAlex API error: ${response.status}`);
             }
 
             const data = await response.json();
             
-            // Handle different response formats from Semantic Scholar
-            if (data.data && Array.isArray(data.data)) {
-                return data.data;
-            } else if (Array.isArray(data)) {
-                return data;
+            // OpenAlex returns results in data.results
+            if (data.results && Array.isArray(data.results)) {
+                return data.results;
             } else {
-                console.warn('Unexpected Semantic Scholar response format:', data);
+                console.warn('Unexpected OpenAlex response format:', data);
                 return [];
             }
         } catch (error) {
             if (attempt === maxRetries) {
-                console.error('Error searching Semantic Scholar after all retries:', error);
+                console.error('Error searching OpenAlex after all retries:', error);
                 return [];
             }
             // Wait before retrying other errors
@@ -176,6 +188,68 @@ async function searchSemanticScholar(query: string, maxResults: number = 10): Pr
     }
     
     return [];
+}
+
+// Helper function to convert OpenAlex work to the format expected by the frontend
+function convertOpenAlexWorkToPaper(work: OpenAlexWork): any {
+    // Extract abstract from inverted index if available
+    let abstract = '';
+    if (work.abstract_inverted_index) {
+        const words: string[] = [];
+        const maxIndex = Math.max(...Object.values(work.abstract_inverted_index).flat());
+        
+        for (let i = 0; i <= maxIndex; i++) {
+            for (const [word, positions] of Object.entries(work.abstract_inverted_index)) {
+                if (positions.includes(i)) {
+                    words[i] = word;
+                    break;
+                }
+            }
+        }
+        abstract = words.filter(Boolean).join(' ');
+    }
+
+    // Extract authors
+    const authors = work.authorships?.map(authorship => ({
+        name: authorship.author.display_name,
+        authorId: authorship.author.id
+    })) || [];
+
+    // Extract venue from primary location or first location
+    let venue = '';
+    if (work.primary_location?.source?.display_name) {
+        venue = work.primary_location.source.display_name;
+    } else if (work.locations?.[0]?.source?.display_name) {
+        venue = work.locations[0].source.display_name;
+    }
+
+    // Extract PDF URL
+    let pdfUrl = '';
+    if (work.primary_location?.pdf_url) {
+        pdfUrl = work.primary_location.pdf_url;
+    } else if (work.locations?.[0]?.pdf_url) {
+        pdfUrl = work.locations[0].pdf_url;
+    } else if (work.open_access?.oa_url) {
+        pdfUrl = work.open_access.oa_url;
+    }
+
+    // Create URL from DOI if no direct URL available
+    let url = '';
+    if (work.doi) {
+        url = `https://doi.org/${work.doi}`;
+    }
+
+    return {
+        paperId: work.id,
+        title: work.title,
+        abstract: abstract,
+        year: work.publication_year,
+        authors: authors,
+        url: url,
+        venue: venue,
+        citationCount: work.cited_by_count || 0,
+        openAccessPdf: pdfUrl ? { url: pdfUrl } : undefined
+    };
 }
 
 export async function POST(req: NextRequest) {
@@ -208,11 +282,14 @@ export async function POST(req: NextRequest) {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // Search for papers using the extracted keywords
-    const papers = await searchSemanticScholar(keywordData.searchQuery, maxResults);
+    const openAlexWorks = await searchOpenAlex(keywordData.searchQuery, maxResults);
+
+    // Convert OpenAlex works to the format expected by the frontend
+    const papers = openAlexWorks.map(convertOpenAlexWorkToPaper);
 
     // Check if we got rate limited or no results
     if (papers.length === 0) {
-      const warningMessage = 'No papers found. This may be due to rate limiting from Semantic Scholar API or no relevant papers available. Please try again in a few moments or select different text.';
+      const warningMessage = 'No papers found. This may be due to rate limiting from OpenAlex API or no relevant papers available. Please try again in a few moments or select different text.';
       
       return new Response(JSON.stringify({
         keywords: keywordData.keywords,
