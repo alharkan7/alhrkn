@@ -8,6 +8,8 @@ import List from '@editorjs/list';
 import Marker from '@editorjs/marker';
 import InlineCode from '@editorjs/inline-code';
 import Underline from '@editorjs/underline';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import '../styles/editor.css';
 import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
@@ -135,6 +137,46 @@ function convertToPlainText(data: any): string {
     }).join('');
 }
 
+// Bibliography extraction and formatting helpers
+function getBibliographyEntries(): Array<{ html: string; text: string }> {
+    try {
+        const container = document.getElementById('bibliography-container');
+        if (!container) return [];
+        const entries = Array.from(container.querySelectorAll('.reference-entry')) as HTMLElement[];
+        return entries.map((entry) => {
+            const p = entry.querySelector('p');
+            const html = (p?.innerHTML || entry.innerHTML || '').trim();
+            const text = (p?.textContent || entry.textContent || '').trim();
+            return { html, text };
+        }).filter(e => e.text.length > 0);
+    } catch {
+        return [];
+    }
+}
+
+function buildBibliographyHTML(entries: Array<{ html: string; text: string }>): string {
+    if (!entries || entries.length === 0) return '';
+    const items = entries.map(e => `<div class="reference-item"><p>${e.html}</p></div>`).join('');
+    return `
+        <section>
+            <h2>References</h2>
+            ${items}
+        </section>
+    `;
+}
+
+function buildBibliographyMarkdown(entries: Array<{ html: string; text: string }>): string {
+    if (!entries || entries.length === 0) return '';
+    const lines = entries.map(e => `- ${e.text}`).join('\n');
+    return `\n## References\n${lines}\n\n`;
+}
+
+function buildBibliographyPlain(entries: Array<{ html: string; text: string }>): string {
+    if (!entries || entries.length === 0) return '';
+    const lines = entries.map(e => `${e.text}`).join('\n');
+    return `\nReferences\n${lines}\n`;
+}
+
 function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
     const editorRef = useRef<EditorJS | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -154,57 +196,106 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             
             switch (format) {
                 case 'pdf':
-                    // For PDF, we'll create a simple HTML representation and use browser's print to PDF
-                    content = convertToHTML(data);
-                    filename = `${idea.title || 'document'}.html`;
-                    mimeType = 'text/html';
-                    // Open in new tab for PDF conversion
-                    const newWindow = window.open('', '_blank');
-                    if (newWindow) {
-                        newWindow.document.write(`
-                            <!DOCTYPE html>
-                            <html>
-                            <head>
-                                <title>${idea.title || 'Document'}</title>
-                                <style>
-                                    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                                    h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                                    h2 { color: #555; margin-top: 30px; }
-                                    p { margin-bottom: 15px; }
-                                    .code { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; }
-                                </style>
-                            </head>
-                            <body>
-                                ${content}
-                            </body>
-                            </html>
-                        `);
-                        newWindow.document.close();
-                        newWindow.focus();
-                        // User can now use browser's print to PDF functionality
-                        setTimeout(() => {
-                            newWindow.print();
-                        }, 500);
+                    // High-quality, multi-page PDF using html2canvas + jsPDF with pagination
+                    {
+                        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        const margin = 40; // pt
+                        const contentWidthPt = pageWidth - margin * 2;
+                        const pxPerPt = 96 / 72; // px per pt
+                        const contentWidthPx = Math.floor(contentWidthPt * pxPerPt);
+
+                        const htmlMain = convertToHTML(data);
+                        const htmlBib = buildBibliographyHTML(getBibliographyEntries());
+                        const html = `${htmlMain}${htmlBib}`;
+                        const hiddenContainer = document.createElement('div');
+                        hiddenContainer.setAttribute('data-outliner-pdf-container', 'true');
+                        hiddenContainer.style.position = 'fixed';
+                        hiddenContainer.style.left = '-10000px';
+                        hiddenContainer.style.top = '0';
+                        hiddenContainer.style.width = `${contentWidthPx}px`;
+                        hiddenContainer.style.padding = '0';
+                        hiddenContainer.style.boxSizing = 'border-box';
+                        hiddenContainer.style.background = '#ffffff';
+                        hiddenContainer.style.color = '#111827';
+                        hiddenContainer.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Noto Sans, sans-serif';
+                        hiddenContainer.style.lineHeight = '1.7';
+                        hiddenContainer.innerHTML = `
+                            <style>
+                                h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
+                                h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; }
+                                p { font-size: 14px; margin: 0 0 12px; color: #111827; }
+                                ul, ol { margin: 0 0 12px 22px; }
+                                code.code { background: #f3f4f6; padding: 6px 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; display: block; }
+                                mark { background: #fde68a; }
+                                u { text-decoration: underline; }
+                            </style>
+                            ${html}
+                        `;
+                        document.body.appendChild(hiddenContainer);
+
+                        const canvas = await html2canvas(hiddenContainer, {
+                            scale: 2,
+                            backgroundColor: '#ffffff',
+                            useCORS: true,
+                            windowWidth: hiddenContainer.scrollWidth,
+                        });
+
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgWidthPt = contentWidthPt;
+                        const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+
+                        const usablePageHeight = pageHeight - margin * 2;
+                        let heightLeft = imgHeightPt;
+                        let positionY = margin;
+
+                        // First page
+                        pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
+                        heightLeft -= usablePageHeight;
+
+                        // Additional pages
+                        while (heightLeft > 0) {
+                            pdf.addPage();
+                            positionY = margin - (imgHeightPt - heightLeft);
+                            pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
+                            heightLeft -= usablePageHeight;
+                        }
+
+                        pdf.save(`${idea.title || 'document'}.pdf`);
+                        document.body.removeChild(hiddenContainer);
                     }
                     return;
                     
                 case 'markdown':
-                    content = convertToMarkdown(data);
+                    {
+                        const main = convertToMarkdown(data);
+                        const bib = buildBibliographyMarkdown(getBibliographyEntries());
+                        content = `${main}${bib}`;
+                    }
                     filename = `${idea.title || 'document'}.md`;
                     mimeType = 'text/markdown';
                     break;
                     
                 case 'txt':
-                    content = convertToPlainText(data);
+                    {
+                        const main = convertToPlainText(data);
+                        const bib = buildBibliographyPlain(getBibliographyEntries());
+                        content = `${main}${bib}`;
+                    }
                     filename = `${idea.title || 'document'}.txt`;
                     mimeType = 'text/plain';
                     break;
                     
                 case 'docx':
-                    // For DOCX, we'll create a simple HTML that can be opened in Word
-                    content = convertToHTML(data);
-                    filename = `${idea.title || 'document'}.html`;
-                    mimeType = 'text/html';
+                    // Save as Word-compatible HTML with .doc extension, including references
+                    {
+                        const htmlMain = convertToHTML(data);
+                        const htmlBib = buildBibliographyHTML(getBibliographyEntries());
+                        content = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>${idea.title || 'Document'}</title></head><body>${htmlMain}${htmlBib}</body></html>`;
+                    }
+                    filename = `${idea.title || 'document'}.doc`;
+                    mimeType = 'application/msword';
                     break;
             }
             

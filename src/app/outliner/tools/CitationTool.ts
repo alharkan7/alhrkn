@@ -8,6 +8,11 @@ export class CitationTool {
     private api: any;
     private button: HTMLButtonElement;
     private savedSelectionRange: Range | null = null;
+    private currentPage: number = 1;
+    private perPage: number = 10;
+    private pageCache: Map<number, any> = new Map();
+    private lastSearchQuery: string | null = null;
+    private lastSelectedTextKey: string | null = null;
     private config: {
         endpoint: string;
         getDocument: () => Promise<any>;
@@ -36,6 +41,11 @@ export class CitationTool {
             setTimeout(() => {
                 this.updateBibliographyDisplay().catch(console.error);
             }, 200);
+        });
+
+        // Listen for external open request (from Toolbar Quote button)
+        window.addEventListener('outliner-open-citations', () => {
+            this.openCitations().catch(console.error);
         });
     }
 
@@ -67,6 +77,14 @@ export class CitationTool {
                 return;
             }
 
+            // Reset pagination state if selection changed
+            if (this.lastSelectedTextKey !== selectedText) {
+                this.currentPage = 1;
+                this.pageCache.clear();
+                this.lastSearchQuery = null;
+                this.lastSelectedTextKey = selectedText;
+            }
+
             // Show loading overlay
             this.showLoading('Researching...');
 
@@ -76,7 +94,8 @@ export class CitationTool {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     text: selectedText,
-                    maxResults: 15
+                    perPage: this.perPage,
+                    page: 1
                 })
             });
 
@@ -86,6 +105,11 @@ export class CitationTool {
             }
 
             const data = await res.json();
+            // sync pagination and cache
+            this.perPage = data?.perPage || this.perPage;
+            this.currentPage = data?.page || 1;
+            this.lastSearchQuery = data?.searchQuery || null;
+            this.pageCache.set(this.currentPage, data);
             this.hideLoading();
             this.showCitationModal(data, selectedText);
 
@@ -128,13 +152,54 @@ export class CitationTool {
         `;
         
         const title = document.createElement('h3');
-        const citationCount = data.papers ? data.papers.length : 0;
-        title.textContent = `Found ${citationCount} Reference${citationCount !== 1 ? 's' : ''}`;
+        const totalFound = data?.totalFound ?? (data.papers ? data.papers.length : 0);
+        const page = data?.page ?? this.currentPage;
+        const perPage = data?.perPage ?? this.perPage;
+        const showingCount = data?.papers?.length ?? 0;
+        title.textContent = `Found ${totalFound} Reference${totalFound !== 1 ? 's' : ''} — Page ${page}`;
         title.className = 'm-0 text-lg font-semibold';
         title.style.cssText = `
             color: var(--text);
             font-weight: var(--heading-font-weight);
         `;
+
+        // Pagination controls
+        const pager = document.createElement('div');
+        pager.className = 'flex items-center gap-2';
+
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'Prev';
+        prevBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+        prevBtn.style.cssText = `
+            background-color: var(--bw);
+            color: var(--text);
+            border-color: var(--border);
+            font-weight: var(--base-font-weight);
+        `;
+        prevBtn.disabled = page <= 1;
+        prevBtn.onclick = () => this.goToPage(page - 1);
+
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `${(page - 1) * perPage + 1}-${(page - 1) * perPage + showingCount} of ${totalFound}`;
+        pageInfo.className = 'text-xs opacity-80';
+        pageInfo.style.cssText = `color: var(--text);`;
+
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Next';
+        nextBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+        nextBtn.style.cssText = `
+            background-color: var(--main);
+            color: var(--mtext);
+            border-color: var(--border);
+            font-weight: var(--base-font-weight);
+        `;
+        const hasMore = totalFound ? (page * perPage) < totalFound : showingCount === perPage;
+        nextBtn.disabled = !hasMore;
+        nextBtn.onclick = () => this.goToPage(page + 1);
+
+        pager.appendChild(prevBtn);
+        pager.appendChild(pageInfo);
+        pager.appendChild(nextBtn);
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
@@ -154,7 +219,11 @@ export class CitationTool {
         closeBtn.onclick = () => this.closeModal();
 
         header.appendChild(title);
-        header.appendChild(closeBtn);
+        const rightActions = document.createElement('div');
+        rightActions.className = 'flex items-center gap-3';
+        rightActions.appendChild(pager);
+        rightActions.appendChild(closeBtn);
+        header.appendChild(rightActions);
 
         // Content
         const content = document.createElement('div');
@@ -163,7 +232,7 @@ export class CitationTool {
             background-color: var(--bg);
         `;
 
-        // Search info
+        // Search info with editable keywords
         const searchInfo = document.createElement('div');
         searchInfo.className = 'mb-5 p-3 rounded-md text-sm';
         searchInfo.style.cssText = `
@@ -171,12 +240,109 @@ export class CitationTool {
             border: 1px solid var(--border);
             color: var(--text);
         `;
-        
-        let searchInfoHTML = `
-            <strong>Keywords:</strong> ${data.keywords?.join(', ') || 'N/A'}<br>
+
+        const searchRow = document.createElement('div');
+        searchRow.className = 'flex items-center justify-between gap-2';
+
+        const keywordsLeft = document.createElement('div');
+        const keywordsLabel = document.createElement('strong');
+        keywordsLabel.textContent = 'Keywords: ';
+        const keywordsValue = document.createElement('span');
+        keywordsValue.textContent = data.keywords?.join(', ') || 'N/A';
+        keywordsLeft.appendChild(keywordsLabel);
+        keywordsLeft.appendChild(keywordsValue);
+
+        const actionsRight = document.createElement('div');
+        actionsRight.className = 'flex items-center gap-2';
+        const editBtn = document.createElement('button');
+        editBtn.title = 'Edit keywords';
+        editBtn.className = 'p-1.5 rounded-md border text-xs cursor-pointer transition-all duration-200 hover:opacity-90';
+        editBtn.style.cssText = `
+            background-color: var(--bw);
+            color: var(--text);
+            border-color: var(--border);
         `;
-        
-        searchInfo.innerHTML = searchInfoHTML;
+        // Pencil icon SVG
+        const editIcon = document.createElement('span');
+        editIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+        editBtn.appendChild(editIcon);
+
+        const renderEdit = () => {
+            searchRow.innerHTML = '';
+            const editContainer = document.createElement('div');
+            editContainer.className = 'flex items-center justify-between gap-2 w-full';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = (data.keywords && data.keywords.length > 0) ? data.keywords.join(', ') : '';
+            input.placeholder = 'keyword1, keyword2, keyword3';
+            input.className = 'flex-1 px-2 py-1 rounded-md border text-sm';
+            input.style.cssText = `
+                background-color: var(--bg);
+                color: var(--text);
+                border-color: var(--border);
+            `;
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+            saveBtn.style.cssText = `
+                background-color: var(--main);
+                color: var(--mtext);
+                border-color: var(--border);
+            `;
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+            cancelBtn.style.cssText = `
+                background-color: var(--bw);
+                color: var(--text);
+                border-color: var(--border);
+            `;
+
+            const submit = async () => {
+                const raw = input.value || '';
+                const keywords = raw.split(',').map(k => k.trim()).filter(k => k.length > 0);
+                if (keywords.length === 0) {
+                    this.config.notify?.('Please enter at least one keyword.');
+                    return;
+                }
+                await this.applyEditedKeywords(keywords);
+            };
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    renderView();
+                }
+            });
+            saveBtn.onclick = () => submit();
+            cancelBtn.onclick = () => renderView();
+
+            editContainer.appendChild(input);
+            editContainer.appendChild(cancelBtn);
+            editContainer.appendChild(saveBtn);
+            searchRow.appendChild(editContainer);
+            input.focus();
+        };
+
+        const renderView = () => {
+            searchRow.innerHTML = '';
+            keywordsValue.textContent = data.keywords?.join(', ') || 'Waiting for input...';
+            actionsRight.innerHTML = '';
+            actionsRight.appendChild(editBtn);
+            searchRow.appendChild(keywordsLeft);
+            searchRow.appendChild(actionsRight);
+        };
+
+        editBtn.onclick = () => renderEdit();
+
+        renderView();
+        searchInfo.appendChild(searchRow);
         content.appendChild(searchInfo);
 
         // Papers list
@@ -198,7 +364,7 @@ export class CitationTool {
             background-color: var(--bw);
             border: 1px solid var(--border);
         `;
-        noResults.textContent = 'No relevant papers found. Try selecting different text or adjusting your search.';
+        noResults.textContent = 'No papers yet. Try inputing keywords or adjusting your search.';
         content.appendChild(noResults);
         }
 
@@ -213,6 +379,158 @@ export class CitationTool {
                 this.closeModal();
             }
         };
+    }
+
+    private async goToPage(page: number) {
+        try {
+            if (page < 1) return;
+            if (this.working) return;
+            this.working = true;
+
+            // If cached, use it
+            const cached = this.pageCache.get(page);
+            if (cached) {
+                this.currentPage = page;
+                this.hideLoading();
+                this.showCitationModal(cached, this.lastSelectedTextKey || '');
+                return;
+            }
+
+            this.showLoading('Loading...');
+
+            const body: any = {
+                page,
+                perPage: this.perPage,
+            };
+            if (this.lastSearchQuery) {
+                body.searchQuery = this.lastSearchQuery;
+            } else if (this.lastSelectedTextKey) {
+                body.text = this.lastSelectedTextKey;
+            }
+
+            const res = await fetch(this.config.endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || `Request failed with ${res.status}`);
+            }
+
+            const data = await res.json();
+            this.perPage = data?.perPage || this.perPage;
+            this.currentPage = data?.page || page;
+            this.lastSearchQuery = data?.searchQuery || this.lastSearchQuery;
+            this.pageCache.set(this.currentPage, data);
+            this.hideLoading();
+            this.showCitationModal(data, this.lastSelectedTextKey || '');
+        } catch (e: any) {
+            this.config.notify?.(e?.message || 'Failed to load page');
+        } finally {
+            this.hideLoading();
+            this.working = false;
+        }
+    }
+
+    private async applyEditedKeywords(keywords: string[]) {
+        try {
+            if (!keywords || keywords.length === 0) return;
+            if (this.working) return;
+            this.working = true;
+
+            this.currentPage = 1;
+            this.pageCache.clear();
+            const searchQuery = keywords.join(' AND ');
+            this.lastSearchQuery = searchQuery;
+
+            this.showLoading('Searching...');
+
+            const res = await fetch(this.config.endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    searchQuery,
+                    perPage: this.perPage,
+                    page: 1
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || `Request failed with ${res.status}`);
+            }
+
+            const data = await res.json();
+            this.perPage = data?.perPage || this.perPage;
+            this.currentPage = data?.page || 1;
+            this.lastSearchQuery = data?.searchQuery || searchQuery;
+            this.pageCache.set(this.currentPage, data);
+
+            this.hideLoading();
+            this.showCitationModal(data, this.lastSelectedTextKey || '');
+        } catch (e: any) {
+            this.config.notify?.(e?.message || 'Failed to update keywords');
+        } finally {
+            this.hideLoading();
+            this.working = false;
+        }
+    }
+
+    private async openCitations() {
+        try {
+            if (this.working) return;
+            // If we have cached data for current page, show it
+            const cached = this.pageCache.get(this.currentPage);
+            if (cached) {
+                this.showCitationModal(cached, this.lastSelectedTextKey || '');
+                return;
+            }
+
+            // If we have a lastSearchQuery, fetch first page
+            if (this.lastSearchQuery) {
+                this.working = true;
+                this.showLoading('Loading...');
+                const res = await fetch(this.config.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        searchQuery: this.lastSearchQuery,
+                        perPage: this.perPage,
+                        page: 1,
+                    })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.error || `Request failed with ${res.status}`);
+                }
+                const data = await res.json();
+                this.perPage = data?.perPage || this.perPage;
+                this.currentPage = data?.page || 1;
+                this.lastSearchQuery = data?.searchQuery || this.lastSearchQuery;
+                this.pageCache.set(this.currentPage, data);
+                this.hideLoading();
+                this.showCitationModal(data, this.lastSelectedTextKey || '');
+                return;
+            }
+
+            // Otherwise, open an empty modal encouraging keyword edit
+            const emptyData = {
+                keywords: [],
+                searchQuery: '',
+                papers: [],
+                totalFound: 0,
+                page: 1,
+                perPage: this.perPage,
+            };
+            this.showCitationModal(emptyData, '');
+        } catch (e: any) {
+            this.config.notify?.(e?.message || 'Failed to open citations');
+        } finally {
+            this.hideLoading();
+            this.working = false;
+        }
     }
 
     private createPaperCard(paper: any, index: number): HTMLDivElement {
@@ -512,65 +830,79 @@ export class CitationTool {
 
                 const currentBlockInfo = await this.getCurrentBlockInfo();
                 if (!currentBlockInfo) {
-                    this.config.notify?.('Could not determine current block for citation. Please place your cursor in a paragraph and try again.');
-                    return;
-                }
-
-                const { currentBlockIndex } = currentBlockInfo;
-                const docBlock = doc.blocks[currentBlockIndex];
-                if (!docBlock || docBlock.type !== 'paragraph' || !docBlock.data) {
-                    this.config.notify?.('Citation can only be added to paragraph blocks.');
-                    return;
-                }
-
-                let currentText = '';
-                if (docBlock.data && typeof docBlock.data === 'object') {
-                    currentText = docBlock.data.text || '';
-                } else if (typeof docBlock.data === 'string') {
-                    currentText = docBlock.data;
-                }
-
-                // Place citation before a trailing period (ignoring trailing whitespace), else append with space
-                let rightTrimmed = currentText.replace(/[\s\u00A0]+$/g, '');
-                if (rightTrimmed.endsWith('.')) {
-                    const withoutPeriod = rightTrimmed.slice(0, -1).replace(/[\s\u00A0]+$/g, '');
-                    const needsSpace = withoutPeriod.endsWith(' ') ? '' : ' ';
-                    let newText = `${withoutPeriod}${needsSpace}${citationTextCore}.`;
-                    currentText = newText; // override fully
-                } else if (rightTrimmed.endsWith(')') && rightTrimmed.includes('(')) {
-                    const lastParenIndex = rightTrimmed.lastIndexOf('(');
-                    const beforeCitation = rightTrimmed.substring(0, lastParenIndex).replace(/[\s\u00A0]+$/g, '');
-                    const existingCitation = rightTrimmed.substring(lastParenIndex);
-                    const newText = `${beforeCitation} ${citationTextCore} ${existingCitation}`;
-                    currentText = newText;
-                } else {
-                    const needsSpace = rightTrimmed.endsWith(' ') ? '' : ' ';
-                    const newText = `${rightTrimmed}${needsSpace}${citationTextCore}`;
-                    currentText = newText;
-                }
-
-                try {
-                    const currentBlock = this.api.blocks.getBlockByIndex(currentBlockIndex);
-                    if (currentBlock && currentBlock.id) {
-                        this.api.blocks.update(currentBlock.id, { text: currentText });
-                    } else {
-                        this.api.blocks.update(currentBlockIndex, { text: currentText });
-                    }
-                } catch (error) {
-                    console.warn('Block update failed, using fallback method:', error);
+                    // No focused block (likely opened from toolbar). Insert a new paragraph at end with the citation.
                     try {
-                        const currentBlock = this.api.blocks.getBlockByIndex(currentBlockIndex);
-                        if (currentBlock && currentBlock.id) {
-                            this.api.blocks.delete(currentBlock.id);
-                            this.api.blocks.insert('paragraph', { text: currentText }, {}, currentBlockIndex);
-                        } else {
-                            this.api.blocks.delete(currentBlockIndex);
-                            this.api.blocks.insert('paragraph', { text: currentText }, {}, currentBlockIndex);
-                        }
-                    } catch (fallbackError) {
-                        console.error('Fallback method also failed:', fallbackError);
-                        this.config.notify?.('Failed to update block. Please try again.');
+                        const blocksCount = typeof this.api.blocks.getBlocksCount === 'function' ? this.api.blocks.getBlocksCount() : (Array.isArray(doc.blocks) ? doc.blocks.length : 0);
+                        this.api.blocks.insert('paragraph', { text: citationTextCore }, {}, blocksCount);
+                    } catch (e) {
+                        console.error('Failed to insert citation at end of document:', e);
+                        this.config.notify?.('Failed to insert citation at end of document.');
                         return;
+                    }
+                } else {
+                    const { currentBlockIndex } = currentBlockInfo;
+                    const docBlock = doc.blocks[currentBlockIndex];
+                    if (!docBlock || docBlock.type !== 'paragraph' || !docBlock.data) {
+                        // If not a paragraph, append a new paragraph at end instead
+                        try {
+                            const blocksCount = typeof this.api.blocks.getBlocksCount === 'function' ? this.api.blocks.getBlocksCount() : (Array.isArray(doc.blocks) ? doc.blocks.length : 0);
+                            this.api.blocks.insert('paragraph', { text: citationTextCore }, {}, blocksCount);
+                        } catch (e) {
+                            console.error('Failed to insert citation at end of document:', e);
+                            this.config.notify?.('Failed to insert citation at end of document.');
+                            return;
+                        }
+                    } else {
+                        let currentText = '';
+                        if (docBlock.data && typeof docBlock.data === 'object') {
+                            currentText = docBlock.data.text || '';
+                        } else if (typeof docBlock.data === 'string') {
+                            currentText = docBlock.data;
+                        }
+
+                        // Place citation before a trailing period (ignoring trailing whitespace), else append with space
+                        let rightTrimmed = currentText.replace(/[\s\u00A0]+$/g, '');
+                        if (rightTrimmed.endsWith('.')) {
+                            const withoutPeriod = rightTrimmed.slice(0, -1).replace(/[\s\u00A0]+$/g, '');
+                            const needsSpace = withoutPeriod.endsWith(' ') ? '' : ' ';
+                            let newText = `${withoutPeriod}${needsSpace}${citationTextCore}.`;
+                            currentText = newText; // override fully
+                        } else if (rightTrimmed.endsWith(')') && rightTrimmed.includes('(')) {
+                            const lastParenIndex = rightTrimmed.lastIndexOf('(');
+                            const beforeCitation = rightTrimmed.substring(0, lastParenIndex).replace(/[\s\u00A0]+$/g, '');
+                            const existingCitation = rightTrimmed.substring(lastParenIndex);
+                            const newText = `${beforeCitation} ${citationTextCore} ${existingCitation}`;
+                            currentText = newText;
+                        } else {
+                            const needsSpace = rightTrimmed.endsWith(' ') ? '' : ' ';
+                            const newText = `${rightTrimmed}${needsSpace}${citationTextCore}`;
+                            currentText = newText;
+                        }
+
+                        try {
+                            const currentBlock = this.api.blocks.getBlockByIndex(currentBlockIndex);
+                            if (currentBlock && currentBlock.id) {
+                                this.api.blocks.update(currentBlock.id, { text: currentText });
+                            } else {
+                                this.api.blocks.update(currentBlockIndex, { text: currentText });
+                            }
+                        } catch (error) {
+                            console.warn('Block update failed, using fallback method:', error);
+                            try {
+                                const currentBlock = this.api.blocks.getBlockByIndex(currentBlockIndex);
+                                if (currentBlock && currentBlock.id) {
+                                    this.api.blocks.delete(currentBlock.id);
+                                    this.api.blocks.insert('paragraph', { text: currentText }, {}, currentBlockIndex);
+                                } else {
+                                    this.api.blocks.delete(currentBlockIndex);
+                                    this.api.blocks.insert('paragraph', { text: currentText }, {}, currentBlockIndex);
+                                }
+                            } catch (fallbackError) {
+                                console.error('Fallback method also failed:', fallbackError);
+                                this.config.notify?.('Failed to update block. Please try again.');
+                                return;
+                            }
+                        }
                     }
                 }
             }

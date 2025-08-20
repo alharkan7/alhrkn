@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type ResearchIdea = {
     title: string;
@@ -19,8 +20,13 @@ type ResearchIdea = {
 
 export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
     const [open, setOpen] = useState(false);
-    const [selected, setSelected] = useState<ResearchIdea | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const router = useRouter();
+
+    const selected: ResearchIdea | null = useMemo(() => {
+        if (selectedIndex === null) return null;
+        return ideas?.[selectedIndex] ?? null;
+    }, [ideas, selectedIndex]);
 
     function navigateToExpanded(idea: ResearchIdea) {
         const id = crypto.randomUUID();
@@ -32,6 +38,22 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
         router.push(`/outliner/${id}`);
     }
 
+    function goPrev() {
+        setSelectedIndex((idx) => {
+            if (idx === null) return idx;
+            const prev = idx - 1;
+            return prev >= 0 ? prev : idx;
+        });
+    }
+
+    function goNext() {
+        setSelectedIndex((idx) => {
+            if (idx === null) return idx;
+            const next = idx + 1;
+            return next < ideas.length ? next : idx;
+        });
+    }
+
     return (
         <>
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -40,7 +62,7 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                         key={idx}
                         className="h-full cursor-pointer transition hover:shadow-lg"
                         onClick={() => {
-                            setSelected(idea);
+                            setSelectedIndex(idx);
                             setOpen(true);
                         }}
                     >
@@ -96,7 +118,21 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                                 <h4 className="font-medium">Impact</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.impact}</p>
                             </section>
-                            <DialogFooter>
+                            <DialogFooter className="sm:justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <Button size="icon" variant="neutral" aria-label="Previous"
+                                        onClick={goPrev}
+                                        disabled={selectedIndex === null || selectedIndex <= 0}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="icon" variant="neutral" aria-label="Next"
+                                        onClick={goNext}
+                                        disabled={selectedIndex === null || selectedIndex >= ideas.length - 1}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 <Button onClick={() => selected && navigateToExpanded(selected)}>
                                      Open Editor
                                 </Button>

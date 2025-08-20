@@ -21,8 +21,11 @@ const model = genAI.getGenerativeModel({
 const OPENALEX_API = 'https://api.openalex.org';
 
 interface CitationRequest {
-  text: string;
-  maxResults?: number;
+  text?: string;
+  maxResults?: number; // deprecated
+  perPage?: number;
+  page?: number;
+  searchQuery?: string;
 }
 
 interface KeywordExtractionResponse {
@@ -66,6 +69,8 @@ interface CitationResponse {
   searchQuery: string;
   papers: OpenAlexWork[];
   totalFound: number;
+  page: number;
+  perPage: number;
 }
 
 async function extractKeywordsFromText(text: string): Promise<KeywordExtractionResponse> {
@@ -130,7 +135,7 @@ Focus on technical terms, concepts, methodologies, and domain-specific vocabular
   }
 }
 
-async function searchOpenAlex(query: string, maxResults: number = 10): Promise<OpenAlexWork[]> {
+async function searchOpenAlex(query: string, perPage: number = 10, page: number = 1): Promise<{ results: OpenAlexWork[]; count: number; page: number; perPage: number; }> {
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second base delay
     
@@ -139,7 +144,8 @@ async function searchOpenAlex(query: string, maxResults: number = 10): Promise<O
             const searchUrl = `${OPENALEX_API}/works`;
             const params = new URLSearchParams({
                 search: query,
-                per_page: maxResults.toString(),
+                per_page: perPage.toString(),
+                page: page.toString(),
                 select: 'id,title,abstract_inverted_index,publication_year,authorships,primary_location,locations,cited_by_count,doi,open_access'
             });
 
@@ -170,15 +176,16 @@ async function searchOpenAlex(query: string, maxResults: number = 10): Promise<O
             
             // OpenAlex returns results in data.results
             if (data.results && Array.isArray(data.results)) {
-                return data.results;
+                const count = typeof data?.meta?.count === 'number' ? data.meta.count : (data.results?.length || 0);
+                return { results: data.results, count, page, perPage };
             } else {
                 console.warn('Unexpected OpenAlex response format:', data);
-                return [];
+                return { results: [], count: 0, page, perPage };
             }
         } catch (error) {
             if (attempt === maxRetries) {
                 console.error('Error searching OpenAlex after all retries:', error);
-                return [];
+                return { results: [], count: 0, page, perPage };
             }
             // Wait before retrying other errors
             const delay = baseDelay * Math.pow(2, attempt - 1);
@@ -187,7 +194,7 @@ async function searchOpenAlex(query: string, maxResults: number = 10): Promise<O
         }
     }
     
-    return [];
+    return { results: [], count: 0, page, perPage };
 }
 
 // Helper function to convert OpenAlex work to the format expected by the frontend
@@ -255,37 +262,47 @@ function convertOpenAlexWorkToPaper(work: OpenAlexWork): any {
 export async function POST(req: NextRequest) {
   try {
     const body: CitationRequest = await req.json();
-    const { text, maxResults = 10 } = body;
+    const { text, maxResults = 10, perPage: perPageRaw, page: pageRaw, searchQuery } = body;
 
-    if (!text || typeof text !== 'string') {
-      return new Response(JSON.stringify({ 
-        error: 'Missing or invalid "text" parameter' 
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const perPage = Math.max(1, Math.min(25, Number(perPageRaw || maxResults || 10)));
+    const page = Math.max(1, Number(pageRaw || 1));
+
+    let keywordData: KeywordExtractionResponse;
+    if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim().length > 0) {
+      // Use provided search query; derive keywords heuristically
+      const derivedKeywords = searchQuery.split(/\s+AND\s+/i).map(s => s.trim()).filter(Boolean);
+      keywordData = { keywords: derivedKeywords, searchQuery };
+    } else {
+      if (!text || typeof text !== 'string') {
+        return new Response(JSON.stringify({ 
+          error: 'Missing or invalid "text" parameter' 
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (text.trim().length < 10) {
+        return new Response(JSON.stringify({ 
+          error: 'Text must be at least 10 characters long' 
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Extract keywords using Gemini
+      keywordData = await extractKeywordsFromText(text);
     }
-
-    if (text.trim().length < 10) {
-      return new Response(JSON.stringify({ 
-        error: 'Text must be at least 10 characters long' 
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Extract keywords using Gemini
-    const keywordData = await extractKeywordsFromText(text);
     
     // Add a small delay to prevent rate limiting
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Search for papers using the extracted keywords
-    const openAlexWorks = await searchOpenAlex(keywordData.searchQuery, maxResults);
+    // Search for papers using the extracted/provided keywords
+    const searchResult = await searchOpenAlex(keywordData.searchQuery, perPage, page);
 
     // Convert OpenAlex works to the format expected by the frontend
-    const papers = openAlexWorks.map(convertOpenAlexWorkToPaper);
+    const papers = searchResult.results.map(convertOpenAlexWorkToPaper);
 
     // Check if we got rate limited or no results
     if (papers.length === 0) {
@@ -296,6 +313,8 @@ export async function POST(req: NextRequest) {
         searchQuery: keywordData.searchQuery,
         papers: [],
         totalFound: 0,
+        page,
+        perPage,
         warning: warningMessage
       }), {
         status: 200,
@@ -307,7 +326,9 @@ export async function POST(req: NextRequest) {
       keywords: keywordData.keywords,
       searchQuery: keywordData.searchQuery,
       papers: papers,
-      totalFound: papers.length
+      totalFound: searchResult.count,
+      page,
+      perPage
     };
 
     return new Response(JSON.stringify(response), {

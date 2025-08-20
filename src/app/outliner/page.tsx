@@ -22,6 +22,7 @@ export default function OutlinerPage() {
     const [queryText, setQueryText] = useState<string>('');
     const [ideas, setIdeas] = useState<ResearchIdea[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [hasResponded, setHasResponded] = useState<boolean>(false);
 
@@ -57,6 +58,40 @@ export default function OutlinerPage() {
     };
 
     const hasResults = Array.isArray(ideas) && ideas.length > 0;
+
+    const appendIdeas = async () => {
+        if (!queryText.trim()) return;
+        setIsLoadingMore(true);
+        setError(null);
+        try {
+            const res = await fetch('/api/outliner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keywords: queryText.trim(), numIdeas: 6 })
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || 'Failed to get more ideas');
+            }
+            const data = await res.json();
+            const newIdeas = (data.ideas || []) as ResearchIdea[];
+            setIdeas((prev) => {
+                const existing = prev || [];
+                const seen = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+                const filtered = newIdeas.filter((i) => {
+                    const key = i.title.toLowerCase().trim();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+                return [...existing, ...filtered];
+            });
+        } catch (e: any) {
+            setError(e?.message || 'Something went wrong');
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
 
     return (
         <div className="min-h-[100vh] flex flex-col items-center">
@@ -95,6 +130,17 @@ export default function OutlinerPage() {
                 )}
 
                 {ideas && <IdeasGrid ideas={ideas} />}
+                {hasResults && (
+                    <div className="mt-6 flex justify-center">
+                        <Button
+                            onClick={appendIdeas}
+                            className="h-11 px-6 text-base rounded-full"
+                            disabled={isLoading || isLoadingMore}
+                        >
+                            {isLoadingMore ? 'Loading more...' : 'Show More'}
+                        </Button>
+                    </div>
+                )}
             </div>
             <div className="fixed bottom-0 left-0 right-0 py-1 px-0 text-center bg-background">
                 <div className="flex-none">

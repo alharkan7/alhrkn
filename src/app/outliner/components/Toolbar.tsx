@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileText, FileCode, FileType, File, ArrowLeft } from 'lucide-react';
+import { Download, FileText, FileCode, FileType, File, ArrowLeft, Quote } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,23 @@ export function Toolbar({ onDownload }: ToolbarProps) {
           <Link href="/outliner" aria-label="Back to Outliner">
             <ArrowLeft className="h-4 w-4" />
           </Link>
+        </Button>
+      </div>
+
+      {/* Middle - open citations */}
+      <div className="flex items-center justify-center">
+        <Button
+          variant="noShadow"
+          size="sm"
+          className="bg-bw text-text border border-border hover:bg-bw/90"
+          aria-label="Open Citations"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('outliner-open-citations'));
+            }
+          }}
+        >
+          <Quote className="h-4 w-4" />
         </Button>
       </div>
 
