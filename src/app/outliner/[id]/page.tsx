@@ -15,6 +15,7 @@ import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
 import { SPARKLES_ICON_SVG } from '../components/svg-icons';
 import { Toolbar } from '../components/Toolbar';
+import EmailForm from '../../papermap/components/EmailForm';
 
 type ResearchIdea = {
     title: string;
@@ -192,139 +193,185 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
     const showDelayTimerRef = useRef<number | null>(null);
     const suppressUntilNextPointerRef = useRef<boolean>(false);
     const warmedToolsRef = useRef<boolean>(false);
+    
+    // Email form state
+    const [showEmailForm, setShowEmailForm] = useState(false);
+    const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
+    const [pendingDownloadFormat, setPendingDownloadFormat] = useState<string>('');
+    const [emailLoading, setEmailLoading] = useState(false);
+    const [emailError, setEmailError] = useState<string | null>(null);
+
+    const initiateDownload = (format: string, downloadAction: () => void) => {
+        setPendingDownloadFormat(format);
+        setPendingDownloadAction(() => downloadAction);
+        setShowEmailForm(true);
+    };
+
+    const handleEmailSubmit = async (email: string) => {
+        setEmailLoading(true);
+        setEmailError(null);
+        try {
+            // Send email and download format to backend
+            fetch('/api/outliner/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email, 
+                    downloadFormat: pendingDownloadFormat, 
+                    fileName: idea.title || 'document'
+                }),
+            }).catch(() => { });
+            
+            // Trigger the download immediately
+            if (pendingDownloadAction) pendingDownloadAction();
+            setShowEmailForm(false);
+            setPendingDownloadAction(null);
+            setPendingDownloadFormat('');
+        } catch (err) {
+            setEmailError('Failed to process your request. Please try again.');
+        } finally {
+            setEmailLoading(false);
+        }
+    };
 
     const handleDownload = useCallback(async (format: 'pdf' | 'markdown' | 'txt' | 'docx') => {
         if (!editorRef.current) return;
         
-        try {
-            const data = await editorRef.current.save();
-            console.log(`Downloading as ${format}...`, data);
-            
-            let content: string;
-            let filename: string;
-            let mimeType: string;
-            
-            switch (format) {
-                case 'pdf':
-                    // High-quality, multi-page PDF using html2canvas + jsPDF with pagination
-                    {
-                        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-                        const pageWidth = pdf.internal.pageSize.getWidth();
-                        const pageHeight = pdf.internal.pageSize.getHeight();
-                        const margin = 40; // pt
-                        const contentWidthPt = pageWidth - margin * 2;
-                        const pxPerPt = 96 / 72; // px per pt
-                        const contentWidthPx = Math.floor(contentWidthPt * pxPerPt);
+        // Instead of downloading immediately, initiate the email form process
+        const downloadAction = async () => {
+            try {
+                const data = await editorRef.current!.save();
+                console.log(`Downloading as ${format}...`, data);
+                
+                let content: string;
+                let filename: string;
+                let mimeType: string;
+                
+                switch (format) {
+                    case 'pdf':
+                        // High-quality, multi-page PDF using html2canvas + jsPDF with pagination
+                        {
+                            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+                            const pageWidth = pdf.internal.pageSize.getWidth();
+                            const pageHeight = pdf.internal.pageSize.getHeight();
+                            const margin = 40; // pt
+                            const contentWidthPt = pageWidth - margin * 2;
+                            const pxPerPt = 96 / 72; // px per pt
+                            const contentWidthPx = Math.floor(contentWidthPt * pxPerPt);
 
-                        const htmlMain = convertToHTML(data);
-                        const htmlBib = buildBibliographyHTML(getBibliographyEntries());
-                        const html = `${htmlMain}${htmlBib}`;
-                        const hiddenContainer = document.createElement('div');
-                        hiddenContainer.setAttribute('data-outliner-pdf-container', 'true');
-                        hiddenContainer.style.position = 'fixed';
-                        hiddenContainer.style.left = '-10000px';
-                        hiddenContainer.style.top = '0';
-                        hiddenContainer.style.width = `${contentWidthPx}px`;
-                        hiddenContainer.style.padding = '0';
-                        hiddenContainer.style.boxSizing = 'border-box';
-                        hiddenContainer.style.background = '#ffffff';
-                        hiddenContainer.style.color = '#111827';
-                        hiddenContainer.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Noto Sans, sans-serif';
-                        hiddenContainer.style.lineHeight = '1.7';
-                        hiddenContainer.innerHTML = `
-                            <style>
-                                h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
-                                h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; }
-                                p { font-size: 14px; margin: 0 0 12px; color: #111827; overflow-wrap: anywhere; word-break: break-word; }
-                                a { overflow-wrap: anywhere; word-break: break-word; }
-                                ul, ol { margin: 0 0 12px 22px; }
-                                code.code { background: #f3f4f6; padding: 6px 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; display: block; }
-                                mark { background: #fde68a; }
-                                u { text-decoration: underline; }
-                            </style>
-                            ${html}
-                        `;
-                        document.body.appendChild(hiddenContainer);
+                            const htmlMain = convertToHTML(data);
+                            const htmlBib = buildBibliographyHTML(getBibliographyEntries());
+                            const html = `${htmlMain}${htmlBib}`;
+                            const hiddenContainer = document.createElement('div');
+                            hiddenContainer.setAttribute('data-outliner-pdf-container', 'true');
+                            hiddenContainer.style.position = 'fixed';
+                            hiddenContainer.style.left = '-10000px';
+                            hiddenContainer.style.top = '0';
+                            hiddenContainer.style.width = `${contentWidthPx}px`;
+                            hiddenContainer.style.padding = '0';
+                            hiddenContainer.style.boxSizing = 'border-box';
+                            hiddenContainer.style.background = '#ffffff';
+                            hiddenContainer.style.color = '#111827';
+                            hiddenContainer.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Noto Sans, sans-serif';
+                            hiddenContainer.style.lineHeight = '1.7';
+                            hiddenContainer.innerHTML = `
+                                <style>
+                                    h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
+                                    h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; }
+                                    p { font-size: 14px; margin: 0 0 12px; color: #111827; overflow-wrap: anywhere; word-break: break-word; }
+                                    a { overflow-wrap: anywhere; word-break: break-word; }
+                                    ul, ol { margin: 0 0 12px 22px; }
+                                    code.code { background: #f3f4f6; padding: 6px 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; display: block; }
+                                    mark { background: #fde68a; }
+                                    u { text-decoration: underline; }
+                                </style>
+                                ${html}
+                            `;
+                            document.body.appendChild(hiddenContainer);
 
-                        const canvas = await html2canvas(hiddenContainer, {
-                            scale: 2,
-                            backgroundColor: '#ffffff',
-                            useCORS: true,
-                            windowWidth: hiddenContainer.scrollWidth,
-                        });
+                            const canvas = await html2canvas(hiddenContainer, {
+                                scale: 2,
+                                backgroundColor: '#ffffff',
+                                useCORS: true,
+                                windowWidth: hiddenContainer.scrollWidth,
+                            });
 
-                        const imgData = canvas.toDataURL('image/png');
-                        const imgWidthPt = contentWidthPt;
-                        const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+                            const imgData = canvas.toDataURL('image/png');
+                            const imgWidthPt = contentWidthPt;
+                            const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
 
-                        const usablePageHeight = pageHeight - margin * 2;
-                        let heightLeft = imgHeightPt;
-                        let positionY = margin;
+                            const usablePageHeight = pageHeight - margin * 2;
+                            let heightLeft = imgHeightPt;
+                            let positionY = margin;
 
-                        // First page
-                        pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
-                        heightLeft -= usablePageHeight;
-
-                        // Additional pages
-                        while (heightLeft > 0) {
-                            pdf.addPage();
-                            positionY = margin - (imgHeightPt - heightLeft);
+                            // First page
                             pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
                             heightLeft -= usablePageHeight;
-                        }
 
-                        pdf.save(`${idea.title || 'document'}.pdf`);
-                        document.body.removeChild(hiddenContainer);
-                    }
-                    return;
-                    
-                case 'markdown':
-                    {
-                        const main = convertToMarkdown(data);
-                        const bib = buildBibliographyMarkdown(getBibliographyEntries());
-                        content = `${main}${bib}`;
-                    }
-                    filename = `${idea.title || 'document'}.md`;
-                    mimeType = 'text/markdown';
-                    break;
-                    
-                case 'txt':
-                    {
-                        const main = convertToPlainText(data);
-                        const bib = buildBibliographyPlain(getBibliographyEntries());
-                        content = `${main}${bib}`;
-                    }
-                    filename = `${idea.title || 'document'}.txt`;
-                    mimeType = 'text/plain';
-                    break;
-                    
-                case 'docx':
-                    // Save as Word-compatible HTML with .doc extension, including references
-                    {
-                        const htmlMain = convertToHTML(data);
-                        const htmlBib = buildBibliographyHTML(getBibliographyEntries());
-                        content = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>${idea.title || 'Document'}</title></head><body>${htmlMain}${htmlBib}</body></html>`;
-                    }
-                    filename = `${idea.title || 'document'}.doc`;
-                    mimeType = 'application/msword';
-                    break;
+                            // Additional pages
+                            while (heightLeft > 0) {
+                                pdf.addPage();
+                                positionY = margin - (imgHeightPt - heightLeft);
+                                pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
+                                heightLeft -= usablePageHeight;
+                            }
+
+                            pdf.save(`${idea.title || 'document'}.pdf`);
+                            document.body.removeChild(hiddenContainer);
+                        }
+                        return;
+                        
+                    case 'markdown':
+                        {
+                            const main = convertToMarkdown(data);
+                            const bib = buildBibliographyMarkdown(getBibliographyEntries());
+                            content = `${main}${bib}`;
+                        }
+                        filename = `${idea.title || 'document'}.md`;
+                        mimeType = 'text/markdown';
+                        break;
+                        
+                    case 'txt':
+                        {
+                            const main = convertToPlainText(data);
+                            const bib = buildBibliographyPlain(getBibliographyEntries());
+                            content = `${main}${bib}`;
+                        }
+                        filename = `${idea.title || 'document'}.txt`;
+                        mimeType = 'text/plain';
+                        break;
+                        
+                    case 'docx':
+                        // Save as Word-compatible HTML with .doc extension, including references
+                        {
+                            const htmlMain = convertToHTML(data);
+                            const htmlBib = buildBibliographyHTML(getBibliographyEntries());
+                            content = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>${idea.title || 'Document'}</title></head><body>${htmlMain}${htmlBib}</body></html>`;
+                        }
+                        filename = `${idea.title || 'document'}.doc`;
+                        mimeType = 'application/msword';
+                        break;
+                }
+                
+                // Create and download the file
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('Error preparing download:', error);
             }
-            
-            // Create and download the file
-            const blob = new Blob([content], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-        } catch (error) {
-            console.error('Error preparing download:', error);
-        }
-    }, [idea.title]);
+        };
+
+        // Initiate email form process
+        initiateDownload(format, downloadAction);
+    }, [idea.title, id]);
 
     const saveDoc = useCallback(async () => {
         if (!editorRef.current) return;
@@ -744,6 +791,20 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                     </p>
                 </div>
             </div>
+
+            {showEmailForm && (
+                <EmailForm
+                    onSubmit={handleEmailSubmit}
+                    onCancel={() => {
+                        setShowEmailForm(false);
+                        setPendingDownloadAction(null);
+                        setPendingDownloadFormat('');
+                    }}
+                    loading={emailLoading}
+                    error={emailError}
+                    downloadFormat={pendingDownloadFormat}
+                />
+            )}
         </div>
     );
 }
