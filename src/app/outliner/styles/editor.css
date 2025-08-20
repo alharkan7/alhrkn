@@ -115,4 +115,30 @@
 .ce-block {
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+/* Custom inline tool styling to match EditorJS defaults */
+.ce-inline-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.ce-inline-tool:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.ce-inline-tool svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
 } 
