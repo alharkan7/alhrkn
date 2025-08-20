@@ -142,3 +142,20 @@
   stroke: currentColor;
   fill: none;
 } 
+
+/* Vertical separator between native inline tools and our AI tools */
+.ce-inline-toolbar .ce-inline-tool[data-ai-first="true"] {
+  position: relative;
+  margin-left: 8px; /* create gap like native groups */
+}
+
+.ce-inline-toolbar .ce-inline-tool[data-ai-first="true"]::before {
+  content: "";
+  position: absolute;
+  left: -4px; /* center the divider in the gap */
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.15);
+  pointer-events: none; /* do not block clicks */
+}

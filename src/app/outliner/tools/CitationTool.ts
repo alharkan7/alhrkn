@@ -21,6 +21,7 @@ export class CitationTool {
     private working: boolean = false;
     private modal: HTMLDivElement | null = null;
     private loadingOverlay: HTMLDivElement | null = null;
+    private boundCiteCurrent?: () => void;
 
     constructor({ api, config }: { api: any; config: any; }) {
         this.api = api;
@@ -28,6 +29,8 @@ export class CitationTool {
         this.button = document.createElement('button');
         this.button.type = 'button';
         this.button.className = 'ce-inline-tool';
+        // Mark as AI tool (second in the AI group)
+        this.button.setAttribute('data-ai-tool', 'true');
         this.button.title = 'Find citations';
 
         // Create citation icon (using a book icon)
@@ -47,6 +50,28 @@ export class CitationTool {
         window.addEventListener('outliner-open-citations', () => {
             this.openCitations().catch(console.error);
         });
+
+        // Allow external triggering (e.g., mini AI toolbar) to cite current paragraph
+        this.boundCiteCurrent = () => {
+            try {
+                const selection = window.getSelection();
+                const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
+                // If there is no selection, synthesize a range at caret so modal opens
+                if (!hasSelection && selection && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    // Invoke surround with current caret range; tool will prompt to select keywords or show modal
+                    // @ts-ignore - EditorJS provides a compatible Range
+                    this.surround(range as any);
+                } else if (selection && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    // @ts-ignore
+                    this.surround(range as any);
+                }
+            } catch {
+                // noop
+            }
+        };
+        try { window.addEventListener('outliner-ai-cite-current', this.boundCiteCurrent); } catch { }
     }
 
     render() {

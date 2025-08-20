@@ -14,6 +14,7 @@ export class ExpandInlineTool {
         notify?: (msg: string) => void;
     };
     private working: boolean = false;
+    private boundExpandCurrent?: () => void;
 
     constructor({ api, config }: { api: any; config: any; }) {
         this.api = api;
@@ -21,11 +22,30 @@ export class ExpandInlineTool {
         this.button = document.createElement('button');
         this.button.type = 'button';
         this.button.className = 'ce-inline-tool';
+        // Mark as AI tool and first in the AI group for styling a separator
+        this.button.setAttribute('data-ai-tool', 'true');
+        this.button.setAttribute('data-ai-first', 'true');
         // Create expand icon
         const icon = document.createElement('div');
         icon.innerHTML = EXPAND_ICON_SVG;
         this.button.appendChild(icon);
         this.button.title = 'Expand with AI';
+
+        // Allow external triggering (e.g., mini AI toolbar) to expand current paragraph
+        this.boundExpandCurrent = () => {
+            try {
+                const selection = window.getSelection();
+                const range = selection && selection.rangeCount > 0
+                    ? selection.getRangeAt(0)
+                    : (document.createRange());
+                // Call the same logic as inline usage
+                // @ts-ignore - range type matches expected EditorJS usage
+                this.surround(range as any);
+            } catch {
+                // noop
+            }
+        };
+        try { window.addEventListener('outliner-ai-expand-current', this.boundExpandCurrent); } catch { }
     }
 
     render() {
