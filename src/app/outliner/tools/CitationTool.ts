@@ -1,10 +1,12 @@
-import { CITE_ICON_SVG, PLUS_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG } from '../components/svg-icons';
+import { CITE_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG, PENCIL_ICON_SVG, CHEVRON_UP_ICON_SVG, CHEVRON_DOWN_ICON_SVG } from '../components/svg-icons';
 
 // Inline tool to find citations for selected text using the /api/outliner/cite endpoint
 export class CitationTool {
     // Ensure only one set of global listeners are installed
     private static globalListenersInstalled: boolean = false;
     private static lastConstructedInstance: CitationTool | null = null;
+    private static lastEventTime: number = 0;
+    private static readonly EVENT_DEBOUNCE_MS = 100;
     static isInline = true;
     static title = 'Cite';
 
@@ -45,14 +47,21 @@ export class CitationTool {
         // Track the latest constructed instance
         try { CitationTool.lastConstructedInstance = this; } catch { }
 
-        // Install a single set of global listeners once
-        if (!CitationTool.globalListenersInstalled) {
-            try {
-                const w = window as any;
-                if (!w.__outliner_citation_listeners_installed) {
+            // Install a single set of global listeners once
+    if (!CitationTool.globalListenersInstalled) {
+        try {
+            const w = window as any;
+            if (!w.__outliner_citation_listeners_installed) {
                 // Mini toolbar: cite current
                 window.addEventListener('outliner-ai-cite-current', () => {
                     try {
+                        // Debounce rapid events
+                        const now = Date.now();
+                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                            return;
+                        }
+                        CitationTool.lastEventTime = now;
+                        
                         const inst = CitationTool.lastConstructedInstance;
                         if (!inst) return;
                         if (inst.working) return;
@@ -73,26 +82,44 @@ export class CitationTool {
 
                 // Document changed → update bibliography display
                 window.addEventListener('outliner-document-changed', () => {
-                    const inst = CitationTool.lastConstructedInstance;
-                    if (!inst) return;
-                    setTimeout(() => {
-                        try { inst.updateBibliographyDisplay().catch(() => {}); } catch { }
-                    }, 200);
+                    try {
+                        // Debounce rapid events
+                        const now = Date.now();
+                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                            return;
+                        }
+                        CitationTool.lastEventTime = now;
+                        
+                        const inst = CitationTool.lastConstructedInstance;
+                        if (!inst) return;
+                        setTimeout(() => {
+                            try { inst.updateBibliographyDisplay().catch(() => {}); } catch { }
+                        }, 200);
+                    } catch { /* noop */ }
                 });
 
                 // External open request
                 window.addEventListener('outliner-open-citations', () => {
-                    const inst = CitationTool.lastConstructedInstance;
-                    if (!inst) return;
-                    inst.openCitations().catch(() => {});
+                    try {
+                        // Debounce rapid events
+                        const now = Date.now();
+                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                            return;
+                        }
+                        CitationTool.lastEventTime = now;
+                        
+                        const inst = CitationTool.lastConstructedInstance;
+                        if (!inst) return;
+                        inst.openCitations().catch(() => {});
+                    } catch { /* noop */ }
                 });
 
-                    w.__outliner_citation_listeners_installed = true;
-                }
+                w.__outliner_citation_listeners_installed = true;
+            }
 
-                CitationTool.globalListenersInstalled = true;
-            } catch { /* noop */ }
-        }
+            CitationTool.globalListenersInstalled = true;
+        } catch { /* noop */ }
+    }
     }
 
     render() {
@@ -105,10 +132,18 @@ export class CitationTool {
 
     async surround(range: Range) {
         if (this.working) return;
+        
+        // Prevent multiple modals from being opened
+        if (this.modal || document.querySelector('[data-citation-modal="true"]')) {
+            return;
+        }
 
         try {
             this.working = true;
             this.button.disabled = true;
+            
+            // Ensure any existing modals are closed before proceeding
+            this.closeModal();
 
             const selection = range?.cloneRange?.() || range;
             const selectedText = selection?.toString?.().trim?.() || '';
@@ -171,11 +206,25 @@ export class CitationTool {
     private showCitationModal(data: any, selectedText: string) {
         // Remove existing modal if any
         if (this.modal) {
-            document.body.removeChild(this.modal);
+            try {
+                document.body.removeChild(this.modal);
+            } catch {}
+            this.modal = null;
         }
+
+        // Also remove any existing modals from other instances to prevent multiple overlays
+        const existingModals = document.querySelectorAll('[data-citation-modal="true"]');
+        existingModals.forEach(modal => {
+            try {
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            } catch {}
+        });
 
         // Create modal with custom CSS variables
         this.modal = document.createElement('div');
+        this.modal.setAttribute('data-citation-modal', 'true');
         this.modal.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
         this.modal.style.cssText = `
             background-color: var(--overlay);
@@ -310,7 +359,7 @@ export class CitationTool {
         `;
         // Pencil icon SVG
         const editIcon = document.createElement('span');
-        editIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+        editIcon.innerHTML = PENCIL_ICON_SVG;
         editBtn.appendChild(editIcon);
 
         const renderEdit = () => {
@@ -659,11 +708,11 @@ export class CitationTool {
         toggleBtn.title = 'Expand abstract';
 
         const setChevronDown = () => {
-            toggleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            toggleBtn.innerHTML = CHEVRON_DOWN_ICON_SVG;
             toggleBtn.title = 'Expand abstract';
         };
         const setChevronUp = () => {
-            toggleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+            toggleBtn.innerHTML = CHEVRON_UP_ICON_SVG;
             toggleBtn.title = 'Collapse abstract';
         };
 
@@ -779,15 +828,39 @@ export class CitationTool {
 
     private closeModal() {
         if (this.modal) {
-            document.body.removeChild(this.modal);
+            try {
+                document.body.removeChild(this.modal);
+            } catch {}
             this.modal = null;
         }
+        
+        // Also remove any other citation modals that might exist
+        const existingModals = document.querySelectorAll('[data-citation-modal="true"]');
+        existingModals.forEach(modal => {
+            try {
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            } catch {}
+        });
     }
 
     private showLoading(message: string = 'Loading...') {
         try {
             if (this.loadingOverlay) return;
+            
+            // Remove any existing loading overlays to prevent multiple layers
+            const existingOverlays = document.querySelectorAll('[data-citation-loading="true"]');
+            existingOverlays.forEach(overlay => {
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch {}
+            });
+            
             const overlay = document.createElement('div');
+            overlay.setAttribute('data-citation-loading', 'true');
             overlay.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
             overlay.style.cssText = `
                 background-color: var(--overlay);
@@ -836,6 +909,16 @@ export class CitationTool {
                 document.body.removeChild(this.loadingOverlay);
                 this.loadingOverlay = null;
             }
+            
+            // Also remove any other loading overlays that might exist
+            const existingOverlays = document.querySelectorAll('[data-citation-loading="true"]');
+            existingOverlays.forEach(overlay => {
+                try {
+                    if (overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                } catch {}
+            });
         } catch { }
     }
 
@@ -1433,5 +1516,18 @@ export class CitationTool {
                 });
             });
         } catch { }
+    }
+
+    // Cleanup method to be called when the tool is destroyed
+    destroy() {
+        try {
+            this.closeModal();
+            this.hideLoading();
+            // Clear any references
+            this.savedSelectionRange = null;
+            this.pageCache.clear();
+            this.lastSearchQuery = null;
+            this.lastSelectedTextKey = null;
+        } catch {}
     }
 }
