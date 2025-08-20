@@ -2,6 +2,10 @@ import { EXPAND_ICON_SVG } from '../components/svg-icons';
 
 // Inline tool to expand selected text using the /api/outliner/expand-passage endpoint
 export class ExpandInlineTool {
+    // Ensure only one global listener handles mini-toolbar events
+    private static globalListenerInstalled: boolean = false;
+    private static lastConstructedInstance: ExpandInlineTool | null = null;
+
     static isInline = true;
     static title = 'Expand';
 
@@ -34,21 +38,32 @@ export class ExpandInlineTool {
         this.button.appendChild(icon);
         this.button.title = 'Expand with AI';
 
-        // Allow external triggering (e.g., mini AI toolbar) to expand current paragraph
-        this.boundExpandCurrent = () => {
+        // Track latest constructed instance so the single global listener can delegate to it
+        try { ExpandInlineTool.lastConstructedInstance = this; } catch { }
+
+        // Install a single global listener once to avoid duplicate handling from many instances
+        if (!ExpandInlineTool.globalListenerInstalled) {
             try {
-                const selection = window.getSelection();
-                const range = selection && selection.rangeCount > 0
-                    ? selection.getRangeAt(0)
-                    : (document.createRange());
-                // Call the same logic as inline usage
-                // @ts-ignore - range type matches expected EditorJS usage
-                this.surround(range as any);
-            } catch {
-                // noop
-            }
-        };
-        try { window.addEventListener('outliner-ai-expand-current', this.boundExpandCurrent); } catch { }
+                const w = window as any;
+                if (!w.__outliner_expand_listener_installed) {
+                    window.addEventListener('outliner-ai-expand-current', () => {
+                        try {
+                            const inst = ExpandInlineTool.lastConstructedInstance;
+                            if (!inst) return;
+                            if (inst.working) return;
+                            const selection = window.getSelection();
+                            const range = selection && selection.rangeCount > 0
+                                ? selection.getRangeAt(0)
+                                : (document.createRange());
+                            // @ts-ignore - Range is compatible with EditorJS inline tool API
+                            inst.surround(range as any);
+                        } catch { /* noop */ }
+                    });
+                    w.__outliner_expand_listener_installed = true;
+                }
+                ExpandInlineTool.globalListenerInstalled = true;
+            } catch { /* noop */ }
+        }
     }
 
     render() {

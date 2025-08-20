@@ -2,6 +2,9 @@ import { CITE_ICON_SVG, PLUS_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG } from '../c
 
 // Inline tool to find citations for selected text using the /api/outliner/cite endpoint
 export class CitationTool {
+    // Ensure only one set of global listeners are installed
+    private static globalListenersInstalled: boolean = false;
+    private static lastConstructedInstance: CitationTool | null = null;
     static isInline = true;
     static title = 'Cite';
 
@@ -39,42 +42,57 @@ export class CitationTool {
         icon.innerHTML = CITE_ICON_SVG;
         this.button.appendChild(icon);
 
-        // Listen for document changes to update bibliography display
-        window.addEventListener('outliner-document-changed', () => {
-            // Add a small delay to ensure the document has been updated
-            setTimeout(() => {
-                this.updateBibliographyDisplay().catch(console.error);
-            }, 200);
-        });
+        // Track the latest constructed instance
+        try { CitationTool.lastConstructedInstance = this; } catch { }
 
-        // Listen for external open request (from Toolbar Quote button)
-        window.addEventListener('outliner-open-citations', () => {
-            this.openCitations().catch(console.error);
-        });
-
-        // Allow external triggering (e.g., mini AI toolbar) to cite current paragraph
-        this.boundCiteCurrent = () => {
+        // Install a single set of global listeners once
+        if (!CitationTool.globalListenersInstalled) {
             try {
-                const selection = window.getSelection();
-                const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
-                // When triggered from mini AI toolbar, prefer block-level placement logic
-                this.forceBlockPlacement = true;
-                // If there is no selection, synthesize a range at caret so modal opens
-                if (!hasSelection && selection && selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    // Invoke surround with current caret range; tool will prompt to select keywords or show modal
-                    // @ts-ignore - EditorJS provides a compatible Range
-                    this.surround(range as any);
-                } else if (selection && selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    // @ts-ignore
-                    this.surround(range as any);
+                const w = window as any;
+                if (!w.__outliner_citation_listeners_installed) {
+                // Mini toolbar: cite current
+                window.addEventListener('outliner-ai-cite-current', () => {
+                    try {
+                        const inst = CitationTool.lastConstructedInstance;
+                        if (!inst) return;
+                        if (inst.working) return;
+                        const selection = window.getSelection();
+                        const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
+                        inst.forceBlockPlacement = true;
+                        if (!hasSelection && selection && selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            // @ts-ignore
+                            inst.surround(range as any);
+                        } else if (selection && selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            // @ts-ignore
+                            inst.surround(range as any);
+                        }
+                    } catch { /* noop */ }
+                });
+
+                // Document changed → update bibliography display
+                window.addEventListener('outliner-document-changed', () => {
+                    const inst = CitationTool.lastConstructedInstance;
+                    if (!inst) return;
+                    setTimeout(() => {
+                        try { inst.updateBibliographyDisplay().catch(() => {}); } catch { }
+                    }, 200);
+                });
+
+                // External open request
+                window.addEventListener('outliner-open-citations', () => {
+                    const inst = CitationTool.lastConstructedInstance;
+                    if (!inst) return;
+                    inst.openCitations().catch(() => {});
+                });
+
+                    w.__outliner_citation_listeners_installed = true;
                 }
-            } catch {
-                // noop
-            }
-        };
-        try { window.addEventListener('outliner-ai-cite-current', this.boundCiteCurrent); } catch { }
+
+                CitationTool.globalListenersInstalled = true;
+            } catch { /* noop */ }
+        }
     }
 
     render() {
