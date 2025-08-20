@@ -225,7 +225,8 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                             <style>
                                 h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
                                 h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; }
-                                p { font-size: 14px; margin: 0 0 12px; color: #111827; }
+                                p { font-size: 14px; margin: 0 0 12px; color: #111827; overflow-wrap: anywhere; word-break: break-word; }
+                                a { overflow-wrap: anywhere; word-break: break-word; }
                                 ul, ol { margin: 0 0 12px 22px; }
                                 code.code { background: #f3f4f6; padding: 6px 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; display: block; }
                                 mark { background: #fde68a; }
@@ -495,7 +496,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             {/* Bibliography Section */}
             <div className="border-t">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">References</h2>
-                <div id="bibliography-container" className="space-y-4">
+                <div id="bibliography-container" className="space-y-4 break-words">
                     <p data-bibliography-placeholder="true" className="text-gray-500 italic">
                         Citations will appear here as you add them to your document using the citation tool.
                     </p>

@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import IdeasGrid from './components/IdeasGrid'
+import { useRouter } from 'next/navigation';
 
 type ResearchIdea = {
     title: string;
@@ -19,12 +20,27 @@ type ResearchIdea = {
 };
 
 export default function OutlinerPage() {
+    const router = useRouter();
     const [queryText, setQueryText] = useState<string>('');
     const [ideas, setIdeas] = useState<ResearchIdea[] | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [hasResponded, setHasResponded] = useState<boolean>(false);
+
+    // Initialize from URL parameter (?q=...)
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const q = params.get('q');
+            if (q && q.trim()) {
+                setQueryText(q);
+                setHasResponded(false);
+                fetchIdeas(q.trim());
+            }
+        } catch {}
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const fetchIdeas = async (keywords: string) => {
         setIsLoading(true);
@@ -54,6 +70,12 @@ export default function OutlinerPage() {
         event.preventDefault();
         if (!queryText.trim()) return;
         setHasResponded(false);
+        // Sync query to URL (?q=...)
+        try {
+            const params = new URLSearchParams(window.location.search);
+            params.set('q', queryText.trim());
+            router.replace(`?${params.toString()}`);
+        } catch {}
         fetchIdeas(queryText.trim());
     };
 

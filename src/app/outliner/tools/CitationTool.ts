@@ -1,4 +1,4 @@
-import { CITE_ICON_SVG } from '../components/svg-icons';
+import { CITE_ICON_SVG, PLUS_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG } from '../components/svg-icons';
 
 // Inline tool to find citations for selected text using the /api/outliner/cite endpoint
 export class CitationTool {
@@ -59,11 +59,11 @@ export class CitationTool {
 
     async surround(range: Range) {
         if (this.working) return;
-        
+
         try {
             this.working = true;
             this.button.disabled = true;
-            
+
             const selection = range?.cloneRange?.() || range;
             const selectedText = selection?.toString?.().trim?.() || '';
 
@@ -92,7 +92,7 @@ export class CitationTool {
             const res = await fetch(this.config.endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     text: selectedText,
                     perPage: this.perPage,
                     page: 1
@@ -150,7 +150,7 @@ export class CitationTool {
             border-bottom-color: var(--border);
             background-color: var(--bw);
         `;
-        
+
         const title = document.createElement('h3');
         const totalFound = data?.totalFound ?? (data.papers ? data.papers.length : 0);
         const page = data?.page ?? this.currentPage;
@@ -357,15 +357,15 @@ export class CitationTool {
 
             content.appendChild(papersList);
         } else {
-                    const noResults = document.createElement('div');
-        noResults.className = 'text-center py-10 px-5 text-base rounded-md';
-        noResults.style.cssText = `
+            const noResults = document.createElement('div');
+            noResults.className = 'text-center py-10 px-5 text-base rounded-md';
+            noResults.style.cssText = `
             color: var(--text);
             background-color: var(--bw);
             border: 1px solid var(--border);
         `;
-        noResults.textContent = 'No papers yet. Try inputing keywords or adjusting your search.';
-        content.appendChild(noResults);
+            noResults.textContent = 'No papers yet. Try inputing keywords or adjusting your search.';
+            content.appendChild(noResults);
         }
 
         modalContent.appendChild(header);
@@ -540,6 +540,7 @@ export class CitationTool {
             border: 1px solid var(--border);
             background-color: var(--bw);
             box-shadow: var(--shadow);
+            overflow: visible;
         `;
         card.addEventListener('mouseenter', () => {
             card.style.transform = 'translateY(-2px)';
@@ -564,17 +565,90 @@ export class CitationTool {
             color: var(--text);
             opacity: 0.8;
         `;
-        authors.textContent = paper.authors?.map((a: any) => a.name).join(', ') || 'Unknown authors';
+        const authorNames = Array.isArray(paper.authors)
+            ? paper.authors.map((a: any) => a?.name).filter(Boolean)
+            : [];
+        authors.textContent = authorNames.length > 3
+            ? `${authorNames.slice(0, 3).join(', ')}, et al.`
+            : (authorNames.join(', ') || 'Unknown authors');
+
+        // Abstract with expandable toggle
+        const abstractWrapper = document.createElement('div');
+        abstractWrapper.className = 'relative';
+        abstractWrapper.style.position = 'relative';
+        abstractWrapper.style.width = '100%';
 
         const abstract = document.createElement('p');
-        abstract.className = 'm-0 mb-3 text-sm leading-relaxed';
+        abstract.className = 'm-0 mb-3 text-sm leading-relaxed pr-8';
         abstract.style.cssText = `
             color: var(--text);
             opacity: 0.9;
         `;
-        abstract.textContent = paper.abstract ? 
-            (paper.abstract.length > 200 ? paper.abstract.substring(0, 200) + '...' : paper.abstract) : 
-            'No abstract available';
+        abstract.style.paddingRight = '32px';
+        abstract.style.whiteSpace = 'pre-wrap';
+
+        const fullAbstract = paper.abstract || '';
+        const limit = 200;
+        const hasLongAbstract = fullAbstract.length > limit;
+
+        const truncate = (text: string, n: number) => text.length > n ? text.substring(0, n) + '...' : text;
+
+        let isExpanded = false;
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'p-1 rounded-md border text-xs cursor-pointer transition-all duration-200 hover:opacity-90';
+        toggleBtn.style.cssText = `
+            background-color: var(--bw);
+            color: var(--text);
+            border-color: var(--border);
+            z-index: 10;
+            pointer-events: auto;
+        `;
+        toggleBtn.type = 'button';
+        toggleBtn.style.position = 'absolute';
+        toggleBtn.style.right = '4px';
+        toggleBtn.style.bottom = '4px';
+        toggleBtn.setAttribute('role', 'button');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.title = 'Expand abstract';
+
+        const setChevronDown = () => {
+            toggleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            toggleBtn.title = 'Expand abstract';
+        };
+        const setChevronUp = () => {
+            toggleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+            toggleBtn.title = 'Collapse abstract';
+        };
+
+        const renderAbstract = () => {
+            if (!fullAbstract) {
+                abstract.textContent = 'No abstract available';
+                return;
+            }
+            if (isExpanded) {
+                abstract.textContent = fullAbstract;
+                setChevronUp();
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            } else {
+                abstract.textContent = truncate(fullAbstract, limit);
+                setChevronDown();
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+
+        renderAbstract();
+
+        if (hasLongAbstract) {
+            toggleBtn.onclick = (e) => {
+                try { e.preventDefault(); e.stopPropagation(); } catch { }
+                isExpanded = !isExpanded;
+                renderAbstract();
+            };
+            abstractWrapper.appendChild(toggleBtn);
+        }
+
+        abstractWrapper.appendChild(abstract);
 
         const metaInfo = document.createElement('div');
         metaInfo.className = 'flex gap-4 text-xs mb-3';
@@ -591,7 +665,7 @@ export class CitationTool {
 
         if (paper.venue) {
             const venue = document.createElement('span');
-            venue.textContent = `Venue: ${paper.venue}`;
+            venue.textContent = `Publisher: ${paper.venue}`;
             metaInfo.appendChild(venue);
         }
 
@@ -604,53 +678,53 @@ export class CitationTool {
         const actions = document.createElement('div');
         actions.className = 'flex gap-2 flex-wrap';
 
+        // Add Cite button
+        const citeBtn = document.createElement('button');
+        citeBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
+        citeBtn.style.cssText = `
+                    background-color: var(--main);
+                    color: var(--mtext);
+                    border-color: var(--border);
+                    font-weight: var(--base-font-weight);
+                `;
+        citeBtn.innerHTML = `<span class="icon" aria-hidden="true">${CITE_ICON_SVG}</span><span>Cite</span>`;
+
+        citeBtn.onclick = () => this.insertCitation(paper);
+        actions.appendChild(citeBtn);
+
+        card.appendChild(title);
+        card.appendChild(authors);
+        card.appendChild(abstractWrapper);
+        card.appendChild(metaInfo);
+        card.appendChild(actions);
+
         if (paper.url) {
             const viewBtn = document.createElement('a');
-            viewBtn.textContent = 'View Paper';
             viewBtn.href = paper.url;
             viewBtn.target = '_blank';
-            viewBtn.className = 'px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
+            viewBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
             viewBtn.style.cssText = `
                 background-color: var(--main);
                 color: var(--mtext);
                 border-color: var(--border);
                 font-weight: var(--base-font-weight);
             `;
+            viewBtn.innerHTML = `<span class="icon" aria-hidden="true">${OPEN_ICON_SVG}</span><span>Open</span>`;
             actions.appendChild(viewBtn);
         }
 
-        // Add Cite button
-        const citeBtn = document.createElement('button');
-        citeBtn.textContent = 'Cite';
-        citeBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
-        citeBtn.style.cssText = `
-            background-color: var(--main);
-            color: var(--mtext);
-            border-color: var(--border);
-            font-weight: var(--base-font-weight);
-        `;
-        
-        citeBtn.onclick = () => this.insertCitation(paper);
-        actions.appendChild(citeBtn);
-
-        card.appendChild(title);
-        card.appendChild(authors);
-        card.appendChild(abstract);
-        card.appendChild(metaInfo);
-        card.appendChild(actions);
-
         if (paper.openAccessPdf?.url) {
             const pdfBtn = document.createElement('a');
-            pdfBtn.textContent = 'View PDF';
             pdfBtn.href = paper.openAccessPdf.url;
             pdfBtn.target = '_blank';
-            pdfBtn.className = 'px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
+            pdfBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 cursor-pointer no-underline';
             pdfBtn.style.cssText = `
                 background-color: var(--main);
                 color: var(--mtext);
                 border-color: var(--border);
                 font-weight: var(--base-font-weight);
             `;
+            pdfBtn.innerHTML = `<span class="icon" aria-hidden="true">${FILE_ICON_SVG}</span><span>PDF</span>`;
             actions.appendChild(pdfBtn);
         }
 
@@ -1086,7 +1160,7 @@ export class CitationTool {
             // Check if this paper is already in the bibliography
             const paperId = paper.paperId || paper.title;
             const existingReference = this.findExistingReferenceInDisplay(container, paperId);
-            
+
             if (existingReference) {
                 // Paper already exists, don't add duplicate
                 this.config.notify?.('This paper is already cited in the bibliography');
@@ -1095,10 +1169,10 @@ export class CitationTool {
 
             // Create reference entry
             const referenceText = this.formatReference(paper);
-            
+
             // Add the new reference to the display
             this.addReferenceToDisplay(container, referenceText);
-            
+
             // Sort the bibliography display
             this.sortBibliographyDisplay(container);
 
@@ -1131,11 +1205,13 @@ export class CitationTool {
             border-left-color: var(--main);
             border-color: var(--border);
         `;
-        
+
         const referenceTextElement = document.createElement('p');
         referenceTextElement.className = 'leading-relaxed m-0 text-sm';
         referenceTextElement.style.cssText = `
             color: var(--text);
+            word-break: break-word;
+            overflow-wrap: anywhere;
         `;
 
         // Add the main text portion
@@ -1151,6 +1227,8 @@ export class CitationTool {
             link.textContent = reference.url;
             link.style.color = 'var(--link, inherit)';
             link.style.textDecoration = 'underline';
+            link.style.wordBreak = 'break-word';
+            link.style.overflowWrap = 'anywhere';
             referenceTextElement.appendChild(spacer);
             referenceTextElement.appendChild(link);
         }
@@ -1160,7 +1238,7 @@ export class CitationTool {
 
         // Extra safety: schedule a cleanup in case of race with updater
         setTimeout(() => {
-            try { this.removeBibliographyPlaceholders(container); } catch {}
+            try { this.removeBibliographyPlaceholders(container); } catch { }
         }, 0);
     }
 
@@ -1180,12 +1258,12 @@ export class CitationTool {
             // Clear container and re-add sorted references
             const placeholder = container.querySelector('[data-bibliography-placeholder="true"]');
             container.innerHTML = '';
-            
+
             // Re-add placeholder if it was there
             if (placeholder) {
                 container.appendChild(placeholder);
             }
-            
+
             // Add sorted references
             references.forEach(ref => {
                 container.appendChild(ref);
@@ -1245,7 +1323,7 @@ export class CitationTool {
             }
         };
 
-        const maxAuthors = 2;
+        const maxAuthors = 3;
         const limited = authorNames.slice(0, maxAuthors).map(formatSingle);
         const etAl = authorNames.length > maxAuthors ? 'et al.' : '';
         return [
@@ -1262,7 +1340,7 @@ export class CitationTool {
 
             // Check if there are any existing references in the display
             const existingReferences = container.querySelectorAll('.reference-entry');
-            
+
             if (existingReferences.length === 0) {
                 // No references yet, show placeholder (idempotent)
                 const already = container.querySelector('[data-bibliography-placeholder="true"]');
@@ -1305,6 +1383,6 @@ export class CitationTool {
                     }
                 });
             });
-        } catch {}
+        } catch { }
     }
 }

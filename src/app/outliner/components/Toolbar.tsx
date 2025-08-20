@@ -8,22 +8,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface ToolbarProps {
   onDownload: (format: 'pdf' | 'markdown' | 'txt' | 'docx') => void;
 }
 
 export function Toolbar({ onDownload }: ToolbarProps) {
+  const router = useRouter();
   return (
     <div className="flex items-center justify-between border-b border-border bg-bw pb-2 shadow-[var(--shadow)]">
       
       {/* Left side - back button */}
       <div className="flex items-center space-x-2">
-        <Button asChild variant="noShadow" size="sm" className="bg-main text-mtext border-border hover:bg-main/90">
-          <Link href="/outliner" aria-label="Back to Outliner">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+        <Button
+          variant="noShadow"
+          size="sm"
+          className="bg-main text-mtext border-border hover:bg-main/90"
+          aria-label="Go Back"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
       </div>
 

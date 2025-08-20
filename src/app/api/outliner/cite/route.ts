@@ -151,7 +151,7 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
 
             const response = await fetch(`${searchUrl}?${params}`, {
                 headers: {
-                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/your-repo)'
+                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn)'
                 }
             });
 
@@ -164,7 +164,7 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
                     continue;
                 } else {
                     console.warn('Max retries reached for rate limiting');
-                    return [];
+                    return { results: [], count: 0, page, perPage };
                 }
             }
 

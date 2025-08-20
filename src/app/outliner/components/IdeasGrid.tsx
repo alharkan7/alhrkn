@@ -90,7 +90,7 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
             </div>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="w-[90vw] sm:w-[80vw] max-w-5xl max-h-[85vh] overflow-auto p-6">
+                <DialogContent className="w-[90vw] sm:w-[90vw] max-w-5xl max-h-[90vh] overflow-auto p-6">
                     {selected && (
                         <div className="space-y-4">
                             <DialogHeader>
@@ -118,8 +118,11 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                                 <h4 className="font-medium">Impact</h4>
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.impact}</p>
                             </section>
-                            <DialogFooter className="sm:justify-between items-center">
-                                <div className="flex items-center gap-2">
+                            <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                <Button className="order-1 sm:order-2" onClick={() => selected && navigateToExpanded(selected)}>
+                                     Open Editor
+                                </Button>
+                                <div className="flex items-center gap-2 order-2 sm:order-1 justify-center sm:justify-start w-full sm:w-auto">
                                     <Button size="icon" variant="neutral" aria-label="Previous"
                                         onClick={goPrev}
                                         disabled={selectedIndex === null || selectedIndex <= 0}
@@ -133,9 +136,6 @@ export default function IdeasGrid({ ideas }: { ideas: ResearchIdea[] }) {
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <Button onClick={() => selected && navigateToExpanded(selected)}>
-                                     Open Editor
-                                </Button>
                             </DialogFooter>
                         </div>
                     )}
