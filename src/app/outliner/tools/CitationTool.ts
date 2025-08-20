@@ -22,6 +22,7 @@ export class CitationTool {
     private modal: HTMLDivElement | null = null;
     private loadingOverlay: HTMLDivElement | null = null;
     private boundCiteCurrent?: () => void;
+    private forceBlockPlacement: boolean = false;
 
     constructor({ api, config }: { api: any; config: any; }) {
         this.api = api;
@@ -56,6 +57,8 @@ export class CitationTool {
             try {
                 const selection = window.getSelection();
                 const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
+                // When triggered from mini AI toolbar, prefer block-level placement logic
+                this.forceBlockPlacement = true;
                 // If there is no selection, synthesize a range at caret so modal opens
                 if (!hasSelection && selection && selection.rangeCount > 0) {
                     const range = selection.getRangeAt(0);
@@ -916,8 +919,8 @@ export class CitationTool {
             const authorLastName = this.getAuthorLastName(paper);
             const citationTextCore = `(${authorLastName}, ${paper.year || 'n.d.'})`;
 
-            // First try DOM-level insertion at the saved selection
-            const insertedViaDom = this.insertCitationAtSavedSelection(citationTextCore);
+            // First try DOM-level insertion at the saved selection (skip if forced block placement)
+            const insertedViaDom = this.forceBlockPlacement ? false : this.insertCitationAtSavedSelection(citationTextCore);
 
             if (!insertedViaDom) {
                 // Fallback to block-level insertion (end of current paragraph)
@@ -1005,6 +1008,9 @@ export class CitationTool {
                     }
                 }
             }
+
+            // Reset force flag after operation
+            this.forceBlockPlacement = false;
 
             // Add to external bibliography display (not to EditorJS document)
             await this.addToExternalBibliography(paper);

@@ -13,6 +13,7 @@ import html2canvas from 'html2canvas';
 import '../styles/editor.css';
 import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
+import { SPARKLES_ICON_SVG } from '../components/svg-icons';
 import { Toolbar } from '../components/Toolbar';
 
 type ResearchIdea = {
@@ -185,6 +186,12 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
     const miniToolbarRef = useRef<HTMLDivElement | null>(null);
     const selectionHandlerRef = useRef<((this: Document, ev: Event) => any) | null>(null);
     const scrollHandlerRef = useRef<((this: Window, ev: Event) => any) | null>(null);
+    const pointerUpHandlerRef = useRef<((this: HTMLElement, ev: Event) => any) | null>(null);
+    const keyHandlerRef = useRef<((this: Document, ev: Event) => any) | null>(null);
+    const inputHandlerRef = useRef<((this: Document, ev: Event) => any) | null>(null);
+    const showDelayTimerRef = useRef<number | null>(null);
+    const suppressUntilNextPointerRef = useRef<boolean>(false);
+    const warmedToolsRef = useRef<boolean>(false);
 
     const handleDownload = useCallback(async (format: 'pdf' | 'markdown' | 'txt' | 'docx') => {
         if (!editorRef.current) return;
@@ -448,11 +455,14 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                             setIsReady(true);
                             // Install caret listener to toggle mini AI toolbar
                             try {
-                                const redactor = document.querySelector(`#${holderId} .codex-editor__redactor`);
                                 const editorRoot = document.getElementById(holderId) as HTMLElement | null;
                                 if (editorRoot) {
                                     const mt = ensureMiniAIToolbar(editorRoot);
                                     miniToolbarRef.current = mt;
+                                    // Warm once to ensure inline tool constructors (incl. Cite) are instantiated
+                                    if (!warmedToolsRef.current) {
+                                        setTimeout(() => { try { warmInlineToolsOnce(editorRoot); warmedToolsRef.current = true; } catch {} }, 80);
+                                    }
                                 }
                                 const onSelectionChange = () => {
                                     try {
@@ -460,10 +470,12 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                                         if (!mt) return;
                                         const sel = window.getSelection();
                                         const hasSel = !!(sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed);
-                                        // Show when caret is inside editor paragraph with no selection
-                                        const shouldShow = isCaretInsideEditor(holderId) && !hasSel;
-                                        mt.style.display = shouldShow ? 'flex' : 'none';
-                                        if (shouldShow) positionMiniToolbar(editorRoot!, mt);
+                                        if (hasSel) {
+                                            hideMiniToolbar();
+                                        } else if (mt.style.display !== 'none') {
+                                            // Reposition if already visible
+                                            positionMiniToolbar(editorRoot!, mt);
+                                        }
                                     } catch {}
                                 };
                                 document.addEventListener('selectionchange', onSelectionChange);
@@ -472,6 +484,29 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                                 const onScroll = () => { if (miniToolbarRef.current) miniToolbarRef.current.style.display = 'none'; };
                                 window.addEventListener('scroll', onScroll, { passive: true });
                                 scrollHandlerRef.current = onScroll;
+
+                                // Pointer-up inside editor schedules delayed show
+                                const onPointerUp = () => {
+                                    try {
+                                        suppressUntilNextPointerRef.current = false; // allow
+                                        scheduleMiniToolbarShow(editorRoot!);
+                                    } catch {}
+                                };
+                                if (editorRoot) {
+                                    editorRoot.addEventListener('pointerup', onPointerUp as any);
+                                    pointerUpHandlerRef.current = onPointerUp as any;
+                                }
+
+                                // Any typing hides and suppresses until next pointer interaction
+                                const onKeyOrInput = () => {
+                                    suppressUntilNextPointerRef.current = true;
+                                    cancelScheduledMiniShow();
+                                    hideMiniToolbar();
+                                };
+                                document.addEventListener('keydown', onKeyOrInput);
+                                document.addEventListener('beforeinput', onKeyOrInput as any);
+                                keyHandlerRef.current = onKeyOrInput;
+                                inputHandlerRef.current = onKeyOrInput as any;
                             } catch {}
                         }
                     }
@@ -503,6 +538,11 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             try {
                 if (selectionHandlerRef.current) document.removeEventListener('selectionchange', selectionHandlerRef.current);
                 if (scrollHandlerRef.current) window.removeEventListener('scroll', scrollHandlerRef.current as any);
+                const editorRoot = document.getElementById(holderId) as HTMLElement | null;
+                if (editorRoot && pointerUpHandlerRef.current) editorRoot.removeEventListener('pointerup', pointerUpHandlerRef.current as any);
+                if (keyHandlerRef.current) document.removeEventListener('keydown', keyHandlerRef.current);
+                if (inputHandlerRef.current) document.removeEventListener('beforeinput', inputHandlerRef.current as any);
+                cancelScheduledMiniShow();
             } catch {}
             setIsReady(false);
         };
@@ -538,6 +578,20 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
         toolbar.style.background = 'var(--bw, #fff)';
         toolbar.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
 
+        // Sparkles AI badge/icon on the left
+        const badge = document.createElement('div');
+        badge.setAttribute('data-mini-ai-badge', 'true');
+        badge.style.display = 'inline-flex';
+        badge.style.alignItems = 'center';
+        badge.style.justifyContent = 'center';
+        badge.style.width = '22px';
+        badge.style.height = '22px';
+        badge.style.color = 'var(--main, #111)';
+        badge.style.background = 'var(--bw, #fff)';
+        badge.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+        badge.style.marginRight = '2px';
+        badge.innerHTML = SPARKLES_ICON_SVG;
+
         const makeBtn = (label: string, dataset: string, eventName: string) => {
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -555,23 +609,32 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                     if (sel && sel.rangeCount > 0) {
                         const range = sel.getRangeAt(0);
                         if (range.collapsed) {
-                            const p = (range.startContainer as Node).parentElement?.closest('p');
-                            if (p) {
+                            const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
+                                ? (range.startContainer as Element)
+                                : (range.startContainer.parentElement as Element | null);
+                            let editable: HTMLElement | null = startEl ? (startEl.closest('[contenteditable="true"]') as HTMLElement | null) : null;
+                            if (!editable) {
+                                const block = startEl?.closest('.ce-block__content') as HTMLElement | null;
+                                editable = block ? (block.querySelector('[contenteditable="true"]') as HTMLElement | null) : null;
+                            }
+                            if (editable) {
                                 const newRange = document.createRange();
-                                newRange.selectNodeContents(p);
+                                newRange.selectNodeContents(editable);
                                 sel.removeAllRanges();
                                 sel.addRange(newRange);
                             }
                         }
                     }
                 } catch {}
-                try { window.dispatchEvent(new CustomEvent(eventName)); } catch {}
+                // Dispatch on next tick to ensure selection state is applied
+                setTimeout(() => { try { window.dispatchEvent(new CustomEvent(eventName)); } catch {} }, 0);
             });
             return btn;
         };
 
         const expandBtn = makeBtn('Expand', 'expand', 'outliner-ai-expand-current');
         const citeBtn = makeBtn('Cite', 'cite', 'outliner-ai-cite-current');
+        toolbar.appendChild(badge);
         toolbar.appendChild(expandBtn);
         toolbar.appendChild(citeBtn);
 
@@ -591,6 +654,64 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             const containerRect = editorRoot.getBoundingClientRect();
             toolbar.style.top = `${rect.top - containerRect.top - 36 + editorRoot.scrollTop}px`;
             toolbar.style.left = `${rect.left - containerRect.left}px`;
+        } catch {}
+    }
+
+    function scheduleMiniToolbarShow(editorRoot: HTMLElement) {
+        try {
+            if (suppressUntilNextPointerRef.current) return;
+            cancelScheduledMiniShow();
+            showDelayTimerRef.current = window.setTimeout(() => {
+                try {
+                    const mt = miniToolbarRef.current || ensureMiniAIToolbar(editorRoot);
+                    const sel = window.getSelection();
+                    const hasSel = !!(sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed);
+                    const shouldShow = isCaretInsideEditor(holderId) && !hasSel && !suppressUntilNextPointerRef.current;
+                    if (shouldShow) {
+                        mt.style.display = 'flex';
+                        positionMiniToolbar(editorRoot, mt);
+                    }
+                } catch {}
+            }, 600); // delay to avoid immediate popup
+        } catch {}
+    }
+
+    function cancelScheduledMiniShow() {
+        if (showDelayTimerRef.current) {
+            try { window.clearTimeout(showDelayTimerRef.current); } catch {}
+            showDelayTimerRef.current = null;
+        }
+    }
+
+    function hideMiniToolbar() {
+        try { if (miniToolbarRef.current) miniToolbarRef.current.style.display = 'none'; } catch {}
+    }
+
+    // Warm-up to make sure inline tools register any global listeners (once)
+    function warmInlineToolsOnce(editorRoot: HTMLElement) {
+        try {
+            const editable = editorRoot.querySelector('[contenteditable="true"]') as HTMLElement | null;
+            if (!editable || !editable.firstChild) return;
+            const targetNode = editable.firstChild as Node;
+            const sel = window.getSelection();
+            if (!sel) return;
+            const prevRanges: Range[] = [];
+            for (let i = 0; i < sel.rangeCount; i++) prevRanges.push(sel.getRangeAt(i).cloneRange());
+            const tempRange = document.createRange();
+            try {
+                tempRange.setStart(targetNode, 0);
+                tempRange.setEnd(targetNode, Math.min(1, (targetNode.textContent || '').length));
+            } catch {
+                tempRange.selectNodeContents(editable);
+            }
+            sel.removeAllRanges();
+            sel.addRange(tempRange);
+            setTimeout(() => {
+                try {
+                    sel.removeAllRanges();
+                    prevRanges.forEach(r => sel.addRange(r));
+                } catch {}
+            }, 10);
         } catch {}
     }
 
