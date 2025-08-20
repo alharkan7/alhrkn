@@ -42,6 +42,7 @@ export default function OutlinerPage() {
 
     // Function to handle language change
     const handleLanguageChange = (newLanguage: Language) => {
+        console.log('Language changing from', language, 'to', newLanguage);
         setLanguage(newLanguage);
         localStorage.setItem('outliner-language', newLanguage);
         
@@ -71,6 +72,11 @@ export default function OutlinerPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Debug language changes
+    useEffect(() => {
+        console.log('Language state changed to:', language);
+    }, [language]);
+
     const fetchIdeas = async (keywords: string) => {
         setIsLoading(true);
         setError(null);
@@ -78,6 +84,9 @@ export default function OutlinerPage() {
         try {
             if (controllerRef.current) controllerRef.current.abort();
             controllerRef.current = new AbortController();
+
+            // Debug logging
+            console.log('Sending request with language:', language);
 
             const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
@@ -166,6 +175,7 @@ export default function OutlinerPage() {
         setError(null);
         try {
             // rely on isLoadingMore to control skeleton visibility
+            console.log('Appending ideas with language:', language);
             const res = await fetch('/api/outliner/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -234,7 +244,7 @@ export default function OutlinerPage() {
                 <div className={!isLoading && !hasResponded ? 'min-h-[calc(100vh-13rem)] flex flex-col justify-center' : ''}>
                     {!isLoading && !hasResponded && (
                         <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-6 text-center">
-                            {language === 'en' ? 'What do you want to research?' : 'Apa yang ingin Anda teliti?'}
+                            {language === 'en' ? 'What do you want to research?' : 'Apa yang ingin kamu riset?'}
                         </h1>
                     )}
 
@@ -275,13 +285,17 @@ export default function OutlinerPage() {
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
+                                {/* Debug: Show current language */}
+                                {/* <div className="absolute right-16 top-[47%] transform -translate-y-1/2 text-xs text-gray-500">
+                                    {language === 'en' ? 'EN' : 'ID'}
+                                </div> */}
                             </div>
                             <Button
                                 type="submit"
                                 className="h-12 px-6 text-base rounded-full"
                                 disabled={isLoading}
                             >
-                                {isLoading ? (language === 'en' ? 'Researching...' : 'Mencari...') : (language === 'en' ? 'Outline' : 'Buat Outline')}
+                                {isLoading ? (language === 'en' ? 'Researching...' : 'Researching...') : (language === 'en' ? 'Outline' : 'Outline')}
                             </Button>
                         </div>
                     </form>

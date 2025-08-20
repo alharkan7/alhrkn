@@ -88,6 +88,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { keywords, numIdeas, language = 'en' } = body || {};
+    
+    // Debug logging
+    console.log('Regular API called with:', { keywords, numIdeas, language });
 
     if (!keywords || typeof keywords !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid "keywords"' }), {
@@ -115,9 +118,11 @@ For each idea, produce a title and a general abstract broken into:
 Keep sections compact and concrete (2–4 sentences each). Avoid duplication across ideas.`
       },
       id: {
-        systemInstruction: 'Anda adalah asisten penelitian akademik. Buat ide penelitian yang ringkas dan berkualitas tinggi dengan abstrak yang terstruktur.',
+        systemInstruction: 'Anda adalah asisten penelitian akademik. Buat ide penelitian yang ringkas dan berkualitas tinggi dengan abstrak yang terstruktur dalam Bahasa Indonesia. PENTING: Semua output harus dalam Bahasa Indonesia.',
         userPrompt: `Tugas: Usulkan ${ideasCount} ide penelitian yang berbeda berdasarkan kata kunci berikut.
 Kata kunci: ${keywords}
+
+PENTING: Semua konten (judul, background, literature review, method, analysis technique, impact) HARUS dalam Bahasa Indonesia.
 
 Untuk setiap ide, buat judul dan abstrak umum yang dibagi menjadi:
 - latar belakang penelitian
@@ -126,7 +131,9 @@ Untuk setiap ide, buat judul dan abstrak umum yang dibagi menjadi:
 - teknik analisis
 - dampak
 
-Jaga agar setiap bagian ringkas dan konkret (2–4 kalimat). Hindari duplikasi antar ide.`
+Jaga agar setiap bagian ringkas dan konkret (2–4 kalimat). Hindari duplikasi antar ide.
+
+SEMUA TEKS HARUS DALAM BAHASA INDONESIA.`
       }
     };
 
