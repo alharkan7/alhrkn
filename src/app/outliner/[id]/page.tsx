@@ -259,16 +259,57 @@ function convertToHTML(data: any): string {
 function convertToMarkdown(data: any): string {
     if (!data.blocks || !Array.isArray(data.blocks)) return '';
     
+    // Helper function to convert HTML tags back to markdown
+    const convertHtmlToMarkdown = (text: string): string => {
+        if (!text) return '';
+        
+        let result = text;
+        
+        // Convert HTML tags back to markdown syntax
+        // Bold: <b>text</b> or <strong>text</strong> -> **text**
+        result = result.replace(/<(?:b|strong)[^>]*>(.*?)<\/(?:b|strong)>/gi, '**$1**');
+        
+        // Italic: <i>text</i> or <em>text</em> -> *text*
+        result = result.replace(/<(?:i|em)[^>]*>(.*?)<\/(?:i|em)>/gi, '*$1*');
+        
+        // Underline: <u>text</u> -> <u>text</u> (keep as HTML since markdown doesn't have underline)
+        // Note: We'll keep underline as HTML since standard markdown doesn't support it
+        
+        // Inline code: <code class="code">text</code> -> `text`
+        result = result.replace(/<code[^>]*class="code"[^>]*>(.*?)<\/code>/gi, '`$1`');
+        
+        // Generic code tags: <code>text</code> -> `text`
+        result = result.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+        
+        // Marker/highlight: <mark>text</mark> -> ==text==
+        result = result.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '==$1==');
+        
+        // Links: <a href="url">text</a> -> [text](url)
+        result = result.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+        
+        // Generic links without href: <a>text</a> -> text
+        result = result.replace(/<a[^>]*>(.*?)<\/a>/gi, '$1');
+        
+        // Handle potential EditorJS specific patterns
+        // Remove any remaining HTML tags that we don't handle
+        result = result.replace(/<[^>]*>/g, '');
+        
+        // Clean up any double spaces that might be left after tag removal
+        result = result.replace(/\s+/g, ' ').trim();
+        
+        return result;
+    };
+    
     return data.blocks.map((block: any) => {
         try {
             switch (block.type) {
                 case 'header':
                     const level = block.data?.level || 1;
                     const hashes = '#'.repeat(level);
-                    const headerText = block.data?.text || '';
+                    const headerText = convertHtmlToMarkdown(block.data?.text || '');
                     return `${hashes} ${headerText}\n`;
                 case 'paragraph':
-                    const paraText = block.data?.text || '';
+                    const paraText = convertHtmlToMarkdown(block.data?.text || '');
                     return `${paraText}\n\n`;
                 case 'list':
                     if (!block.data || !Array.isArray(block.data.items)) {
@@ -276,7 +317,7 @@ function convertToMarkdown(data: any): string {
                     }
                     const listType = block.data.style === 'ordered' ? '1.' : '-';
                     const items = block.data.items.map((item: any) => {
-                        const itemText = extractListItemText(item);
+                        const itemText = convertHtmlToMarkdown(extractListItemText(item));
                         return `  ${listType} ${itemText}`;
                     }).join('\n');
                     return `${items}\n\n`;
@@ -290,7 +331,7 @@ function convertToMarkdown(data: any): string {
                     const underlineText = block.data?.text || '';
                     return `<u>${underlineText}</u>`;
                 default:
-                    const defaultText = block.data?.text || '';
+                    const defaultText = convertHtmlToMarkdown(block.data?.text || '');
                     return `${defaultText}\n\n`;
             }
         } catch (error) {
@@ -303,35 +344,41 @@ function convertToMarkdown(data: any): string {
 function convertToPlainText(data: any): string {
     if (!data.blocks || !Array.isArray(data.blocks)) return '';
     
+    // Helper function to strip HTML tags for plain text
+    const stripHtmlTags = (text: string): string => {
+        if (!text) return '';
+        return text.replace(/<[^>]*>/g, '');
+    };
+    
     return data.blocks.map((block: any) => {
         try {
             switch (block.type) {
                 case 'header':
-                    const headerText = block.data?.text || '';
+                    const headerText = stripHtmlTags(block.data?.text || '');
                     return `${headerText}\n`;
                 case 'paragraph':
-                    const paraText = block.data?.text || '';
+                    const paraText = stripHtmlTags(block.data?.text || '');
                     return `${paraText}\n\n`;
                 case 'list':
                     if (!block.data || !Array.isArray(block.data.items)) {
                         return '• List content unavailable\n\n';
                     }
                     const items = block.data.items.map((item: any) => {
-                        const itemText = extractListItemText(item);
+                        const itemText = stripHtmlTags(extractListItemText(item));
                         return `  • ${itemText}`;
                     }).join('\n');
                     return `${items}\n\n`;
                 case 'inlineCode':
-                    const codeText = block.data?.text || '';
+                    const codeText = stripHtmlTags(block.data?.text || '');
                     return codeText;
                 case 'marker':
-                    const markerText = block.data?.text || '';
+                    const markerText = stripHtmlTags(block.data?.text || '');
                     return markerText;
                 case 'underline':
-                    const underlineText = block.data?.text || '';
+                    const underlineText = stripHtmlTags(block.data?.text || '');
                     return underlineText;
                 default:
-                    const defaultText = block.data?.text || '';
+                    const defaultText = stripHtmlTags(block.data?.text || '');
                     return `${defaultText}\n\n`;
             }
         } catch (error) {
