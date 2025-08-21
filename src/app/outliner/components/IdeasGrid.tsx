@@ -85,7 +85,7 @@ export default function IdeasGrid({
     }
 
     const renderSkeletonCard = () => (
-        <Card className="h-full">
+        <Card className="h-full bg-background">
             <CardHeader>
                 <Skeleton className="h-6 w-3/4" />
             </CardHeader>
@@ -117,7 +117,7 @@ export default function IdeasGrid({
                 {ideas.map((idea, idx) => (
                     <Card
                         key={idx}
-                        className="h-full cursor-pointer transition hover:shadow-lg"
+                        className="h-full cursor-pointer transition hover:shadow-lg bg-background"
                         onClick={() => {
                             setSelectedIndex(idx);
                             setOpen(true);
