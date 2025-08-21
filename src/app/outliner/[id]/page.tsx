@@ -13,6 +13,7 @@ import html2canvas from 'html2canvas';
 import '../styles/editor.css';
 import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
+import { ParaphraseTool } from '../tools/ParaphraseTool';
 import { SPARKLES_ICON_SVG } from '../components/svg-icons';
 import { Toolbar } from '../components/Toolbar';
 import EmailForm from '../../papermap/components/EmailForm';
@@ -628,7 +629,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                     tools: {
                         // Ensure paragraph inline toolbar shows our custom tool
                         paragraph: {
-                            inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'cite']
+                            inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite']
                         } as any,
                         header: Header as any,
                         list: List as any,
@@ -639,6 +640,24 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                             class: ExpandInlineTool as any,
                             config: {
                                 endpoint: '/api/outliner/expand-passage',
+                                language: language,
+                                getDocument: async () => {
+                                    try {
+                                        if (editorRef.current) {
+                                            return await editorRef.current.save();
+                                        }
+                                    } catch { }
+                                    return { blocks: [] };
+                                },
+                                notify: (msg: string) => {
+                                    try { console.log(msg); } catch { }
+                                }
+                            }
+                        } as any,
+                        paraphrase: {
+                            class: ParaphraseTool as any,
+                            config: {
+                                endpoint: '/api/outliner/paraphrase',
                                 language: language,
                                 getDocument: async () => {
                                     try {
@@ -694,7 +713,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                                 if (editorRoot) {
                                     const mt = ensureMiniAIToolbar(editorRoot);
                                     miniToolbarRef.current = mt;
-                                    // Warm once to ensure inline tool constructors (incl. Cite) are instantiated
+                                    // Warm once to ensure inline tool constructors (incl. Cite and Paraphrase) are instantiated
                                     if (!warmedToolsRef.current) {
                                         setTimeout(() => { try { warmInlineToolsOnce(editorRoot); warmedToolsRef.current = true; } catch {} }, 80);
                                     }
@@ -868,9 +887,11 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
         };
 
         const expandBtn = makeBtn('Expand', 'expand', 'outliner-ai-expand-current');
+        const paraphraseBtn = makeBtn('Paraphrase', 'paraphrase', 'outliner-ai-paraphrase-current');
         const citeBtn = makeBtn('Cite', 'cite', 'outliner-ai-cite-current');
         toolbar.appendChild(badge);
         toolbar.appendChild(expandBtn);
+        toolbar.appendChild(paraphraseBtn);
         toolbar.appendChild(citeBtn);
 
         editorRoot.style.position = 'relative';
