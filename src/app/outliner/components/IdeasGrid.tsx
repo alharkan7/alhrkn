@@ -57,45 +57,15 @@ export default function IdeasGrid({
     async function navigateToExpanded(idea: ResearchIdea) {
         setIsExpanding(true);
         const id = crypto.randomUUID();
-        try {
-            // First, expand the outline using the new API
-            const response = await fetch('/api/outliner/expand-outline', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idea, language }),
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to expand outline');
-            }
-            
-            const expandedOutline = await response.json();
-            
-            // Store both the original idea, the expanded outline, and the language preference
-            localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
-            localStorage.setItem(`outliner:${id}:expanded`, JSON.stringify(expandedOutline));
-            localStorage.setItem(`outliner:${id}:language`, language);
-            
-            // Show success toast
-            toast.success(language === 'en' 
-                ? 'Outline expanded successfully!' 
-                : 'Outline berhasil diperluas!'
-            );
-        } catch (error) {
-            console.error('Error expanding outline:', error);
-            // Show error toast
-            toast.error(language === 'en' 
-                ? 'Failed to expand outline. Opening with basic version.' 
-                : 'Gagal memperluas outline. Membuka dengan versi dasar.'
-            );
-            // Fallback: store just the original idea and language
-            localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
-            localStorage.setItem(`outliner:${id}:language`, language);
-        } finally {
-            setIsExpanding(false);
-        }
         
+        // Store the original idea and language preference immediately
+        localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
+        localStorage.setItem(`outliner:${id}:language`, language);
+        
+        // Navigate immediately - the outline page will handle streaming
         router.push(`/outliner/${id}`);
+        
+        setIsExpanding(false);
     }
 
     function goPrev() {

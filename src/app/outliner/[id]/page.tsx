@@ -292,6 +292,12 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     const suppressUntilNextPointerRef = useRef<boolean>(false);
     const warmedToolsRef = useRef<boolean>(false);
     
+    // Streaming state
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [streamingBlocks, setStreamingBlocks] = useState<any[]>([]);
+    const streamingInitiatedRef = useRef(false);
+    const eventSourceRef = useRef<EventSource | null>(null);
+    
     // Email form state
     const [showEmailForm, setShowEmailForm] = useState(false);
     const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
@@ -509,6 +515,225 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
 
     const debouncedSave = useDebouncedCallback(saveDoc, 600);
 
+    // Function to create skeleton blocks for streaming
+    const createSkeletonBlocks = () => {
+        const isIndonesian = language === 'id';
+        return [
+            {
+                type: 'header',
+                data: {
+                    text: idea.title || (isIndonesian ? 'Judul Penelitian' : 'Research Title'),
+                    level: 1
+                }
+            },
+            {
+                type: 'header',
+                data: {
+                    text: isIndonesian ? '1. Pendahuluan' : '1. Introduction',
+                    level: 2
+                }
+            },
+            {
+                type: 'paragraph',
+                data: {
+                    text: '<div class="loading-skeleton" style="height: 20px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></div>'
+                }
+            },
+            {
+                type: 'header',
+                data: {
+                    text: isIndonesian ? '2. Metodologi' : '2. Methodology',
+                    level: 2
+                }
+            },
+            {
+                type: 'paragraph',
+                data: {
+                    text: '<div class="loading-skeleton" style="height: 20px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></div>'
+                }
+            },
+            {
+                type: 'header',
+                data: {
+                    text: isIndonesian ? '3. Dampak yang Diharapkan' : '3. Expected Impact',
+                    level: 2
+                }
+            },
+            {
+                type: 'paragraph',
+                data: {
+                    text: '<div class="loading-skeleton" style="height: 20px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></div>'
+                }
+            }
+        ];
+    };
+
+    // Function to start streaming the expanded outline
+    const startStreaming = useCallback(async () => {
+        if (streamingInitiatedRef.current || !idea) return;
+        
+        console.log('Starting outline expansion stream...');
+        streamingInitiatedRef.current = true;
+        setIsStreaming(true);
+        
+        // Initialize with skeleton blocks
+        const skeletonBlocks = createSkeletonBlocks();
+        setStreamingBlocks(skeletonBlocks);
+        
+        try {
+            const eventSource = new EventSource('/api/outliner/expand-stream', {
+                // Note: EventSource doesn't support POST directly, we'll need to handle this differently
+            });
+            
+            // Since EventSource only supports GET, we'll use fetch with streaming instead
+            const response = await fetch('/api/outliner/expand-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idea, language }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to start streaming');
+            }
+            
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            
+            if (!reader) {
+                throw new Error('No reader available');
+            }
+            
+            let buffer = '';
+            const newBlocks: any[] = [];
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    console.log('Streaming completed');
+                    break;
+                }
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            console.log('Received streaming data:', data);
+                            
+                            if (data.type === 'block' && data.block) {
+                                newBlocks.push(data.block);
+                                setStreamingBlocks([...newBlocks]);
+                                
+                                // Update the editor with the new block
+                                if (editorRef.current) {
+                                    try {
+                                        // Insert or update the block at the correct index
+                                        await updateEditorWithBlock(data.block, data.index);
+                                    } catch (error) {
+                                        console.error('Error updating editor with block:', error);
+                                    }
+                                }
+                            } else if (data.type === 'completed') {
+                                console.log('Streaming completed successfully');
+                                setIsStreaming(false);
+                                
+                                // Save the completed expanded outline
+                                const finalData = { blocks: newBlocks };
+                                localStorage.setItem(`outliner:${id}:expanded`, JSON.stringify(finalData));
+                                localStorage.setItem(`outliner:${id}:doc`, JSON.stringify(finalData));
+                            } else if (data.type === 'error') {
+                                throw new Error(data.error || 'Streaming error');
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing streaming data:', parseError);
+                        }
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('Streaming error:', error);
+            setIsStreaming(false);
+            
+            // Fallback to basic outline
+            const fallbackData = buildInitialDocumentData(idea);
+            setStreamingBlocks(fallbackData.blocks);
+            localStorage.setItem(`outliner:${id}:doc`, JSON.stringify(fallbackData));
+            
+            if (editorRef.current) {
+                try {
+                    await editorRef.current.clear();
+                    await editorRef.current.render(fallbackData);
+                } catch (error) {
+                    console.error('Error rendering fallback data:', error);
+                }
+            }
+        }
+    }, [idea, language, id]);
+
+    // Function to update editor with a new block
+    const updateEditorWithBlock = async (block: any, index: number) => {
+        if (!editorRef.current) return;
+        
+        try {
+            const currentData = await editorRef.current.save();
+            const blocks = [...(currentData.blocks || [])];
+            
+            // If this is a new block beyond current length, pad with empty paragraphs if needed
+            while (blocks.length <= index) {
+                blocks.push({
+                    type: 'paragraph',
+                    data: {
+                        text: '<div class="skeleton-line"></div>'
+                    }
+                });
+            }
+            
+            // Replace the block at the correct position
+            blocks[index] = block;
+            
+            // Use EditorJS API to insert block without full re-render for better performance
+            try {
+                // Try to use the blocks API if available
+                if (editorRef.current.blocks && editorRef.current.blocks.insert) {
+                    // Remove existing block first if it exists
+                    if (index < editorRef.current.blocks.getBlocksCount()) {
+                        editorRef.current.blocks.delete(index);
+                    }
+                    
+                    // Insert the new block
+                    await editorRef.current.blocks.insert(
+                        block.type,
+                        block.data,
+                        undefined, // config
+                        index // position
+                    );
+                } else {
+                    // Fallback to full re-render
+                    await editorRef.current.clear();
+                    await editorRef.current.render({ blocks });
+                }
+            } catch (insertError) {
+                console.warn('Block insert failed, using full re-render:', insertError);
+                // Fallback to full re-render
+                await editorRef.current.clear();
+                await editorRef.current.render({ blocks });
+            }
+            
+            // Auto-save after update
+            setTimeout(() => {
+                localStorage.setItem(`outliner:${id}:doc`, JSON.stringify({ blocks }));
+            }, 100);
+            
+        } catch (error) {
+            console.error('Error updating editor with block:', error);
+        }
+    };
+
     useEffect(() => {
         let isMounted = true;
 
@@ -532,7 +757,9 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
 
             // Get initial data
             const existing = localStorage.getItem(`outliner:${id}:doc`);
+            const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
             let initialData;
+            let shouldStartStreaming = false;
 
             if (existing) {
                 try {
@@ -541,82 +768,45 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                         initialData = parsedData;
                         console.log('Loaded existing document with', parsedData.blocks.length, 'blocks');
                     } else {
-                        // Try to load expanded outline first, fallback to basic outline
-                        const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
-                        if (expandedOutline) {
-                            try {
-                                const parsedExpanded = JSON.parse(expandedOutline);
-                                if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
-                                    initialData = parsedExpanded;
-                                    console.log('Loaded expanded outline with', parsedExpanded.blocks.length, 'blocks');
-                                } else {
-                                    initialData = buildInitialDocumentData(idea);
-                                    localStorage.removeItem(`outliner:${id}:expanded`);
-                                    console.log('Rebuilt document from idea (expanded outline was invalid)');
-                                }
-                            } catch (error) {
-                                console.error('Error parsing expanded outline:', error);
-                                initialData = buildInitialDocumentData(idea);
-                                localStorage.removeItem(`outliner:${id}:expanded`);
-                                console.log('Rebuilt document from idea (expanded outline parse error)');
-                            }
-                        } else {
-                            initialData = buildInitialDocumentData(idea);
-                            console.log('Rebuilt document from idea (no expanded outline found)');
-                        }
-                        localStorage.removeItem(`outliner:${id}:doc`);
+                        // Use skeleton blocks and start streaming
+                        initialData = { blocks: createSkeletonBlocks() };
+                        shouldStartStreaming = true;
+                        console.log('Document exists but empty, starting streaming');
                     }
                 } catch (error) {
                     console.error('Error parsing localStorage data:', error);
-                    // Try to load expanded outline first, fallback to basic outline
-                    const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
-                    if (expandedOutline) {
-                        try {
-                            const parsedExpanded = JSON.parse(expandedOutline);
-                            if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
-                                initialData = parsedExpanded;
-                                console.log('Loaded expanded outline with', parsedExpanded.blocks.length, 'blocks');
-                            } else {
-                                initialData = buildInitialDocumentData(idea);
-                                localStorage.removeItem(`outliner:${id}:expanded`);
-                                console.log('Rebuilt document from idea (expanded outline was invalid)');
-                            }
-                        } catch (error) {
-                            console.error('Error parsing expanded outline:', error);
-                            initialData = buildInitialDocumentData(idea);
-                            localStorage.removeItem(`outliner:${id}:expanded`);
-                            console.log('Rebuilt document from idea (expanded outline parse error)');
-                        }
-                    } else {
-                        initialData = buildInitialDocumentData(idea);
-                        console.log('Rebuilt document from idea (no expanded outline found)');
-                    }
+                    // Use skeleton blocks and start streaming
+                    initialData = { blocks: createSkeletonBlocks() };
+                    shouldStartStreaming = true;
+                    console.log('Document parse error, starting streaming');
                     localStorage.removeItem(`outliner:${id}:doc`);
                 }
-            } else {
-                // Try to load expanded outline first, fallback to basic outline
-                const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
-                if (expandedOutline) {
-                    try {
-                        const parsedExpanded = JSON.parse(expandedOutline);
-                        if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
-                            initialData = parsedExpanded;
-                            console.log('Created new document with expanded outline:', parsedExpanded.blocks.length, 'blocks');
-                        } else {
-                            initialData = buildInitialDocumentData(idea);
-                            localStorage.removeItem(`outliner:${id}:expanded`);
-                            console.log('Created new document from idea (expanded outline was invalid)');
-                        }
-                    } catch (error) {
-                        console.error('Error parsing expanded outline:', error);
-                        initialData = buildInitialDocumentData(idea);
+            } else if (expandedOutline) {
+                try {
+                    const parsedExpanded = JSON.parse(expandedOutline);
+                    if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
+                        initialData = parsedExpanded;
+                        console.log('Loaded existing expanded outline with', parsedExpanded.blocks.length, 'blocks');
+                    } else {
+                        // Use skeleton blocks and start streaming
+                        initialData = { blocks: createSkeletonBlocks() };
+                        shouldStartStreaming = true;
                         localStorage.removeItem(`outliner:${id}:expanded`);
-                        console.log('Created new document from idea (expanded outline parse error)');
+                        console.log('Expanded outline invalid, starting streaming');
                     }
-                } else {
-                    initialData = buildInitialDocumentData(idea);
-                    console.log('Created new document from idea (no expanded outline found)');
+                } catch (error) {
+                    console.error('Error parsing expanded outline:', error);
+                    // Use skeleton blocks and start streaming
+                    initialData = { blocks: createSkeletonBlocks() };
+                    shouldStartStreaming = true;
+                    localStorage.removeItem(`outliner:${id}:expanded`);
+                    console.log('Expanded outline parse error, starting streaming');
                 }
+            } else {
+                // New document - start with skeleton blocks and begin streaming
+                initialData = { blocks: createSkeletonBlocks() };
+                shouldStartStreaming = true;
+                console.log('New document, starting streaming');
             }
 
             // Create the editor
@@ -707,6 +897,15 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                         if (isMounted) {
                             console.log('EditorJS is ready');
                             setIsReady(true);
+                            
+                            // Start streaming if needed
+                            if (shouldStartStreaming) {
+                                console.log('Starting streaming after editor ready');
+                                setTimeout(() => {
+                                    startStreaming();
+                                }, 100);
+                            }
+                            
                             // Install caret listener to toggle mini AI toolbar
                             try {
                                 const editorRoot = document.getElementById(holderId) as HTMLElement | null;
@@ -788,7 +987,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                 }
                 editorRef.current = null;
             }
-            // Remove global listeners
+            // Remove global listeners and cleanup streaming
             try {
                 if (selectionHandlerRef.current) document.removeEventListener('selectionchange', selectionHandlerRef.current);
                 if (scrollHandlerRef.current) window.removeEventListener('scroll', scrollHandlerRef.current as any);
@@ -797,10 +996,18 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                 if (keyHandlerRef.current) document.removeEventListener('keydown', keyHandlerRef.current);
                 if (inputHandlerRef.current) document.removeEventListener('beforeinput', inputHandlerRef.current as any);
                 cancelScheduledMiniShow();
+                
+                // Cleanup streaming
+                if (eventSourceRef.current) {
+                    eventSourceRef.current.close();
+                    eventSourceRef.current = null;
+                }
+                setIsStreaming(false);
+                streamingInitiatedRef.current = false;
             } catch {}
             setIsReady(false);
         };
-    }, [id, idea, holderId, debouncedSave, language]);
+            }, [id, idea, holderId, debouncedSave, language, startStreaming]);
 
     // Helpers for mini AI toolbar
     function isCaretInsideEditor(holder: string): boolean {
@@ -975,9 +1182,19 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
         <div className="prose prose-neutral max-w-none">
             <Toolbar onDownload={handleDownload} />
             
+            {/* Streaming indicator */}
+            {isStreaming && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-4 flex items-center gap-2">
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span className="text-blue-700 text-sm">
+                        {language === 'en' ? 'Generating expanded outline...' : 'Menghasilkan outline yang diperluas...'}
+                    </span>
+                </div>
+            )}
+            
             {!isReady && (
                 <div className="text-center py-8 text-gray-500">
-                    Loading editor...
+                    {language === 'en' ? 'Loading editor...' : 'Memuat editor...'}
                 </div>
             )}
             <div
