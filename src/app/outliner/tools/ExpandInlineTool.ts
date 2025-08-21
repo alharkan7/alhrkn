@@ -17,6 +17,7 @@ export class ExpandInlineTool {
     private originalBlockPrevDisplay: string | null = null;
     private config: {
         endpoint: string;
+        language?: 'en' | 'id';
         getDocument: () => Promise<any>;
         notify?: (msg: string) => void;
     };
@@ -133,6 +134,7 @@ export class ExpandInlineTool {
             const contextText = contextParts.join('\n\n');
 
             // Call API with streaming header
+            console.log('ExpandInlineTool: Calling API with language:', this.config.language || 'en');
             const res = await fetch(this.config.endpoint, {
                 method: 'POST',
                 headers: {
@@ -140,7 +142,10 @@ export class ExpandInlineTool {
                     'Accept': 'text/plain, application/json',
                     'x-stream': '1'
                 },
-                body: JSON.stringify({ text: contextText })
+                body: JSON.stringify({ 
+                    text: contextText,
+                    language: this.config.language || 'en'
+                })
             });
 
             // If server does not support streaming, fall back to JSON mode

@@ -20,6 +20,7 @@ export class CitationTool {
     private lastSelectedTextKey: string | null = null;
     private config: {
         endpoint: string;
+        language?: 'en' | 'id';
         getDocument: () => Promise<any>;
         notify?: (msg: string) => void;
     };
@@ -176,7 +177,8 @@ export class CitationTool {
                 body: JSON.stringify({
                     text: selectedText,
                     perPage: this.perPage,
-                    page: 1
+                    page: 1,
+                    language: this.config.language || 'en'
                 })
             });
 
@@ -513,7 +515,10 @@ export class CitationTool {
             const res = await fetch(this.config.endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify({
+                    ...body,
+                    language: this.config.language || 'en'
+                })
             });
 
             if (!res.ok) {
@@ -555,7 +560,8 @@ export class CitationTool {
                 body: JSON.stringify({
                     searchQuery,
                     perPage: this.perPage,
-                    page: 1
+                    page: 1,
+                    language: this.config.language || 'en'
                 })
             });
 
@@ -601,6 +607,7 @@ export class CitationTool {
                         searchQuery: this.lastSearchQuery,
                         perPage: this.perPage,
                         page: 1,
+                        language: this.config.language || 'en'
                     })
                 });
                 if (!res.ok) {

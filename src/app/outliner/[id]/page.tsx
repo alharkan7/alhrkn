@@ -276,7 +276,7 @@ function buildBibliographyPlain(entries: Array<{ html: string; text: string }>):
     return `\nReferences\n${lines}\n`;
 }
 
-function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
+function FullDocumentEditor({ id, idea, language }: { id: string; idea: ResearchIdea; language: 'en' | 'id'; }) {
     const editorRef = useRef<EditorJS | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isReady, setIsReady] = useState(false);
@@ -493,7 +493,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
 
         // Initiate email form process
         initiateDownload(format, downloadAction);
-    }, [idea.title, id]);
+    }, [idea.title, id, language]);
 
     const saveDoc = useCallback(async () => {
         if (!editorRef.current) return;
@@ -639,6 +639,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                             class: ExpandInlineTool as any,
                             config: {
                                 endpoint: '/api/outliner/expand-passage',
+                                language: language,
                                 getDocument: async () => {
                                     try {
                                         if (editorRef.current) {
@@ -656,6 +657,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                             class: CitationTool as any,
                             config: {
                                 endpoint: '/api/outliner/cite',
+                                language: language,
                                 getDocument: async () => {
                                     try {
                                         if (editorRef.current) {
@@ -779,7 +781,7 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
             } catch {}
             setIsReady(false);
         };
-    }, [id, idea, holderId, debouncedSave]);
+    }, [id, idea, holderId, debouncedSave, language]);
 
     // Helpers for mini AI toolbar
     function isCaretInsideEditor(holder: string): boolean {
@@ -999,15 +1001,22 @@ export default function OutlinerDetailPage() {
     const params = useParams();
     const id = (params?.id as string) || '';
     const [idea, setIdea] = useState<ResearchIdea | null>(null);
+    const [language, setLanguage] = useState<'en' | 'id'>('en');
 
     useEffect(() => {
         if (!id) return;
         try {
             const raw = localStorage.getItem(`outliner:${id}`);
+            const languagePref = localStorage.getItem(`outliner:${id}:language`) as 'en' | 'id';
+            
             if (raw) {
                 const parsedIdea = JSON.parse(raw);
                 console.log('Loaded idea:', parsedIdea);
                 setIdea(parsedIdea);
+            }
+            
+            if (languagePref && (languagePref === 'en' || languagePref === 'id')) {
+                setLanguage(languagePref);
             }
         } catch (error) {
             console.error('Error loading idea from localStorage:', error);
@@ -1029,7 +1038,7 @@ export default function OutlinerDetailPage() {
                     </button>
                 </div>
             ) : (
-                <FullDocumentEditor id={id} idea={idea} />
+                <FullDocumentEditor id={id} idea={idea} language={language} />
             )}
         </div>
     );

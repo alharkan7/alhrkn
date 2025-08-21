@@ -71,9 +71,10 @@ export default function IdeasGrid({
             
             const expandedOutline = await response.json();
             
-            // Store both the original idea and the expanded outline
+            // Store both the original idea, the expanded outline, and the language preference
             localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
             localStorage.setItem(`outliner:${id}:expanded`, JSON.stringify(expandedOutline));
+            localStorage.setItem(`outliner:${id}:language`, language);
             
             // Show success toast
             toast.success(language === 'en' 
@@ -87,8 +88,9 @@ export default function IdeasGrid({
                 ? 'Failed to expand outline. Opening with basic version.' 
                 : 'Gagal memperluas outline. Membuka dengan versi dasar.'
             );
-            // Fallback: store just the original idea
+            // Fallback: store just the original idea and language
             localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
+            localStorage.setItem(`outliner:${id}:language`, language);
         } finally {
             setIsExpanding(false);
         }
@@ -215,7 +217,7 @@ export default function IdeasGrid({
                                 >
                                     {isExpanding 
                                         ? (language === 'en' ? 'Expanding...' : 'Mengembangkan...') 
-                                        : (language === 'en' ? 'Open Editor' : 'Buka Editor')
+                                        : (language === 'en' ? 'Create Draft' : 'Draft Naskah')
                                     }
                                 </Button>
                                 <div className="flex items-center gap-2 order-2 sm:order-1 justify-center sm:justify-start w-full sm:w-auto">
