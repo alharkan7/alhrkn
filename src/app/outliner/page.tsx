@@ -254,7 +254,7 @@ export default function OutlinerPage() {
                                 <Input
                                     value={queryText}
                                     onChange={(e) => setQueryText(e.target.value)}
-                                    placeholder={language === 'en' ? "Type your keywords or school major..." : "Ketik kata kunci atau jurusan sekolah..."}
+                                    placeholder={language === 'en' ? "Type your keywords or school major..." : "Input kata kunci atau jurusan studi..."}
                                     className="h-12 text-base rounded-full flex-1 pl-5 pr-20"
                                 />
                                 <div className="absolute right-3 top-[47%] transform -translate-y-1/2">

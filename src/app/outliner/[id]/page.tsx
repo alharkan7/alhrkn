@@ -418,18 +418,82 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                         initialData = parsedData;
                         console.log('Loaded existing document with', parsedData.blocks.length, 'blocks');
                     } else {
-                        initialData = buildInitialDocumentData(idea);
+                        // Try to load expanded outline first, fallback to basic outline
+                        const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
+                        if (expandedOutline) {
+                            try {
+                                const parsedExpanded = JSON.parse(expandedOutline);
+                                if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
+                                    initialData = parsedExpanded;
+                                    console.log('Loaded expanded outline with', parsedExpanded.blocks.length, 'blocks');
+                                } else {
+                                    initialData = buildInitialDocumentData(idea);
+                                    localStorage.removeItem(`outliner:${id}:expanded`);
+                                    console.log('Rebuilt document from idea (expanded outline was invalid)');
+                                }
+                            } catch (error) {
+                                console.error('Error parsing expanded outline:', error);
+                                initialData = buildInitialDocumentData(idea);
+                                localStorage.removeItem(`outliner:${id}:expanded`);
+                                console.log('Rebuilt document from idea (expanded outline parse error)');
+                            }
+                        } else {
+                            initialData = buildInitialDocumentData(idea);
+                            console.log('Rebuilt document from idea (no expanded outline found)');
+                        }
                         localStorage.removeItem(`outliner:${id}:doc`);
-                        console.log('Rebuilt document from idea');
                     }
                 } catch (error) {
                     console.error('Error parsing localStorage data:', error);
-                    initialData = buildInitialDocumentData(idea);
+                    // Try to load expanded outline first, fallback to basic outline
+                    const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
+                    if (expandedOutline) {
+                        try {
+                            const parsedExpanded = JSON.parse(expandedOutline);
+                            if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
+                                initialData = parsedExpanded;
+                                console.log('Loaded expanded outline with', parsedExpanded.blocks.length, 'blocks');
+                            } else {
+                                initialData = buildInitialDocumentData(idea);
+                                localStorage.removeItem(`outliner:${id}:expanded`);
+                                console.log('Rebuilt document from idea (expanded outline was invalid)');
+                            }
+                        } catch (error) {
+                            console.error('Error parsing expanded outline:', error);
+                            initialData = buildInitialDocumentData(idea);
+                            localStorage.removeItem(`outliner:${id}:expanded`);
+                            console.log('Rebuilt document from idea (expanded outline parse error)');
+                        }
+                    } else {
+                        initialData = buildInitialDocumentData(idea);
+                        console.log('Rebuilt document from idea (no expanded outline found)');
+                    }
                     localStorage.removeItem(`outliner:${id}:doc`);
                 }
             } else {
-                initialData = buildInitialDocumentData(idea);
-                console.log('Created new document with', initialData.blocks.length, 'blocks');
+                // Try to load expanded outline first, fallback to basic outline
+                const expandedOutline = localStorage.getItem(`outliner:${id}:expanded`);
+                if (expandedOutline) {
+                    try {
+                        const parsedExpanded = JSON.parse(expandedOutline);
+                        if (parsedExpanded && Array.isArray(parsedExpanded.blocks) && parsedExpanded.blocks.length > 0) {
+                            initialData = parsedExpanded;
+                            console.log('Created new document with expanded outline:', parsedExpanded.blocks.length, 'blocks');
+                        } else {
+                            initialData = buildInitialDocumentData(idea);
+                            localStorage.removeItem(`outliner:${id}:expanded`);
+                            console.log('Created new document from idea (expanded outline was invalid)');
+                        }
+                    } catch (error) {
+                        console.error('Error parsing expanded outline:', error);
+                        initialData = buildInitialDocumentData(idea);
+                        localStorage.removeItem(`outliner:${id}:expanded`);
+                        console.log('Created new document from idea (expanded outline parse error)');
+                    }
+                } else {
+                    initialData = buildInitialDocumentData(idea);
+                    console.log('Created new document from idea (no expanded outline found)');
+                }
             }
 
             // Create the editor

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 type ResearchIdea = {
     title: string;
@@ -34,6 +35,7 @@ export default function IdeasGrid({
 }) {
     const [open, setOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const [isExpanding, setIsExpanding] = useState(false);
     const router = useRouter();
 
     const selected: ResearchIdea | null = useMemo(() => {
@@ -52,13 +54,45 @@ export default function IdeasGrid({
         showSkeleton 
     });
 
-    function navigateToExpanded(idea: ResearchIdea) {
+    async function navigateToExpanded(idea: ResearchIdea) {
+        setIsExpanding(true);
         const id = crypto.randomUUID();
         try {
+            // First, expand the outline using the new API
+            const response = await fetch('/api/outliner/expand-outline', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idea, language }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to expand outline');
+            }
+            
+            const expandedOutline = await response.json();
+            
+            // Store both the original idea and the expanded outline
             localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
-        } catch {
-            // ignore storage errors
+            localStorage.setItem(`outliner:${id}:expanded`, JSON.stringify(expandedOutline));
+            
+            // Show success toast
+            toast.success(language === 'en' 
+                ? 'Outline expanded successfully!' 
+                : 'Outline berhasil diperluas!'
+            );
+        } catch (error) {
+            console.error('Error expanding outline:', error);
+            // Show error toast
+            toast.error(language === 'en' 
+                ? 'Failed to expand outline. Opening with basic version.' 
+                : 'Gagal memperluas outline. Membuka dengan versi dasar.'
+            );
+            // Fallback: store just the original idea
+            localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
+        } finally {
+            setIsExpanding(false);
         }
+        
         router.push(`/outliner/${id}`);
     }
 
@@ -174,8 +208,15 @@ export default function IdeasGrid({
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.impact}</p>
                             </section>
                             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                                <Button className="order-1 sm:order-2" onClick={() => selected && navigateToExpanded(selected)}>
-                                     {language === 'en' ? 'Open Editor' : 'Buka Editor'}
+                                <Button 
+                                    className="order-1 sm:order-2" 
+                                    onClick={() => selected && navigateToExpanded(selected)}
+                                    disabled={isExpanding}
+                                >
+                                    {isExpanding 
+                                        ? (language === 'en' ? 'Expanding...' : 'Mengembangkan...') 
+                                        : (language === 'en' ? 'Open Editor' : 'Buka Editor')
+                                    }
                                 </Button>
                                 <div className="flex items-center gap-2 order-2 sm:order-1 justify-center sm:justify-start w-full sm:w-auto">
                                     <Button size="icon" variant="neutral" aria-label={language === 'en' ? 'Previous' : 'Sebelumnya'}
