@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
 
 type ResearchIdea = {
     title: string;
@@ -85,7 +84,7 @@ export default function IdeasGrid({
     }
 
     const renderSkeletonCard = () => (
-        <Card className="h-full">
+        <Card className="h-full bg-background">
             <CardHeader>
                 <Skeleton className="h-6 w-3/4" />
             </CardHeader>
@@ -117,7 +116,7 @@ export default function IdeasGrid({
                 {ideas.map((idea, idx) => (
                     <Card
                         key={idx}
-                        className="h-full cursor-pointer transition hover:shadow-lg"
+                        className="h-full cursor-pointer transition hover:shadow-lg bg-background"
                         onClick={() => {
                             setSelectedIndex(idx);
                             setOpen(true);
