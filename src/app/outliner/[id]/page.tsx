@@ -1500,7 +1500,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     }
 
     return (
-        <div className="prose prose-neutral max-w-none">
+        <div className="prose prose-neutral dark:prose-invert max-w-none">
             <Toolbar onDownload={handleDownload} onOpenChat={handleOpenChat} />
             
             {/* Streaming indicator */}
@@ -1526,14 +1526,14 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                     minHeight: '200px',
                     position: 'relative'
                 }}
-                className="editor-container"
+                className="editor-container text-foreground"
             />
             
             {/* Bibliography Section */}
             <div className="border-t">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800">References</h2>
+                <h2 className="text-2xl font-bold mb-6 text-foreground">References</h2>
                 <div id="bibliography-container" className="space-y-4 break-words">
-                    <p data-bibliography-placeholder="true" className="text-gray-500 italic">
+                    <p data-bibliography-placeholder="true" className="text-muted-foreground italic">
                         Citations will appear here as you add them to your document using the citation tool.
                     </p>
                 </div>

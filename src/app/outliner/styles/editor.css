@@ -58,7 +58,7 @@
   position: relative;
   margin: 1em 0;
   padding: 0.5em;
-  border-left: 3px solid #e5e7eb;
+  border-left: 3px solid hsl(var(--border));
 }
 
 .citation-text {
@@ -67,7 +67,7 @@
 
 .citation-reference {
   font-size: 0.9em;
-  color: #666;
+  color: hsl(var(--muted-foreground));
   cursor: help;
 }
 
@@ -115,6 +115,37 @@
 .ce-block {
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+/* Theme-aware text colors for EditorJS content */
+.editor-container,
+.editor-container .codex-editor,
+.editor-container .ce-block,
+.editor-container .ce-block__content,
+.editor-container [contenteditable="true"],
+.editor-container .ce-paragraph,
+.editor-container .cdx-list__item {
+  color: hsl(var(--foreground));
+}
+
+/* Headings inside EditorJS (header tool renders real h1..h6) */
+.editor-container h1,
+.editor-container h2,
+.editor-container h3,
+.editor-container h4,
+.editor-container h5,
+.editor-container h6 {
+  color: hsl(var(--foreground));
+}
+
+/* Links inside EditorJS content */
+.editor-container a {
+  color: hsl(var(--primary));
+}
+
+/* Placeholder text color for empty paragraphs */
+.editor-container .ce-paragraph[data-placeholder]:empty::before {
+  color: hsl(var(--muted-foreground));
 }
 
 /* Custom inline tool styling to match EditorJS defaults */
