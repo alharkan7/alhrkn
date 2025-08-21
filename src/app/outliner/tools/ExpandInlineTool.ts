@@ -106,13 +106,36 @@ export class ExpandInlineTool {
             const currentBlock = currentIndex >= 0 ? blocks[currentIndex] : null;
             const currentText = (currentBlock?.data?.text && typeof currentBlock.data.text === 'string') ? currentBlock.data.text : '';
 
-            // Collect up to 3 previous paragraph texts
+            // Collect up to 3 previous paragraph texts for context
             const previousParas: string[] = [];
             if (currentIndex > 0) {
                 for (let i = currentIndex - 1; i >= 0 && previousParas.length < 3; i--) {
                     const b = blocks[i];
                     if (b?.type === 'paragraph' && typeof b?.data?.text === 'string' && b.data.text.trim()) {
                         previousParas.unshift(b.data.text);
+                    }
+                }
+            }
+
+            // Collect up to 2 next paragraph texts for context
+            const nextParas: string[] = [];
+            if (currentIndex >= 0 && currentIndex < blocks.length - 1) {
+                for (let i = currentIndex + 1; i < blocks.length && nextParas.length < 2; i++) {
+                    const b = blocks[i];
+                    if (b?.type === 'paragraph' && typeof b?.data?.text === 'string' && b.data.text.trim()) {
+                        nextParas.push(b.data.text);
+                    }
+                }
+            }
+
+            // Find the nearest section header above current block to understand context
+            let currentSection = '';
+            if (currentIndex > 0) {
+                for (let i = currentIndex - 1; i >= 0; i--) {
+                    const b = blocks[i];
+                    if (b?.type === 'header' && b?.data?.level === 2 && typeof b?.data?.text === 'string') {
+                        currentSection = b.data.text;
+                        break;
                     }
                 }
             }
@@ -124,14 +147,18 @@ export class ExpandInlineTool {
                 return;
             }
 
-            // Build context for API
+            // Build enhanced context for API with better structure
             const contextParts: string[] = [];
-            if (title) contextParts.push(`Title: ${title}`);
+            if (title) contextParts.push(`Document Title: ${title}`);
+            if (currentSection) contextParts.push(`Current Section: ${currentSection}`);
             if (previousParas.length) {
-                contextParts.push(previousParas.join('\n\n'));
+                contextParts.push(`Previous Context:\n${previousParas.join('\n\n')}`);
             }
-            contextParts.push(focusText);
-            const contextText = contextParts.join('\n\n');
+            contextParts.push(`Text to Expand:\n${focusText}`);
+            if (nextParas.length) {
+                contextParts.push(`Following Context:\n${nextParas.join('\n\n')}`);
+            }
+            const contextText = contextParts.join('\n\n---\n\n');
 
             // Call API with streaming header
             console.log('ExpandInlineTool: Calling API with language:', this.config.language || 'en');
@@ -144,7 +171,8 @@ export class ExpandInlineTool {
                 },
                 body: JSON.stringify({ 
                     text: contextText,
-                    language: this.config.language || 'en'
+                    language: this.config.language || 'en',
+                    section: currentSection || 'Unknown'
                 })
             });
 
@@ -175,7 +203,6 @@ export class ExpandInlineTool {
                         if (firstChunk) {
                             firstChunk = false;
                             this.hideSkeletonPulse();
-                            this.hideOriginalBlock(range);
                         }
                         this.renderStreamingPreview(buffered);
                     }
@@ -185,7 +212,6 @@ export class ExpandInlineTool {
                     // Environments without stream reader
                     finalText = await res.text();
                     this.hideSkeletonPulse();
-                    this.hideOriginalBlock(range);
                     this.renderStreamingPreview(finalText);
                 }
             } else {
@@ -194,7 +220,6 @@ export class ExpandInlineTool {
                 const paragraphs: string[] = Array.isArray(json?.paragraphs) ? json.paragraphs : [];
                 finalText = paragraphs.join('\n\n');
                 this.hideSkeletonPulse();
-                this.hideOriginalBlock(range);
                 this.renderStreamingPreview(finalText);
             }
 
@@ -210,12 +235,14 @@ export class ExpandInlineTool {
                 return;
             }
 
-            // Replace current paragraph block with the expanded paragraphs as separate blocks
-            if (currentIndex >= 0) {
-                try { this.api.blocks.delete(currentIndex); this.originalBlockEl = null; } catch {}
+            // Instead of replacing, insert new paragraphs after the current block
+            let insertionIndex = currentIndex >= 0 ? currentIndex + 1 : undefined as any;
+            
+            // If we have a specific selection, we might want to insert right after the selection
+            if (selectedText && currentIndex >= 0) {
+                insertionIndex = currentIndex + 1;
             }
 
-            let insertionIndex = currentIndex >= 0 ? currentIndex : undefined as any;
             for (let i = 0; i < paragraphsFromText.length; i++) {
                 const p = String(paragraphsFromText[i] || '').trim();
                 if (!p) continue;
@@ -231,13 +258,12 @@ export class ExpandInlineTool {
                 if (lastIndex >= 0) this.api.caret?.setToBlock?.(lastIndex, 'end');
             } catch {}
 
-            this.config.notify?.('Expanded passage inserted.');
+            this.config.notify?.('Expanded content added after selection.');
         } catch (e: any) {
             this.config.notify?.(e?.message || 'Failed to expand passage');
         } finally {
             this.working = false;
             this.button.disabled = false;
-            this.unhideOriginalBlockIfPresent();
             this.removeSkeleton();
         }
     }
@@ -254,10 +280,10 @@ export class ExpandInlineTool {
             skeleton.className = 'my-2';
             skeleton.innerHTML = `
                 <div class="animate-pulse space-y-2" data-skeleton-pulse="true">
-                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
-                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
-                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
-                    <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                    <div class="h-4 bg-gray-200 rounded w-full"></div>
+                    <div class="h-4 bg-gray-200 rounded w-full"></div>
+                    <div class="h-4 bg-gray-200 rounded w-full"></div>
+                    <div class="h-4 bg-gray-200 rounded w-full"></div>
                 </div>
                 <div data-stream-container="true" class="mt-3"></div>
             `;
@@ -320,24 +346,12 @@ export class ExpandInlineTool {
     }
 
     private hideOriginalBlock(range: Range) {
-        try {
-            const anchorNode: Node | null = range?.startContainer || null;
-            const element = (anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement) as Element | null;
-            const blockEl = element?.closest?.('.ce-block') as HTMLElement | null;
-            if (!blockEl) return;
-            this.originalBlockEl = blockEl;
-            this.originalBlockPrevDisplay = blockEl.style.display || '';
-            blockEl.style.display = 'none';
-        } catch { /* noop */ }
+        // No longer hiding the original block since we're adding after it
+        // This method is kept for compatibility but doesn't do anything
     }
 
     private unhideOriginalBlockIfPresent() {
-        try {
-            if (this.originalBlockEl && document.body.contains(this.originalBlockEl)) {
-                this.originalBlockEl.style.display = this.originalBlockPrevDisplay || '';
-            }
-        } catch { /* noop */ }
-        this.originalBlockEl = null;
-        this.originalBlockPrevDisplay = null;
+        // No longer needed since we don't hide the original block
+        // This method is kept for compatibility but doesn't do anything
     }
 }
