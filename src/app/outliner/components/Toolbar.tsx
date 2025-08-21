@@ -18,7 +18,7 @@ interface ToolbarProps {
 export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
   const router = useRouter();
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border py-2 shadow-[var(--shadow)] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border pt-2 pb-3 shadow-[var(--shadow)] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       
       {/* Left side - back button */}
       <div className="flex items-center space-x-2">
