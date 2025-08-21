@@ -1,4 +1,4 @@
-import { CITE_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG, PENCIL_ICON_SVG, CHEVRON_UP_ICON_SVG, CHEVRON_DOWN_ICON_SVG } from '../components/svg-icons';
+import { CITE_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG, PENCIL_ICON_SVG, CHEVRON_UP_ICON_SVG, CHEVRON_DOWN_ICON_SVG, CHECK_ICON_SVG, X_ICON_SVG } from '../components/svg-icons';
 
 // Inline tool to find citations for selected text using the /api/outliner/cite endpoint
 export class CitationTool {
@@ -388,21 +388,33 @@ export class CitationTool {
             `;
 
             const saveBtn = document.createElement('button');
-            saveBtn.textContent = 'Save';
-            saveBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+            saveBtn.innerHTML = CHECK_ICON_SVG;
+            saveBtn.className = 'rounded-md border cursor-pointer transition-all duration-200 hover:opacity-90';
             saveBtn.style.cssText = `
                 background-color: var(--main);
                 color: var(--mtext);
                 border-color: var(--border);
+                width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
             `;
 
             const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = 'Cancel';
-            cancelBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
+            cancelBtn.innerHTML = X_ICON_SVG;
+            cancelBtn.className = 'rounded-md border cursor-pointer transition-all duration-200 hover:opacity-90';
             cancelBtn.style.cssText = `
                 background-color: var(--bw);
                 color: var(--text);
                 border-color: var(--border);
+                width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
             `;
 
             const submit = async () => {
@@ -431,7 +443,14 @@ export class CitationTool {
             editContainer.appendChild(cancelBtn);
             editContainer.appendChild(saveBtn);
             searchRow.appendChild(editContainer);
-            input.focus();
+            // Focus after the element is attached to DOM and move caret to end
+            setTimeout(() => {
+                try {
+                    input.focus();
+                    const len = input.value.length;
+                    input.setSelectionRange(len, len);
+                } catch {}
+            }, 0);
         };
 
         const renderView = () => {
@@ -445,7 +464,18 @@ export class CitationTool {
 
         editBtn.onclick = () => renderEdit();
 
-        renderView();
+        // If user has no input yet, start in edit mode by default
+        const shouldStartInEditMode = (
+            (!data.keywords || data.keywords.length === 0) &&
+            (!data.searchQuery || String(data.searchQuery).trim() === '') &&
+            (!data.papers || data.papers.length === 0)
+        );
+
+        if (shouldStartInEditMode) {
+            renderEdit();
+        } else {
+            renderView();
+        }
         searchInfo.appendChild(searchRow);
         content.appendChild(searchInfo);
 

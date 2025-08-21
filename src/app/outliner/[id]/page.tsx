@@ -359,10 +359,12 @@ function getBibliographyEntries(): Array<{ html: string; text: string }> {
 }
 
 function buildBibliographyHTML(entries: Array<{ html: string; text: string }>): string {
-    if (!entries || entries.length === 0) return '';
-    const items = entries.map(e => `<div class="reference-item"><p>${e.html}</p></div>`).join('');
+    const hasEntries = !!(entries && entries.length > 0);
+    const items = hasEntries
+        ? entries.map(e => `<div class="reference-item"><p>${e.html}</p></div>`).join('')
+        : `<div class="reference-item"><p style="color:#6b7280;font-style:italic;">No references added.</p></div>`;
     return `
-        <section>
+        <section class="references-section">
             <h2>References</h2>
             ${items}
         </section>
@@ -492,13 +494,15 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                 
                 switch (format) {
                     case 'pdf':
-                        // High-quality, multi-page PDF using html2canvas + jsPDF with pagination
+                        // High-quality, multi-page PDF using html2canvas + jsPDF with explicit per-page slicing
                         {
                             const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
                             const pageWidth = pdf.internal.pageSize.getWidth();
                             const pageHeight = pdf.internal.pageSize.getHeight();
-                            const margin = 40; // pt
-                            const contentWidthPt = pageWidth - margin * 2;
+                            // Separate horizontal and vertical margins (more vertical as requested)
+                            const marginX = 56; // pt (~0.78")
+                            const marginY = 84; // pt (~1.17")
+                            const contentWidthPt = pageWidth - marginX * 2;
                             const pxPerPt = 96 / 72; // px per pt
                             const contentWidthPx = Math.floor(contentWidthPt * pxPerPt);
 
@@ -519,44 +523,97 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                             hiddenContainer.style.lineHeight = '1.7';
                             hiddenContainer.innerHTML = `
                                 <style>
-                                    h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
-                                    h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; }
-                                    p { font-size: 14px; margin: 0 0 12px; color: #111827; overflow-wrap: anywhere; word-break: break-word; }
-                                    a { overflow-wrap: anywhere; word-break: break-word; }
-                                    ul, ol { margin: 0 0 12px 22px; }
+                                    /* Global text rendering improvements */
+                                    html, body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+                                    h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 16px; padding-bottom: 14px; border-bottom: 2px solid #111827; letter-spacing: 0.2px; word-spacing: 0.06em; line-height: 1.3; white-space: normal; }
+                                    h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 24px 0 8px; letter-spacing: 0.15px; word-spacing: 0.05em; white-space: normal; }
+                                    p { font-size: 14px; margin: 0 0 12px; color: #111827; overflow-wrap: break-word; word-break: normal; white-space: normal; }
+                                    a { overflow-wrap: break-word; word-break: normal; }
+                                    /* Custom list markers for reliable rendering and alignment */
+                                    ul, ol { margin: 0 0 12px; padding-left: 0; }
+                                    ul { list-style: none; }
+                                    ol { list-style: none; counter-reset: pdf-ol; }
+                                    ul li, ol li { margin: 0 0 8px 0; white-space: normal; line-height: 1.7; }
+                                    /* Bulleted list */
+                                    ul li { position: relative; padding-left: 20px; }
+                                    ul li::before { content: ''; position: absolute; left: 0; top: 0.92em; width: 6px; height: 6px; background: currentColor; border-radius: 9999px; }
+                                    /* Numbered list */
+                                    ol li { position: relative; padding-left: 26px; }
+                                    ol li::before { content: counter(pdf-ol) '.'; counter-increment: pdf-ol; position: absolute; left: 0; top: 0.15em; font-size: 0.95em; font-variant-numeric: tabular-nums; }
                                     code.code { background: #f3f4f6; padding: 6px 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; display: block; }
                                     mark { background: #fde68a; }
                                     u { text-decoration: underline; }
+                                    /* Ensure references appear at the end cleanly */
+                                    .references-section { page-break-before: always; margin-top: 16px; }
                                 </style>
                                 ${html}
                             `;
                             document.body.appendChild(hiddenContainer);
 
+                            // Ensure web fonts are ready before rendering to canvas (improves glyph spacing)
+                            try { if ((document as any).fonts?.ready) { await (document as any).fonts.ready; } } catch {}
+
                             const canvas = await html2canvas(hiddenContainer, {
-                                scale: 2,
+                                // Lower scale to reduce raster size => smaller PDF
+                                scale: 1.5,
                                 backgroundColor: '#ffffff',
                                 useCORS: true,
                                 windowWidth: hiddenContainer.scrollWidth,
                             });
 
-                            const imgData = canvas.toDataURL('image/png');
-                            const imgWidthPt = contentWidthPt;
-                            const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+                            // Calculate slice height in canvas pixels corresponding to one PDF page content height
+                            const usablePageHeightPt = pageHeight - marginY * 2; // pt
+                            const imgWidthPt = contentWidthPt; // target width in PDF
+                            const sliceHeightPx = Math.floor((usablePageHeightPt * canvas.width) / imgWidthPt);
 
-                            const usablePageHeight = pageHeight - margin * 2;
-                            let heightLeft = imgHeightPt;
-                            let positionY = margin;
+                            const sliceCanvas = document.createElement('canvas');
+                            sliceCanvas.width = canvas.width;
+                            const sliceCtx = sliceCanvas.getContext('2d');
 
-                            // First page
-                            pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
-                            heightLeft -= usablePageHeight;
+                            let renderedPx = 0;
+                            // Add a small overlap between pages to avoid cutting text at the bottom
+                            const overlapPx = Math.max(0, Math.floor((6 * canvas.width) / imgWidthPt));
+                            let isFirstPage = true;
+                            while (renderedPx < canvas.height) {
+                                const currentSliceHeightPx = Math.min(sliceHeightPx, canvas.height - renderedPx);
+                                // Guard: if remaining height would result in a tiny fragment, stop
+                                if (currentSliceHeightPx < Math.max(16, Math.floor(sliceHeightPx * 0.06))) {
+                                    break;
+                                }
+                                sliceCanvas.height = currentSliceHeightPx;
+                                if (sliceCtx) {
+                                    sliceCtx.clearRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+                                    sliceCtx.drawImage(
+                                        canvas,
+                                        0,
+                                        renderedPx,
+                                        canvas.width,
+                                        currentSliceHeightPx,
+                                        0,
+                                        0,
+                                        sliceCanvas.width,
+                                        currentSliceHeightPx
+                                    );
+                                }
 
-                            // Additional pages
-                            while (heightLeft > 0) {
-                                pdf.addPage();
-                                positionY = margin - (imgHeightPt - heightLeft);
-                                pdf.addImage(imgData, 'PNG', margin, positionY, imgWidthPt, imgHeightPt);
-                                heightLeft -= usablePageHeight;
+                                // Use JPEG to drastically reduce file size for text content
+                                const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.82);
+                                const sliceHeightPt = (currentSliceHeightPx * imgWidthPt) / sliceCanvas.width;
+
+                                // Skip extremely small slices to avoid blank pages
+                                if (sliceHeightPt <= 2) {
+                                    break;
+                                }
+
+                                if (!isFirstPage) {
+                                    pdf.addPage();
+                                }
+                                pdf.addImage(sliceImgData, 'JPEG', marginX, marginY, imgWidthPt, sliceHeightPt);
+
+                                // Advance with overlap to prevent bottom cut-offs
+                                const advancePx = Math.max(8, currentSliceHeightPx - Math.min(overlapPx, Math.max(0, currentSliceHeightPx - 8)));
+                                renderedPx += advancePx;
+                                isFirstPage = false;
                             }
 
                             pdf.save(`${idea.title || 'document'}.pdf`);
