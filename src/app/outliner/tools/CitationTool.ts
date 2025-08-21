@@ -260,7 +260,11 @@ export class CitationTool {
 
         // Pagination controls
         const pager = document.createElement('div');
-        pager.className = 'flex items-center gap-2';
+        pager.className = 'flex flex-col gap-2';
+
+        // Button row
+        const buttonRow = document.createElement('div');
+        buttonRow.className = 'flex items-center gap-2';
 
         const prevBtn = document.createElement('button');
         prevBtn.textContent = 'Prev';
@@ -273,11 +277,6 @@ export class CitationTool {
         `;
         prevBtn.disabled = page <= 1;
         prevBtn.onclick = () => this.goToPage(page - 1);
-
-        const pageInfo = document.createElement('span');
-        pageInfo.textContent = `${(page - 1) * perPage + 1}-${(page - 1) * perPage + showingCount} of ${totalFound}`;
-        pageInfo.className = 'text-xs opacity-80';
-        pageInfo.style.cssText = `color: var(--text);`;
 
         const nextBtn = document.createElement('button');
         nextBtn.textContent = 'Next';
@@ -292,9 +291,17 @@ export class CitationTool {
         nextBtn.disabled = !hasMore;
         nextBtn.onclick = () => this.goToPage(page + 1);
 
-        pager.appendChild(prevBtn);
+        buttonRow.appendChild(prevBtn);
+        buttonRow.appendChild(nextBtn);
+
+        // Page info row
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `${(page - 1) * perPage + 1}-${(page - 1) * perPage + showingCount} of ${totalFound}`;
+        pageInfo.className = 'text-xs opacity-80 text-center';
+        pageInfo.style.cssText = `color: var(--text);`;
+
+        pager.appendChild(buttonRow);
         pager.appendChild(pageInfo);
-        pager.appendChild(nextBtn);
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
