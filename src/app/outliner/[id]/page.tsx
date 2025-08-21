@@ -45,6 +45,108 @@ function paragraphsToBlocks(text: string) {
     return paragraphs.map(p => ({ type: 'paragraph', data: { text: p.replace(/\n/g, '<br>') } }));
 }
 
+// Minimal Markdown -> EditorJS converter (headings, paragraphs, ordered/unordered lists, simple inline)
+function convertMarkdownToEditorJS(markdown: string) {
+    const lines = (markdown || '').replace(/\r\n?/g, '\n').split('\n');
+    const blocks: any[] = [];
+    let paragraphBuffer: string[] = [];
+    let listBuffer: { style: 'ordered' | 'unordered'; items: string[] } | null = null;
+
+    const flushParagraph = () => {
+        const text = paragraphBuffer.join(' ').trim();
+        if (text) {
+            blocks.push({ type: 'paragraph', data: { text } });
+        }
+        paragraphBuffer = [];
+    };
+
+    const flushList = () => {
+        if (listBuffer && listBuffer.items.length > 0) {
+            blocks.push({ type: 'list', data: { style: listBuffer.style, items: [...listBuffer.items] } });
+        }
+        listBuffer = null;
+    };
+
+    const pushHeading = (level: number, text: string) => {
+        flushParagraph();
+        flushList();
+        const safeLevel = Math.max(1, Math.min(level, 6));
+        blocks.push({ type: 'header', data: { text: text.trim(), level: safeLevel } });
+    };
+
+    const addInlineFormatting = (text: string) => {
+        // Very small subset of inline formatting
+        let t = text;
+        // Bold **text**
+        t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        // Italic *text*
+        t = t.replace(/(^|\s)\*(?!\s)([^*]+?)\*(?=\s|$)/g, '$1<i>$2</i>');
+        // Inline code `code`
+        t = t.replace(/`([^`]+?)`/g, '<code class="code">$1</code>');
+        return t;
+    };
+
+    for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (line.trim() === '') {
+            flushParagraph();
+            flushList();
+            continue;
+        }
+
+        // Headings
+        const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+        if (headingMatch) {
+            const level = headingMatch[1].length;
+            const text = addInlineFormatting(headingMatch[2]);
+            pushHeading(level, text);
+            continue;
+        }
+
+        // Ordered list (1., 2., ...)
+        const orderedMatch = line.match(/^\s*\d+\.\s+(.+)$/);
+        if (orderedMatch) {
+            const item = addInlineFormatting(orderedMatch[1]);
+            if (!listBuffer || listBuffer.style !== 'ordered') {
+                flushParagraph();
+                flushList();
+                listBuffer = { style: 'ordered', items: [] };
+            }
+            listBuffer.items.push(item);
+            continue;
+        }
+
+        // Unordered list (-, *)
+        const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/);
+        if (unorderedMatch) {
+            const item = addInlineFormatting(unorderedMatch[1]);
+            if (!listBuffer || listBuffer.style !== 'unordered') {
+                flushParagraph();
+                flushList();
+                listBuffer = { style: 'unordered', items: [] };
+            }
+            listBuffer.items.push(item);
+            continue;
+        }
+
+        // Normal paragraph line
+        paragraphBuffer.push(addInlineFormatting(line.trim()))
+    }
+
+    // Flush remainders
+    flushParagraph();
+    flushList();
+
+    // Ensure at least a title if present at the very top using the first non-empty line
+    if (blocks.length === 0) {
+        const firstNonEmpty = lines.find(l => l.trim().length > 0) || '';
+        if (firstNonEmpty) {
+            blocks.push({ type: 'header', data: { text: firstNonEmpty.trim(), level: 1 } });
+        }
+    }
+    return blocks;
+}
+
 function buildInitialDocumentData(idea: ResearchIdea) {
     const blocks: any[] = [];
     // Title as H1
@@ -299,6 +401,9 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     const [streamingBlocks, setStreamingBlocks] = useState<any[]>([]);
     const streamingInitiatedRef = useRef(false);
     const eventSourceRef = useRef<EventSource | null>(null);
+    const markdownBufferRef = useRef<string>('');
+    const streamingRenderTimerRef = useRef<number | null>(null);
+    const lastAppliedBlocksRef = useRef<any[]>([]);
     
     // Email form state
     const [showEmailForm, setShowEmailForm] = useState(false);
@@ -620,11 +725,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
         setStreamingBlocks(skeletonBlocks);
         
         try {
-            const eventSource = new EventSource('/api/outliner/expand-stream', {
-                // Note: EventSource doesn't support POST directly, we'll need to handle this differently
-            });
-            
-            // Since EventSource only supports GET, we'll use fetch with streaming instead
+            // Use fetch with POST and stream the body
             const response = await fetch('/api/outliner/expand-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -662,28 +763,34 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                         try {
                             const data = JSON.parse(line.slice(6));
                             console.log('Received streaming data:', data);
-                            
-                            if (data.type === 'block' && data.block) {
-                                newBlocks.push(data.block);
-                                setStreamingBlocks([...newBlocks]);
-                                
-                                // Update the editor with the new block
+
+                            if (data.type === 'chunk' && typeof data.text === 'string') {
+                                // Accumulate markdown and convert to blocks with throttled rendering
+                                markdownBufferRef.current += data.text;
+                                const blocks = convertMarkdownToEditorJS(markdownBufferRef.current);
+                                setStreamingBlocks(blocks);
                                 if (editorRef.current) {
-                                    try {
-                                        // Insert or update the block at the correct index
-                                        await updateEditorWithBlock(data.block, data.index);
-                                    } catch (error) {
-                                        console.error('Error updating editor with block:', error);
+                                    if (streamingRenderTimerRef.current) {
+                                        try { window.clearTimeout(streamingRenderTimerRef.current); } catch {}
                                     }
+                                    streamingRenderTimerRef.current = window.setTimeout(async () => {
+                                        try {
+                                            await applyBlocksTailDiff(blocks);
+                                            localStorage.setItem(`outliner:${id}:doc`, JSON.stringify({ blocks }));
+                                        } catch (e) {
+                                            console.error('Error applying streaming diff:', e);
+                                        }
+                                    }, 250);
                                 }
                             } else if (data.type === 'completed') {
                                 console.log('Streaming completed successfully');
                                 setIsStreaming(false);
                                 
                                 // Save the completed expanded outline
-                                const finalData = { blocks: newBlocks };
+                                const finalData = { blocks: convertMarkdownToEditorJS(markdownBufferRef.current) };
                                 localStorage.setItem(`outliner:${id}:expanded`, JSON.stringify(finalData));
                                 localStorage.setItem(`outliner:${id}:doc`, JSON.stringify(finalData));
+                                lastAppliedBlocksRef.current = finalData.blocks;
                             } else if (data.type === 'error') {
                                 throw new Error(data.error || 'Streaming error');
                             }
@@ -955,6 +1062,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                         if (isMounted) {
                             console.log('EditorJS is ready');
                             setIsReady(true);
+                            try { lastAppliedBlocksRef.current = Array.isArray(initialData?.blocks) ? initialData.blocks : []; } catch {}
                             
                             // Start streaming if needed
                             if (shouldStartStreaming) {
@@ -1066,6 +1174,51 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
             setIsReady(false);
         };
             }, [id, idea, holderId, debouncedSave, language, startStreaming]);
+
+    // Apply minimal tail diff to reduce flicker: replace all blocks from first divergence index
+    const applyBlocksTailDiff = async (nextBlocks: any[]) => {
+        if (!editorRef.current) return;
+        const prevBlocks = lastAppliedBlocksRef.current || [];
+
+        const blocksEqual = (a: any, b: any) => {
+            if (!a || !b) return false;
+            if (a.type !== b.type) return false;
+            try { return JSON.stringify(a.data) === JSON.stringify(b.data); } catch { return false; }
+        };
+
+        let divergeAt = 0;
+        const minLen = Math.min(prevBlocks.length, nextBlocks.length);
+        while (divergeAt < minLen && blocksEqual(prevBlocks[divergeAt], nextBlocks[divergeAt])) {
+            divergeAt++;
+        }
+
+        // If identical, skip
+        if (divergeAt === prevBlocks.length && divergeAt === nextBlocks.length) return;
+
+        const api = (editorRef.current as any).blocks;
+        const currentCount = api.getBlocksCount();
+
+        // Safety: if editor count mismatches our prev snapshot a lot, fallback to full render once
+        if (Math.abs(currentCount - prevBlocks.length) > 5 && nextBlocks.length < 300) {
+            await editorRef.current.clear();
+            await editorRef.current.render({ blocks: nextBlocks });
+            lastAppliedBlocksRef.current = nextBlocks;
+            return;
+        }
+
+        // Delete from end down to divergence
+        for (let idx = currentCount - 1; idx >= divergeAt; idx--) {
+            try { api.delete(idx); } catch {}
+        }
+
+        // Insert new/changed tail starting at divergence index
+        for (let idx = divergeAt; idx < nextBlocks.length; idx++) {
+            const b = nextBlocks[idx];
+            try { await api.insert(b.type, b.data, undefined, idx); } catch {}
+        }
+
+        lastAppliedBlocksRef.current = nextBlocks;
+    };
 
     // Helpers for mini AI toolbar
     function isCaretInsideEditor(holder: string): boolean {
@@ -1319,14 +1472,14 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
             <Toolbar onDownload={handleDownload} onOpenChat={handleOpenChat} />
             
             {/* Streaming indicator */}
-            {isStreaming && (
+            {/* {isStreaming && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-4 flex items-center gap-2">
                     <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     <span className="text-blue-700 text-sm">
                         {language === 'en' ? 'Generating expanded outline...' : 'Proses mengembangkan outline...'}
                     </span>
                 </div>
-            )}
+            )} */}
             
             {!isReady && (
                 <div className="text-center py-8 text-gray-500">

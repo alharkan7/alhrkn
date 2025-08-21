@@ -197,3 +197,37 @@
 .skeleton-line.short {
   width: 40%;
 }
+
+/* Tighten spacing for EditorJS list blocks and items */
+/* Remove large vertical gaps around lists and between list items */
+.ce-block__content > ul,
+.ce-block__content > ol {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 1.25rem; /* keep readable indent */
+}
+
+.ce-block__content li {
+  margin-top: 1px;
+  margin-bottom: 1px;
+}
+
+/* EditorJS List tool specific classes */
+.cdx-list {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 1.25rem;
+}
+
+.cdx-list__item {
+  margin-top: 1px;
+  margin-bottom: 1px;
+}
+
+/* Reduce block-level vertical spacing for list blocks only (where :has is supported) */
+.ce-block:has(> .ce-block__content > ul),
+.ce-block:has(> .ce-block__content > ol),
+.ce-block:has(> .ce-block__content > .cdx-list) {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
