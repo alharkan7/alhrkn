@@ -27,7 +27,7 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
           size="sm"
           className="bg-main text-mtext border-border hover:bg-main/90"
           aria-label="Go Back"
-          onClick={() => router.back()}
+          onClick={() => router.push('/outliner')}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
