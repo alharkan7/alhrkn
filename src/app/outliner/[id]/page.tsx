@@ -395,6 +395,8 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     const showDelayTimerRef = useRef<number | null>(null);
     const suppressUntilNextPointerRef = useRef<boolean>(false);
     const warmedToolsRef = useRef<boolean>(false);
+    const lastScrollTsRef = useRef<number>(0);
+    const rescheduleCountRef = useRef<number>(0);
     
     // Streaming state
     const [isStreaming, setIsStreaming] = useState(false);
@@ -821,65 +823,6 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
         }
     }, [idea, language, id]);
 
-    // Function to update editor with a new block
-    const updateEditorWithBlock = async (block: any, index: number) => {
-        if (!editorRef.current) return;
-        
-        try {
-            const currentData = await editorRef.current.save();
-            const blocks = [...(currentData.blocks || [])];
-            
-            // If this is a new block beyond current length, pad with empty paragraphs if needed
-            while (blocks.length <= index) {
-                blocks.push({
-                    type: 'paragraph',
-                    data: {
-                        text: '<div class="skeleton-line"></div>'
-                    }
-                });
-            }
-            
-            // Replace the block at the correct position
-            blocks[index] = block;
-            
-            // Use EditorJS API to insert block without full re-render for better performance
-            try {
-                // Try to use the blocks API if available
-                if (editorRef.current.blocks && editorRef.current.blocks.insert) {
-                    // Remove existing block first if it exists
-                    if (index < editorRef.current.blocks.getBlocksCount()) {
-                        editorRef.current.blocks.delete(index);
-                    }
-                    
-                    // Insert the new block
-                    await editorRef.current.blocks.insert(
-                        block.type,
-                        block.data,
-                        undefined, // config
-                        index // position
-                    );
-                } else {
-                    // Fallback to full re-render
-                    await editorRef.current.clear();
-                    await editorRef.current.render({ blocks });
-                }
-            } catch (insertError) {
-                console.warn('Block insert failed, using full re-render:', insertError);
-                // Fallback to full re-render
-                await editorRef.current.clear();
-                await editorRef.current.render({ blocks });
-            }
-            
-            // Auto-save after update
-            setTimeout(() => {
-                localStorage.setItem(`outliner:${id}:doc`, JSON.stringify({ blocks }));
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error updating editor with block:', error);
-        }
-    };
-
     useEffect(() => {
         let isMounted = true;
 
@@ -967,8 +910,16 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                         paragraph: {
                             inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite', 'chat']
                         } as any,
-                        header: Header as any,
-                        list: List as any,
+                        // Enable inline AI tools for headers as well
+                        header: {
+                            class: Header as any,
+                            inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite', 'chat']
+                        } as any,
+                        // Enable inline AI tools for list items
+                        list: {
+                            class: List as any,
+                            inlineToolbar: ['bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite', 'chat']
+                        } as any,
                         marker: { class: Marker } as const,
                         inlineCode: { class: InlineCode } as const,
                         underline: { class: Underline } as const,
@@ -1100,7 +1051,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                                 document.addEventListener('selectionchange', onSelectionChange);
                                 selectionHandlerRef.current = onSelectionChange;
                                 // Hide on scroll to avoid drifting
-                                const onScroll = () => { if (miniToolbarRef.current) miniToolbarRef.current.style.display = 'none'; };
+                                const onScroll = () => { lastScrollTsRef.current = Date.now(); if (miniToolbarRef.current) miniToolbarRef.current.style.display = 'none'; };
                                 window.addEventListener('scroll', onScroll, { passive: true });
                                 scrollHandlerRef.current = onScroll;
 
@@ -1325,7 +1276,23 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
             if (!sel || sel.rangeCount === 0) return;
             const range = sel.getRangeAt(0);
             const rects = range.getClientRects();
-            const rect = rects.length > 0 ? rects[0] : null;
+            let rect = rects.length > 0 ? rects[0] : null as DOMRect | null;
+            // Fallback for cases (e.g., list items) where a collapsed range has no rects
+            if (!rect || (rect.width === 0 && rect.height === 0)) {
+                try {
+                    const anchorNode = range.startContainer;
+                    const anchorEl = anchorNode.nodeType === Node.ELEMENT_NODE
+                        ? (anchorNode as Element)
+                        : (anchorNode.parentElement as Element | null);
+                    let editable: HTMLElement | null = anchorEl ? (anchorEl.closest('[contenteditable="true"]') as HTMLElement | null) : null;
+                    if (!editable) {
+                        const block = anchorEl?.closest('.ce-block__content') as HTMLElement | null;
+                        editable = block ? (block.querySelector('[contenteditable="true"]') as HTMLElement | null) : null;
+                    }
+                    const altRect = (editable ? editable.getBoundingClientRect() : (anchorEl ? anchorEl.getBoundingClientRect() : null));
+                    if (altRect) rect = altRect as DOMRect;
+                } catch {}
+            }
             if (!rect) return;
             const containerRect = editorRoot.getBoundingClientRect();
 
@@ -1368,10 +1335,10 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                 }
             }
 
-            // Ensure toolbar doesn't go off-screen horizontally
-            const maxLeft = viewportWidth - toolbarWidth - 10;
+            // Ensure toolbar doesn't go off the editor horizontally
+            const maxLeft = Math.max(0, editorRoot.clientWidth - toolbarWidth - 10);
             const minLeft = 10;
-
+            
             leftPosition = Math.max(minLeft, Math.min(maxLeft, leftPosition));
 
             // Position vertically - prefer above the cursor, but below if not enough space
@@ -1381,23 +1348,23 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
 
             if (spaceAbove >= toolbarHeight + 10) {
                 // Enough space above
-                topPosition = cursorY - containerRect.top - toolbarHeight - 8 + editorRoot.scrollTop;
+                topPosition = cursorY - containerRect.top - toolbarHeight - 8;
             } else if (spaceBelow >= toolbarHeight + 10) {
                 // Enough space below
-                topPosition = cursorY - containerRect.top + 24 + editorRoot.scrollTop;
+                topPosition = cursorY - containerRect.top + 24;
             } else {
                 // Not enough space above or below, position as close as possible
                 if (spaceAbove > spaceBelow) {
                     // More space above
-                    topPosition = Math.max(10, cursorY - containerRect.top - toolbarHeight - 8 + editorRoot.scrollTop);
+                    topPosition = Math.max(10, cursorY - containerRect.top - toolbarHeight - 8);
                 } else {
                     // More space below
-                    topPosition = cursorY - containerRect.top + 24 + editorRoot.scrollTop;
+                    topPosition = cursorY - containerRect.top + 24;
                 }
             }
 
-            // Ensure toolbar doesn't go off-screen vertically
-            const maxTop = viewportHeight - toolbarHeight - 10;
+            // Ensure toolbar doesn't go off the editor vertically
+            const maxTop = Math.max(0, editorRoot.clientHeight - toolbarHeight - 10);
             const minTop = 10;
 
             topPosition = Math.max(minTop, Math.min(maxTop, topPosition));
@@ -1419,6 +1386,14 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                     const sel = window.getSelection();
                     const hasSel = !!(sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed);
                     const shouldShow = isCaretInsideEditor(holderId) && !hasSel && !suppressUntilNextPointerRef.current;
+                    const sinceScroll = Date.now() - lastScrollTsRef.current;
+                    if (shouldShow && sinceScroll < 180 && rescheduleCountRef.current < 4) {
+                        // Wait for scrolling to settle, then reschedule quickly
+                        rescheduleCountRef.current += 1;
+                        scheduleMiniToolbarShow(editorRoot);
+                        return;
+                    }
+                    rescheduleCountRef.current = 0;
                     if (shouldShow) {
                         mt.style.display = 'flex';
                         positionMiniToolbar(editorRoot, mt);
@@ -1578,6 +1553,4 @@ export default function OutlinerDetailPage() {
         </div>
     );
 }
-
-
 
