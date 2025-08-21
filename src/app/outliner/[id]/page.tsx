@@ -14,8 +14,10 @@ import '../styles/editor.css';
 import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
 import { ParaphraseTool } from '../tools/ParaphraseTool';
+import { ChatTool } from '../tools/ChatTool';
 import { SPARKLES_ICON_SVG } from '../components/svg-icons';
 import { Toolbar } from '../components/Toolbar';
+import { ChatInterface } from '../components/ChatInterface';
 import EmailForm from '../../papermap/components/EmailForm';
 
 type ResearchIdea = {
@@ -305,6 +307,11 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     const [emailLoading, setEmailLoading] = useState(false);
     const [emailError, setEmailError] = useState<string | null>(null);
 
+    // Chat state
+    const [showChat, setShowChat] = useState(false);
+    const [documentContext, setDocumentContext] = useState<string>('');
+    const [selectedText, setSelectedText] = useState<string>('');
+
     const initiateDownload = (format: string, downloadAction: () => void) => {
         setPendingDownloadFormat(format);
         setPendingDownloadAction(() => downloadAction);
@@ -514,6 +521,38 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
     }, [id]);
 
     const debouncedSave = useDebouncedCallback(saveDoc, 600);
+
+    // Get document context for chat
+    const getDocumentContext = useCallback(async (): Promise<string> => {
+        if (!editorRef.current) return '';
+        try {
+            const data = await editorRef.current.save();
+            const plainText = convertToPlainText(data);
+            return `Document Title: ${idea.title}\n\nContent:\n${plainText}`;
+        } catch (error) {
+            console.error('Error getting document context:', error);
+            return `Document Title: ${idea.title}`;
+        }
+    }, [idea.title]);
+
+    // Chat handlers
+    const handleOpenChat = async (selectedText?: string) => {
+        // Get document context before opening chat
+        const context = await getDocumentContext();
+
+        // Store the selected text separately for the UI cue
+        if (selectedText) {
+            setSelectedText(selectedText);
+        }
+
+        setDocumentContext(context);
+        setShowChat(true);
+    };
+
+    const handleCloseChat = () => {
+        setShowChat(false);
+        setSelectedText(''); // Clear selected text when closing
+    };
 
     // Function to create skeleton blocks for streaming
     const createSkeletonBlocks = () => {
@@ -819,7 +858,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                     tools: {
                         // Ensure paragraph inline toolbar shows our custom tool
                         paragraph: {
-                            inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite']
+                            inlineToolbar: ['link', 'bold', 'italic', 'underline', 'inlineCode', 'marker', 'expand', 'paraphrase', 'cite', 'chat']
                         } as any,
                         header: Header as any,
                         list: List as any,
@@ -878,6 +917,25 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                                 notify: (msg: string) => {
                                     try { console.log(msg); } catch { }
                                 }
+                            }
+                        } as any,
+                        chat: {
+                            class: ChatTool as any,
+                            config: {
+                                endpoint: '/api/outliner/chat',
+                                language: language,
+                                getDocument: async () => {
+                                    try {
+                                        if (editorRef.current) {
+                                            return await editorRef.current.save();
+                                        }
+                                    } catch { }
+                                    return { blocks: [] };
+                                },
+                                notify: (msg: string) => {
+                                    try { console.log(msg); } catch { }
+                                },
+                                onOpenChat: handleOpenChat
                             }
                         } as any,
                     },
@@ -1096,10 +1154,12 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
         const expandBtn = makeBtn('Expand', 'expand', 'outliner-ai-expand-current');
         const paraphraseBtn = makeBtn('Paraphrase', 'paraphrase', 'outliner-ai-paraphrase-current');
         const citeBtn = makeBtn('Cite', 'cite', 'outliner-ai-cite-current');
+        const chatBtn = makeBtn('Chat', 'chat', 'outliner-ai-chat-current');
         toolbar.appendChild(badge);
         toolbar.appendChild(expandBtn);
         toolbar.appendChild(paraphraseBtn);
         toolbar.appendChild(citeBtn);
+        toolbar.appendChild(chatBtn);
 
         editorRoot.style.position = 'relative';
         editorRoot.appendChild(toolbar);
@@ -1180,7 +1240,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
 
     return (
         <div className="prose prose-neutral max-w-none">
-            <Toolbar onDownload={handleDownload} />
+            <Toolbar onDownload={handleDownload} onOpenChat={handleOpenChat} />
             
             {/* Streaming indicator */}
             {isStreaming && (
@@ -1231,6 +1291,14 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                     downloadFormat={pendingDownloadFormat}
                 />
             )}
+
+            {/* Chat Interface */}
+            <ChatInterface
+                isOpen={showChat}
+                onClose={handleCloseChat}
+                documentContext={documentContext}
+                selectedText={selectedText}
+            />
         </div>
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileText, FileCode, FileType, File, ArrowLeft, Quote } from 'lucide-react';
+import { Download, FileText, FileCode, FileType, File, ArrowLeft, Quote, MessageCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +12,10 @@ import { useRouter } from 'next/navigation';
 
 interface ToolbarProps {
   onDownload: (format: 'pdf' | 'markdown' | 'txt' | 'docx') => void;
+  onOpenChat?: () => void;
 }
 
-export function Toolbar({ onDownload }: ToolbarProps) {
+export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
   const router = useRouter();
   return (
     <div className="flex items-center justify-between border-b border-border py-2 shadow-[var(--shadow)]">
@@ -32,8 +33,8 @@ export function Toolbar({ onDownload }: ToolbarProps) {
         </Button>
       </div>
 
-      {/* Middle - open citations */}
-      <div className="flex items-center justify-center">
+      {/* Middle - citations and chat */}
+      <div className="flex items-center justify-center space-x-2">
         <Button
           variant="noShadow"
           size="sm"
@@ -46,6 +47,20 @@ export function Toolbar({ onDownload }: ToolbarProps) {
           }}
         >
           <Quote className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="noShadow"
+          size="sm"
+          className="text-text border border-border"
+          aria-label="Open Chat"
+          onClick={(e) => {
+            e.preventDefault();
+            if (onOpenChat) {
+              onOpenChat();
+            }
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
         </Button>
       </div>
 
