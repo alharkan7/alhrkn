@@ -61,29 +61,92 @@ function buildInitialDocumentData(idea: ResearchIdea) {
     return { blocks };
 }
 
+// Helper function to extract text from list items
+function extractListItemText(item: any): string {
+    if (typeof item === 'string') {
+        return item.trim();
+    } else if (item && typeof item === 'object') {
+        // Handle different possible item structures
+        if (item.content) {
+            return String(item.content).trim();
+        } else if (item.text) {
+            return String(item.text).trim();
+        } else if (item.value) {
+            return String(item.value).trim();
+        } else if (item.label) {
+            return String(item.label).trim();
+        } else if (item.name) {
+            return String(item.name).trim();
+        } else if (item.title) {
+            return String(item.title).trim();
+        } else if (item.html) {
+            // Handle HTML content by stripping tags
+            return String(item.html).replace(/<[^>]*>/g, '').trim();
+        } else if (item.markdown) {
+            return String(item.markdown).trim();
+        } else {
+            // Try to find any string property
+            for (const key in item) {
+                if (typeof item[key] === 'string' && item[key].trim()) {
+                    return item[key].trim();
+                }
+            }
+            // If no string property found, try to convert the whole object
+            try {
+                const jsonStr = JSON.stringify(item);
+                if (jsonStr !== '{}' && jsonStr !== '[]') {
+                    return jsonStr;
+                }
+            } catch {}
+            return String(item);
+        }
+    } else if (item === null || item === undefined) {
+        return '';
+    } else {
+        return String(item).trim();
+    }
+}
+
 // Helper functions to convert EditorJS data to different formats
 function convertToHTML(data: any): string {
     if (!data.blocks || !Array.isArray(data.blocks)) return '';
     
     return data.blocks.map((block: any) => {
-        switch (block.type) {
-            case 'header':
-                const level = block.data.level || 1;
-                return `<h${level}>${block.data.text}</h${level}>`;
-            case 'paragraph':
-                return `<p>${block.data.text}</p>`;
-            case 'list':
-                const listType = block.data.style === 'ordered' ? 'ol' : 'ul';
-                const items = block.data.items.map((item: string) => `<li>${item}</li>`).join('');
-                return `<${listType}>${items}</${listType}>`;
-            case 'inlineCode':
-                return `<code class="code">${block.data.text}</code>`;
-            case 'marker':
-                return `<mark>${block.data.text}</mark>`;
-            case 'underline':
-                return `<u>${block.data.text}</u>`;
-            default:
-                return `<p>${block.data.text || ''}</p>`;
+        try {
+            switch (block.type) {
+                case 'header':
+                    const level = block.data?.level || 1;
+                    const headerText = block.data?.text || '';
+                    return `<h${level}>${headerText}</h${level}>`;
+                case 'paragraph':
+                    const paraText = block.data?.text || '';
+                    return `<p>${paraText}</p>`;
+                case 'list':
+                    if (!block.data || !Array.isArray(block.data.items)) {
+                        return '<ul><li>List content unavailable</li></ul>';
+                    }
+                    const listType = block.data.style === 'ordered' ? 'ol' : 'ul';
+                    const items = block.data.items.map((item: any) => {
+                        const itemText = extractListItemText(item);
+                        return `<li>${itemText}</li>`;
+                    }).join('');
+                    return `<${listType}>${items}</${listType}>`;
+                case 'inlineCode':
+                    const codeText = block.data?.text || '';
+                    return `<code class="code">${codeText}</code>`;
+                case 'marker':
+                    const markerText = block.data?.text || '';
+                    return `<mark>${markerText}</mark>`;
+                case 'underline':
+                    const underlineText = block.data?.text || '';
+                    return `<u>${underlineText}</u>`;
+                default:
+                    const defaultText = block.data?.text || '';
+                    return `<p>${defaultText}</p>`;
+            }
+        } catch (error) {
+            console.error('Error converting block to HTML:', error, block);
+            return `<p>Error converting block: ${block.type || 'unknown'}</p>`;
         }
     }).join('\n');
 }
@@ -92,25 +155,42 @@ function convertToMarkdown(data: any): string {
     if (!data.blocks || !Array.isArray(data.blocks)) return '';
     
     return data.blocks.map((block: any) => {
-        switch (block.type) {
-            case 'header':
-                const level = block.data.level || 1;
-                const hashes = '#'.repeat(level);
-                return `${hashes} ${block.data.text}\n`;
-            case 'paragraph':
-                return `${block.data.text}\n\n`;
-            case 'list':
-                const listType = block.data.style === 'ordered' ? '1.' : '-';
-                const items = block.data.items.map((item: string) => `  ${listType} ${item}`).join('\n');
-                return `${items}\n\n`;
-            case 'inlineCode':
-                return `\`${block.data.text}\``;
-            case 'marker':
-                return `==${block.data.text}==`;
-            case 'underline':
-                return `<u>${block.data.text}</u>`;
-            default:
-                return `${block.data.text || ''}\n\n`;
+        try {
+            switch (block.type) {
+                case 'header':
+                    const level = block.data?.level || 1;
+                    const hashes = '#'.repeat(level);
+                    const headerText = block.data?.text || '';
+                    return `${hashes} ${headerText}\n`;
+                case 'paragraph':
+                    const paraText = block.data?.text || '';
+                    return `${paraText}\n\n`;
+                case 'list':
+                    if (!block.data || !Array.isArray(block.data.items)) {
+                        return '• List content unavailable\n\n';
+                    }
+                    const listType = block.data.style === 'ordered' ? '1.' : '-';
+                    const items = block.data.items.map((item: any) => {
+                        const itemText = extractListItemText(item);
+                        return `  ${listType} ${itemText}`;
+                    }).join('\n');
+                    return `${items}\n\n`;
+                case 'inlineCode':
+                    const codeText = block.data?.text || '';
+                    return `\`${codeText}\``;
+                case 'marker':
+                    const markerText = block.data?.text || '';
+                    return `==${markerText}==`;
+                case 'underline':
+                    const underlineText = block.data?.text || '';
+                    return `<u>${underlineText}</u>`;
+                default:
+                    const defaultText = block.data?.text || '';
+                    return `${defaultText}\n\n`;
+            }
+        } catch (error) {
+            console.error('Error converting block to Markdown:', error, block);
+            return `Error converting block: ${block.type || 'unknown'}\n\n`;
         }
     }).join('');
 }
@@ -119,22 +199,39 @@ function convertToPlainText(data: any): string {
     if (!data.blocks || !Array.isArray(data.blocks)) return '';
     
     return data.blocks.map((block: any) => {
-        switch (block.type) {
-            case 'header':
-                return `${block.data.text}\n`;
-            case 'paragraph':
-                return `${block.data.text}\n\n`;
-            case 'list':
-                const items = block.data.items.map((item: string) => `  • ${item}`).join('\n');
-                return `${items}\n\n`;
-            case 'inlineCode':
-                return block.data.text;
-            case 'marker':
-                return block.data.text;
-            case 'underline':
-                return block.data.text;
-            default:
-                return `${block.data.text || ''}\n\n`;
+        try {
+            switch (block.type) {
+                case 'header':
+                    const headerText = block.data?.text || '';
+                    return `${headerText}\n`;
+                case 'paragraph':
+                    const paraText = block.data?.text || '';
+                    return `${paraText}\n\n`;
+                case 'list':
+                    if (!block.data || !Array.isArray(block.data.items)) {
+                        return '• List content unavailable\n\n';
+                    }
+                    const items = block.data.items.map((item: any) => {
+                        const itemText = extractListItemText(item);
+                        return `  • ${itemText}`;
+                    }).join('\n');
+                    return `${items}\n\n`;
+                case 'inlineCode':
+                    const codeText = block.data?.text || '';
+                    return codeText;
+                case 'marker':
+                    const markerText = block.data?.text || '';
+                    return markerText;
+                case 'underline':
+                    const underlineText = block.data?.text || '';
+                    return underlineText;
+                default:
+                    const defaultText = block.data?.text || '';
+                    return `${defaultText}\n\n`;
+            }
+        } catch (error) {
+            console.error('Error converting block to plain text:', error, block);
+            return `Error converting block: ${block.type || 'unknown'}\n\n`;
         }
     }).join('');
 }
@@ -243,9 +340,34 @@ function FullDocumentEditor({ id, idea }: { id: string; idea: ResearchIdea; }) {
                 const data = await editorRef.current!.save();
                 console.log(`Downloading as ${format}...`, data);
                 
+                // Debug: Log list blocks to understand their structure
+                if (data.blocks) {
+                    console.log('All blocks:', data.blocks.map((b: any) => ({ type: b.type, hasData: !!b.data, dataKeys: b.data ? Object.keys(b.data) : [] })));
+                    data.blocks.forEach((block: any, index: number) => {
+                        if (block.type === 'list') {
+                            console.log(`List block ${index}:`, block);
+                            console.log(`List items:`, block.data.items);
+                            if (block.data && Array.isArray(block.data.items)) {
+                                block.data.items.forEach((item: any, itemIndex: number) => {
+                                    console.log(`  Item ${itemIndex}:`, item, 'Type:', typeof item);
+                                    if (typeof item === 'object') {
+                                        console.log(`    Keys:`, Object.keys(item));
+                                        console.log(`    Values:`, Object.values(item));
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+                
                 let content: string;
                 let filename: string;
                 let mimeType: string;
+                
+                // Debug: Show what the conversion functions produce
+                console.log('HTML conversion result:', convertToHTML(data));
+                console.log('Markdown conversion result:', convertToMarkdown(data));
+                console.log('Plain text conversion result:', convertToPlainText(data));
                 
                 switch (format) {
                     case 'pdf':
@@ -912,5 +1034,6 @@ export default function OutlinerDetailPage() {
         </div>
     );
 }
+
 
 
