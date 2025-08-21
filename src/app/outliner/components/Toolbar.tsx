@@ -18,12 +18,12 @@ interface ToolbarProps {
 export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
   const router = useRouter();
   return (
-    <div className="flex items-center justify-between border-b border-border py-2 shadow-[var(--shadow)]">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border py-2 shadow-[var(--shadow)] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       
       {/* Left side - back button */}
       <div className="flex items-center space-x-2">
         <Button
-          variant="noShadow"
+          variant="default"
           size="sm"
           className="bg-main text-mtext border-border hover:bg-main/90"
           aria-label="Go Back"
@@ -36,7 +36,7 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
       {/* Middle - citations and chat */}
       <div className="flex items-center justify-center space-x-2">
         <Button
-          variant="noShadow"
+          variant="default"
           size="sm"
           className="text-text border border-border"
           aria-label="Open Citations"
@@ -49,7 +49,7 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
           <Quote className="h-4 w-4" />
         </Button>
         <Button
-          variant="noShadow"
+          variant="default"
           size="sm"
           className="text-text border border-border"
           aria-label="Open Chat"
@@ -68,7 +68,7 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
       <div className="flex items-center space-x-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="noShadow" size="sm" className="bg-main text-mtext border-border hover:bg-main/90">
+            <Button variant="default" size="sm" className="bg-main text-mtext border-border hover:bg-main/90">
               <Download className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

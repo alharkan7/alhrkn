@@ -1175,8 +1175,84 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
             const rect = rects.length > 0 ? rects[0] : null;
             if (!rect) return;
             const containerRect = editorRoot.getBoundingClientRect();
-            toolbar.style.top = `${rect.top - containerRect.top - 36 + editorRoot.scrollTop}px`;
-            toolbar.style.left = `${rect.left - containerRect.left}px`;
+
+            // Calculate toolbar dimensions (ensure it's rendered to get accurate measurements)
+            toolbar.style.visibility = 'hidden';
+            toolbar.style.display = 'flex';
+            const toolbarRect = toolbar.getBoundingClientRect();
+            const toolbarWidth = toolbarRect.width;
+            const toolbarHeight = toolbarRect.height;
+
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Calculate available space
+            const cursorX = rect.left;
+            const cursorY = rect.top;
+
+            // Check if there's enough space to the right of the cursor
+            const spaceToRight = viewportWidth - cursorX;
+            const spaceToLeft = cursorX;
+
+            let leftPosition: number;
+
+            // Default: position to the right of cursor
+            if (spaceToRight >= toolbarWidth + 10) {
+                // Enough space to the right
+                leftPosition = cursorX - containerRect.left;
+            } else if (spaceToLeft >= toolbarWidth + 10) {
+                // Enough space to the left
+                leftPosition = cursorX - containerRect.left - toolbarWidth;
+            } else {
+                // Not enough space on either side, position as close as possible
+                if (spaceToRight > spaceToLeft) {
+                    // More space to the right
+                    leftPosition = cursorX - containerRect.left;
+                } else {
+                    // More space to the left
+                    leftPosition = cursorX - containerRect.left - toolbarWidth;
+                }
+            }
+
+            // Ensure toolbar doesn't go off-screen horizontally
+            const maxLeft = viewportWidth - toolbarWidth - 10;
+            const minLeft = 10;
+
+            leftPosition = Math.max(minLeft, Math.min(maxLeft, leftPosition));
+
+            // Position vertically - prefer above the cursor, but below if not enough space
+            let topPosition: number;
+            const spaceAbove = cursorY;
+            const spaceBelow = viewportHeight - cursorY;
+
+            if (spaceAbove >= toolbarHeight + 10) {
+                // Enough space above
+                topPosition = cursorY - containerRect.top - toolbarHeight - 8 + editorRoot.scrollTop;
+            } else if (spaceBelow >= toolbarHeight + 10) {
+                // Enough space below
+                topPosition = cursorY - containerRect.top + 24 + editorRoot.scrollTop;
+            } else {
+                // Not enough space above or below, position as close as possible
+                if (spaceAbove > spaceBelow) {
+                    // More space above
+                    topPosition = Math.max(10, cursorY - containerRect.top - toolbarHeight - 8 + editorRoot.scrollTop);
+                } else {
+                    // More space below
+                    topPosition = cursorY - containerRect.top + 24 + editorRoot.scrollTop;
+                }
+            }
+
+            // Ensure toolbar doesn't go off-screen vertically
+            const maxTop = viewportHeight - toolbarHeight - 10;
+            const minTop = 10;
+
+            topPosition = Math.max(minTop, Math.min(maxTop, topPosition));
+
+            toolbar.style.top = `${topPosition}px`;
+            toolbar.style.left = `${leftPosition}px`;
+            toolbar.style.visibility = 'visible';
+
         } catch {}
     }
 
@@ -1247,7 +1323,7 @@ function FullDocumentEditor({ id, idea, language }: { id: string; idea: Research
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 my-4 flex items-center gap-2">
                     <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     <span className="text-blue-700 text-sm">
-                        {language === 'en' ? 'Generating expanded outline...' : 'Menghasilkan outline yang diperluas...'}
+                        {language === 'en' ? 'Generating expanded outline...' : 'Proses mengembangkan outline...'}
                     </span>
                 </div>
             )}

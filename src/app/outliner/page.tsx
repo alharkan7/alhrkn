@@ -156,7 +156,7 @@ export default function OutlinerPage() {
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!queryText.trim()) return;
+        if (!queryText.trim() || queryText.trim().length < 10) return;
         setHasResponded(false);
         // Sync query to URL (?q=...)
         try {
@@ -249,13 +249,13 @@ export default function OutlinerPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
-                        <div className="w-full flex items-center gap-2">
-                            <div className="relative flex-1">
+                        <div className="w-full flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="relative w-full sm:flex-1">
                                 <Input
                                     value={queryText}
                                     onChange={(e) => setQueryText(e.target.value)}
                                     placeholder={language === 'en' ? "Type your keywords or school major..." : "Input kata kunci atau jurusan studi..."}
-                                    className="h-12 text-base rounded-full flex-1 pl-5 pr-20"
+                                    className="h-12 text-base rounded-full w-full pl-5 pr-20"
                                 />
                                 <div className="absolute right-3 top-[47%] transform -translate-y-1/2">
                                     <DropdownMenu>
@@ -292,8 +292,8 @@ export default function OutlinerPage() {
                             </div>
                             <Button
                                 type="submit"
-                                className="h-12 px-6 text-base rounded-full"
-                                disabled={isLoading}
+                                className="h-12 px-6 text-base rounded-full w-full sm:w-auto"
+                                disabled={isLoading || !queryText.trim() || queryText.trim().length < 10}
                             >
                                 {isLoading ? (language === 'en' ? 'Researching...' : 'Researching...') : (language === 'en' ? 'Outline' : 'Outline')}
                             </Button>
