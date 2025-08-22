@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useEffect } from 'react';
 import EditorJS from '@editorjs/editorjs';
 import Header from '@editorjs/header';
 import List from '@editorjs/list';
@@ -9,11 +9,11 @@ import { ExpandInlineTool } from '../tools/ExpandInlineTool';
 import { CitationTool } from '../tools/CitationTool';
 import { ParaphraseTool } from '../tools/ParaphraseTool';
 import { ChatTool } from '../tools/ChatTool';
-import { ResearchIdea, buildInitialDocumentData, convertMarkdownToEditorJS, convertToMarkdown, convertToPlainText, convertToHTML, buildBibliographyHTML, buildBibliographyMarkdown, buildBibliographyPlain, renderPdfFromEditorData, getBibliographyEntries } from './utils';
+import { ResearchIdea, convertToMarkdown, convertToPlainText, convertToHTML, buildBibliographyHTML, buildBibliographyMarkdown, buildBibliographyPlain, renderPdfFromEditorData, getBibliographyEntries } from './utils';
 import { Toolbar } from '../components/Toolbar';
 import { ChatInterface } from '../components/ChatInterface';
 import EmailForm from '../../papermap/components/EmailForm';
-import { useDocumentEditor } from './useDocumentEditor';
+import { useDocumentEditor } from './hooks';
 
 export function FullDocumentEditor({ id, idea, language }: { id: string; idea: ResearchIdea; language: 'en' | 'id'; }) {
     const {
@@ -27,53 +27,36 @@ export function FullDocumentEditor({ id, idea, language }: { id: string; idea: R
         pointerUpHandlerRef,
         keyHandlerRef,
         inputHandlerRef,
-        showDelayTimerRef,
         suppressUntilNextPointerRef,
         warmedToolsRef,
         lastScrollTsRef,
-        rescheduleCountRef,
         streamingInitiatedRef,
         eventSourceRef,
-        markdownBufferRef,
-        streamingRenderTimerRef,
         lastAppliedBlocksRef,
 
         // State
         isReady,
         setIsReady,
-        isStreaming,
         setIsStreaming,
-        streamingBlocks,
-        setStreamingBlocks,
         showEmailForm,
         setShowEmailForm,
-        pendingDownloadAction,
         setPendingDownloadAction,
         pendingDownloadFormat,
         setPendingDownloadFormat,
         emailLoading,
-        setEmailLoading,
         emailError,
-        setEmailError,
         showChat,
-        setShowChat,
         documentContext,
-        setDocumentContext,
         selectedText,
-        setSelectedText,
 
         // Functions
         initiateDownload,
         handleEmailSubmit,
         handleOpenChat,
         handleCloseChat,
-        getDocumentContext,
-        saveDoc,
         debouncedSave,
         createSkeletonBlocks,
         startStreaming,
-        applyBlocksTailDiff,
-        isCaretInsideEditor,
         positionMiniToolbar,
         scheduleMiniToolbarShow,
         cancelScheduledMiniShow,
