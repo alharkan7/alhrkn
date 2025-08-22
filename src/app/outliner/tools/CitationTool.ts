@@ -1,4 +1,4 @@
-import { CITE_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG, PENCIL_ICON_SVG, CHEVRON_UP_ICON_SVG, CHEVRON_DOWN_ICON_SVG, CHECK_ICON_SVG, X_ICON_SVG } from '../components/svg-icons';
+import { CITE_ICON_SVG, OPEN_ICON_SVG, FILE_ICON_SVG, PENCIL_ICON_SVG, CHEVRON_UP_ICON_SVG, CHEVRON_DOWN_ICON_SVG, CHECK_ICON_SVG, X_ICON_SVG, ABSTRACT_ICON_SVG } from '../components/svg-icons';
 
 // Inline tool to find citations for selected text using the /api/outliner/cite endpoint
 export class CitationTool {
@@ -29,6 +29,9 @@ export class CitationTool {
     private loadingOverlay: HTMLDivElement | null = null;
     private boundCiteCurrent?: () => void;
     private forceBlockPlacement: boolean = false;
+    private abstractCache: Map<string, { abstract: string; timestamp: number }> = new Map();
+    private expandedAbstracts: Set<string> = new Set();
+    private abstractLoadingStates: Map<string, boolean> = new Map();
 
     constructor({ api, config }: { api: any; config: any; }) {
         this.api = api;
@@ -48,79 +51,79 @@ export class CitationTool {
         // Track the latest constructed instance
         try { CitationTool.lastConstructedInstance = this; } catch { }
 
-            // Install a single set of global listeners once
-    if (!CitationTool.globalListenersInstalled) {
-        try {
-            const w = window as any;
-            if (!w.__outliner_citation_listeners_installed) {
-                // Mini toolbar: cite current
-                window.addEventListener('outliner-ai-cite-current', () => {
-                    try {
-                        // Debounce rapid events
-                        const now = Date.now();
-                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
-                            return;
-                        }
-                        CitationTool.lastEventTime = now;
-                        
-                        const inst = CitationTool.lastConstructedInstance;
-                        if (!inst) return;
-                        if (inst.working) return;
-                        const selection = window.getSelection();
-                        const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
-                        inst.forceBlockPlacement = true;
-                        if (!hasSelection && selection && selection.rangeCount > 0) {
-                            const range = selection.getRangeAt(0);
-                            // @ts-ignore
-                            inst.surround(range as any);
-                        } else if (selection && selection.rangeCount > 0) {
-                            const range = selection.getRangeAt(0);
-                            // @ts-ignore
-                            inst.surround(range as any);
-                        }
-                    } catch { /* noop */ }
-                });
+        // Install a single set of global listeners once
+        if (!CitationTool.globalListenersInstalled) {
+            try {
+                const w = window as any;
+                if (!w.__outliner_citation_listeners_installed) {
+                    // Mini toolbar: cite current
+                    window.addEventListener('outliner-ai-cite-current', () => {
+                        try {
+                            // Debounce rapid events
+                            const now = Date.now();
+                            if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                                return;
+                            }
+                            CitationTool.lastEventTime = now;
 
-                // Document changed → update bibliography display
-                window.addEventListener('outliner-document-changed', () => {
-                    try {
-                        // Debounce rapid events
-                        const now = Date.now();
-                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
-                            return;
-                        }
-                        CitationTool.lastEventTime = now;
-                        
-                        const inst = CitationTool.lastConstructedInstance;
-                        if (!inst) return;
-                        setTimeout(() => {
-                            try { inst.updateBibliographyDisplay().catch(() => {}); } catch { }
-                        }, 200);
-                    } catch { /* noop */ }
-                });
+                            const inst = CitationTool.lastConstructedInstance;
+                            if (!inst) return;
+                            if (inst.working) return;
+                            const selection = window.getSelection();
+                            const hasSelection = selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed;
+                            inst.forceBlockPlacement = true;
+                            if (!hasSelection && selection && selection.rangeCount > 0) {
+                                const range = selection.getRangeAt(0);
+                                // @ts-ignore
+                                inst.surround(range as any);
+                            } else if (selection && selection.rangeCount > 0) {
+                                const range = selection.getRangeAt(0);
+                                // @ts-ignore
+                                inst.surround(range as any);
+                            }
+                        } catch { /* noop */ }
+                    });
 
-                // External open request
-                window.addEventListener('outliner-open-citations', () => {
-                    try {
-                        // Debounce rapid events
-                        const now = Date.now();
-                        if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
-                            return;
-                        }
-                        CitationTool.lastEventTime = now;
-                        
-                        const inst = CitationTool.lastConstructedInstance;
-                        if (!inst) return;
-                        inst.openCitations().catch(() => {});
-                    } catch { /* noop */ }
-                });
+                    // Document changed → update bibliography display
+                    window.addEventListener('outliner-document-changed', () => {
+                        try {
+                            // Debounce rapid events
+                            const now = Date.now();
+                            if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                                return;
+                            }
+                            CitationTool.lastEventTime = now;
 
-                w.__outliner_citation_listeners_installed = true;
-            }
+                            const inst = CitationTool.lastConstructedInstance;
+                            if (!inst) return;
+                            setTimeout(() => {
+                                try { inst.updateBibliographyDisplay().catch(() => { }); } catch { }
+                            }, 200);
+                        } catch { /* noop */ }
+                    });
 
-            CitationTool.globalListenersInstalled = true;
-        } catch { /* noop */ }
-    }
+                    // External open request
+                    window.addEventListener('outliner-open-citations', () => {
+                        try {
+                            // Debounce rapid events
+                            const now = Date.now();
+                            if (now - CitationTool.lastEventTime < CitationTool.EVENT_DEBOUNCE_MS) {
+                                return;
+                            }
+                            CitationTool.lastEventTime = now;
+
+                            const inst = CitationTool.lastConstructedInstance;
+                            if (!inst) return;
+                            inst.openCitations().catch(() => { });
+                        } catch { /* noop */ }
+                    });
+
+                    w.__outliner_citation_listeners_installed = true;
+                }
+
+                CitationTool.globalListenersInstalled = true;
+            } catch { /* noop */ }
+        }
     }
 
     render() {
@@ -133,7 +136,7 @@ export class CitationTool {
 
     async surround(range: Range) {
         if (this.working) return;
-        
+
         // Prevent multiple modals from being opened
         if (this.modal || document.querySelector('[data-citation-modal="true"]')) {
             return;
@@ -142,7 +145,7 @@ export class CitationTool {
         try {
             this.working = true;
             this.button.disabled = true;
-            
+
             // Ensure any existing modals are closed before proceeding
             this.closeModal();
 
@@ -210,7 +213,7 @@ export class CitationTool {
         if (this.modal) {
             try {
                 document.body.removeChild(this.modal);
-            } catch {}
+            } catch { }
             this.modal = null;
         }
 
@@ -221,7 +224,7 @@ export class CitationTool {
                 if (modal.parentNode) {
                     modal.parentNode.removeChild(modal);
                 }
-            } catch {}
+            } catch { }
         });
 
         // Create modal with custom CSS variables
@@ -449,7 +452,7 @@ export class CitationTool {
                     input.focus();
                     const len = input.value.length;
                     input.setSelectionRange(len, len);
-                } catch {}
+                } catch { }
             }, 0);
         };
 
@@ -489,7 +492,7 @@ export class CitationTool {
                 gap: 1rem;
                 align-items: stretch;
             `;
-            
+
             // Apply responsive grid layout using CSS media queries
             const style = document.createElement('style');
             style.textContent = `
@@ -740,84 +743,6 @@ export class CitationTool {
             ? `${authorNames.slice(0, 3).join(', ')}, et al.`
             : (authorNames.join(', ') || 'Unknown authors');
 
-        // Abstract with expandable toggle
-        const abstractWrapper = document.createElement('div');
-        abstractWrapper.className = 'relative';
-        abstractWrapper.style.position = 'relative';
-        abstractWrapper.style.width = '100%';
-
-        const abstract = document.createElement('p');
-        abstract.className = 'm-0 mb-3 text-sm leading-relaxed pr-8';
-        abstract.style.cssText = `
-            color: var(--text);
-            opacity: 0.9;
-        `;
-        abstract.style.paddingRight = '32px';
-        abstract.style.whiteSpace = 'pre-wrap';
-
-        const fullAbstract = paper.abstract || '';
-        const limit = 200;
-        const hasLongAbstract = fullAbstract.length > limit;
-
-        const truncate = (text: string, n: number) => text.length > n ? text.substring(0, n) + '...' : text;
-
-        let isExpanded = false;
-
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'p-1 rounded-md border text-xs cursor-pointer transition-all duration-200 hover:opacity-90';
-        toggleBtn.style.cssText = `
-            background-color: var(--bw);
-            color: var(--text);
-            border-color: var(--border);
-            z-index: 10;
-            pointer-events: auto;
-        `;
-        toggleBtn.type = 'button';
-        toggleBtn.style.position = 'absolute';
-        toggleBtn.style.right = '4px';
-        toggleBtn.style.bottom = '4px';
-        toggleBtn.setAttribute('role', 'button');
-        toggleBtn.setAttribute('aria-expanded', 'false');
-        toggleBtn.title = 'Expand abstract';
-
-        const setChevronDown = () => {
-            toggleBtn.innerHTML = CHEVRON_DOWN_ICON_SVG;
-            toggleBtn.title = 'Expand abstract';
-        };
-        const setChevronUp = () => {
-            toggleBtn.innerHTML = CHEVRON_UP_ICON_SVG;
-            toggleBtn.title = 'Collapse abstract';
-        };
-
-        // const renderAbstract = () => {
-        //     if (!fullAbstract) {
-        //         abstract.textContent = 'No abstract available';
-        //         return;
-        //     }
-        //     if (isExpanded) {
-        //         abstract.textContent = fullAbstract;
-        //         setChevronUp();
-        //         toggleBtn.setAttribute('aria-expanded', 'true');
-        //     } else {
-        //         abstract.textContent = truncate(fullAbstract, limit);
-        //         setChevronDown();
-        //         toggleBtn.setAttribute('aria-expanded', 'false');
-        //     }
-        // };
-
-        // renderAbstract();
-
-        if (hasLongAbstract) {
-            toggleBtn.onclick = (e) => {
-                try { e.preventDefault(); e.stopPropagation(); } catch { }
-                isExpanded = !isExpanded;
-                // renderAbstract();
-            };
-            abstractWrapper.appendChild(toggleBtn);
-        }
-
-        abstractWrapper.appendChild(abstract);
-
         const metaInfo = document.createElement('div');
         metaInfo.className = 'flex flex-wrap gap-2 text-xs mb-3';
         metaInfo.style.cssText = `
@@ -863,6 +788,20 @@ export class CitationTool {
         citeBtn.onclick = () => this.insertCitation(paper);
         actions.appendChild(citeBtn);
 
+        // Add Show Abstract button
+        const abstractBtn = document.createElement('button');
+        abstractBtn.setAttribute('data-abstract-btn', 'true');
+        abstractBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
+        abstractBtn.style.cssText = `
+            background-color: var(--main);
+            color: var(--mtext);
+            border-color: var(--border);
+            font-weight: var(--base-font-weight);
+        `;
+        abstractBtn.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Abstract</span>`;
+        abstractBtn.onclick = () => this.toggleAbstract(paper, card);
+        actions.appendChild(abstractBtn);
+
         // Create content wrapper for main content
         const contentWrapper = document.createElement('div');
         contentWrapper.style.cssText = `
@@ -870,12 +809,11 @@ export class CitationTool {
             display: flex;
             flex-direction: column;
         `;
-        
+
         contentWrapper.appendChild(title);
         contentWrapper.appendChild(authors);
-        contentWrapper.appendChild(abstractWrapper);
         contentWrapper.appendChild(metaInfo);
-        
+
         card.appendChild(contentWrapper);
         card.appendChild(actions);
 
@@ -890,7 +828,7 @@ export class CitationTool {
                 border-color: var(--border);
                 font-weight: var(--base-font-weight);
             `;
-            viewBtn.innerHTML = `<span class="icon" aria-hidden="true">${OPEN_ICON_SVG}</span><span>Open</span>`;
+            viewBtn.innerHTML = `<span class="icon" aria-hidden="true">${OPEN_ICON_SVG}</span><span>Web</span>`;
             actions.appendChild(viewBtn);
         }
 
@@ -912,14 +850,184 @@ export class CitationTool {
         return card;
     }
 
+    private async toggleAbstract(paper: any, card: HTMLDivElement) {
+        const paperId = paper.paperId || paper.id;
+        if (!paperId) {
+            this.config.notify?.('Paper ID not available for abstract fetch');
+            return;
+        }
+
+        // Check if abstract is already expanded
+        const isExpanded = this.expandedAbstracts.has(paperId);
+        const existingAbstract = card.querySelector('.abstract-container');
+
+        if (isExpanded && existingAbstract) {
+            // Collapse the abstract
+            this.expandedAbstracts.delete(paperId);
+            existingAbstract.remove();
+            
+            // Update button text
+            const button = card.querySelector('button[data-abstract-btn="true"]') as HTMLButtonElement;
+            if (button) {
+                button.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Abstract</span>`;
+            }
+            return;
+        }
+
+        // Show the abstract
+        try {
+            // Update button to show loading state
+            const button = card.querySelector('button[data-abstract-btn="true"]') as HTMLButtonElement;
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Loading...</span>`;
+            }
+            
+            const abstract = await this.fetchAbstract(paperId);
+            this.displayAbstract(paper, card, abstract);
+            this.expandedAbstracts.add(paperId);
+            
+            // Update button text to hide state
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = `<span class="icon" aria-hidden="true">${CHEVRON_UP_ICON_SVG}</span><span>Hide</span>`;
+            }
+        } catch (error) {
+            // Reset button on error
+            const button = card.querySelector('button[data-abstract-btn="true"]') as HTMLButtonElement;
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Show Abstract</span>`;
+            }
+            this.config.notify?.(`Failed to fetch abstract: ${(error as Error).message}`);
+        }
+    }
+
+    private async fetchAbstract(paperId: string): Promise<string> {
+        // Check cache first
+        const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+        const cached = this.abstractCache.get(paperId);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            return cached.abstract;
+        }
+
+        // Check if already loading
+        if (this.abstractLoadingStates.get(paperId)) {
+            throw new Error('Abstract is already being fetched');
+        }
+
+        // Add small delay to prevent rapid-fire requests
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        try {
+            this.abstractLoadingStates.set(paperId, true);
+            
+            const response = await fetch('/api/outliner/abstract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paperId })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                
+                // Provide user-friendly error messages
+                let userMessage = 'Failed to fetch abstract';
+                if (response.status === 404) {
+                    userMessage = 'Paper not found';
+                } else if (response.status === 403) {
+                    userMessage = 'Access denied to abstract';
+                } else if (response.status === 429) {
+                    userMessage = 'Too many requests. Please try again in a moment.';
+                } else if (response.status >= 500) {
+                    userMessage = 'Server error. Please try again later.';
+                }
+                
+                throw new Error(errorData.error || userMessage);
+            }
+
+            const data = await response.json();
+            const abstract = data.abstract || 'No abstract available for this paper.';
+            
+            // Cache the result
+            this.abstractCache.set(paperId, { abstract, timestamp: Date.now() });
+            
+            return abstract;
+        } catch (error) {
+            // Log the error for debugging but throw user-friendly message
+            console.error('Error fetching abstract for paper:', paperId, error);
+            
+            if (error instanceof Error) {
+                throw error;
+            } else {
+                throw new Error('Unexpected error occurred while fetching abstract');
+            }
+        } finally {
+            this.abstractLoadingStates.delete(paperId);
+        }
+    }
+
+    private displayAbstract(paper: any, card: HTMLDivElement, abstract: string) {
+        // Remove any existing abstract
+        const existingAbstract = card.querySelector('.abstract-container');
+        if (existingAbstract) {
+            existingAbstract.remove();
+        }
+
+        // Create abstract container
+        const abstractContainer = document.createElement('div');
+        abstractContainer.className = 'abstract-container mt-3 p-3 rounded-md border-t';
+        abstractContainer.style.cssText = `
+            background-color: var(--bg);
+            border-top-color: var(--border);
+            margin-top: 12px;
+            margin-bottom: 12px;
+            padding: 12px;
+            border-top-width: 1px;
+            border-top-style: solid;
+        `;
+
+        const abstractLabel = document.createElement('h4');
+        abstractLabel.className = 'text-sm font-semibold mb-2 m-0';
+        abstractLabel.style.cssText = `
+            color: var(--text);
+            font-weight: var(--heading-font-weight);
+            margin: 0 0 8px 0;
+        `;
+        abstractLabel.textContent = 'Abstract';
+
+        const abstractText = document.createElement('p');
+        abstractText.className = 'text-sm leading-relaxed m-0';
+        abstractText.style.cssText = `
+            color: var(--text);
+            opacity: 0.9;
+            line-height: 1.6;
+            margin: 0;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        `;
+        abstractText.textContent = abstract;
+
+        abstractContainer.appendChild(abstractLabel);
+        abstractContainer.appendChild(abstractText);
+
+        // Insert before the actions div
+        const actions = card.querySelector('.flex.gap-2.flex-wrap.mt-auto');
+        if (actions && actions.parentNode) {
+            actions.parentNode.insertBefore(abstractContainer, actions);
+        } else {
+            card.appendChild(abstractContainer);
+        }
+    }
+
     private closeModal() {
         if (this.modal) {
             try {
                 document.body.removeChild(this.modal);
-            } catch {}
+            } catch { }
             this.modal = null;
         }
-        
+
         // Also remove any other citation modals that might exist
         const existingModals = document.querySelectorAll('[data-citation-modal="true"]');
         existingModals.forEach(modal => {
@@ -927,14 +1035,14 @@ export class CitationTool {
                 if (modal.parentNode) {
                     modal.parentNode.removeChild(modal);
                 }
-            } catch {}
+            } catch { }
         });
     }
 
     private showLoading(message: string = 'Loading...') {
         try {
             if (this.loadingOverlay) return;
-            
+
             // Remove any existing loading overlays to prevent multiple layers
             const existingOverlays = document.querySelectorAll('[data-citation-loading="true"]');
             existingOverlays.forEach(overlay => {
@@ -942,9 +1050,9 @@ export class CitationTool {
                     if (overlay.parentNode) {
                         overlay.parentNode.removeChild(overlay);
                     }
-                } catch {}
+                } catch { }
             });
-            
+
             const overlay = document.createElement('div');
             overlay.setAttribute('data-citation-loading', 'true');
             overlay.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
@@ -995,7 +1103,7 @@ export class CitationTool {
                 document.body.removeChild(this.loadingOverlay);
                 this.loadingOverlay = null;
             }
-            
+
             // Also remove any other loading overlays that might exist
             const existingOverlays = document.querySelectorAll('[data-citation-loading="true"]');
             existingOverlays.forEach(overlay => {
@@ -1003,7 +1111,7 @@ export class CitationTool {
                     if (overlay.parentNode) {
                         overlay.parentNode.removeChild(overlay);
                     }
-                } catch {}
+                } catch { }
             });
         } catch { }
     }
@@ -1614,6 +1722,10 @@ export class CitationTool {
             this.pageCache.clear();
             this.lastSearchQuery = null;
             this.lastSelectedTextKey = null;
-        } catch {}
+            // Clear abstract-related properties
+            this.abstractCache.clear();
+            this.expandedAbstracts.clear();
+            this.abstractLoadingStates.clear();
+        } catch { }
     }
 }
