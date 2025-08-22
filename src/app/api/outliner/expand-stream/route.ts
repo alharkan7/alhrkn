@@ -36,9 +36,9 @@ Return content in clean Markdown only. Use a clear hierarchy of headings and lis
 - Use '### ' for subsections
 - Use paragraphs of 2-5 sentences
 - Use unordered lists '-' for bullet points and ordered lists '1.' for sequences
-- Inline formatting: **bold** for key terms, ` + "`code`" + ` for identifiers, and [links](https://example.com) when appropriate
+- Inline formatting: **bold** for key terms, *italic* for emphasis, ` + "`code`" + ` for identifiers, and [links](https://example.com) when appropriate
 
-Do not include any YAML frontmatter, HTML, tables, or images.`,
+CRITICAL: Do NOT include any markdown code fences (\`\`\`), YAML frontmatter, HTML, tables, images, or any metadata. Start directly with the document title using # and continue with content only.`,
         userPrompt: `Task: Expand the following brief research idea into a comprehensive, detailed research outline in Markdown.
 
 Input Research Idea:
@@ -64,9 +64,9 @@ Kembalikan konten dalam Markdown bersih saja. Gunakan hierarki heading dan list 
 - Gunakan '### ' untuk subbagian
 - Gunakan paragraf 2-5 kalimat
 - Gunakan list tak berurutan '-' untuk poin dan list berurutan '1.' untuk urutan
-- Pemformatan inline: **tebal** untuk istilah kunci, ` + "`kode`" + ` untuk identifier, dan [tautan](https://contoh.com) bila sesuai
+- Pemformatan inline: **tebal** untuk istilah kunci, *miring* untuk penekanan, ` + "`kode`" + ` untuk identifier, dan [tautan](https://contoh.com) bila sesuai
 
-Jangan sertakan YAML frontmatter, HTML, tabel, atau gambar.`,
+PENTING: JANGAN sertakan markdown code fences (\`\`\`), YAML frontmatter, HTML, tabel, gambar, atau metadata apapun. Mulai langsung dengan judul dokumen menggunakan # dan lanjutkan hanya dengan konten.`,
         userPrompt: `Tugas: Perluas ide penelitian berikut menjadi outline penelitian yang detail dalam Markdown.
 
 Ide Penelitian:

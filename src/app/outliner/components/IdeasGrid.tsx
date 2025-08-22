@@ -116,7 +116,7 @@ export default function IdeasGrid({
                 {ideas.map((idea, idx) => (
                     <Card
                         key={idx}
-                        className="h-full cursor-pointer transition hover:shadow-lg bg-background"
+                        className="h-full cursor-pointer transition hover:shadow-lg bg-background hover:bg-main hover:text-foreground"
                         onClick={() => {
                             setSelectedIndex(idx);
                             setOpen(true);
@@ -129,15 +129,15 @@ export default function IdeasGrid({
                         </CardHeader>
                         <CardContent className="relative space-y-3 pb-10 overflow-hidden">
                             <div>
-                                <div className="font-medium text-foreground">{language === 'en' ? 'Background' : 'Latar Belakang'}</div>
+                                <div className="font-medium">{language === 'en' ? 'Background' : 'Latar Belakang'}</div>
                                 <p className="text-sm text-muted-foreground line-clamp-3">{idea.abstract.background}</p>
                             </div>
                             <div>
-                                <div className="font-medium text-foreground">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</div>
+                                <div className="font-medium">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</div>
                                 <p className="text-sm text-muted-foreground line-clamp-3">{idea.abstract.literatureReview}</p>
                             </div>
                             <div>
-                                <div className="font-medium text-foreground">{language === 'en' ? 'Method' : 'Metode'}</div>
+                                <div className="font-medium">{language === 'en' ? 'Method' : 'Metode'}</div>
                                 <p className="text-sm text-muted-foreground line-clamp-1">{idea.abstract.method}</p>
                             </div>
                             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 md:h-32 bg-gradient-to-t from-main/95 via-main/60 to-transparent" />

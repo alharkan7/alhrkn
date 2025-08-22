@@ -24,7 +24,15 @@ export function paragraphsToBlocks(text: string) {
 }
 
 export function convertMarkdownToEditorJS(markdown: string) {
-    const lines = (markdown || '').replace(/\r\n?/g, '\n').split('\n');
+    // Clean up any code fences that might appear in AI responses
+    let cleanMarkdown = (markdown || '').replace(/\r\n?/g, '\n');
+    
+    // Remove markdown code fences (```markdown, ```, etc.)
+    cleanMarkdown = cleanMarkdown.replace(/^```[a-zA-Z]*\s*\n?/gm, '');
+    cleanMarkdown = cleanMarkdown.replace(/\n?```\s*$/gm, '');
+    cleanMarkdown = cleanMarkdown.replace(/^```\s*$/gm, '');
+    
+    const lines = cleanMarkdown.split('\n');
     const blocks: any[] = [];
     let paragraphBuffer: string[] = [];
     let listBuffer: { style: 'ordered' | 'unordered'; items: string[] } | null = null;
@@ -56,8 +64,9 @@ export function convertMarkdownToEditorJS(markdown: string) {
         let t = text;
         // Bold **text**
         t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-        // Italic *text*
-        t = t.replace(/(^|\s)\*(?!\s)([^*]+?)\*(?=\s|$)/g, '$1<i>$2</i>');
+        // Italic *text* and _text_ (with word boundary handling)
+        t = t.replace(/(^|\s)\*(?!\s)([^*]+?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>');
+        t = t.replace(/(^|\s)_(?!\s)([^_]+?)_(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>');
         // Inline code `code`
         t = t.replace(/`([^`]+?)`/g, '<code class="code">$1</code>');
         return t;
@@ -68,6 +77,11 @@ export function convertMarkdownToEditorJS(markdown: string) {
         if (line.trim() === '') {
             flushParagraph();
             flushList();
+            continue;
+        }
+        
+        // Skip any remaining code fence lines
+        if (line.trim().match(/^```[a-zA-Z]*$/) || line.trim() === '```') {
             continue;
         }
 

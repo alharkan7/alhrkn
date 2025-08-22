@@ -7,13 +7,35 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
+// Schema for structured keyword extraction response
+const keywordExtractionSchema = {
+  type: 'object',
+  properties: {
+    keywords: {
+      type: 'array',
+      items: { type: 'string' },
+      minItems: 1,
+      maxItems: 6,
+      description: 'Array of academic keywords extracted from the text'
+    },
+    searchQuery: {
+      type: 'string',
+      minLength: 1,
+      description: 'Boolean search query using AND operators'
+    }
+  },
+  required: ['keywords', 'searchQuery'],
+  propertyOrdering: ['keywords', 'searchQuery']
+};
+
+// Initialize model without schema (will be set per request)
 const model = genAI.getGenerativeModel({
   model: 'gemini-2.0-flash-lite',
   generationConfig: {
-    temperature: 0.3,
+    temperature: 0.1,
     topP: 0.8,
-    topK: 40,
-    maxOutputTokens: 1024,
+    topK: 20,
+    maxOutputTokens: 200,
   },
 });
 
@@ -36,7 +58,6 @@ interface KeywordExtractionResponse {
 interface OpenAlexWork {
   id: string;
   title: string;
-  abstract_inverted_index?: Record<string, number[]>;
   publication_year?: number;
   authorships?: Array<{
     author: {
@@ -73,87 +94,152 @@ interface CitationResponse {
   perPage: number;
 }
 
-async function extractKeywordsFromText(text: string): Promise<KeywordExtractionResponse> {
-  const prompt = `Extract 3-5 most relevant academic keywords from the following text that would be useful for finding related research papers. 
-  
-Text: "${text}"
+// Client-side keyword extraction cache
+const keywordCache = new Map<string, { result: KeywordExtractionResponse; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-Return only a JSON object with this exact structure:
-{
-  "keywords": ["keyword1", "keyword2", "keyword3"],
-  "searchQuery": "keyword1 AND keyword2 AND keyword3"
+// Client-side fallback keyword extraction
+function extractKeywordsClientSide(text: string): KeywordExtractionResponse {
+  const words = text.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(word => word.length > 3)
+    .filter(word => !['that', 'this', 'with', 'from', 'they', 'were', 'been', 'have', 'will', 'would', 'could', 'should', 'also', 'such', 'then', 'than', 'these', 'those', 'when', 'where', 'what', 'which', 'while'].includes(word))
+    .slice(0, 4);
+  
+  // Ensure we always have at least one keyword
+  if (words.length === 0) {
+    const fallbackWords = text.split(/\s+/).filter(word => word.length > 2).slice(0, 3);
+    return {
+      keywords: fallbackWords.length > 0 ? fallbackWords : ['research'],
+      searchQuery: fallbackWords.length > 0 ? fallbackWords.join(' AND ') : 'research'
+    };
+  }
+  
+  return {
+    keywords: words,
+    searchQuery: words.join(' AND ')
+  };
 }
 
-Focus on technical terms, concepts, methodologies, and domain-specific vocabulary. Avoid generic words.`;
+async function extractKeywordsFromText(text: string): Promise<KeywordExtractionResponse> {
+  // Check cache first
+  const cacheKey = text.slice(0, 200).toLowerCase().trim();
+  const cached = keywordCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.result;
+  }
+
+  // Start with client-side extraction for immediate response
+  const clientSideResult = extractKeywordsClientSide(text);
+  
+  const prompt = `You are an academic research assistant. Extract 3-4 relevant academic keywords from the following text for searching scholarly papers.
+
+Text: "${text.slice(0, 300)}"
+
+Instructions:
+- Focus on technical, academic, and domain-specific terms
+- Avoid common words like "research", "study", "analysis", "method"
+- Extract noun phrases and key concepts
+- Use simple space-separated terms for search (no quotes or AND operators)
+- Prefer English terms when possible for better paper discovery
+
+Return the result in JSON format with:
+- keywords: array of 3-4 academic terms
+- searchQuery: simple space-separated search terms`;
 
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    // Create model with structured output for this specific request
+    const structuredModel = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-lite',
       generationConfig: {
-        temperature: 0.3,
+        temperature: 0.1,
         topP: 0.8,
-        topK: 40,
-        maxOutputTokens: 1024,
+        topK: 20,
+        maxOutputTokens: 200,
         responseMimeType: 'application/json',
-      }
+        responseSchema: keywordExtractionSchema as any,
+      },
     });
+
+    const result = await structuredModel.generateContent(prompt);
 
     const responseText = result.response.text().trim();
     
-    // Try to parse the response
-    let parsed: KeywordExtractionResponse;
+    let parsed: any;
     try {
       parsed = JSON.parse(responseText);
-    } catch {
-      // Fallback: try to extract JSON from the response
-      const match = responseText.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        throw new Error('Failed to parse keyword extraction response');
-      }
+    } catch (parseError) {
+      console.warn('Structured output JSON parse failed, using fallback. Response:', responseText.substring(0, 200), 'Error:', parseError);
+      return clientSideResult;
     }
 
-    if (!parsed.keywords || !parsed.searchQuery) {
-      throw new Error('Invalid keyword extraction response structure');
+    // With structured output, the response should already be in the correct format
+    // But we still validate to ensure data quality
+    if (!parsed.keywords || !Array.isArray(parsed.keywords) || parsed.keywords.length === 0) {
+      console.warn('Structured output missing or empty keywords, using fallback. Response:', JSON.stringify(parsed));
+      return clientSideResult;
+    }
+    
+    if (!parsed.searchQuery || typeof parsed.searchQuery !== 'string' || parsed.searchQuery.trim().length === 0) {
+      console.warn('Structured output missing or empty searchQuery, using fallback. Response:', JSON.stringify(parsed));
+      return clientSideResult;
     }
 
-    return parsed;
+    // Clean and validate the keywords from structured output
+    const cleanedKeywords = parsed.keywords
+      .filter((keyword: any) => typeof keyword === 'string' && keyword.trim().length > 0)
+      .map((keyword: any) => keyword.trim())
+      .slice(0, 6); // Limit to 6 keywords max
+
+    if (cleanedKeywords.length === 0) {
+      console.warn('No valid keywords found in structured response, using fallback');
+      return clientSideResult;
+    }
+
+    const validatedResult = {
+      keywords: cleanedKeywords,
+      searchQuery: parsed.searchQuery.trim()
+    };
+
+    // Cache the result
+    keywordCache.set(cacheKey, { result: validatedResult, timestamp: Date.now() });
+    return validatedResult;
   } catch (error) {
     console.error('Error extracting keywords:', error);
-    // Fallback: create basic keywords from the text
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 3)
-      .slice(0, 3);
-    
-    return {
-      keywords: words,
-      searchQuery: words.join(' AND ')
-    };
+    // Return client-side result as fallback
+    return clientSideResult;
   }
 }
 
 async function searchOpenAlex(query: string, perPage: number = 10, page: number = 1): Promise<{ results: OpenAlexWork[]; count: number; page: number; perPage: number; }> {
-    const maxRetries = 3;
-    const baseDelay = 1000; // 1 second base delay
+    const maxRetries = 2; // Reduced retries for faster response
+    const baseDelay = 500; // Reduced base delay
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const searchUrl = `${OPENALEX_API}/works`;
+            // Use simpler query without complex filtering for better results
             const params = new URLSearchParams({
                 search: query,
                 per_page: perPage.toString(),
                 page: page.toString(),
-                select: 'id,title,abstract_inverted_index,publication_year,authorships,primary_location,locations,cited_by_count,doi,open_access'
+                sort: 'cited_by_count:desc',
+                select: 'id,title,publication_year,authorships,primary_location,locations,cited_by_count,doi,open_access'
             });
 
             const response = await fetch(`${searchUrl}?${params}`, {
                 headers: {
-                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn)'
+                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn; mailto:support@alhrkn.com)',
+                    'From': 'support@alhrkn.com'
                 }
             });
+
+            if (response.status === 403) {
+                // Handle 403 Forbidden errors gracefully - don't retry
+                console.warn('OpenAlex API returned 403 Forbidden - access denied');
+                return { results: [], count: 0, page, perPage };
+            }
 
             if (response.status === 429) {
                 // Rate limited - wait and retry with exponential backoff
@@ -174,7 +260,6 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
 
             const data = await response.json();
             
-            // OpenAlex returns results in data.results
             if (data.results && Array.isArray(data.results)) {
                 const count = typeof data?.meta?.count === 'number' ? data.meta.count : (data.results?.length || 0);
                 return { results: data.results, count, page, perPage };
@@ -187,7 +272,6 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
                 console.error('Error searching OpenAlex after all retries:', error);
                 return { results: [], count: 0, page, perPage };
             }
-            // Wait before retrying other errors
             const delay = baseDelay * Math.pow(2, attempt - 1);
             console.log(`Error on attempt ${attempt}, retrying in ${delay}ms:`, error);
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -199,22 +283,8 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
 
 // Helper function to convert OpenAlex work to the format expected by the frontend
 function convertOpenAlexWorkToPaper(work: OpenAlexWork): any {
-    // Extract abstract from inverted index if available
+    // Abstract is no longer requested for faster response times
     let abstract = '';
-    if (work.abstract_inverted_index) {
-        const words: string[] = [];
-        const maxIndex = Math.max(...Object.values(work.abstract_inverted_index).flat());
-        
-        for (let i = 0; i <= maxIndex; i++) {
-            for (const [word, positions] of Object.entries(work.abstract_inverted_index)) {
-                if (positions.includes(i)) {
-                    words[i] = word;
-                    break;
-                }
-            }
-        }
-        abstract = words.filter(Boolean).join(' ');
-    }
 
     // Extract authors
     const authors = work.authorships?.map(authorship => ({
@@ -295,8 +365,8 @@ export async function POST(req: NextRequest) {
       keywordData = await extractKeywordsFromText(text);
     }
     
-    // Add a small delay to prevent rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Add optimized delay to prevent rate limiting
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Search for papers using the extracted/provided keywords
     const searchResult = await searchOpenAlex(keywordData.searchQuery, perPage, page);

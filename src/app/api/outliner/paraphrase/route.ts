@@ -51,47 +51,49 @@ export async function POST(req: NextRequest) {
     // Enhanced system prompt for paraphrasing
     const getParaphrasePrompt = (inputText: string, citations: string[], lang: 'en' | 'id') => {
       if (lang === 'id') {
+        const citationsSection = citations.length > 0 
+          ? `\nKutipan yang HARUS dipertahankan (jangan ubah formatnya):\n${citations.join(', ')}\n` 
+          : '';
+        const preserveInstruction = citations.length > 0 
+          ? `2. PERTAHANKAN semua kutipan dalam format yang sama persis: ${citations.join(', ')}\n` 
+          : '2. Tidak ada kutipan yang perlu dipertahankan\n';
+        
         return `Anda adalah asisten penulisan akademik yang ahli dalam memparafrase teks penelitian. Tugas Anda adalah menulis ulang teks yang dipilih dengan kata-kata yang berbeda sambil mempertahankan makna dan struktur akademis yang sama.
 
 Teks yang akan diparafrase:
 """
 ${inputText}
-"""
-
-Kutipan yang HARUS dipertahankan (jangan ubah formatnya):
-${citations.length > 0 ? citations.join(', ') : 'Tidak ada kutipan'}
-
+"""${citationsSection}
 Instruksi penting:
 1. Tulis ulang teks dengan kata-kata yang berbeda tetapi makna yang sama
-2. PERTAHANKAN semua kutipan dalam format yang sama persis: ${citations.length > 0 ? citations.join(', ') : 'Tidak ada kutipan'}
-3. Jangan ubah struktur atau urutan informasi
+${preserveInstruction}3. Jangan ubah struktur atau urutan informasi
 4. Gunakan nada akademis yang sama
 5. Pastikan parafrase terdengar alami dan mudah dibaca
 6. Jangan tambahkan informasi baru atau menghilangkan informasi yang ada
-7. Output teks biasa saja, bukan HTML atau format khusus
-8. Jika ada kutipan, pastikan posisinya dalam kalimat tetap logis
+7. Output teks biasa saja, bukan HTML atau format khusus${citations.length > 0 ? '\n8. Jika ada kutipan, pastikan posisinya dalam kalimat tetap logis' : ''}
 
 Tulis parafrase dari teks di atas:`;
       } else {
+        const citationsSection = citations.length > 0 
+          ? `\nCitations that MUST be preserved (do not change their format):\n${citations.join(', ')}\n` 
+          : '';
+        const preserveInstruction = citations.length > 0 
+          ? `2. PRESERVE all citations in exactly the same format: ${citations.join(', ')}\n` 
+          : '2. No citations need to be preserved\n';
+        
         return `You are an academic writing assistant expert at paraphrasing research text. Your task is to rewrite the selected text using different words while maintaining the same meaning and academic structure.
 
 Text to paraphrase:
 """
 ${inputText}
-"""
-
-Citations that MUST be preserved (do not change their format):
-${citations.length > 0 ? citations.join(', ') : 'No citations'}
-
+"""${citationsSection}
 Important instructions:
 1. Rewrite the text using different words but the same meaning
-2. PRESERVE all citations in exactly the same format: ${citations.length > 0 ? citations.join(', ') : 'No citations'}
-3. Do not change the structure or order of information
+${preserveInstruction}3. Do not change the structure or order of information
 4. Use the same academic tone
 5. Ensure the paraphrase sounds natural and readable
 6. Do not add new information or remove existing information
-7. Output plain text only, not HTML or special formatting
-8. If there are citations, ensure their position in sentences remains logical
+7. Output plain text only, not HTML or special formatting${citations.length > 0 ? '\n8. If there are citations, ensure their position in sentences remains logical' : ''}
 
 Write the paraphrase of the text above:`;
       }

@@ -160,6 +160,9 @@ export class ParaphraseTool {
                 return;
             }
 
+            // Clean up any redundant text that might have been included by the AI
+            finalText = this.cleanParaphrasedText(finalText);
+
             // Replace the selected text with the paraphrased version
             try {
                 // Find the block that contains our original selection
@@ -302,7 +305,9 @@ export class ParaphraseTool {
     private renderStreamingPreview(text: string) {
         try {
             if (!this.streamContainerEl) return;
-            const safe = this.escapeHTML(text);
+            // Clean the text before displaying
+            const cleanedText = this.cleanParaphrasedText(text);
+            const safe = this.escapeHTML(cleanedText);
             const html = `<p class="text-[0.95rem] leading-7 text-gray-800">${safe.replace(/\n/g, '<br>')}</p>`;
             this.streamContainerEl.innerHTML = html;
         } catch { /* noop */ }
@@ -398,6 +403,52 @@ export class ParaphraseTool {
         } catch (error) {
             console.error('Error finding target block:', error);
             return null;
+        }
+    }
+
+    private cleanParaphrasedText(text: string): string {
+        try {
+            // Remove redundant phrases that might appear in AI responses
+            let cleaned = text.trim();
+            
+            // Remove common redundant phrases in English
+            const englishRedundantPhrases = [
+                /\b[Nn]o citations?\b/g,
+                /\b[Nn]o citations? need to be preserved\b/g,
+                /\bCitations? that MUST be preserved.*?:\s*/g,
+                /\bImportant instructions?:.*?$/gm,
+                /^\s*-\s*.*$/gm // Remove bullet points that might appear
+            ];
+            
+            // Remove common redundant phrases in Indonesian
+            const indonesianRedundantPhrases = [
+                /\b[Tt]idak ada kutipan\b/g,
+                /\b[Tt]idak ada kutipan yang perlu dipertahankan\b/g,
+                /\bKutipan yang HARUS dipertahankan.*?:\s*/g,
+                /\bInstruksi penting:.*?$/gm
+            ];
+            
+            // Apply English cleaning
+            englishRedundantPhrases.forEach(regex => {
+                cleaned = cleaned.replace(regex, '');
+            });
+            
+            // Apply Indonesian cleaning
+            indonesianRedundantPhrases.forEach(regex => {
+                cleaned = cleaned.replace(regex, '');
+            });
+            
+            // Clean up any remaining artifacts
+            cleaned = cleaned
+                .replace(/^\s*[\-\*]\s+/gm, '') // Remove bullet points at start of lines
+                .replace(/\n\s*\n\s*\n/g, '\n\n') // Normalize multiple newlines
+                .replace(/^\s+|\s+$/g, '') // Trim start and end
+                .replace(/\s{2,}/g, ' '); // Normalize multiple spaces
+            
+            return cleaned || text; // Return original if cleaning resulted in empty string
+        } catch (error) {
+            console.error('Error cleaning paraphrased text:', error);
+            return text; // Return original text if cleaning fails
         }
     }
 }

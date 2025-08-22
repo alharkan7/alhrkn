@@ -264,9 +264,9 @@ export class CitationTool {
         const pager = document.createElement('div');
         pager.className = 'flex flex-col gap-2';
 
-        // Button row
+        // Button row with responsive layout
         const buttonRow = document.createElement('div');
-        buttonRow.className = 'flex items-center gap-2';
+        buttonRow.className = 'flex flex-col sm:flex-row items-center gap-2';
 
         const prevBtn = document.createElement('button');
         prevBtn.textContent = 'Prev';
@@ -293,17 +293,17 @@ export class CitationTool {
         nextBtn.disabled = !hasMore;
         nextBtn.onclick = () => this.goToPage(page + 1);
 
+        // Page info that goes between buttons on larger screens
+        // const pageInfo = document.createElement('span');
+        // pageInfo.textContent = `${(page - 1) * perPage + 1}-${(page - 1) * perPage + showingCount} of ${totalFound}`;
+        // pageInfo.className = 'text-xs opacity-80 text-center order-first sm:order-none';
+        // pageInfo.style.cssText = `color: var(--text);`;
+
         buttonRow.appendChild(prevBtn);
+        // buttonRow.appendChild(pageInfo);
         buttonRow.appendChild(nextBtn);
 
-        // Page info row
-        const pageInfo = document.createElement('span');
-        pageInfo.textContent = `${(page - 1) * perPage + 1}-${(page - 1) * perPage + showingCount} of ${totalFound}`;
-        pageInfo.className = 'text-xs opacity-80 text-center';
-        pageInfo.style.cssText = `color: var(--text);`;
-
         pager.appendChild(buttonRow);
-        pager.appendChild(pageInfo);
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
@@ -482,7 +482,33 @@ export class CitationTool {
         // Papers list
         if (data.papers && data.papers.length > 0) {
             const papersList = document.createElement('div');
-            papersList.className = 'flex flex-col gap-4';
+            papersList.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+            papersList.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(1, 1fr);
+                gap: 1rem;
+                align-items: stretch;
+            `;
+            
+            // Apply responsive grid layout using CSS media queries
+            const style = document.createElement('style');
+            style.textContent = `
+                @media (min-width: 768px) {
+                    .citation-papers-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                }
+                .citation-papers-grid > * {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                }
+            `;
+            if (!document.querySelector('style[data-citation-grid="true"]')) {
+                style.setAttribute('data-citation-grid', 'true');
+                document.head.appendChild(style);
+            }
+            papersList.classList.add('citation-papers-grid');
 
             data.papers.forEach((paper: any, index: number) => {
                 const paperCard = this.createPaperCard(paper, index + 1);
@@ -680,6 +706,9 @@ export class CitationTool {
             background-color: var(--bw);
             box-shadow: var(--shadow);
             overflow: visible;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         `;
         card.addEventListener('mouseenter', () => {
             card.style.transform = 'translateY(-2px)';
@@ -760,29 +789,29 @@ export class CitationTool {
             toggleBtn.title = 'Collapse abstract';
         };
 
-        const renderAbstract = () => {
-            if (!fullAbstract) {
-                abstract.textContent = 'No abstract available';
-                return;
-            }
-            if (isExpanded) {
-                abstract.textContent = fullAbstract;
-                setChevronUp();
-                toggleBtn.setAttribute('aria-expanded', 'true');
-            } else {
-                abstract.textContent = truncate(fullAbstract, limit);
-                setChevronDown();
-                toggleBtn.setAttribute('aria-expanded', 'false');
-            }
-        };
+        // const renderAbstract = () => {
+        //     if (!fullAbstract) {
+        //         abstract.textContent = 'No abstract available';
+        //         return;
+        //     }
+        //     if (isExpanded) {
+        //         abstract.textContent = fullAbstract;
+        //         setChevronUp();
+        //         toggleBtn.setAttribute('aria-expanded', 'true');
+        //     } else {
+        //         abstract.textContent = truncate(fullAbstract, limit);
+        //         setChevronDown();
+        //         toggleBtn.setAttribute('aria-expanded', 'false');
+        //     }
+        // };
 
-        renderAbstract();
+        // renderAbstract();
 
         if (hasLongAbstract) {
             toggleBtn.onclick = (e) => {
                 try { e.preventDefault(); e.stopPropagation(); } catch { }
                 isExpanded = !isExpanded;
-                renderAbstract();
+                // renderAbstract();
             };
             abstractWrapper.appendChild(toggleBtn);
         }
@@ -790,7 +819,7 @@ export class CitationTool {
         abstractWrapper.appendChild(abstract);
 
         const metaInfo = document.createElement('div');
-        metaInfo.className = 'flex gap-4 text-xs mb-3';
+        metaInfo.className = 'flex flex-wrap gap-2 text-xs mb-3';
         metaInfo.style.cssText = `
             color: var(--text);
             opacity: 0.7;
@@ -815,7 +844,10 @@ export class CitationTool {
         }
 
         const actions = document.createElement('div');
-        actions.className = 'flex gap-2 flex-wrap';
+        actions.className = 'flex gap-2 flex-wrap mt-auto';
+        actions.style.cssText = `
+            margin-top: auto;
+        `;
 
         // Add Cite button
         const citeBtn = document.createElement('button');
@@ -831,10 +863,20 @@ export class CitationTool {
         citeBtn.onclick = () => this.insertCitation(paper);
         actions.appendChild(citeBtn);
 
-        card.appendChild(title);
-        card.appendChild(authors);
-        card.appendChild(abstractWrapper);
-        card.appendChild(metaInfo);
+        // Create content wrapper for main content
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.cssText = `
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        `;
+        
+        contentWrapper.appendChild(title);
+        contentWrapper.appendChild(authors);
+        contentWrapper.appendChild(abstractWrapper);
+        contentWrapper.appendChild(metaInfo);
+        
+        card.appendChild(contentWrapper);
         card.appendChild(actions);
 
         if (paper.url) {
