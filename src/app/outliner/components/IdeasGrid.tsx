@@ -123,22 +123,22 @@ export default function IdeasGrid({
                         }}
                     >
                         <CardHeader>
-                            <CardTitle className="text-lg font-semibold line-clamp-2">
+                            <CardTitle className="text-lg font-semibold line-clamp-2 text-foreground">
                                 {idea.title}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="relative space-y-3 pb-10 overflow-hidden">
                             <div>
-                                <div className="font-medium">{language === 'en' ? 'Background' : 'Latar Belakang'}</div>
-                                <p className="text-sm opacity-90 line-clamp-3">{idea.abstract.background}</p>
+                                <div className="font-medium text-foreground">{language === 'en' ? 'Background' : 'Latar Belakang'}</div>
+                                <p className="text-sm text-muted-foreground line-clamp-3">{idea.abstract.background}</p>
                             </div>
                             <div>
-                                <div className="font-medium">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</div>
-                                <p className="text-sm opacity-90 line-clamp-3">{idea.abstract.literatureReview}</p>
+                                <div className="font-medium text-foreground">{language === 'en' ? 'Literature Review' : 'Tinjauan Literatur'}</div>
+                                <p className="text-sm text-muted-foreground line-clamp-3">{idea.abstract.literatureReview}</p>
                             </div>
                             <div>
-                                <div className="font-medium">{language === 'en' ? 'Method' : 'Metode'}</div>
-                                <p className="text-sm opacity-80 line-clamp-1">{idea.abstract.method}</p>
+                                <div className="font-medium text-foreground">{language === 'en' ? 'Method' : 'Metode'}</div>
+                                <p className="text-sm text-muted-foreground line-clamp-1">{idea.abstract.method}</p>
                             </div>
                             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 md:h-32 bg-gradient-to-t from-main/95 via-main/60 to-transparent" />
                         </CardContent>
