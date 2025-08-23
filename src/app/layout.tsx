@@ -12,8 +12,8 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-const title = "Papermap"
-const description = "Learn Anything with Interactive AI Mindmap"
+const title = "Al's Apps"
+const description = "Collection of Experimental (AI) Apps by @alhrkn"
 
 export const metadata: Metadata = {
   title: title,

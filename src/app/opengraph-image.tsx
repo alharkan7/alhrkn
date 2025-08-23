@@ -5,7 +5,7 @@ import { metadata } from './layout'
 export const runtime = 'edge'
 
 // Image metadata
-export const alt = 'Papermap - Interactive AI Mindmap'
+export const alt = 'Al\'s Apps - Collection of Experimental (AI) Apps by @alhrkn'
 export const size = {
   width: 1200,
   height: 630,

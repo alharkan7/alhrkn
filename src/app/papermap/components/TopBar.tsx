@@ -96,7 +96,7 @@ export default function TopBar({
 
   // Replace the onNewClick handler to navigate to root
   const handleNewClick = () => {
-    router.push('/');
+    router.push('/papermap');
   };
 
   return (

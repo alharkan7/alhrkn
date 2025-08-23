@@ -11,14 +11,14 @@ export const apps: AppConfig[] = [
   {
     name: 'Papermap',
     icon: Waypoints,
-    slug: '',
-    description: 'Learn Anything with Interactive AI Mindmap',
+    slug: 'papermap',
+    description: 'Learn Anything with Interactive Mindmap',
   },
   {
     name: 'Inztagram',
     icon: SquareKanban,
     slug: 'inztagram',
-    description: 'Create Any Diagram in Seconds with AI',
+    description: 'Create Any Diagram in Seconds',
   },
   {
     name: 'Outliner',
@@ -30,19 +30,19 @@ export const apps: AppConfig[] = [
     name: 'AI Chat',
     icon: Sparkles,
     slug: 'chat',
-    description: 'Learn Anything with AI',
+    description: 'Ask Anything with Chat Assistant',
   },
   {
     name: 'Japanese Flashcards',
     icon: Languages,
     slug: 'japanese-flashcards',
-    description: 'Simple Japanese Hiragana and Katakana Flashcards',
+    description: 'Simple Japanese Letters Flashcards',
   },
   {
     name: 'Finance Tracker',
     icon: Wallet,
     slug: 'finance-tracker',
-    description: 'Simple Finance Tracker that Records Directly to Google Sheets',
+    description: 'Records Directly to Google Sheets',
   },
   //{
     //name: "Writer's Unblock",
@@ -54,6 +54,6 @@ export const apps: AppConfig[] = [
     name: 'More AI Apps',
     icon: Infinity,
     slug: 'enaiblr',
-    description: 'Access Enaiblr Unlimited AI Platform',
+    description: 'Access Enaiblr AI Apps',
   },
 ]
