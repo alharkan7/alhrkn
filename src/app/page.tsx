@@ -34,8 +34,9 @@ export default function HomePage() {
             return (
               <Link
                 key={app.slug}
-                href={app.slug ? `/${app.slug}` : '/'}
+                href={app.slug === 'enaiblr' ? 'https://enaiblr.org/apps' : app.slug ? `/${app.slug}` : '/'}
                 className="group"
+                {...(app.slug === 'enaiblr' && { target: '_blank', rel: 'noopener noreferrer' })}
               >
                 <div className="text-center p-6 hover:translate-x-boxShadowX hover:translate-y-boxShadowY transition-all duration-200 group-hover:scale-[1.02]">
                   <div className="flex justify-center mb-4">
