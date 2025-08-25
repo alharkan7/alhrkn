@@ -14,7 +14,7 @@ export default function HomePage() {
           <h1 className="text-4xl font-heading text-text mb-4">
             Al's Apps
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto font-base">
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto font-base hidden sm:block">
             Collection of Experimental (AI) Apps by{' '}
             <a 
               href="https://x.com/alhrkn" 
@@ -32,26 +32,25 @@ export default function HomePage() {
           {apps.map((app) => {
             const IconComponent = app.icon
             return (
-              <Link
-                key={app.slug}
-                href={app.slug === 'enaiblr' ? 'https://enaiblr.org/apps' : app.slug ? `/${app.slug}` : '/'}
-                className="group"
-                {...(app.slug === 'enaiblr' && { target: '_blank', rel: 'noopener noreferrer' })}
-              >
-                <div className="text-center p-6 hover:translate-x-boxShadowX hover:translate-y-boxShadowY transition-all duration-200 group-hover:scale-[1.02]">
-                  <div className="flex justify-center mb-4">
-                    <div className="w-20 h-20 bg-main border-2 border-border shadow-shadow rounded-xl flex items-center justify-center hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-200 cursor-pointer">
+              <div key={app.slug} className="text-center p-6">
+                <div className="flex justify-center mb-4">
+                  <Link
+                    href={app.slug === 'enaiblr' ? 'https://enaiblr.org/apps' : app.slug ? `/${app.slug}` : '/'}
+                    className="group"
+                    {...(app.slug === 'enaiblr' && { target: '_blank', rel: 'noopener noreferrer' })}
+                  >
+                    <div className="w-20 h-20 bg-main border-2 border-border shadow-shadow rounded-xl flex items-center justify-center hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all duration-200 cursor-pointer group-hover:scale-[1.02]">
                       <IconComponent className="w-8 h-8 text-mtext" />
                     </div>
-                  </div>
-                  <h3 className="text-xl font-heading text-text mb-2">
-                    {app.name}
-                  </h3>
-                  <p className="text-sm text-text leading-relaxed hidden lg:block max-w-[200px] mx-auto">
-                    {app.description}
-                  </p>
+                  </Link>
                 </div>
-              </Link>
+                <h3 className="text-xl font-heading text-text mb-2">
+                  {app.name}
+                </h3>
+                <p className="text-sm text-text leading-relaxed hidden lg:block max-w-[200px] mx-auto">
+                  {app.description}
+                </p>
+              </div>
             )
           })}
         </div>
