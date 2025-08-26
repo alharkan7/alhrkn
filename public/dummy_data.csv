@@ -1,0 +1,101 @@
+TransactionID,Date,Category,Amount,Currency,Description,AccountType,Status,Quantity,PricePerUnit,IsRecurring,CustomerID,EmployeeID,Region,PaymentMethod
+1,2023-01-05,Groceries,55.23,USD,Weekly grocery shopping,Checking,Completed,1,55.23,FALSE,C001,E001,North,Credit Card
+2,2023-01-06,Utilities,120.00,USD,Monthly electricity bill,Savings,Completed,1,120.00,TRUE,C002,E002,South,Bank Transfer
+3,2023-01-07,Dining,45.75,USD,Dinner with friends,Credit,Completed,1,45.75,FALSE,C003,E003,East,Debit Card
+4,2023-01-08,Transportation,15.50,USD,Bus fare,Checking,Completed,1,15.50,FALSE,C004,E004,West,Cash
+5,2023-01-09,Entertainment,30.00,USD,Movie tickets,Savings,Completed,2,15.00,FALSE,C005,E005,North,Credit Card
+6,2023-01-10,Healthcare,80.00,USD,Pharmacy purchase,Checking,Pending,1,80.00,FALSE,C006,E006,South,Insurance
+7,2023-01-11,Shopping,150.99,USD,New clothes,Credit,Completed,1,150.99,FALSE,C007,E007,East,Credit Card
+8,2023-01-12,Education,200.00,USD,Online course fee,Savings,Completed,1,200.00,FALSE,C008,E008,West,Bank Transfer
+9,2023-01-13,Travel,350.00,USD,Flight booking,Checking,Completed,1,350.00,FALSE,C009,E009,North,Credit Card
+10,2023-01-14,Groceries,60.10,USD,Weekly grocery shopping,Checking,Completed,1,60.10,FALSE,C010,E010,South,Debit Card
+11,2023-01-15,Utilities,90.00,USD,Internet bill,Savings,Completed,1,90.00,TRUE,C011,E011,East,Bank Transfer
+12,2023-01-16,Dining,70.20,USD,Restaurant dinner,Credit,Completed,1,70.20,FALSE,C012,E012,West,Credit Card
+13,2023-01-17,Transportation,25.00,USD,Taxi ride,Checking,Completed,1,25.00,FALSE,C013,E013,North,Cash
+14,2023-01-18,Entertainment,50.00,USD,Concert tickets,Savings,Completed,2,25.00,FALSE,C014,E014,South,Credit Card
+15,2023-01-19,Healthcare,110.00,USD,Doctor's visit,Checking,Completed,1,110.00,FALSE,C015,E015,East,Insurance
+16,2023-01-20,Shopping,85.50,USD,Books,Credit,Completed,1,85.50,FALSE,C016,E016,West,Debit Card
+17,2023-01-21,Education,150.00,USD,Tuition fee,Savings,Completed,1,150.00,TRUE,C017,E017,North,Bank Transfer
+18,2023-01-22,Travel,280.00,USD,Hotel stay,Checking,Completed,1,280.00,FALSE,C018,E018,South,Credit Card
+19,2023-01-23,Groceries,48.90,USD,Weekly grocery shopping,Checking,Completed,1,48.90,FALSE,C019,E019,East,Credit Card
+20,2023-01-24,Utilities,105.00,USD,Water bill,Savings,Completed,1,105.00,TRUE,C020,E020,West,Bank Transfer
+21,2023-01-25,Dining,35.00,USD,Lunch,Credit,Completed,1,35.00,FALSE,C021,E021,North,Debit Card
+22,2023-01-26,Transportation,10.00,USD,Subway fare,Checking,Completed,1,10.00,FALSE,C022,E022,South,Cash
+23,2023-01-27,Entertainment,20.00,USD,Streaming service,Savings,Completed,1,20.00,TRUE,C023,E023,East,Credit Card
+24,2023-01-28,Healthcare,65.00,USD,Dental checkup,Checking,Completed,1,65.00,FALSE,C024,E024,West,Insurance
+25,2023-01-29,Shopping,95.00,USD,Electronics,Credit,Completed,1,95.00,FALSE,C025,E025,North,Credit Card
+26,2023-01-30,Education,180.00,USD,Workshop fee,Savings,Completed,1,180.00,FALSE,C026,E026,South,Bank Transfer
+27,2023-01-31,Travel,400.00,USD,Train ticket,Checking,Completed,1,400.00,FALSE,C027,E027,East,Credit Card
+28,2023-02-01,Groceries,52.00,USD,Weekly grocery shopping,Checking,Completed,1,52.00,FALSE,C028,E028,West,Debit Card
+29,2023-02-02,Utilities,115.00,USD,Gas bill,Savings,Completed,1,115.00,TRUE,C029,E029,North,Bank Transfer
+30,2023-02-03,Dining,60.00,USD,Cafe visit,Credit,Completed,1,60.00,FALSE,C030,E030,South,Credit Card
+31,2023-02-04,Transportation,18.00,USD,Ride share,Checking,Completed,1,18.00,FALSE,C031,E031,East,Cash
+32,2023-02-05,Entertainment,40.00,USD,Museum entry,Savings,Completed,2,20.00,FALSE,C032,E032,West,Credit Card
+33,2023-02-06,Healthcare,75.00,USD,Prescription refill,Checking,Completed,1,75.00,FALSE,C033,E033,North,Insurance
+34,2023-02-07,Shopping,130.00,USD,Home decor,Credit,Completed,1,130.00,FALSE,C034,E034,South,Credit Card
+35,2023-02-08,Education,220.00,USD,Textbooks,Savings,Completed,1,220.00,FALSE,C035,E035,East,Bank Transfer
+36,2023-02-09,Travel,300.00,USD,Bus tour,Checking,Completed,1,300.00,FALSE,C036,E036,West,Credit Card
+37,2023-02-10,Groceries,58.00,USD,Weekly grocery shopping,Checking,Completed,1,58.00,FALSE,C037,E037,North,Debit Card
+38,2023-02-11,Utilities,95.00,USD,Phone bill,Savings,Completed,1,95.00,TRUE,C038,E038,South,Bank Transfer
+39,2023-02-12,Dining,80.00,USD,Fine dining,Credit,Completed,1,80.00,FALSE,C039,E039,East,Credit Card
+40,2023-02-13,Transportation,30.00,USD,Car rental,Checking,Completed,1,30.00,FALSE,C040,E040,West,Credit Card
+41,2023-02-14,Entertainment,60.00,USD,Sports event,Savings,Completed,2,30.00,FALSE,C041,E041,North,Credit Card
+42,2023-02-15,Healthcare,100.00,USD,Eye exam,Checking,Completed,1,100.00,FALSE,C042,E042,South,Insurance
+43,2023-02-16,Shopping,70.00,USD,Gifts,Credit,Completed,1,70.00,FALSE,C043,E043,East,Debit Card
+44,2023-02-17,Education,160.00,USD,Online subscription,Savings,Completed,1,160.00,TRUE,C044,E044,West,Bank Transfer
+45,2023-02-18,Travel,250.00,USD,Weekend getaway,Checking,Completed,1,250.00,FALSE,C045,E045,North,Credit Card
+46,2023-02-19,Groceries,45.00,USD,Weekly grocery shopping,Checking,Completed,1,45.00,FALSE,C046,E046,South,Credit Card
+47,2023-02-20,Utilities,110.00,USD,Electricity bill,Savings,Completed,1,110.00,TRUE,C047,E047,East,Bank Transfer
+48,2023-02-21,Dining,40.00,USD,Fast food,Credit,Completed,1,40.00,FALSE,C048,E048,West,Debit Card
+49,2023-02-22,Transportation,12.00,USD,Public transport,Checking,Completed,1,12.00,FALSE,C049,E049,North,Cash
+50,2023-02-23,Entertainment,25.00,USD,Board games,Savings,Completed,1,25.00,FALSE,C050,E050,South,Credit Card
+51,2023-02-24,Healthcare,70.00,USD,Therapy session,Checking,Completed,1,70.00,FALSE,C051,E051,East,Insurance
+52,2023-02-25,Shopping,100.00,USD,Apparel,Credit,Completed,1,100.00,FALSE,C052,E052,West,Credit Card
+53,2023-02-26,Education,190.00,USD,Online course,Savings,Completed,1,190.00,TRUE,C053,E053,North,Bank Transfer
+54,2023-02-27,Travel,320.00,USD,Cruise,Checking,Completed,1,320.00,FALSE,C054,E054,South,Credit Card
+55,2023-02-28,Groceries,50.00,USD,Weekly grocery shopping,Checking,Completed,1,50.00,FALSE,C055,E055,East,Debit Card
+56,2023-03-01,Utilities,100.00,USD,Rent,Savings,Completed,1,100.00,TRUE,C056,E056,West,Bank Transfer
+57,2023-03-02,Dining,55.00,USD,Coffee shop,Credit,Completed,1,55.00,FALSE,C057,E057,North,Credit Card
+58,2023-03-03,Transportation,20.00,USD,Gasoline,Checking,Completed,1,20.00,FALSE,C058,E058,South,Cash
+59,2023-03-04,Entertainment,35.00,USD,Cinema,Savings,Completed,2,17.50,FALSE,C059,E059,East,Credit Card
+60,2023-03-05,Healthcare,90.00,USD,Dentist,Checking,Completed,1,90.00,FALSE,C060,E060,West,Insurance
+61,2023-03-06,Shopping,140.00,USD,Furniture,Credit,Completed,1,140.00,FALSE,C061,E061,North,Credit Card
+62,2023-03-07,Education,210.00,USD,Course materials,Savings,Completed,1,210.00,FALSE,C062,E062,South,Bank Transfer
+63,2023-03-08,Travel,380.00,USD,Resort stay,Checking,Completed,1,380.00,FALSE,C063,E063,East,Credit Card
+64,2023-03-09,Groceries,62.00,USD,Weekly grocery shopping,Checking,Completed,1,62.00,FALSE,C064,E064,West,Debit Card
+65,2023-03-10,Utilities,125.00,USD,Electricity bill,Savings,Completed,1,125.00,TRUE,C065,E065,North,Bank Transfer
+66,2023-03-11,Dining,75.00,USD,Restaurant,Credit,Completed,1,75.00,FALSE,C066,E066,South,Credit Card
+67,2023-03-12,Transportation,22.00,USD,Train fare,Checking,Completed,1,22.00,FALSE,C067,E067,East,Cash
+68,2023-03-13,Entertainment,45.00,USD,Theme park,Savings,Completed,2,22.50,FALSE,C068,E068,West,Credit Card
+69,2023-03-14,Healthcare,85.00,USD,Physical therapy,Checking,Completed,1,85.00,FALSE,C069,E069,North,Insurance
+70,2023-03-15,Shopping,110.00,USD,Shoes,Credit,Completed,1,110.00,FALSE,C070,E070,South,Debit Card
+71,2023-03-16,Education,170.00,USD,Online course,Savings,Completed,1,170.00,TRUE,C071,E071,East,Bank Transfer
+72,2023-03-17,Travel,290.00,USD,Road trip,Checking,Completed,1,290.00,FALSE,C072,E072,West,Credit Card
+73,2023-03-18,Groceries,49.00,USD,Weekly grocery shopping,Checking,Completed,1,49.00,FALSE,C073,E073,North,Credit Card
+74,2023-03-19,Utilities,108.00,USD,Gas bill,Savings,Completed,1,108.00,TRUE,C074,E074,South,Bank Transfer
+75,2023-03-20,Dining,38.00,USD,Pizza,Credit,Completed,1,38.00,FALSE,C075,E075,East,Debit Card
+76,2023-03-21,Transportation,14.00,USD,Bus pass,Checking,Completed,1,14.00,FALSE,C076,E076,West,Cash
+77,2023-03-22,Entertainment,28.00,USD,Video games,Savings,Completed,1,28.00,FALSE,C077,E077,North,Credit Card
+78,2023-03-23,Healthcare,68.00,USD,Eye drops,Checking,Completed,1,68.00,FALSE,C078,E078,South,Insurance
+79,2023-03-24,Shopping,98.00,USD,Books,Credit,Completed,1,98.00,FALSE,C079,E079,East,Credit Card
+80,2023-03-25,Education,185.00,USD,Online course,Savings,Completed,1,185.00,TRUE,C080,E080,West,Bank Transfer
+81,2023-03-26,Travel,330.00,USD,Flight,Checking,Completed,1,330.00,FALSE,C081,E081,North,Credit Card
+82,2023-03-27,Groceries,53.00,USD,Weekly grocery shopping,Checking,Completed,1,53.00,FALSE,C082,E082,South,Debit Card
+83,2023-03-28,Utilities,118.00,USD,Water bill,Savings,Completed,1,118.00,TRUE,C083,E083,East,Bank Transfer
+84,2023-03-29,Dining,65.00,USD,Restaurant,Credit,Completed,1,65.00,FALSE,C084,E084,West,Credit Card
+85,2023-03-30,Transportation,16.00,USD,Taxi,Checking,Completed,1,16.00,FALSE,C085,E085,North,Cash
+86,2023-03-31,Entertainment,32.00,USD,Concert,Savings,Completed,2,16.00,FALSE,C086,E086,South,Credit Card
+87,2023-04-01,Healthcare,82.00,USD,Pharmacy,Checking,Completed,1,82.00,FALSE,C087,E087,East,Insurance
+88,2023-04-02,Shopping,135.00,USD,Clothes,Credit,Completed,1,135.00,FALSE,C088,E088,West,Credit Card
+89,2023-04-03,Education,205.00,USD,Tuition,Savings,Completed,1,205.00,TRUE,C089,E089,North,Bank Transfer
+90,2023-04-04,Travel,360.00,USD,Hotel,Checking,Completed,1,360.00,FALSE,C090,E090,South,Credit Card
+91,2023-04-05,Groceries,57.00,USD,Weekly grocery shopping,Checking,Completed,1,57.00,FALSE,C091,E091,East,Debit Card
+92,2023-04-06,Utilities,122.00,USD,Internet bill,Savings,Completed,1,122.00,TRUE,C092,E092,West,Bank Transfer
+93,2023-04-07,Dining,72.00,USD,Dinner,Credit,Completed,1,72.00,FALSE,C093,E093,North,Credit Card
+94,2023-04-08,Transportation,24.00,USD,Bus,Checking,Completed,1,24.00,FALSE,C094,E094,South,Cash
+95,2023-04-09,Entertainment,48.00,USD,Movie,Savings,Completed,2,24.00,FALSE,C095,E095,East,Credit Card
+96,2023-04-10,Healthcare,92.00,USD,Doctor,Checking,Completed,1,92.00,FALSE,C096,E096,West,Insurance
+97,2023-04-11,Shopping,115.00,USD,Electronics,Credit,Completed,1,115.00,FALSE,C097,E097,North,Credit Card
+98,2023-04-12,Education,175.00,USD,Books,Savings,Completed,1,175.00,TRUE,C098,E098,South,Bank Transfer
+99,2023-04-13,Travel,310.00,USD,Vacation,Checking,Completed,1,310.00,FALSE,C099,E099,East,Credit Card
+100,2023-04-14,Groceries,59.00,USD,Weekly grocery shopping,Checking,Completed,1,59.00,FALSE,C100,E100,West,Debit Card
