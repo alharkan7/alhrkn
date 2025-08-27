@@ -1,34 +1,25 @@
 'use client'
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import './sheet-chat.css'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageCircle, Send, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { ChartData } from '../utils/visualization-tools'
+import { Chart } from '@/components/ui/chart'
+import { useRef, useEffect } from 'react'
 
 interface ChatMessage {
   id: string
   content: string
   isUser: boolean
   timestamp: string
-}
-
-interface TransactionData {
-  TransactionID: string
-  Date: string
-  Category: string
-  Amount: string
-  Currency: string
-  Description: string
-  AccountType: string
-  Status: string
-  Quantity: string
-  PricePerUnit: string
-  IsRecurring: string
-  CustomerID: string
-  EmployeeID: string
-  Region: string
-  PaymentMethod: string
+  chartData?: ChartData
+  summary?: { [key: string]: number | string }
+  type?: 'analysis' | 'ai'
 }
 
 interface ChatSheetProps {
@@ -52,6 +43,14 @@ export function ChatSheet({
   onSendMessage,
   onKeyPress
 }: ChatSheetProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
@@ -60,7 +59,7 @@ export function ChatSheet({
           Chat with AI
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+      <SheetContent side="right" className="w-[500px] sm:w-[650px]">
         <SheetHeader>
           <SheetTitle>AI Assistant</SheetTitle>
         </SheetHeader>
@@ -71,7 +70,43 @@ export function ChatSheet({
               {chatMessages.length === 0 ? (
                 <div className="text-center text-gray-500 mt-8">
                   <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Start a conversation about your transaction data!</p>
+                  <p className="mb-4">Start a conversation about your transaction data!</p>
+                  
+                  <div className="text-left bg-gray-50 rounded-lg p-4 mt-6">
+                    <h4 className="font-semibold text-gray-700 mb-3 text-center">Try asking:</h4>
+                    <div className="space-y-2 text-sm">
+                      <button 
+                        onClick={() => setCurrentMessage('Show me total amount by category')}
+                        className="block w-full text-left p-2 hover:bg-white rounded border border-gray-200 transition-colors"
+                      >
+                        💰 "Show me total amount by category"
+                      </button>
+                      <button 
+                        onClick={() => setCurrentMessage('Count transactions by payment method')}
+                        className="block w-full text-left p-2 hover:bg-white rounded border border-gray-200 transition-colors"
+                      >
+                        💳 "Count transactions by payment method"
+                      </button>
+                      <button 
+                        onClick={() => setCurrentMessage('Show transaction trends over time')}
+                        className="block w-full text-left p-2 hover:bg-white rounded border border-gray-200 transition-colors"
+                      >
+                        📈 "Show transaction trends over time"
+                      </button>
+                      <button 
+                        onClick={() => setCurrentMessage('What is the average transaction amount?')}
+                        className="block w-full text-left p-2 hover:bg-white rounded border border-gray-200 transition-colors"
+                      >
+                        📊 "What is the average transaction amount?"
+                      </button>
+                      <button 
+                        onClick={() => setCurrentMessage('Show me transactions by region')}
+                        className="block w-full text-left p-2 hover:bg-white rounded border border-gray-200 transition-colors"
+                      >
+                        🌍 "Show me transactions by region"
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 chatMessages.map((message) => (
@@ -86,9 +121,49 @@ export function ChatSheet({
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p className="text-xs opacity-70 mt-1">
+                      <div className="text-sm prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                      </div>
+                      
+                      {/* Render chart if available */}
+                      {message.chartData && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <Chart chartData={message.chartData} className="mb-2" />
+                        </div>
+                      )}
+                      
+                      {/* Render summary if available */}
+                      {message.summary && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="text-sm font-semibold text-blue-800 mb-2">Summary</h4>
+                          {typeof message.summary === 'string' ? (
+                            <div className="text-sm text-blue-900">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.summary}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {Object.entries(message.summary).map(([key, value]) => (
+                                <div key={key} className="flex justify-between">
+                                  <span className="text-blue-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                  <span className="font-medium text-blue-900">
+                                    {typeof value === 'number' ? value.toLocaleString() : value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <p className="text-xs opacity-70 mt-2">
                         {new Date(message.timestamp).toLocaleTimeString()}
+                        {message.type === 'analysis' && (
+                          <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Data Analysis
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -101,6 +176,7 @@ export function ChatSheet({
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
           

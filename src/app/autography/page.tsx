@@ -28,6 +28,9 @@ interface ChatMessage {
   content: string
   isUser: boolean
   timestamp: string
+  chartData?: any
+  summary?: { [key: string]: number | string }
+  type?: 'analysis' | 'ai'
 }
 
 function parseCSV(csvText: string): TransactionData[] {
@@ -42,6 +45,39 @@ function parseCSV(csvText: string): TransactionData[] {
     })
     return obj as TransactionData
   })
+}
+
+function generateCSVMetadata(data: TransactionData[]): any {
+  if (data.length === 0) return null
+  
+  const headers = Object.keys(data[0])
+  const columnTypes: { [key: string]: string } = {}
+  const sampleValues: { [key: string]: string[] } = {}
+  
+  // Analyze data types and collect sample values
+  headers.forEach(header => {
+    const values = data.slice(0, 10).map(row => row[header as keyof TransactionData]).filter(v => v)
+    sampleValues[header] = values.slice(0, 3) // First 3 non-empty values
+    
+    // Simple type detection
+    const numericValues = values.filter(v => !isNaN(Number(v)) && v !== '')
+    const dateValues = values.filter(v => !isNaN(Date.parse(v)))
+    
+    if (numericValues.length > values.length * 0.7) {
+      columnTypes[header] = 'numeric'
+    } else if (dateValues.length > values.length * 0.7) {
+      columnTypes[header] = 'date'
+    } else {
+      columnTypes[header] = 'text'
+    }
+  })
+  
+  return {
+    rowCount: data.length,
+    columns: headers,
+    columnTypes,
+    sampleValues
+  }
 }
 
 function createColumns(headers: string[]): Column[] {
@@ -117,6 +153,8 @@ export default function AutographyPage() {
     setIsChatLoading(true)
 
     try {
+      const csvMetadata = generateCSVMetadata(data)
+      
       const response = await fetch('/api/autography', {
         method: 'POST',
         headers: {
@@ -124,7 +162,8 @@ export default function AutographyPage() {
         },
         body: JSON.stringify({
           message: currentMessage,
-          csvData: data
+          csvMetadata: csvMetadata,
+          hasData: data.length > 0
         })
       })
 
@@ -138,7 +177,10 @@ export default function AutographyPage() {
         id: (Date.now() + 1).toString(),
         content: result.message,
         isUser: false,
-        timestamp: result.timestamp
+        timestamp: result.timestamp,
+        chartData: result.chartData,
+        summary: result.summary,
+        type: result.type
       }
 
       setChatMessages(prev => [...prev, aiMessage])
