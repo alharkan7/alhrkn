@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Message } from '@/types/types';
+import { Message } from '@/app/chat/types/types';
 import { FilePreview } from '@/components/ui/FilePreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';

@@ -5,7 +5,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import { tools, handleCalculate } from '@/utils/tools';
+import { tools } from '@/app/chat/utils/tools';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');

@@ -5,13 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormExpenses } from './components/form_expenses';
 import { FormIncome } from './components/form_income';
 import { Button } from "@/components/ui/button"
-import { categories, categoriesIncome } from '@/lib/categories';
+import { categories, categoriesIncome } from './lib/categories';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { motion, AnimatePresence } from "framer-motion";
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
 import { Info, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 export default function FinanceTrackerPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);

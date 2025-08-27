@@ -4,14 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import { ChatTitle } from './components/ChatTitle'
 import { MessageList } from './components/MessageList'
 import { ChatInput } from './components/ChatInput'
-import { useChatMessages } from '@/hooks/useChatMessages'
+import { useChatMessages } from './hooks/useChatMessages'
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
-import { useFileUpload } from '@/hooks/useFileUpload';
-import { apps } from '@/config/apps';
-import { Button } from '@/components/ui/button';
-import { Mail } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useFileUpload } from './hooks/useFileUpload';
 
 export default function ChatPage() {
     const { messages, isLoading, isStreaming, sendMessage, clearMessages } = useChatMessages();
