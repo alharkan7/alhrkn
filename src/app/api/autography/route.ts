@@ -1,14 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeCsvWithLLM, analyzeWithAutoVisualization, analyzeWithMetadata, LLMAnalysisResult, CSVMetadata } from '@/app/autography/utils/llm-tool-calling'
-import { parseAndAnalyzeCSV, analyzeCSVSchema, generateSchemaDescription } from '@/app/autography/utils/csv-schema-detection'
+import { analyzeCsvWithLLM, analyzeWithAutoVisualization, analyzeWithMetadata, LLMAnalysisResult, CSVMetadata } from '@/app/experimentals/autography/utils/llm-tool-calling'
+import { parseAndAnalyzeCSV, analyzeCSVSchema, generateSchemaDescription } from '@/app/experimentals/autography/utils/csv-schema-detection'
 import { 
   performSafetyCheck, 
   sanitizeUserInput, 
   sanitizeAnalysisResult, 
   withTimeout, 
   createSafeError 
-} from '@/app/autography/utils/safety-measures'
+} from '@/app/experimentals/autography/utils/safety-measures'
 import sanitizeHtml from 'sanitize-html'
 import Joi from 'joi'
 
