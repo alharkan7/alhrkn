@@ -3,12 +3,6 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
 import { Globe } from 'lucide-react';
 import AppsFooter from '@/components/apps-footer'
 import { AppsHeader } from '@/components/apps-header'
@@ -45,11 +39,17 @@ export default function OutlinerPage() {
         console.log('Language changing from', language, 'to', newLanguage);
         setLanguage(newLanguage);
         localStorage.setItem('outliner-language', newLanguage);
-        
+
         // Refetch ideas if we have a query and results, so they appear in the new language
         if (queryText.trim() && ideas && ideas.length > 0) {
             fetchIdeas(queryText.trim());
         }
+    };
+
+    // Function to toggle language
+    const toggleLanguage = () => {
+        const newLanguage = language === 'en' ? 'id' : 'en';
+        handleLanguageChange(newLanguage);
     };
 
     // Initialize from URL parameter (?q=...) and localStorage for language
@@ -258,32 +258,16 @@ export default function OutlinerPage() {
                                     className="h-12 text-base rounded-full w-full pl-5 pr-20"
                                 />
                                 <div className="absolute right-3 top-[47%] transform -translate-y-1/2">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="neutral"
-                                                size="sm"
-                                                className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
-                                            >
-                                                <Globe className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem 
-                                                onClick={() => handleLanguageChange('en')}
-                                                className={language === 'en' ? 'bg-secondary' : ''}
-                                            >
-                                                English
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem 
-                                                onClick={() => handleLanguageChange('id')}
-                                                className={language === 'id' ? 'bg-secondary' : ''}
-                                            >
-                                                Bahasa Indonesia
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <Button
+                                        type="button"
+                                        variant="neutral"
+                                        size="sm"
+                                        onClick={toggleLanguage}
+                                        className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+                                        title={language === 'en' ? 'Switch to Bahasa Indonesia' : 'Switch to English'}
+                                    >
+                                        <Globe className="h-4 w-4" />
+                                    </Button>
                                 </div>
                                 {/* Debug: Show current language */}
                                 {/* <div className="absolute right-16 top-[47%] transform -translate-y-1/2 text-xs text-gray-500">
@@ -341,5 +325,3 @@ export default function OutlinerPage() {
         </div>
     );
 }
-
-
