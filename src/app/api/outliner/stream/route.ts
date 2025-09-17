@@ -169,20 +169,24 @@ function sanitizeIdeaLine(line: string): string | null {
     const obj = JSON.parse(line);
     if (!obj || typeof obj !== 'object') return null;
 
+    // Basic validation - just ensure we have the expected structure
     const title = typeof obj.title === 'string' ? obj.title : '';
     const abstract = obj.abstract && typeof obj.abstract === 'object' ? obj.abstract : {};
+
+    // More lenient validation - allow empty strings but ensure structure exists
     const background = typeof abstract.background === 'string' ? abstract.background : '';
     const literatureReview = typeof abstract.literatureReview === 'string' ? abstract.literatureReview : '';
     const method = typeof abstract.method === 'string' ? abstract.method : '';
     const analysisTechnique = typeof abstract.analysisTechnique === 'string' ? abstract.analysisTechnique : '';
     const impact = typeof abstract.impact === 'string' ? abstract.impact : '';
 
-    if (!title || !background || !literatureReview || !method || !analysisTechnique || !impact) {
+    // Only require that title exists - the rest can be empty strings
+    if (!title.trim()) {
       return null;
     }
 
     const clean = {
-      title,
+      title: title.trim(),
       abstract: { background, literatureReview, method, analysisTechnique, impact },
     };
     return JSON.stringify(clean);
