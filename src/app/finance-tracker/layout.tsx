@@ -12,9 +12,9 @@ export default function FinanceTrackerLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen w-full bg-background">
       <Providers>
-        <main className="container">
+        <main className="w-full h-full">
           {children}
         </main>
       </Providers>
