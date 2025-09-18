@@ -208,7 +208,7 @@ Date,Amount,Category,Notes
 2025-08-24,29000,🍔 Makan & Minum,Nakoa
 2025-08-16,125000,🛍️ Belanja,Baju
 2025-08-12,530000,💊 Kesehatan,Periksa paru RS UMM
-2025-08-02,174100,🎲 Lain-lain,Mustella Alin
+2025-08-02,174100,🎲 Lain-lain,Mustella
 2025-07-29,272000,💊 Kesehatan,Periksa paru RS UMM 
 2025-07-27,65000,🧾 Tagihan & BIaya-biaya,Netflix 
 2025-08-16,800000,‎‍🎓 Pendidikan,Int. Conference 
@@ -343,7 +343,7 @@ Date,Amount,Category,Notes
 2025-09-21,20000,🍔 Makan & Minum,Nakoa
 2025-09-22,41500,🍔 Makan & Minum,Maksi McD
 2025-09-05,100000,🎲 Lain-lain,Urunan Foto Kelas
-2025-09-23,241200,🎲 Lain-lain,Belanja MPASI Alin
+2025-09-23,241200,🎲 Lain-lain,Belanja MPASI
 2025-09-26,28000,🍔 Makan & Minum,Nakoa
 2025-09-29,377800,🎲 Lain-lain,Imunisasi Rotavirus 2
 2025-09-27,65000,🍿 Hiburan,Netflix
@@ -351,7 +351,7 @@ Date,Amount,Category,Notes
 2025-09-29,100000,🎁 Kado & Donasi,Jumat Berkah
 2025-09-29,17000,🥫Jajan,Mixue 
 2025-09-29,30500,🚗 Transportasi,Gojek Ibu ke Bunut
-2025-09-29,500000,😊 Keluarga,Syukuran 7 Bulan Alin 
+2025-09-29,500000,😊 Keluarga,Syukuran 7 Bulan 
 2025-09-29,393500,🛍️ Belanja,Belanja Skin Care
 2025-09-30,69500,🚗 Transportasi,Gocar ke Bunut
 2025-10-01,63000,🍔 Makan & Minum,Makan di Warung Genji UIN
@@ -361,14 +361,14 @@ Date,Amount,Category,Notes
 2025-10-02,20000,🚗 Transportasi,Bus ke Surabaya 
 2025-10-02,20000,🍔 Makan & Minum,Makan Siang 
 2025-10-02,22000,🍔 Makan & Minum,Makan Malam 
-2025-09-06,1000000,🎁 Kado & Donasi,HP Ibu Harkan
+2025-09-06,1000000,🎁 Kado & Donasi,HP Ibu
 2025-09-30,1459300,🎁 Kado & Donasi,Hanif & Malik + Total Donasi
 2025-10-02,11000,🚗 Transportasi,Polinema
 2025-10-02,108000,🍔 Makan & Minum,Urunan maksi Jurusan
 2025-10-03,11000,🚗 Transportasi,Polinema
 2025-09-29,85000,🍔 Makan & Minum,Makan di Kismo
 2025-10-03,26000,🍔 Makan & Minum,Makan di Nakoa
-2025-10-01,20000,🎲 Lain-lain,Alpukat & Buah Naga Alin
+2025-10-01,20000,🎲 Lain-lain,Alpukat & Buah Naga
 2025-10-03,20000,🍔 Makan & Minum,Nasi Bakar
 2025-10-03,10000,🥫Jajan,Pentol Grapen
 2025-10-03,4000,🥫Jajan,Nipis Madu
@@ -391,7 +391,7 @@ Date,Amount,Category,Notes
 2025-10-08,8000,🥫Jajan,Gethuk & Parkir 
 2025-10-07,30000,🚗 Transportasi,Bensin Full Tank
 2025-10-07,200000,🛒 Bahan Dapur,Weekly Groceries 
-2025-10-09,9900,💊 Kesehatan,Masker Nurin
+2025-10-09,9900,💊 Kesehatan,Masker
 2025-10-09,33500,🚗 Transportasi,Gojek Ibu ke  Tlogomas 
 2025-10-09,40000,🚗 Transportasi,Bus ke Surabaya 
 2025-10-09,24000,🍔 Makan & Minum,Makan Siang (Nasi Bakar & Es Teh)
@@ -423,7 +423,7 @@ Date,Amount,Category,Notes
 2025-10-17,20000,🍔 Makan & Minum,Nasi Bakar
 2025-10-17,33000,🚗 Transportasi,Bus ke Malang & Parkir Arjosari 
 2025-10-18,25000,🚗 Transportasi,Gojek Ibu ke Tlogomas 
-2025-10-18,30000,🥫Jajan,Cafe Nugas dgn Nurin 
+2025-10-18,30000,🥫Jajan,Cafe Nugas 
 2025-10-18,69000,🛒 Bahan Dapur,Beras 5kg
 2025-10-19,25000,🚗 Transportasi,Bus ke Surabaya 
 2025-10-19,33000,🍔 Makan & Minum,KFC Winger
@@ -465,7 +465,7 @@ Date,Amount,Category,Notes
 2025-10-23,20711,🎲 Lain-lain,Piutang Kepanitiaan (Delete soon after reimburse)
 2025-10-24,20000,🍔 Makan & Minum,Nasi Bakar 
 2025-10-24,32000,🚗 Transportasi,Bus ke Malang & Parkir Arjosari 
-2025-10-24,31000,🎲 Lain-lain,Buah Alin
+2025-10-24,31000,🎲 Lain-lain,Buah
 2025-10-25,70000,🍔 Makan & Minum,Ayam Lodho
 2025-10-25,15000,🥫Jajan,Gorengan + Cucur
 2025-10-25,32150,🛒 Bahan Dapur,"Udang, Pop Mie, Agarasa"
