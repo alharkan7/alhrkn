@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/app/finance-tracker/lib/database';
 
 const authOptions = {
   providers: [

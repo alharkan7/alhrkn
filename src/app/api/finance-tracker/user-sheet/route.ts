@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
-import { getUserSheet, setUserSheet, removeUserSheet, getUserId } from '@/lib/user-sheets';
+import { getUserSheet, setUserSheet, removeUserSheet, getUserId } from '@/app/finance-tracker/lib/user-sheets';
 
 const authOptions = {
   providers: [
