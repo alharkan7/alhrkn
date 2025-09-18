@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: 'All-in-One AI Assistant for Science/Academic Writing with Block Style',
 }
 
-export default function JapaneseFlashcardsLayout({
+export default function EditorLayout({
   children,
 }: {
   children: React.ReactNode

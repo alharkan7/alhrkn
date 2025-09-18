@@ -1,18 +1,18 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Inztagram - Instant Diagram',
-  description: 'Create Any Diagram in Seconds with AI',
+  title: 'Essay Reviewer',
+  description: 'Review your Essays with Custom Rubrics',
 }
 
-export default function InztagramLayout({
+export default function EssayReviewerLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <main className="container !px-2">
+      <main className="w-full">
         {children}
       </main>
     </div>
