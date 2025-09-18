@@ -17,6 +17,6 @@ export default async function Image() {
   return generateOpenGraphImage({
     title: metadata.title as string,
     description: metadata.description as string,
-    path: 'outliner'
+    path: 'autography'
   })
 } 
