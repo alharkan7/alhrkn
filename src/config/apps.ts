@@ -42,7 +42,7 @@ export const apps: AppConfig[] = [
     name: 'Finance Tracker',
     icon: Wallet,
     slug: 'finance-tracker',
-    description: 'Simple Finance Tracker',
+    description: 'Expense, Income, Budget & Excel Export',
   },
   //{
     //name: "Writer's Unblock",
