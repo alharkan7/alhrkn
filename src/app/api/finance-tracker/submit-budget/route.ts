@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/app/finance-tracker/lib/database';
 
 const authOptions = {
   providers: [
@@ -37,11 +37,11 @@ export async function POST(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit expenses'
+        error: 'You must be logged in to submit budget data'
       }, { status: 401 });
     }
 
@@ -55,43 +55,46 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { timestamp, date, amount, category, notes } = body;
+    const { date, amount, notes } = body;
 
     // Validate required fields
-    if (!date || !amount || !category) {
+    if (!date || typeof amount !== 'number' || amount < 0) {
       return NextResponse.json({
-        message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
+        message: 'Invalid data',
+        error: 'Date and valid amount are required'
       }, { status: 400 });
     }
 
-    if (typeof amount !== 'number' || amount < 0) {
-      return NextResponse.json({
-        message: 'Invalid amount',
-        error: 'Amount must be a positive number'
-      }, { status: 400 });
-    }
+    // Format timestamp
+    const now = new Date();
+    const timestamp = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0');
 
-    // Create expense record in database
-    const expense = await DatabaseService.createExpense({
+    // Use upsert budget to handle monthly budget updates
+    const budget = await DatabaseService.upsertBudget({
       user_id: user.id,
-      timestamp: timestamp || null,
+      timestamp,
       date,
       amount,
-      category,
-      description: notes || null,
+      notes: notes || null,
+      budget_type: 'monthly',
       source: 'manual'
     });
 
-    return NextResponse.json({ 
-      message: 'Expense created successfully',
-      expense
-    }, { status: 200 });
-
-  } catch (error) {
-    console.error('Error submitting expense:', error);
     return NextResponse.json({
-      message: 'Error submitting expense',
+      message: 'Budget data saved successfully',
+      budget
+    });
+
+  } catch (error: any) {
+    console.error('Error submitting budget data:', error);
+
+    return NextResponse.json({
+      message: 'Error submitting budget data',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

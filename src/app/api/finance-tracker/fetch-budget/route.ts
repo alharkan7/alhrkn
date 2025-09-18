@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/app/finance-tracker/lib/database';
 
 const authOptions = {
   providers: [
@@ -33,15 +33,15 @@ const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit expenses'
+        error: 'You must be logged in to fetch budget data'
       }, { status: 401 });
     }
 
@@ -54,44 +54,27 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { timestamp, date, amount, category, notes } = body;
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Validate required fields
-    if (!date || !amount || !category) {
-      return NextResponse.json({
-        message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
-      }, { status: 400 });
-    }
+    // Fetch budgets from database
+    const budgets = await DatabaseService.getBudgets(
+      user.id,
+      startDate || undefined,
+      endDate || undefined
+    );
 
-    if (typeof amount !== 'number' || amount < 0) {
-      return NextResponse.json({
-        message: 'Invalid amount',
-        error: 'Amount must be a positive number'
-      }, { status: 400 });
-    }
-
-    // Create expense record in database
-    const expense = await DatabaseService.createExpense({
-      user_id: user.id,
-      timestamp: timestamp || null,
-      date,
-      amount,
-      category,
-      description: notes || null,
-      source: 'manual'
+    return NextResponse.json({
+      budgets,
+      message: budgets.length > 0 ? 'Budget data fetched successfully' : 'No budget data found'
     });
 
-    return NextResponse.json({ 
-      message: 'Expense created successfully',
-      expense
-    }, { status: 200 });
+  } catch (error: any) {
+    console.error('Error fetching budget data:', error);
 
-  } catch (error) {
-    console.error('Error submitting expense:', error);
     return NextResponse.json({
-      message: 'Error submitting expense',
+      message: 'Error fetching budget data',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
