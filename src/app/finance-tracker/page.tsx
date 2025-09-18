@@ -257,6 +257,28 @@ export default function MobileFinanceTracker() {
   const [isAnimating, setIsAnimating] = useState(false)
   const [animationDirection, setAnimationDirection] = useState<'left' | 'right'>('right')
 
+  // Set up dynamic viewport height for mobile browsers
+  useEffect(() => {
+    const setVH = () => {
+      if (typeof window !== 'undefined') {
+        const vh = window.innerHeight * 0.01
+        document.documentElement.style.setProperty('--vh', `${vh}px`)
+      }
+    }
+
+    // Set initial value
+    setVH()
+
+    // Update on resize and orientation change
+    window.addEventListener('resize', setVH)
+    window.addEventListener('orientationchange', setVH)
+
+    return () => {
+      window.removeEventListener('resize', setVH)
+      window.removeEventListener('orientationchange', setVH)
+    }
+  }, [])
+
   // Animation functions
   const showTransactionTableWithAnimation = () => {
     setAnimationDirection('left')
