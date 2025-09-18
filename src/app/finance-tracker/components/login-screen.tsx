@@ -6,12 +6,12 @@ import { Wallet, LogIn } from 'lucide-react'
 
 export function LoginScreen({ onDemoClick }: { onDemoClick?: () => void }) {
   return (
-    <div className="w-full relative overflow-hidden" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className="w-full relative overflow-hidden min-h-full">
       {/* Full-width background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-600"></div>
+      <div className="absolute inset-0"></div>
 
       {/* Centered content */}
-      <div className="relative z-10 h-full w-full max-w-sm mx-auto flex flex-col">
+      <div className="relative z-10 flex-1 w-full max-w-sm mx-auto flex flex-col">
         {/* Header Space */}
         <div className="p-3 w-full flex-shrink-0"></div>
 

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Bell, Settings as SettingsIcon, Zap, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { UserMenu } from './components/user-menu'
+import { AppsHeader } from '@/components/apps-header'
+import AppsFooter from '@/components/apps-footer'
 import { Chart } from './components/chart'
 import { ExpenseForm } from './components/expense-form'
 import { TransactionTable } from './components/transaction-table'
@@ -895,7 +897,19 @@ export default function MobileFinanceTracker() {
 
   // Show login screen when not authenticated and not in demo mode
   if (status === 'unauthenticated' && !isDemoMode) {
-    return <LoginScreen onDemoClick={initializeDemo} />
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="z-50">
+          <AppsHeader />
+        </div>
+        <div className="flex-1 flex flex-col justify-center items-center max-w-6xl mx-auto w-full">
+          <LoginScreen onDemoClick={initializeDemo} />
+        </div>
+        <div className="flex-none mb-1">
+          <AppsFooter />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -992,6 +1006,7 @@ export default function MobileFinanceTracker() {
                 onSubmit={handleFormSubmit}
                 loading={formLoading}
                 onCategorySwitch={handleCategorySwitch}
+                isDemoMode={isDemoMode}
               />
             </div>
           </div>
