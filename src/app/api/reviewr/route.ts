@@ -76,7 +76,7 @@ function repairJSON(jsonString: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { essayContent, essayType = 'scholarship' } = body || {};
+    const { essayContent, essayType = 'scholarship', rubric } = body || {};
 
     if (!essayContent || typeof essayContent !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid "essayContent"' }), {
@@ -85,83 +85,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create a comprehensive rubric based on essay type
-    const rubricConfig = {
-      scholarship: {
-        criteria: `
-**SCHOLARSHIP ESSAY EVALUATION RUBRIC**
+    if (!rubric || typeof rubric !== 'object') {
+      return new Response(JSON.stringify({ error: 'Missing or invalid "rubric"' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-**Content & Message (40 points)**
-- Personal story and experiences are compelling and authentic
-- Clear demonstration of achievements, goals, and motivation
-- Strong connection between past experiences and future aspirations
-- Evidence of leadership, community service, or overcoming challenges
+    // Format the rubric for the prompt
+    const criteriaText = rubric.criteria.map((criterion: any) => 
+      `**${criterion.name} (${criterion.weight}%)**\n${criterion.description}\n${criterion.points.map((point: string) => `- ${point}`).join('\n')}`
+    ).join('\n\n')
 
-**Writing Quality & Clarity (25 points)**
-- Clear, engaging writing style
-- Proper grammar, punctuation, and spelling
-- Varied sentence structure and vocabulary
-- Logical flow and transitions between ideas
-
-**Structure & Organization (20 points)**
-- Strong introduction that hooks the reader
-- Well-organized body paragraphs with clear main ideas
-- Effective conclusion that reinforces main message
-- Appropriate length and paragraph development
-
-**Persuasiveness & Impact (15 points)**
-- Convincing argument for why the applicant deserves the scholarship
-- Memorable and distinctive voice
-- Evidence of reflection and self-awareness
-- Demonstrates fit with scholarship values/criteria
-        `,
-        focusAreas: [
-          'Personal narrative and authenticity',
-          'Academic and career goals clarity',
-          'Evidence of achievements and potential',
-          'Financial need demonstration (if applicable)',
-          'Writing mechanics and style'
-        ]
-      },
-      general: {
-        criteria: `
-**GENERAL ESSAY EVALUATION RUBRIC**
-
-**Argument & Analysis (35 points)**
-- Clear thesis statement
-- Strong supporting evidence
-- Logical reasoning and analysis
-- Addresses counterarguments where appropriate
-
-**Content & Development (30 points)**
-- Comprehensive coverage of topic
-- Depth of understanding demonstrated
-- Use of relevant examples and evidence
-- Original insights and critical thinking
-
-**Organization & Structure (20 points)**
-- Clear introduction, body, and conclusion
-- Logical progression of ideas
-- Effective transitions
-- Coherent paragraph structure
-
-**Writing Mechanics (15 points)**
-- Grammar, spelling, and punctuation
-- Sentence variety and clarity
-- Appropriate tone and style
-- Proper citation format (if applicable)
-        `,
-        focusAreas: [
-          'Thesis clarity and argument strength',
-          'Evidence quality and analysis',
-          'Organization and flow',
-          'Writing mechanics and style',
-          'Critical thinking demonstration'
-        ]
-      }
-    };
-
-    const config = rubricConfig[essayType as keyof typeof rubricConfig] || rubricConfig.general;
+    const config = {
+      criteria: `**${rubric.title.toUpperCase()}**\n\n${criteriaText}`,
+      focusAreas: rubric.focusAreas
+    }
 
     const systemInstruction = `You are an expert essay evaluator and writing instructor. Your task is to provide constructive, detailed feedback on essays using established academic criteria.
 
@@ -184,7 +123,7 @@ COMMENTING GUIDELINES:
 ${config.criteria}
 
 **KEY FOCUS AREAS:**
-${config.focusAreas.map(area => `- ${area}`).join('\n')}
+${config.focusAreas.map((area: string) => `- ${area}`).join('\n')}
 
 **ESSAY TO EVALUATE:**
 ${essayContent}

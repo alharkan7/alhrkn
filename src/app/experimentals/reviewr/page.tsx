@@ -2,41 +2,37 @@
 
 import React, { useState, useEffect } from 'react'
 import { EssayReviewer } from './components/EssayReviewer'
+import { DocumentInput, type EssayType } from './components/DocumentInput'
 import { parseMarkdownToHtml } from './components/utils'
 import { Button } from '@/components/ui/button'
 
 export default function ReviewrPage() {
   const [content, setContent] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [essayType, setEssayType] = useState<EssayType>('scholarship')
+  const [showReviewer, setShowReviewer] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [aiReviewData, setAiReviewData] = useState<any>(null)
+  const [currentRubric, setCurrentRubric] = useState<any>(null)
 
-  useEffect(() => {
-    const loadEssayContent = async () => {
-      try {
-        const response = await fetch('/scholarship-essay.md')
-        const markdownContent = await response.text()
-        const htmlContent = parseMarkdownToHtml(markdownContent)
-        setContent(htmlContent)
-      } catch (error) {
-        console.error('Error loading essay content:', error)
-        // Fallback content if file loading fails
-        setContent(`
-          <h1 class="text-2xl font-bold mt-10 mb-6">Sample Essay</h1>
-          <p class="mb-4">This is a sample essay for demonstration purposes. Select any text to add comments.</p>
-          <p class="mb-4">You can highlight any passage, sentence, or paragraph and add your review comments. The comments will appear in the panel on the right side of the screen.</p>
-          <p class="mb-4">This interface is similar to Google Docs or Microsoft Word commenting functionality, allowing for collaborative review and feedback on written documents.</p>
-        `)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const handleDocumentReady = (documentContent: string, selectedEssayType: string) => {
+    const htmlContent = parseMarkdownToHtml(documentContent)
+    setContent(htmlContent)
+    setEssayType(selectedEssayType as EssayType)
+    setShowReviewer(true)
+    // Reset any previous AI review data
+    setAiReviewData(null)
+  }
 
-    loadEssayContent()
-  }, [])
+  const handleBackToInput = () => {
+    setShowReviewer(false)
+    setAiReviewData(null)
+  }
 
   const handleAIReview = async () => {
-    if (!content) return
+    if (!content || !currentRubric) {
+      alert('Please wait for the rubric to load before requesting an AI review.')
+      return
+    }
 
     setReviewLoading(true)
     try {
@@ -52,7 +48,8 @@ export default function ReviewrPage() {
         },
         body: JSON.stringify({
           essayContent: plainTextContent,
-          essayType: 'scholarship'
+          essayType: essayType,
+          rubric: currentRubric
         }),
       })
 
@@ -71,31 +68,41 @@ export default function ReviewrPage() {
     }
   }
 
-  if (loading) {
+  // Show document input if not ready to review
+  if (!showReviewer) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
-          <p>Loading essay...</p>
-        </div>
+      <div className="min-h-screen bg-background py-8">
+        <DocumentInput onDocumentReady={handleDocumentReady} />
       </div>
     )
   }
 
+  // Show the reviewer interface
   return (
     <div className="h-screen bg-background">
       <div className="bg-white border-b-2 border-border p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-heading font-bold">Essay Reviewer</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Select text in the document to add comments and reviews
-            </p>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="neutral" 
+              size="sm"
+              onClick={handleBackToInput}
+            >
+              ← Back to Input
+            </Button>
+            <div>
+              <h1 className="text-xl font-heading font-bold">
+                Essay Reviewer - {essayType.charAt(0).toUpperCase() + essayType.slice(1)}
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Select text in the document to add comments and reviews
+              </p>
+            </div>
           </div>
           <div>
             <Button 
               onClick={handleAIReview}
-              disabled={loading || !content}
+              disabled={!content}
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               {reviewLoading ? (
@@ -111,7 +118,12 @@ export default function ReviewrPage() {
         </div>
       </div>
       <div className="h-[calc(100vh-80px)]">
-        <EssayReviewer content={content} aiReviewData={aiReviewData} />
+        <EssayReviewer 
+          content={content} 
+          essayType={essayType} 
+          aiReviewData={aiReviewData}
+          onGetCurrentRubric={setCurrentRubric}
+        />
       </div>
     </div>
   )

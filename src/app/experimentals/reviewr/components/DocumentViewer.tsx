@@ -4,21 +4,27 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Comment } from './types'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { getRubric } from './rubrics'
 
 interface DocumentViewerProps {
   content: string
   comments: Comment[]
+  essayType: string
   onAddComment: (comment: Omit<Comment, 'id' | 'timestamp'>) => void
   onSelectText: (selectedText: string, range: { start: number, end: number }) => void
+  onRubricChange?: (rubric: any) => void
 }
 
-export function DocumentViewer({ content, comments, onAddComment, onSelectText }: DocumentViewerProps) {
+export function DocumentViewer({ content, comments, essayType, onAddComment, onSelectText, onRubricChange }: DocumentViewerProps) {
   const [selectedText, setSelectedText] = useState('')
   const [selectionRange, setSelectionRange] = useState<{ start: number, end: number } | null>(null)
   const [showCommentBox, setShowCommentBox] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [commentBoxPosition, setCommentBoxPosition] = useState({ top: 0, left: 0 })
+  const [isEditingRubric, setIsEditingRubric] = useState(false)
+  const [editableRubric, setEditableRubric] = useState(() => getRubric(essayType))
   const contentRef = useRef<HTMLDivElement>(null)
   const commentBoxRef = useRef<HTMLDivElement>(null)
 
@@ -106,6 +112,51 @@ export function DocumentViewer({ content, comments, onAddComment, onSelectText }
     }
   }, [showCommentBox, handleCancelComment])
 
+  // Update editable rubric when essay type changes
+  useEffect(() => {
+    setEditableRubric(getRubric(essayType))
+    setIsEditingRubric(false)
+  }, [essayType])
+
+  const handleSaveRubric = () => {
+    setIsEditingRubric(false)
+    if (onRubricChange) {
+      onRubricChange(editableRubric)
+    }
+  }
+
+  const handleCancelRubricEdit = () => {
+    setEditableRubric(getRubric(essayType))
+    setIsEditingRubric(false)
+  }
+
+  const updateCriterion = (criterionIndex: number, field: string, value: any) => {
+    setEditableRubric(prev => ({
+      ...prev,
+      criteria: prev.criteria.map((criterion, index) => 
+        index === criterionIndex 
+          ? { ...criterion, [field]: value }
+          : criterion
+      )
+    }))
+  }
+
+  const updateCriterionPoint = (criterionIndex: number, pointIndex: number, value: string) => {
+    setEditableRubric(prev => ({
+      ...prev,
+      criteria: prev.criteria.map((criterion, index) => 
+        index === criterionIndex 
+          ? { 
+              ...criterion, 
+              points: criterion.points.map((point, pIndex) => 
+                pIndex === pointIndex ? value : point
+              )
+            }
+          : criterion
+      )
+    }))
+  }
+
   const renderContentWithHighlights = () => {
     if (!content) return null
 
@@ -154,6 +205,156 @@ export function DocumentViewer({ content, comments, onAddComment, onSelectText }
       <div className="bg-white border-2 border-border rounded-base p-8 min-h-[800px] shadow-shadow">
         {renderContentWithHighlights()}
       </div>
+      
+      {/* Rubric Sheet */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button 
+            variant="neutral" 
+            size="sm"
+            className="absolute top-4 right-4 z-20"
+          >
+            📋 View Rubric
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <SheetTitle>{editableRubric.title}</SheetTitle>
+                <SheetDescription>
+                  {editableRubric.description}
+                </SheetDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isEditingRubric ? (
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onClick={() => setIsEditingRubric(true)}
+                  >
+                    ✏️ Edit
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      onClick={handleSaveRubric}
+                    >
+                      ✅ Save
+                    </Button>
+                    <Button
+                      variant="neutral"
+                      size="sm"
+                      onClick={handleCancelRubricEdit}
+                    >
+                      ❌ Cancel
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            {/* Criteria Breakdown */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Evaluation Criteria</h3>
+              <div className="space-y-4">
+                {editableRubric.criteria.map((criterion, index) => (
+                  <Card key={index}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex justify-between">
+                        {isEditingRubric ? (
+                          <input
+                            type="text"
+                            value={criterion.name}
+                            onChange={(e) => updateCriterion(index, 'name', e.target.value)}
+                            className="flex-1 mr-2 border rounded px-2 py-1 text-sm"
+                          />
+                        ) : (
+                          <span>{criterion.name}</span>
+                        )}
+                        <span className="text-sm font-normal text-gray-600 flex items-center">
+                          {isEditingRubric ? (
+                            <input
+                              type="number"
+                              value={criterion.weight}
+                              onChange={(e) => updateCriterion(index, 'weight', parseInt(e.target.value) || 0)}
+                              className="w-12 border rounded px-1 py-1 text-xs text-center"
+                              min="0"
+                              max="100"
+                            />
+                          ) : (
+                            criterion.weight
+                          )}%
+                        </span>
+                      </CardTitle>
+                      {isEditingRubric ? (
+                        <textarea
+                          value={criterion.description}
+                          onChange={(e) => updateCriterion(index, 'description', e.target.value)}
+                          className="w-full border rounded px-2 py-1 text-sm resize-none"
+                          rows={2}
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-600">{criterion.description}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <ul className="space-y-1">
+                        {criterion.points.map((point, pointIndex) => (
+                          <li key={pointIndex} className="text-sm flex items-start">
+                            <span className="text-green-600 mr-2">•</span>
+                            {isEditingRubric ? (
+                              <textarea
+                                value={point}
+                                onChange={(e) => updateCriterionPoint(index, pointIndex, e.target.value)}
+                                className="flex-1 border rounded px-2 py-1 text-xs resize-none"
+                                rows={2}
+                              />
+                            ) : (
+                              point
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Focus Areas */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Key Focus Areas</h3>
+              <div className="grid gap-2">
+                {editableRubric.focusAreas.map((area, index) => (
+                  <div key={index} className="p-3 bg-blue-50 rounded-lg">
+                    {isEditingRubric ? (
+                      <input
+                        type="text"
+                        value={area}
+                        onChange={(e) => {
+                          setEditableRubric(prev => ({
+                            ...prev,
+                            focusAreas: prev.focusAreas.map((focusArea, i) => 
+                              i === index ? e.target.value : focusArea
+                            )
+                          }))
+                        }}
+                        className="w-full border rounded px-2 py-1 text-sm"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-blue-800">{area}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       
       {showCommentBox && (
         <Card 

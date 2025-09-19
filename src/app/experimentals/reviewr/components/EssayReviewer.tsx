@@ -4,16 +4,20 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { DocumentViewer } from './DocumentViewer'
 import { CommentPanel } from './CommentPanel'
 import { Comment } from './types'
+import { getRubric } from './rubrics'
 
 interface EssayReviewerProps {
   content: string
+  essayType: string
   aiReviewData?: any
+  onGetCurrentRubric?: (rubric: any) => void
 }
 
-export function EssayReviewer({ content, aiReviewData }: EssayReviewerProps) {
+export function EssayReviewer({ content, essayType, aiReviewData, onGetCurrentRubric }: EssayReviewerProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [overallScore, setOverallScore] = useState<number | null>(null)
   const [overallFeedback, setOverallFeedback] = useState<string>('')
+  const [currentRubric, setCurrentRubric] = useState(() => getRubric(essayType))
 
   // Process AI review data when it changes
   useEffect(() => {
@@ -46,6 +50,25 @@ export function EssayReviewer({ content, aiReviewData }: EssayReviewerProps) {
       setComments(aiComments)
     }
   }, [aiReviewData, content])
+
+  // Update rubric when essay type changes
+  useEffect(() => {
+    setCurrentRubric(getRubric(essayType))
+  }, [essayType])
+
+  const handleRubricChange = useCallback((newRubric: any) => {
+    setCurrentRubric(newRubric)
+    if (onGetCurrentRubric) {
+      onGetCurrentRubric(newRubric)
+    }
+  }, [onGetCurrentRubric])
+
+  // Expose current rubric to parent via useEffect
+  useEffect(() => {
+    if (onGetCurrentRubric) {
+      onGetCurrentRubric(currentRubric)
+    }
+  }, [currentRubric, onGetCurrentRubric])
 
   const handleAddComment = useCallback((newComment: Omit<Comment, 'id' | 'timestamp'>) => {
     const comment: Comment = {
@@ -85,8 +108,10 @@ export function EssayReviewer({ content, aiReviewData }: EssayReviewerProps) {
         <DocumentViewer
           content={content}
           comments={comments}
+          essayType={essayType}
           onAddComment={handleAddComment}
           onSelectText={handleSelectText}
+          onRubricChange={handleRubricChange}
         />
       </div>
       
