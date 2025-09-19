@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Filter, SortAsc, SortDesc, Calendar, Edit2, Check, X, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Filter, SortAsc, SortDesc, Calendar, Edit2, Check, X, Loader2, Trash2 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { convertDatabaseCategoriesToForm, FormCategory } from '../lib/icon-mapper'
 
 interface TransactionRecord {
@@ -61,6 +62,9 @@ export function TransactionTable({
     description: ''
   })
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionRecord | null>(null)
 
   // Fetch user categories for filter options
   useEffect(() => {
@@ -295,6 +299,55 @@ export function TransactionTable({
     setEditForm({ amount: '', category: '', description: '' })
   }
 
+  const handleDelete = (transaction: TransactionRecord) => {
+    setTransactionToDelete(transaction)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!transactionToDelete || !transactionToDelete.id) {
+      console.error('Cannot delete transaction without ID')
+      return
+    }
+
+    const transactionId = `${transactionToDelete.id}-${transactionToDelete.date}-${transactionToDelete.amount}`
+
+    try {
+      setDeletingId(transactionId)
+      setDeleteDialogOpen(false)
+
+      // Determine API endpoint based on active tab
+      const endpoint = activeTab === 'expense' ? '/api/finance-tracker/delete-expense' : '/api/finance-tracker/delete-income'
+
+      const response = await fetch(`${endpoint}?id=${transactionToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        console.log('Transaction deleted successfully')
+        // Refresh data from parent component
+        if (onRefreshData) {
+          onRefreshData()
+        }
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to delete transaction:', errorData)
+        // You could show a toast notification here
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error)
+      // You could show a toast notification here
+    } finally {
+      setDeletingId(null)
+      setTransactionToDelete(null)
+    }
+  }
+
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false)
+    setTransactionToDelete(null)
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 w-full max-w-sm">
@@ -460,39 +513,56 @@ export function TransactionTable({
                   >
                     {!isEditing ? (
                       <>
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {transaction.category} <span className="text-xs text-gray-500">{formatDate(transaction.date)}</span>
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`text-sm font-semibold ${
-                                  activeTab === 'expense' ? 'text-red-600' : 'text-green-600'
-                                }`}>
-                                  {activeTab === 'expense' ? '-' : '+'}
-                                  {formatAmount(transaction.amount)}
-                                </p>
-                              </div>
-                            </div>
-                            {transaction.description && (
-                              <p className="text-xs text-gray-600 mt-1 truncate">
-                                {transaction.description}
-                              </p>
-                            )}
+                        {/* Row 1: Category/Date and Amount */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {transaction.category} <span className="text-xs text-gray-500">{formatDate(transaction.date)}</span>
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className={`text-sm font-semibold ${
+                              activeTab === 'expense' ? 'text-red-600' : 'text-green-600'
+                            }`}>
+                              {activeTab === 'expense' ? '-' : '+'}
+                              {formatAmount(transaction.amount)}
+                            </p>
                           </div>
                         </div>
-                        
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => handleEdit(transaction)}
-                          className="absolute bottom-2 right-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Edit transaction"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
+
+                        {/* Row 2: Description and Action Buttons */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0 pr-2">
+                            {transaction.description ? (
+                              <p className="text-xs text-gray-600 truncate">
+                                {transaction.description}
+                              </p>
+                            ) : (
+                              <div className="h-4"></div> // Placeholder for consistent height
+                            )}
+                          </div>
+                          <div className="flex-shrink-0 flex gap-1">
+                            <button
+                              onClick={() => handleEdit(transaction)}
+                              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                              title="Edit transaction"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(transaction)}
+                              disabled={deletingId === transactionId}
+                              className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Delete transaction"
+                            >
+                              {deletingId === transactionId ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
                       </>
                     ) : (
                       <>
@@ -511,7 +581,13 @@ export function TransactionTable({
                               onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value }))}
                             >
                               <SelectTrigger className="h-8 text-xs flex-1">
-                                <SelectValue placeholder="Category" />
+                                <SelectValue placeholder="Category">
+                                  {editForm.category && (
+                                    <span className="truncate block w-full text-left">
+                                      {editForm.category}
+                                    </span>
+                                  )}
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent className="bg-white">
                                 {currentCategories.map((category) => (
@@ -588,6 +664,71 @@ export function TransactionTable({
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Delete Transaction</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this {activeTab === 'expense' ? 'expense' : 'income'}?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Transaction Details */}
+          {transactionToDelete && (
+            <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {transactionToDelete.category} <span className="text-xs text-gray-500">({formatDate(transactionToDelete.date)})</span>
+                  </p>
+                </div>
+                <p className={`text-sm font-semibold ${
+                  activeTab === 'expense' ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {activeTab === 'expense' ? '-' : '+'}
+                  {formatAmount(transactionToDelete.amount)}
+                </p>
+              </div>
+              {transactionToDelete.description && (
+                <p className="text-xs text-gray-600 mt-1 text-left">
+                  {transactionToDelete.description}
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Warning Message */}
+          <div className="text-center">
+            <span className="text-sm text-gray-600">This action cannot be undone.</span>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="neutral"
+              onClick={cancelDelete}
+              disabled={deletingId !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={confirmDelete}
+              disabled={deletingId !== null}
+            >
+              {deletingId !== null ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
