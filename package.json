@@ -52,6 +52,7 @@
     "@vercel/og": "^0.6.5",
     "@xyflow/react": "^12.4.4",
     "ai": "^4.1.54",
+    "better-sqlite3": "^12.4.1",
     "chart.js": "^4.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -104,6 +105,7 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
