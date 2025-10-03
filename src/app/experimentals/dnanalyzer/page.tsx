@@ -22,6 +22,8 @@ interface Statement {
   organization: string
   agree: boolean
   sourceFile?: string
+  startIndex?: number
+  endIndex?: number
 }
 
 export default function DNAnalyzerPage() {
@@ -35,7 +37,6 @@ export default function DNAnalyzerPage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
   const [loadingData, setLoadingData] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const selectedFile = files.find(file => file.id === selectedFileId) || null
 
@@ -81,7 +82,9 @@ export default function DNAnalyzerPage() {
 
       const newStatements = (data.statements || []).map((stmt: Statement) => ({
         ...stmt,
-        sourceFile: selectedFile.title
+        sourceFile: selectedFile.title,
+        startIndex: stmt.startIndex,
+        endIndex: stmt.endIndex
       }))
 
       // Add new statements to accumulated results
@@ -102,7 +105,7 @@ export default function DNAnalyzerPage() {
     }
   }
 
-  const handleUpdateStatement = (index: number, field: keyof Statement, newValue: string) => {
+  const handleUpdateStatement = (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
     setAllStatements(prev => {
       const updated = [...prev]
       if (field === 'agree') {
@@ -233,31 +236,14 @@ export default function DNAnalyzerPage() {
     }
   }
 
-  const handleLoadData = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.name.endsWith('.dna')) {
-      setSaveStatus('error')
-      setSaveMessage('Please select a .dna file')
-      return
-    }
-
+  const handleLoadData = async () => {
     setLoadingData(true)
     setSaveStatus('idle')
     setSaveMessage('')
 
     try {
-      const formData = new FormData()
-      formData.append('dnaFile', file)
-
       const response = await fetch('/api/dnanalyzer/load', {
         method: 'POST',
-        body: formData,
       })
 
       if (!response.ok) {
@@ -299,10 +285,6 @@ export default function DNAnalyzerPage() {
       setSaveMessage(err instanceof Error ? err.message : 'An error occurred while loading data')
     } finally {
       setLoadingData(false)
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     }
   }
 
@@ -399,6 +381,7 @@ export default function DNAnalyzerPage() {
         <div className="mb-6">
           <TextDisplay
             selectedFile={selectedFile}
+            statements={allStatements}
             onAnalyze={handleAnalyze}
             loading={loading}
             error={error}
@@ -406,14 +389,6 @@ export default function DNAnalyzerPage() {
         </div>
       </div>
 
-      {/* Hidden file input for loading .dna files */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".dna"
-        onChange={handleFileChange}
-        style={{ display: 'none' }}
-      />
 
       {/* Results Sheet - Right Side */}
       <ResultsSheet

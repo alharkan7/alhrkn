@@ -19,6 +19,49 @@ const model = genAI.getGenerativeModel({
 
 // Removed complex schema to avoid Gemini constraints
 
+// Function to find the character indices of a statement in the original text
+function findStatementIndices(originalText: string, statement: string): { start: number; end: number } | null {
+  // First try exact match
+  const exactIndex = originalText.indexOf(statement);
+  if (exactIndex !== -1) {
+    return {
+      start: exactIndex,
+      end: exactIndex + statement.length
+    };
+  }
+
+  // If exact match fails, try with normalized whitespace
+  const normalizedText = originalText.replace(/\s+/g, ' ').trim();
+  const normalizedStatement = statement.replace(/\s+/g, ' ').trim();
+  const normalizedIndex = normalizedText.indexOf(normalizedStatement);
+
+  if (normalizedIndex !== -1) {
+    // Find the corresponding position in original text
+    // This is a simple approximation - for more accuracy, we'd need more sophisticated text matching
+    const beforeNormalized = normalizedText.substring(0, normalizedIndex);
+    const originalBeforeLength = beforeNormalized.length;
+
+    // Count actual characters in original text up to this point
+    let charCount = 0;
+    let originalIndex = 0;
+
+    while (charCount < originalBeforeLength && originalIndex < originalText.length) {
+      if (originalText[originalIndex] !== ' ' || (originalIndex > 0 && originalText[originalIndex - 1] !== ' ')) {
+        charCount++;
+      }
+      originalIndex++;
+    }
+
+    return {
+      start: originalIndex,
+      end: originalIndex + statement.length
+    };
+  }
+
+  // If still not found, return null (statement might have been modified)
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -36,7 +79,7 @@ const systemInstruction = `You are a specialized AI assistant for discourse netw
 CRITICAL: Only extract statements where you can clearly identify who is making the statement (the actor/organization). If the actor is unknown or unclear, DO NOT include it - it's just narrative/reporting from the author/reporter.
 
 For each statement you identify, provide these components:
-- statement: The exact statement or claim being made (the direct quote or attributed claim)
+- statement: The EXACT sentence or phrase from the text (do not rephrase, summarize, or modify - copy it verbatim)
 - concept: What the statement is about (in 2-5 words)
 - actor: Who is making/giving the statement (person name, role, or entity) - MUST be clearly identified
 - organization: The organization/institution associated with the actor (leave empty if none mentioned)
@@ -50,18 +93,16 @@ STRICT GUIDELINES:
 5. Break down complex attributed statements into multiple entries if they contain multiple claims
 6. Focus on direct claims, opinions, positions from specific sources
 7. Organization field can be empty, but actor MUST be specific and clear
+8. STATEMENT MUST BE EXACT TEXT - do not rephrase or modify the original wording in any way
 
 EXAMPLES:
 
 GOOD - Clear attribution:
 Text: "President Biden praised the new climate bill, but Senator Johnson criticized it as too expensive."
-→ Extract both statements (clear actors identified)
-
-Text: "According to the EPA report, climate change is accelerating faster than predicted."
-→ DO NOT extract (no specific person/actor, just "EPA report" - this is narrative)
+→ Extract: statement: "President Biden praised the new climate bill", statement: "Senator Johnson criticized it as too expensive"
 
 Text: "John Smith from Greenpeace said, 'We must protect the Amazon rainforest immediately.'"
-→ Extract the statement (clear actor "John Smith" from "Greenpeace")
+→ Extract: statement: "We must protect the Amazon rainforest immediately."
 
 BAD - No clear actor:
 Text: "Climate change is causing more extreme weather events worldwide."
@@ -143,15 +184,25 @@ Return ONLY the JSON structure with the statements array. Do not include any add
       });
     }
 
-    // Validate each statement has required fields
-    const validatedStatements = statementsArray.filter((stmt: any) => {
-      return stmt &&
-             typeof stmt.statement === 'string' &&
-             typeof stmt.concept === 'string' &&
-             typeof stmt.actor === 'string' &&
-             typeof stmt.organization === 'string' &&
-             typeof stmt.agree === 'boolean';
-    });
+    // Validate each statement has required fields and add position indices
+    const validatedStatements = statementsArray
+      .filter((stmt: any) => {
+        return stmt &&
+               typeof stmt.statement === 'string' &&
+               typeof stmt.concept === 'string' &&
+               typeof stmt.actor === 'string' &&
+               typeof stmt.organization === 'string' &&
+               typeof stmt.agree === 'boolean';
+      })
+      .map((stmt: any) => {
+        // Find the position of this statement in the original text
+        const position = findStatementIndices(text, stmt.statement);
+        return {
+          ...stmt,
+          startIndex: position?.start ?? -1,
+          endIndex: position?.end ?? -1
+        };
+      });
 
     if (validatedStatements.length === 0 && statementsArray.length > 0) {
       return new Response(JSON.stringify({

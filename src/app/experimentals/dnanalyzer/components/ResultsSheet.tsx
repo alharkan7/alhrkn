@@ -87,7 +87,7 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
 
 interface ResultsSheetProps {
   statements: Statement[]
-  onUpdateStatement: (index: number, field: keyof Statement, newValue: string) => void
+  onUpdateStatement: (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => void
   totalFiles: number
   processedFiles: number
 }
@@ -98,7 +98,7 @@ export default function ResultsSheet({
   totalFiles,
   processedFiles
 }: ResultsSheetProps) {
-  const handleCellEdit = (rowIndex: number, field: keyof Statement, newValue: string) => {
+  const handleCellEdit = (rowIndex: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
     if (field === 'agree') {
       // Handle boolean field
       onUpdateStatement(rowIndex, field, newValue.toLowerCase() === 'true' ? 'true' : 'false')
@@ -111,7 +111,7 @@ export default function ResultsSheet({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" className="fixed top-4 right-4 z-50 shadow-lg">
+        <Button variant="default" className="fixed top-4 right-4 z-50 shadow-lg">
           <Eye className="w-4 h-4 mr-2" />
           View Results ({statements.length})
         </Button>
@@ -151,7 +151,7 @@ export default function ResultsSheet({
                   {statements.map((statement, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="border border-gray-300 px-4 py-2 text-xs">
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="neutral" className="text-xs">
                           {statement.sourceFile || 'Unknown'}
                         </Badge>
                       </td>

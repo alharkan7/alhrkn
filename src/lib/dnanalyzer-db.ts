@@ -8,6 +8,8 @@ export interface Statement {
   organization: string;
   agree: boolean;
   sourceFile?: string;
+  startIndex?: number;
+  endIndex?: number;
 }
 
 export interface Document {
@@ -124,9 +126,9 @@ export class DNAnalyzerDB {
     }
 
     // Insert statement record
-    // Use statement length as Stop position to satisfy Start < Stop constraint
-    const startPos = 0;
-    const stopPos = Math.max(1, statement.statement.length);
+    // Use startIndex and endIndex if available, otherwise fallback to default behavior
+    const startPos = statement.startIndex ?? 0;
+    const stopPos = statement.endIndex ?? Math.max(1, startPos + statement.statement.length);
 
     const stmtSql = `
       INSERT INTO STATEMENTS (StatementTypeId, DocumentId, Start, Stop, Coder)

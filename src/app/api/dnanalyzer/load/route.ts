@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
         SELECT
           s.ID,
           s.DocumentId,
+          s.Start as startIndex,
+          s.Stop as endIndex,
           d.Title as sourceFile,
           COALESCE(p_entity.Value, '') as actor,
           COALESCE(o_entity.Value, '') as organization,
@@ -55,14 +57,16 @@ export async function POST(req: NextRequest) {
       `);
 
       // For each statement, get the actual statement text
-      // We need to reconstruct this from the available data
+      // We need to reconstruct this from the available data since we don't store the original text
       const statements = (rawStatements as any[]).map((stmt: any) => ({
         statement: `Statement by ${stmt.actor || 'Unknown'}${stmt.organization ? ` from ${stmt.organization}` : ''} regarding ${stmt.concept || 'topic'}`,
         concept: stmt.concept || '',
         actor: stmt.actor || '',
         organization: stmt.organization || '',
         agree: stmt.agree,
-        sourceFile: stmt.sourceFile
+        sourceFile: stmt.sourceFile,
+        startIndex: stmt.startIndex || 0,
+        endIndex: stmt.endIndex || 0
       }));
 
       return new Response(JSON.stringify({

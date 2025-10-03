@@ -1,8 +1,10 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface TextFile {
   id: string
@@ -11,14 +13,95 @@ interface TextFile {
   processed?: boolean
 }
 
+interface Statement {
+  statement: string
+  concept: string
+  actor: string
+  organization: string
+  agree: boolean
+  sourceFile?: string
+  startIndex?: number
+  endIndex?: number
+}
+
 interface TextDisplayProps {
   selectedFile: TextFile | null
+  statements: Statement[]
   onAnalyze: (text: string) => void
   loading: boolean
   error: string
 }
 
-export default function TextDisplay({ selectedFile, onAnalyze, loading, error }: TextDisplayProps) {
+interface HighlightedTextProps {
+  text: string
+  statements: Statement[]
+}
+
+function HighlightedText({ text, statements }: HighlightedTextProps) {
+  // Filter statements that belong to this file and have valid indices
+  const fileStatements = statements.filter(stmt =>
+    stmt.sourceFile === null || stmt.startIndex !== undefined && stmt.endIndex !== undefined && stmt.startIndex >= 0
+  )
+
+  if (fileStatements.length === 0) {
+    return <div className="whitespace-pre-wrap font-mono text-sm">{text}</div>
+  }
+
+  // Sort statements by startIndex
+  const sortedStatements = fileStatements.sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0))
+
+  const parts: React.JSX.Element[] = []
+  let lastIndex = 0
+
+  sortedStatements.forEach((stmt, index) => {
+    const start = stmt.startIndex!
+    const end = stmt.endIndex!
+
+    // Add text before the highlight
+    if (start > lastIndex) {
+      parts.push(
+        <span key={`text-${index}`} className="whitespace-pre-wrap">
+          {text.substring(lastIndex, start)}
+        </span>
+      )
+    }
+
+    // Add the highlighted statement
+    const highlightedText = text.substring(start, end)
+    parts.push(
+      <span
+        key={`highlight-${index}`}
+        className="bg-yellow-200 px-1 rounded cursor-pointer relative group"
+        title={`${stmt.actor} (${stmt.organization || 'No organization'}): ${stmt.agree ? 'Agrees' : 'Disagrees'} about ${stmt.concept}`}
+      >
+        {highlightedText}
+        <Badge
+          variant="default"
+          className={`absolute -top-6 left-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity ${
+            stmt.agree ? 'bg-green-500' : 'bg-red-500'
+          }`}
+        >
+          {stmt.actor}
+        </Badge>
+      </span>
+    )
+
+    lastIndex = end
+  })
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key="remaining" className="whitespace-pre-wrap">
+        {text.substring(lastIndex)}
+      </span>
+    )
+  }
+
+  return <div className="whitespace-pre-wrap font-mono text-sm relative">{parts}</div>
+}
+
+export default function TextDisplay({ selectedFile, statements, onAnalyze, loading, error }: TextDisplayProps) {
   const handleAnalyze = () => {
     if (selectedFile) {
       onAnalyze(selectedFile.content)
@@ -41,16 +124,16 @@ export default function TextDisplay({ selectedFile, onAnalyze, loading, error }:
       <CardContent>
         {selectedFile ? (
           <div className="space-y-4">
-            <Textarea
-              value={selectedFile.content}
-              readOnly
-              className="min-h-[300px] resize-none font-mono text-sm"
-              placeholder="Selected file content will appear here..."
-            />
+            <div className="min-h-[300px] border border-gray-200 rounded-md p-4 bg-gray-50">
+              <HighlightedText
+                text={selectedFile.content}
+                statements={statements.filter(stmt => stmt.sourceFile === selectedFile.title)}
+              />
+            </div>
 
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-600">
-                {selectedFile.content.split(' ').length} words
+                {selectedFile.content.split(' ').length} words • {statements.filter(stmt => stmt.sourceFile === selectedFile.title).length} highlighted statements
               </div>
 
               <Button
