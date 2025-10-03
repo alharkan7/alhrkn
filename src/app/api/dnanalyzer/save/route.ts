@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DNAnalyzerDB, Statement } from '@/lib/dnanalyzer-db';
-import path from 'path';
-import fs from 'fs';
-import { Readable } from 'stream';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { documents, exportPath } = body || {};
+    const { documents } = body || {};
 
     if (!documents || !Array.isArray(documents)) {
       return new Response(JSON.stringify({ error: 'Missing or invalid "documents" parameter' }), {
@@ -16,14 +13,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create a temporary database file
-    const tempDbPath = path.join(process.cwd(), 'temp-analysis.db');
-    const db = new DNAnalyzerDB(tempDbPath);
+    // Connect to MySQL database
+    const db = new DNAnalyzerDB();
 
     try {
       await db.initialize();
 
       // Save each document and its statements
+      const savedDocuments = [];
       for (const doc of documents) {
         if (!doc.title || !doc.content) {
           continue;
@@ -34,33 +31,18 @@ export async function POST(req: NextRequest) {
         if (doc.statements && Array.isArray(doc.statements)) {
           await db.saveStatements(documentId, doc.statements);
         }
-      }
 
-      // Export to .dna file if exportPath is provided
-      if (exportPath) {
-        // For export, we return the database file as a downloadable blob
-        await db.close();
-
-        // Read the database file and return it as a download
-        const dbBuffer = fs.readFileSync(tempDbPath);
-        const filename = exportPath.endsWith('.dna') ? exportPath : `${exportPath}.dna`;
-
-        // Clean up temp file
-        fs.unlinkSync(tempDbPath);
-
-        return new Response(dbBuffer, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${filename}"`,
-          },
+        savedDocuments.push({
+          id: documentId,
+          title: doc.title,
+          statementsCount: doc.statements?.length || 0
         });
       }
 
-      // If no export path, return success without file
       return new Response(JSON.stringify({
         success: true,
-        message: 'Data saved to temporary database'
+        message: `Saved ${savedDocuments.length} documents with ${savedDocuments.reduce((sum, doc) => sum + doc.statementsCount, 0)} statements to MySQL database`,
+        documents: savedDocuments
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -68,11 +50,6 @@ export async function POST(req: NextRequest) {
 
     } finally {
       await db.close();
-
-      // Clean up temporary file if it exists and no export path was provided
-      if (!exportPath && fs.existsSync(tempDbPath)) {
-        fs.unlinkSync(tempDbPath);
-      }
     }
 
   } catch (error: any) {
