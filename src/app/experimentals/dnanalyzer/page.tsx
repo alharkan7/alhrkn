@@ -6,13 +6,14 @@ import TextDisplay from './components/TextDisplay'
 import ResultsSheet from './components/ResultsSheet'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Save, AlertCircle, CheckCircle, Upload } from 'lucide-react'
+import { Download, Save, AlertCircle, CheckCircle } from 'lucide-react'
 
 interface TextFile {
   id: string
   title: string
   content: string
   processed?: boolean
+  isLoaded?: boolean // true if loaded from DB, false if newly added
 }
 
 interface Statement {
@@ -24,6 +25,7 @@ interface Statement {
   sourceFile?: string
   startIndex?: number
   endIndex?: number
+  isLoaded?: boolean // true if loaded from DB, false if newly analyzed
 }
 
 export default function DNAnalyzerPage() {
@@ -50,7 +52,8 @@ export default function DNAnalyzerPage() {
       id: Date.now().toString(), // Simple ID generation
       title,
       content,
-      processed: false
+      processed: false,
+      isLoaded: false // Mark as newly added, not loaded from DB
     }
     setFiles(prev => [...prev, newFile])
   }
@@ -84,7 +87,8 @@ export default function DNAnalyzerPage() {
         ...stmt,
         sourceFile: selectedFile.title,
         startIndex: stmt.startIndex,
-        endIndex: stmt.endIndex
+        endIndex: stmt.endIndex,
+        isLoaded: false // Mark as newly analyzed, not loaded from DB
       }))
 
       // Add new statements to accumulated results
@@ -131,14 +135,22 @@ export default function DNAnalyzerPage() {
     setSaveMessage('')
 
     try {
-      // Group statements by source file
+      // Group statements by source file, but only include newly added/analyzed data
       const documentsWithStatements = files
-        .filter(file => file.processed)
+        .filter(file => file.processed && !file.isLoaded) // Only newly processed files, not loaded ones
         .map(file => ({
           title: file.title,
           content: file.content,
-          statements: allStatements.filter(stmt => stmt.sourceFile === file.title)
+          statements: allStatements.filter(stmt => stmt.sourceFile === file.title && !stmt.isLoaded) // Only newly analyzed statements
         }))
+        // Only include documents that have new statements
+        .filter(doc => doc.statements.length > 0)
+
+      if (documentsWithStatements.length === 0) {
+        setSaveStatus('error')
+        setSaveMessage('No new data to save. All current data was already loaded from the database.')
+        return
+      }
 
       const response = await fetch('/api/dnanalyzer/save', {
         method: 'POST',
@@ -184,14 +196,22 @@ export default function DNAnalyzerPage() {
     setSaveMessage('')
 
     try {
-      // Group statements by source file
+      // Group statements by source file, but only include newly added/analyzed data
       const documentsWithStatements = files
-        .filter(file => file.processed)
+        .filter(file => file.processed && !file.isLoaded) // Only newly processed files, not loaded ones
         .map(file => ({
           title: file.title,
           content: file.content,
-          statements: allStatements.filter(stmt => stmt.sourceFile === file.title)
+          statements: allStatements.filter(stmt => stmt.sourceFile === file.title && !stmt.isLoaded) // Only newly analyzed statements
         }))
+        // Only include documents that have new statements
+        .filter(doc => doc.statements.length > 0)
+
+      if (documentsWithStatements.length === 0) {
+        setSaveStatus('error')
+        setSaveMessage('No new data to export. All current data was already loaded from the database.')
+        return
+      }
 
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
@@ -258,7 +278,8 @@ export default function DNAnalyzerPage() {
           id: `loaded-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           title: doc.title,
           content: doc.content,
-          processed: true
+          processed: true,
+          isLoaded: true // Mark as loaded from DB
         }))
 
         const loadedStatements: Statement[] = data.statements.map((stmt: any) => ({
@@ -267,7 +288,8 @@ export default function DNAnalyzerPage() {
           actor: stmt.actor,
           organization: stmt.organization,
           agree: stmt.agree,
-          sourceFile: stmt.sourceFile
+          sourceFile: stmt.sourceFile,
+          isLoaded: true // Mark as loaded from DB
         }))
 
         setFiles(prev => [...prev, ...loadedFiles])
@@ -294,8 +316,8 @@ export default function DNAnalyzerPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Discourse Network Analyzer</h1>
-              <p className="text-gray-600">Analyze discourse networks across multiple text files</p>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Discourse Network Analyzer</h1>
+              <p className="text-muted-foreground">Analyze discourse networks across multiple text files</p>
             </div>
             <Button
               onClick={handleLoadData}
@@ -303,7 +325,7 @@ export default function DNAnalyzerPage() {
               variant="neutral"
               className="flex items-center gap-2"
             >
-              <Upload className="w-4 h-4" />
+              <Download className="w-4 h-4" />
               {loadingData ? 'Loading...' : 'Load Data'}
             </Button>
           </div>
@@ -336,7 +358,7 @@ export default function DNAnalyzerPage() {
                 <Button
                   onClick={handleExportToDNA}
                   disabled={saving || exporting}
-                  variant="default"
+                  variant="neutral"
                   className="flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
@@ -350,7 +372,7 @@ export default function DNAnalyzerPage() {
                         ? 'text-green-600'
                         : saveStatus === 'error'
                         ? 'text-red-600'
-                        : 'text-gray-600'
+                        : 'text-muted-foreground'
                     }`}>
                       {saveStatus === 'success' && <CheckCircle className="w-4 h-4" />}
                       {saveStatus === 'error' && <AlertCircle className="w-4 h-4" />}
@@ -360,7 +382,7 @@ export default function DNAnalyzerPage() {
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-gray-600">
+              <div className="mt-4 text-sm text-muted-foreground">
                 <p><strong>Current Analysis:</strong> {allStatements.length} statements from {processedFilesCount} processed files</p>
               </div>
             </CardContent>

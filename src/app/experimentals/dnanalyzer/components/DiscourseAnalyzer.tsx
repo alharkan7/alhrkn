@@ -135,6 +135,7 @@ export default function DiscourseAnalyzer({
           disabled={!text.trim() || loading}
           size="lg"
           className="px-8"
+          variant="neutral"
         >
           {loading ? 'Analyzing...' : 'Analyze Text'}
         </Button>

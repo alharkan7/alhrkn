@@ -11,6 +11,7 @@ interface TextFile {
   title: string
   content: string
   processed?: boolean
+  isLoaded?: boolean
 }
 
 interface Statement {
@@ -22,6 +23,7 @@ interface Statement {
   sourceFile?: string
   startIndex?: number
   endIndex?: number
+  isLoaded?: boolean
 }
 
 interface TextDisplayProps {
@@ -76,7 +78,7 @@ function HighlightedText({ text, statements }: HighlightedTextProps) {
       >
         {highlightedText}
         <Badge
-          variant="default"
+          variant="neutral"
           className={`absolute -top-6 left-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity ${
             stmt.agree ? 'bg-green-500' : 'bg-red-500'
           }`}
@@ -124,7 +126,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, loadi
       <CardContent>
         {selectedFile ? (
           <div className="space-y-4">
-            <div className="min-h-[300px] border border-gray-200 rounded-md p-4 bg-gray-50">
+            <div className="min-h-[300px] border border-border rounded-md p-4 bg-muted">
               <HighlightedText
                 text={selectedFile.content}
                 statements={statements.filter(stmt => stmt.sourceFile === selectedFile.title)}
@@ -132,7 +134,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, loadi
             </div>
 
             <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 {selectedFile.content.split(' ').length} words • {statements.filter(stmt => stmt.sourceFile === selectedFile.title).length} highlighted statements
               </div>
 
@@ -140,14 +142,15 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, loadi
                 onClick={handleAnalyze}
                 disabled={loading || selectedFile.processed}
                 size="lg"
+                variant="neutral"
               >
                 {loading ? 'Analyzing...' : selectedFile.processed ? 'Already Processed' : 'Analyze Text'}
               </Button>
             </div>
           </div>
         ) : (
-          <div className="min-h-[200px] border-2 border-dashed border-gray-300 rounded-lg p-8 flex items-center justify-center">
-            <div className="text-center text-gray-500">
+          <div className="min-h-[200px] border-2 border-dashed border-border rounded-lg p-8 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
               <p className="text-lg mb-2">No file selected</p>
               <p className="text-sm">Click on a file from the list above to view its content</p>
             </div>
@@ -155,8 +158,8 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, loadi
         )}
 
         {error && (
-          <div className="mt-4 p-4 border border-red-200 bg-red-50 rounded-lg">
-            <div className="text-red-800">
+          <div className="mt-4 p-4 border border-destructive bg-destructive/10 rounded-lg">
+            <div className="text-destructive">
               <strong>Error:</strong> {error}
             </div>
           </div>

@@ -15,6 +15,7 @@ interface TextFile {
   title: string
   content: string
   processed?: boolean
+  isLoaded?: boolean
 }
 
 interface TextFileListProps {
@@ -61,8 +62,8 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
+              <Button variant="neutral">
+                <Plus className="w-4 h-4" />
                 Add Source
               </Button>
             </DialogTrigger>
@@ -92,7 +93,7 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
                     onChange={(e) => setNewContent(e.target.value)}
                     className="min-h-[200px] resize-none"
                   />
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     {newContent.split(' ').filter(word => word.length > 0).length} words
                   </div>
                 </div>
@@ -101,7 +102,7 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
                 <Button variant="neutral" onClick={handleDialogClose}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddFile} disabled={!newTitle.trim() || !newContent.trim()}>
+                <Button variant="neutral" onClick={handleAddFile} disabled={!newTitle.trim() || !newContent.trim()}>
                   Add Source
                 </Button>
               </DialogFooter>
@@ -111,44 +112,48 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
       </CardHeader>
       <CardContent>
         {files.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-muted-foreground py-8">
             <p className="mb-4">No text sources added yet</p>
             <p className="text-sm">Click "Add Source" to get started</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  selectedFileId === file.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-                onClick={() => onFileSelect(file.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {file.title}
-                      </h3>
-                      {file.processed && (
-                        <Badge variant="neutral" className="text-xs">
-                          Processed
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      {truncateText(file.content)}
-                    </p>
-                    <div className="mt-2 text-xs text-gray-500">
-                      {file.content.split(' ').filter(word => word.length > 0).length} words
+          <div className="max-h-[400px] overflow-y-auto">
+            <div className="space-y-3 pr-2">
+              {files.map((file) => (
+                <div
+                  key={file.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedFileId === file.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-border hover:bg-muted'
+                  }`}
+                  onClick={() => onFileSelect(file.id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <h3 className="font-medium text-foreground truncate">
+                            {file.title}
+                          </h3>
+                          {file.processed && (
+                            <Badge variant="neutral" className="text-xs">
+                              Processed
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                          {file.content.split(' ').filter(word => word.length > 0).length} words
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {truncateText(file.content)}
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

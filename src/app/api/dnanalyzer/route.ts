@@ -74,42 +74,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-const systemInstruction = `You are a specialized AI assistant for discourse network analysis. Your task is to identify and extract ONLY direct statements and claims that have CLEAR attribution to specific actors or organizations.
+const systemInstruction = `Extract statements with clear attribution from the text for discourse network analysis.
 
-CRITICAL: Only extract statements where you can clearly identify who is making the statement (the actor/organization). If the actor is unknown or unclear, DO NOT include it - it's just narrative/reporting from the author/reporter.
+REQUIREMENTS:
+- statement: Exact text (verbatim, no changes)
+- concept: 2-5 words describing what the statement is about
+- actor: Who said it (person, organization, or specific collective)
+- organization: Organization associated with actor (empty string if none)
+- agree: true/false/null (agreement/support=true, disagreement/criticism=false, neutral/factual=null)
 
-For each statement you identify, provide these components:
-- statement: The EXACT sentence or phrase from the text (do not rephrase, summarize, or modify - copy it verbatim)
-- concept: What the statement is about (in 2-5 words)
-- actor: Who is making/giving the statement (person name, role, or entity) - MUST be clearly identified
-- organization: The organization/institution associated with the actor (leave empty if none mentioned)
-- agree: true if the statement expresses agreement/support/approval, false if it expresses disagreement/criticism/opposition
+EXTRACT statements with clear attribution including:
+- Direct quotes: "John said, 'We must act now.'"
+- Indirect attribution: "Indonesia's disaster agency says it is the deadliest disaster this year."
+- Collective attribution: "Some officials said the foundation was unstable."
+- Individual attribution: "Muhammad told reporters he heard falling rocks."
 
-STRICT GUIDELINES:
-1. ONLY extract statements with CLEAR attribution (quotes, "said that", "according to", "stated", "announced", etc.)
-2. IGNORE general narrative, descriptions, or facts without clear sourcing
-3. IGNORE statements where the actor is "Unknown", "Reporter", "Author", or similar
-4. Each statement MUST have a specific, identifiable actor or organization
-5. Break down complex attributed statements into multiple entries if they contain multiple claims
-6. Focus on direct claims, opinions, positions from specific sources
-7. Organization field can be empty, but actor MUST be specific and clear
-8. STATEMENT MUST BE EXACT TEXT - do not rephrase or modify the original wording in any way
+IGNORE unattributed statements like general facts or narrative.
 
-EXAMPLES:
-
-GOOD - Clear attribution:
-Text: "President Biden praised the new climate bill, but Senator Johnson criticized it as too expensive."
-→ Extract: statement: "President Biden praised the new climate bill", statement: "Senator Johnson criticized it as too expensive"
-
-Text: "John Smith from Greenpeace said, 'We must protect the Amazon rainforest immediately.'"
-→ Extract: statement: "We must protect the Amazon rainforest immediately."
-
-BAD - No clear actor:
-Text: "Climate change is causing more extreme weather events worldwide."
-→ DO NOT extract (no actor identified, just general fact/narrative)
-
-Text: "The report shows that temperatures have risen 1.5 degrees."
-→ DO NOT extract (no specific actor, just "the report" - narrative)`;
+Return ONLY a JSON array of statement objects.`;
 
 const userPrompt = `Please analyze this text and extract all statements/discourse components:
 
@@ -192,7 +174,7 @@ Return ONLY the JSON structure with the statements array. Do not include any add
                typeof stmt.concept === 'string' &&
                typeof stmt.actor === 'string' &&
                typeof stmt.organization === 'string' &&
-               typeof stmt.agree === 'boolean';
+               (typeof stmt.agree === 'boolean' || stmt.agree === null);
       })
       .map((stmt: any) => {
         // Find the position of this statement in the original text
@@ -208,7 +190,7 @@ Return ONLY the JSON structure with the statements array. Do not include any add
       return new Response(JSON.stringify({
         error: 'No valid statements found in response',
         raw: parsed,
-        validationErrors: 'Each statement must have: statement (string), concept (string), actor (string), organization (string), agree (boolean)'
+        validationErrors: 'Each statement must have: statement (string), concept (string), actor (string), organization (string), agree (boolean or null)'
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

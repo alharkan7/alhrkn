@@ -20,6 +20,7 @@ interface Statement {
   organization: string
   agree: boolean
   sourceFile?: string // Track which file this statement came from
+  isLoaded?: boolean // true if loaded from DB, false if newly analyzed
 }
 
 interface EditableCellProps {
@@ -69,14 +70,14 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-2 py-1 text-sm border border-ring rounded focus:outline-none focus:ring-2 focus:ring-ring"
       />
     )
   }
 
   return (
     <div
-      className={`text-sm cursor-pointer hover:bg-gray-50 px-2 py-1 rounded ${className}`}
+      className={`text-sm cursor-pointer hover:bg-muted px-2 py-1 rounded ${className}`}
       onDoubleClick={handleDoubleClick}
       title="Double-click to edit"
     >
@@ -127,60 +128,60 @@ export default function ResultsSheet({
 
         <div className="mt-6">
           {statements.length === 0 ? (
-            <div className="min-h-[400px] border-2 border-dashed border-gray-300 rounded-lg p-8 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <Eye className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="min-h-[400px] border-2 border-dashed border-border rounded-lg p-8 flex items-center justify-center">
+              <div className="text-center text-muted-foreground">
+                <Eye className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                 <p className="text-lg mb-2">No results yet</p>
                 <p className="text-sm">Process some text files to see analysis results here</p>
               </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
+              <table className="w-full border-collapse border border-border">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Source</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Statement</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Concept</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Actor</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Organization</th>
-                    <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Agree</th>
+                  <tr className="bg-muted">
+                    <th className="border border-border px-4 py-2 text-left font-semibold">Source</th>
+                    <th className="border border-border px-4 py-2 text-left font-semibold">Statement</th>
+                    <th className="border border-border px-4 py-2 text-left font-semibold">Concept</th>
+                    <th className="border border-border px-4 py-2 text-left font-semibold">Actor</th>
+                    <th className="border border-border px-4 py-2 text-left font-semibold">Organization</th>
+                    <th className="border border-border px-4 py-2 text-center font-semibold">Agree</th>
                   </tr>
                 </thead>
                 <tbody>
                   {statements.map((statement, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 px-4 py-2 text-xs">
+                    <tr key={index} className="hover:bg-muted">
+                      <td className="border border-border px-4 py-2 text-xs">
                         <Badge variant="neutral" className="text-xs">
                           {statement.sourceFile || 'Unknown'}
                         </Badge>
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.statement}
                           onSave={(newValue) => handleCellEdit(index, 'statement', newValue)}
                         />
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.concept}
                           onSave={(newValue) => handleCellEdit(index, 'concept', newValue)}
                           className="font-medium"
                         />
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.actor}
                           onSave={(newValue) => handleCellEdit(index, 'actor', newValue)}
                         />
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
+                      <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.organization}
                           onSave={(newValue) => handleCellEdit(index, 'organization', newValue)}
                         />
                       </td>
-                      <td className="border border-gray-300 px-4 py-2 text-center">
+                      <td className="border border-border px-4 py-2 text-center">
                         <EditableCell
                           value={statement.agree ? 'TRUE' : 'FALSE'}
                           onSave={(newValue) => handleCellEdit(index, 'agree', newValue)}
