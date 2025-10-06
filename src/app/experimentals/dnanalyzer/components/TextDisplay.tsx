@@ -1,10 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Pencil, Check, X } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -12,6 +13,8 @@ interface TextFile {
   content: string
   processed?: boolean
   isLoaded?: boolean
+  isContentModified?: boolean
+  originalDocumentId?: number
 }
 
 interface Statement {
@@ -24,12 +27,15 @@ interface Statement {
   startIndex?: number
   endIndex?: number
   isLoaded?: boolean
+  isModified?: boolean
+  originalStatementId?: number
 }
 
 interface TextDisplayProps {
   selectedFile: TextFile | null
   statements: Statement[]
   onAnalyze: (text: string) => void
+  onUpdateContent: (fileId: string, newContent: string) => void
   loading: boolean
   error: string
 }
@@ -103,19 +109,84 @@ function HighlightedText({ text, statements }: HighlightedTextProps) {
   return <div className="whitespace-pre-wrap font-mono text-sm relative">{parts}</div>
 }
 
-export default function TextDisplay({ selectedFile, statements, onAnalyze, loading, error }: TextDisplayProps) {
+export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpdateContent, loading, error }: TextDisplayProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedContent, setEditedContent] = useState('')
+
   const handleAnalyze = () => {
     if (selectedFile) {
       onAnalyze(selectedFile.content)
     }
   }
 
+  const handleEditClick = () => {
+    if (selectedFile) {
+      if (!isEditing) {
+        // Start editing
+        setEditedContent(selectedFile.content)
+        setIsEditing(true)
+      } else {
+        // Save changes
+        onUpdateContent(selectedFile.id, editedContent)
+        setIsEditing(false)
+      }
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditedContent('')
+  }
+
+  const handleTextDoubleClick = () => {
+    if (selectedFile && !isEditing) {
+      setEditedContent(selectedFile.content)
+      setIsEditing(true)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          {selectedFile ? `Full Text: ${selectedFile.title}` : 'Select a Text File'}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>
+            {selectedFile ? `Full Text: ${selectedFile.title}` : 'Select a Text File'}
+          </CardTitle>
+          {selectedFile && (
+            <div className="flex gap-1">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onClick={handleEditClick}
+                    className="h-8 w-8 p-0 bg-green-100 hover:bg-green-200"
+                  >
+                    <Check className="h-4 w-4 text-green-600" />
+                  </Button>
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="h-8 w-8 p-0 bg-red-100 hover:bg-red-200"
+                  >
+                    <X className="h-4 w-4 text-red-600" />
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="neutral"
+                  size="sm"
+                  onClick={handleEditClick}
+                  className="h-8 w-8 p-0"
+                  title="Edit text content"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
         <CardDescription>
           {selectedFile
             ? 'Review the full content and analyze its discourse network'
@@ -127,15 +198,27 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, loadi
         {selectedFile ? (
           <div className="space-y-4">
             <div className="min-h-[300px] border border-border rounded-md p-4 bg-muted">
-              <HighlightedText
-                text={selectedFile.content}
-                statements={statements.filter(stmt => stmt.sourceFile === selectedFile.title)}
-              />
+              {isEditing ? (
+                <Textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  onDoubleClick={handleTextDoubleClick}
+                  className="min-h-[280px] resize-none font-mono text-sm"
+                  placeholder="Edit text content..."
+                />
+              ) : (
+                <div onDoubleClick={handleTextDoubleClick} className="cursor-text">
+                  <HighlightedText
+                    text={selectedFile.content}
+                    statements={statements.filter(stmt => stmt.sourceFile === selectedFile.title)}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center">
               <div className="text-sm text-muted-foreground">
-                {selectedFile.content.split(' ').length} words • {statements.filter(stmt => stmt.sourceFile === selectedFile.title).length} highlighted statements
+                {(isEditing ? editedContent : selectedFile.content).split(' ').filter(word => word.length > 0).length} words • {statements.filter(stmt => stmt.sourceFile === selectedFile.title).length} highlighted statements
               </div>
 
               <Button

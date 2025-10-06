@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
         agree: stmt.agree,
         sourceFile: stmt.sourceFile,
         startIndex: stmt.startIndex || 0,
-        endIndex: stmt.endIndex || 0
+        endIndex: stmt.endIndex || 0,
+        originalStatementId: stmt.ID // Include the original statement ID
       }));
 
       return new Response(JSON.stringify({

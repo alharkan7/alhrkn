@@ -14,6 +14,8 @@ interface TextFile {
   content: string
   processed?: boolean
   isLoaded?: boolean // true if loaded from DB, false if newly added
+  isContentModified?: boolean // true if content has been edited
+  originalDocumentId?: number // Original DB ID for loaded documents
 }
 
 interface Statement {
@@ -26,6 +28,8 @@ interface Statement {
   startIndex?: number
   endIndex?: number
   isLoaded?: boolean // true if loaded from DB, false if newly analyzed
+  isModified?: boolean // true if statement has been edited
+  originalStatementId?: number // Original DB statement ID for updates
 }
 
 export default function DNAnalyzerPage() {
@@ -53,7 +57,8 @@ export default function DNAnalyzerPage() {
       title,
       content,
       processed: false,
-      isLoaded: false // Mark as newly added, not loaded from DB
+      isLoaded: false, // Mark as newly added, not loaded from DB
+      isContentModified: false // Initially not modified
     }
     setFiles(prev => [...prev, newFile])
   }
@@ -88,7 +93,8 @@ export default function DNAnalyzerPage() {
         sourceFile: selectedFile.title,
         startIndex: stmt.startIndex,
         endIndex: stmt.endIndex,
-        isLoaded: false // Mark as newly analyzed, not loaded from DB
+        isLoaded: false, // Mark as newly analyzed, not loaded from DB
+        isModified: false // Initially not modified
       }))
 
       // Add new statements to accumulated results
@@ -117,11 +123,61 @@ export default function DNAnalyzerPage() {
       } else {
         updated[index][field] = newValue
       }
+      updated[index].isModified = true // Mark as modified
       return updated
     })
   }
 
   const processedFilesCount = files.filter(file => file.processed).length
+
+  const handleUpdateContent = async (fileId: string, newContent: string) => {
+    // Update the file content in state
+    setFiles(prev => prev.map(file =>
+      file.id === fileId
+        ? { ...file, content: newContent, isContentModified: true }
+        : file
+    ))
+
+    // If the file was loaded from DB and has been edited, we need to save the changes
+    const file = files.find(f => f.id === fileId)
+    if (file && file.isLoaded) {
+      try {
+        // Update the existing document in database
+        const response = await fetch('/api/dnanalyzer/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documents: [{
+              id: file.originalDocumentId, // Pass the original DB ID for update
+              title: file.title,
+              content: newContent,
+              statements: [] // No statements to add for content-only updates
+            }]
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        if (!data.success) {
+          throw new Error(data.error || 'Unknown error occurred')
+        }
+
+        setSaveStatus('success')
+        setSaveMessage('Content updated successfully!')
+        setTimeout(() => setSaveStatus('idle'), 3000)
+
+      } catch (err) {
+        console.error('Error updating content:', err)
+        setSaveStatus('error')
+        setSaveMessage(err instanceof Error ? err.message : 'An error occurred while updating content')
+      }
+    }
+  }
 
   const handleSaveToDatabase = async () => {
     if (allStatements.length === 0) {
@@ -135,20 +191,35 @@ export default function DNAnalyzerPage() {
     setSaveMessage('')
 
     try {
-      // Group statements by source file, but only include newly added/analyzed data
+      // Group statements by source file, including both new and modified loaded data
       const documentsWithStatements = files
-        .filter(file => file.processed && !file.isLoaded) // Only newly processed files, not loaded ones
+        .filter(file => {
+          // Include newly processed files
+          if (file.processed && !file.isLoaded) return true
+          // Include loaded files that have been modified
+          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && stmt.isModified))) return true
+          return false
+        })
         .map(file => ({
+          id: file.originalDocumentId, // Include original ID for updates
           title: file.title,
           content: file.content,
-          statements: allStatements.filter(stmt => stmt.sourceFile === file.title && !stmt.isLoaded) // Only newly analyzed statements
+          statements: allStatements.filter(stmt => {
+            // Include all statements from this file if it's a new file
+            if (!file.isLoaded) return stmt.sourceFile === file.title
+            // For loaded files, include only modified statements
+            return stmt.sourceFile === file.title && stmt.isModified
+          }).map(stmt => ({
+            // Include all statement fields including originalStatementId
+            ...stmt
+          }))
         }))
-        // Only include documents that have new statements
+        // Only include documents that have statements to save
         .filter(doc => doc.statements.length > 0)
 
       if (documentsWithStatements.length === 0) {
         setSaveStatus('error')
-        setSaveMessage('No new data to save. All current data was already loaded from the database.')
+        setSaveMessage('No new or modified data to save.')
         return
       }
 
@@ -196,20 +267,35 @@ export default function DNAnalyzerPage() {
     setSaveMessage('')
 
     try {
-      // Group statements by source file, but only include newly added/analyzed data
+      // Group statements by source file, including both new and modified loaded data
       const documentsWithStatements = files
-        .filter(file => file.processed && !file.isLoaded) // Only newly processed files, not loaded ones
+        .filter(file => {
+          // Include newly processed files
+          if (file.processed && !file.isLoaded) return true
+          // Include loaded files that have been modified
+          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && stmt.isModified))) return true
+          return false
+        })
         .map(file => ({
+          id: file.originalDocumentId, // Include original ID for updates
           title: file.title,
           content: file.content,
-          statements: allStatements.filter(stmt => stmt.sourceFile === file.title && !stmt.isLoaded) // Only newly analyzed statements
+          statements: allStatements.filter(stmt => {
+            // Include all statements from this file if it's a new file
+            if (!file.isLoaded) return stmt.sourceFile === file.title
+            // For loaded files, include only modified statements
+            return stmt.sourceFile === file.title && stmt.isModified
+          }).map(stmt => ({
+            // Include all statement fields including originalStatementId
+            ...stmt
+          }))
         }))
-        // Only include documents that have new statements
+        // Only include documents that have statements to save
         .filter(doc => doc.statements.length > 0)
 
       if (documentsWithStatements.length === 0) {
         setSaveStatus('error')
-        setSaveMessage('No new data to export. All current data was already loaded from the database.')
+        setSaveMessage('No new or modified data to export.')
         return
       }
 
@@ -279,7 +365,9 @@ export default function DNAnalyzerPage() {
           title: doc.title,
           content: doc.content,
           processed: true,
-          isLoaded: true // Mark as loaded from DB
+          isLoaded: true, // Mark as loaded from DB
+          isContentModified: false, // Initially not modified
+          originalDocumentId: doc.id // Store original DB ID for updates
         }))
 
         const loadedStatements: Statement[] = data.statements.map((stmt: any) => ({
@@ -289,7 +377,9 @@ export default function DNAnalyzerPage() {
           organization: stmt.organization,
           agree: stmt.agree,
           sourceFile: stmt.sourceFile,
-          isLoaded: true // Mark as loaded from DB
+          isLoaded: true, // Mark as loaded from DB
+          isModified: false, // Initially not modified
+          originalStatementId: stmt.originalStatementId // Store original DB statement ID
         }))
 
         setFiles(prev => [...prev, ...loadedFiles])
@@ -405,6 +495,7 @@ export default function DNAnalyzerPage() {
             selectedFile={selectedFile}
             statements={allStatements}
             onAnalyze={handleAnalyze}
+            onUpdateContent={handleUpdateContent}
             loading={loading}
             error={error}
           />

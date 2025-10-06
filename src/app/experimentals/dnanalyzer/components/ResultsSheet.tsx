@@ -21,6 +21,8 @@ interface Statement {
   agree: boolean
   sourceFile?: string // Track which file this statement came from
   isLoaded?: boolean // true if loaded from DB, false if newly analyzed
+  isModified?: boolean // true if statement has been edited
+  originalStatementId?: number // Original DB statement ID for updates
 }
 
 interface EditableCellProps {
@@ -113,7 +115,7 @@ export default function ResultsSheet({
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="default" className="fixed top-4 right-4 z-50 shadow-lg">
-          <Eye className="w-4 h-4 mr-2" />
+          <Eye className="w-4 h-4" />
           View Results ({statements.length})
         </Button>
       </SheetTrigger>

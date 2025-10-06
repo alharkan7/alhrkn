@@ -26,16 +26,40 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const documentId = await db.saveDocument(doc.title, doc.content);
+        let documentId: number;
 
-        if (doc.statements && Array.isArray(doc.statements)) {
-          await db.saveStatements(documentId, doc.statements);
+        // Check if this is an update (has existing ID) or a new document
+        if (doc.id && typeof doc.id === 'number') {
+          // Update existing document
+          await db.updateDocument(doc.id, doc.title, doc.content);
+          documentId = doc.id;
+
+          // For updates, handle statements individually
+          if (doc.statements && Array.isArray(doc.statements)) {
+            for (const statement of doc.statements) {
+              if (statement.originalStatementId && typeof statement.originalStatementId === 'number') {
+                // Update existing statement
+                await db.updateStatement(statement.originalStatementId, statement);
+              } else {
+                // Insert new statement
+                await db.saveSingleStatement(documentId, statement);
+              }
+            }
+          }
+        } else {
+          // Create new document
+          documentId = await db.saveDocument(doc.title, doc.content);
+
+          if (doc.statements && Array.isArray(doc.statements)) {
+            await db.saveStatements(documentId, doc.statements);
+          }
         }
 
         savedDocuments.push({
           id: documentId,
           title: doc.title,
-          statementsCount: doc.statements?.length || 0
+          statementsCount: doc.statements?.length || 0,
+          isUpdate: !!doc.id
         });
       }
 

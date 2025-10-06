@@ -105,6 +105,45 @@ export class DNAnalyzerDB {
     }
   }
 
+  async updateDocument(documentId: number, title: string, content: string): Promise<void> {
+    if (!this.connection) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const sql = `
+        UPDATE DOCUMENTS
+        SET Title = ?, Text = ?, Date = ?
+        WHERE ID = ?
+      `;
+      const date = Math.floor(Date.now() / 1000); // Unix timestamp
+
+      await this.connection.execute(sql, [title, content, date, documentId]);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updateStatement(statementId: number, statement: Statement): Promise<void> {
+    if (!this.connection) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Delete existing data for this statement
+      await this.connection.execute('DELETE FROM DATASHORTTEXT WHERE StatementId = ?', [statementId]);
+      await this.connection.execute('DELETE FROM DATABOOLEAN WHERE StatementId = ?', [statementId]);
+
+      // Re-insert the updated data
+      await this.saveEntityAndLink(statementId, 1, statement.actor); // person
+      await this.saveEntityAndLink(statementId, 2, statement.organization); // organization
+      await this.saveEntityAndLink(statementId, 3, statement.concept); // concept
+      await this.saveBooleanData(statementId, 4, statement.agree ? 1 : 0); // agreement
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async saveStatements(documentId: number, statements: Statement[]): Promise<void> {
     if (!this.connection) {
       throw new Error('Database not initialized');
@@ -120,7 +159,7 @@ export class DNAnalyzerDB {
     }
   }
 
-  private async saveSingleStatement(documentId: number, statement: Statement): Promise<void> {
+  async saveSingleStatement(documentId: number, statement: Statement): Promise<void> {
     if (!this.connection) {
       throw new Error('Database not initialized');
     }
