@@ -128,6 +128,20 @@ export default function DNAnalyzerPage() {
     })
   }
 
+  const handleAddManualStatement = (fileId: string, statementData: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'>) => {
+    const file = files.find(f => f.id === fileId)
+    if (!file) return
+
+    const newStatement: Statement = {
+      ...statementData,
+      sourceFile: file.title,
+      isLoaded: false,
+      isModified: false
+    }
+
+    setAllStatements(prev => [...prev, newStatement])
+  }
+
   const processedFilesCount = files.filter(file => file.processed).length
 
   const handleUpdateContent = async (fileId: string, newContent: string) => {
@@ -196,8 +210,8 @@ export default function DNAnalyzerPage() {
         .filter(file => {
           // Include newly processed files
           if (file.processed && !file.isLoaded) return true
-          // Include loaded files that have been modified
-          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && stmt.isModified))) return true
+          // Include loaded files that have been modified or have new manual statements
+          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)))) return true
           return false
         })
         .map(file => ({
@@ -207,12 +221,12 @@ export default function DNAnalyzerPage() {
           statements: allStatements.filter(stmt => {
             // Include all statements from this file if it's a new file
             if (!file.isLoaded) return stmt.sourceFile === file.title
-            // For loaded files, include only modified statements
-            return stmt.sourceFile === file.title && stmt.isModified
-          }).map(stmt => ({
+            // For loaded files, include modified statements OR manually added statements (no originalStatementId)
+            return stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)
+          }).map(stmt => {
             // Include all statement fields including originalStatementId
-            ...stmt
-          }))
+            return { ...stmt }
+          })
         }))
         // Only include documents that have statements to save
         .filter(doc => doc.statements.length > 0)
@@ -272,8 +286,8 @@ export default function DNAnalyzerPage() {
         .filter(file => {
           // Include newly processed files
           if (file.processed && !file.isLoaded) return true
-          // Include loaded files that have been modified
-          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && stmt.isModified))) return true
+          // Include loaded files that have been modified or have new manual statements
+          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)))) return true
           return false
         })
         .map(file => ({
@@ -283,8 +297,8 @@ export default function DNAnalyzerPage() {
           statements: allStatements.filter(stmt => {
             // Include all statements from this file if it's a new file
             if (!file.isLoaded) return stmt.sourceFile === file.title
-            // For loaded files, include only modified statements
-            return stmt.sourceFile === file.title && stmt.isModified
+            // For loaded files, include modified statements OR manually added statements (no originalStatementId)
+            return stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)
           }).map(stmt => ({
             // Include all statement fields including originalStatementId
             ...stmt
@@ -377,6 +391,8 @@ export default function DNAnalyzerPage() {
           organization: stmt.organization,
           agree: stmt.agree,
           sourceFile: stmt.sourceFile,
+          startIndex: stmt.startIndex,
+          endIndex: stmt.endIndex,
           isLoaded: true, // Mark as loaded from DB
           isModified: false, // Initially not modified
           originalStatementId: stmt.originalStatementId // Store original DB statement ID
@@ -496,6 +512,7 @@ export default function DNAnalyzerPage() {
             statements={allStatements}
             onAnalyze={handleAnalyze}
             onUpdateContent={handleUpdateContent}
+            onAddManualStatement={handleAddManualStatement}
             loading={loading}
             error={error}
           />

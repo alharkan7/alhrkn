@@ -56,19 +56,29 @@ export async function POST(req: NextRequest) {
         ORDER BY s.ID
       `);
 
-      // For each statement, get the actual statement text
-      // We need to reconstruct this from the available data since we don't store the original text
-      const statements = (rawStatements as any[]).map((stmt: any) => ({
-        statement: `Statement by ${stmt.actor || 'Unknown'}${stmt.organization ? ` from ${stmt.organization}` : ''} regarding ${stmt.concept || 'topic'}`,
-        concept: stmt.concept || '',
-        actor: stmt.actor || '',
-        organization: stmt.organization || '',
-        agree: stmt.agree,
-        sourceFile: stmt.sourceFile,
-        startIndex: stmt.startIndex || 0,
-        endIndex: stmt.endIndex || 0,
-        originalStatementId: stmt.ID // Include the original statement ID
-      }));
+      // For each statement, extract the actual text from the document using Start/Stop positions
+      const statements = (rawStatements as any[]).map((stmt: any) => {
+        // Find the corresponding document to extract the statement text
+        const document = formattedDocuments.find((doc: any) => doc.title === stmt.sourceFile);
+        let statementText = `Statement by ${stmt.actor || 'Unknown'}${stmt.organization ? ` from ${stmt.organization}` : ''} regarding ${stmt.concept || 'topic'}`;
+
+        // If we have valid start/end indices and the document, extract the actual text
+        if (document && stmt.startIndex >= 0 && stmt.endIndex > stmt.startIndex && stmt.endIndex <= document.content.length) {
+          statementText = document.content.substring(stmt.startIndex, stmt.endIndex);
+        }
+
+        return {
+          statement: statementText,
+          concept: stmt.concept || '',
+          actor: stmt.actor || '',
+          organization: stmt.organization || '',
+          agree: stmt.agree,
+          sourceFile: stmt.sourceFile,
+          startIndex: stmt.startIndex || 0,
+          endIndex: stmt.endIndex || 0,
+          originalStatementId: stmt.ID // Include the original statement ID
+        };
+      });
 
       return new Response(JSON.stringify({
         success: true,
