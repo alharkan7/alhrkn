@@ -12,8 +12,8 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-const title = "Al's Apps"
-const description = "Collection of Experimental (AI) Apps by @alhrkn"
+const title = "@alhrkn's Apps Gallery"
+const description = "Collection of Experimental AI Apps by @alhrkn"
 
 export const metadata: Metadata = {
   title: title,
