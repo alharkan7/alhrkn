@@ -12,10 +12,10 @@ export default function HomePage() {
         {/* Title Section */}
         <div className="text-center mb-10 pt-16">
           <h1 className="text-4xl font-heading text-text mb-4">
-            Al's Apps
+            My Apps Gallery
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto font-base hidden sm:block">
-            Collection of Experimental (AI) Apps by{' '}
+            Collection of Experimental AI Apps by{' '}
             <a 
               href="https://x.com/alhrkn" 
               target="_blank" 
