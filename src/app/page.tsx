@@ -15,7 +15,7 @@ export default function HomePage() {
             My Apps Gallery
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto font-base hidden sm:block">
-            Collection of Experimental AI Apps by{' '}
+            Collection of Experimental Apps by{' '}
             <a 
               href="https://x.com/alhrkn" 
               target="_blank" 
