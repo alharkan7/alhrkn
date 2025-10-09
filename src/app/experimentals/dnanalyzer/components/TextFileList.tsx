@@ -128,7 +128,7 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
       </CardHeader>
       <CardContent>
         {files.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
+          <div className="text-center py-8">
             <p className="mb-4">No text sources added yet</p>
             <p className="text-sm">Click "Add Source" to get started</p>
           </div>

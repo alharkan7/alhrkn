@@ -429,7 +429,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
           </div>
         ) : (
           <div className="min-h-[200px] border-2 border-dashed border-border rounded-lg p-8 flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
+            <div className="text-center">
               <p className="text-lg mb-2">No file selected</p>
               <p className="text-sm">Click on a file from the list above to view its content</p>
             </div>

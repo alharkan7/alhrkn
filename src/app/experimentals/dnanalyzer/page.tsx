@@ -533,7 +533,7 @@ export default function DNAnalyzerPage() {
               <div className="p-3 w-full flex-shrink-0"></div>
 
               {/* Login Content */}
-              <div className="flex-1 bg-white rounded-t-3xl p-4 flex flex-col items-center justify-center space-y-4 overflow-y-auto">
+              <div className="flex-1 bg-white rounded-3xl p-4 flex flex-col items-center justify-center space-y-4 overflow-y-auto">
                 <div className="text-center space-y-3 max-w-md">
                   <FileText className="w-12 h-12 text-blue-500 mx-auto" />
                   <h1 className="text-xl font-bold text-gray-900">
@@ -557,7 +557,7 @@ export default function DNAnalyzerPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex-shrink-0 text-center mb-1">
+              {/* <div className="flex-shrink-0 text-center mb-1">
                 <span className="text-xs text-white/70">
                   © {new Date().getFullYear()}
                 </span>
@@ -567,7 +567,7 @@ export default function DNAnalyzerPage() {
                 >
                   alhrkn
                 </button>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
