@@ -100,9 +100,9 @@ export class DNAnalyzerDB {
   }
 
   /**
-   * Save or update user's MySQL configuration in PostgreSQL database
+   * Save or update user's MySQL configuration and Google API key in PostgreSQL database
    */
-  static async saveUserMySQLConfig(userEmail: string, mysqlConfig: mysql.ConnectionOptions): Promise<void> {
+  static async saveUserConfig(userEmail: string, mysqlConfig: mysql.ConnectionOptions, googleApiKey?: string): Promise<void> {
     try {
       // Check if config already exists
       const existingResult = await db.query(
@@ -112,42 +112,76 @@ export class DNAnalyzerDB {
 
       if (existingResult.rows.length > 0) {
         // Update existing config
+        const updateFields = ['mysql_config = $1'];
+        const params = [JSON.stringify(mysqlConfig)];
+
+        if (googleApiKey !== undefined) {
+          updateFields.push('google_api_key = $2');
+          params.push(googleApiKey);
+        }
+
         await db.query(
-          'UPDATE user_mysql_configs SET mysql_config = $1, updated_at = NOW() WHERE user_id = $2',
-          [JSON.stringify(mysqlConfig), userEmail]
+          `UPDATE user_mysql_configs SET ${updateFields.join(', ')}, updated_at = NOW() WHERE user_id = $${params.length + 1}`,
+          [...params, userEmail]
         );
       } else {
         // Insert new config
-        await db.query(
-          'INSERT INTO user_mysql_configs (user_id, mysql_config) VALUES ($1, $2)',
-          [userEmail, JSON.stringify(mysqlConfig)]
-        );
+        if (googleApiKey !== undefined) {
+          await db.query(
+            'INSERT INTO user_mysql_configs (user_id, mysql_config, google_api_key) VALUES ($1, $2, $3)',
+            [userEmail, JSON.stringify(mysqlConfig), googleApiKey]
+          );
+        } else {
+          await db.query(
+            'INSERT INTO user_mysql_configs (user_id, mysql_config) VALUES ($1, $2)',
+            [userEmail, JSON.stringify(mysqlConfig)]
+          );
+        }
       }
     } catch (error) {
-      console.error('Error saving MySQL config:', error);
+      console.error('Error saving user config:', error);
       throw error;
     }
   }
 
   /**
-   * Get user's MySQL configuration (static method for API use)
+   * Get user's MySQL configuration and Google API key (static method for API use)
    */
-  static async getUserMySQLConfig(userEmail: string): Promise<mysql.ConnectionOptions | null> {
+  static async getUserConfig(userEmail: string): Promise<{ mysqlConfig: mysql.ConnectionOptions | null, googleApiKey: string | null }> {
     try {
       const result = await db.query(
-        'SELECT mysql_config FROM user_mysql_configs WHERE user_id = $1',
+        'SELECT mysql_config, google_api_key FROM user_mysql_configs WHERE user_id = $1',
         [userEmail]
       );
 
       if (result.rows.length === 0) {
-        return null;
+        return { mysqlConfig: null, googleApiKey: null };
       }
 
-      return result.rows[0].mysql_config as mysql.ConnectionOptions;
+      return {
+        mysqlConfig: result.rows[0].mysql_config as mysql.ConnectionOptions,
+        googleApiKey: result.rows[0].google_api_key || null
+      };
     } catch (error) {
-      console.error('Error fetching MySQL config:', error);
+      console.error('Error fetching user config:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get user's MySQL configuration (static method for API use) - backward compatibility
+   */
+  static async getUserMySQLConfig(userEmail: string): Promise<mysql.ConnectionOptions | null> {
+    const { mysqlConfig } = await this.getUserConfig(userEmail);
+    return mysqlConfig;
+  }
+
+  /**
+   * Get user's Google API key (static method for API use)
+   */
+  static async getUserGoogleApiKey(userEmail: string): Promise<string | null> {
+    const { googleApiKey } = await this.getUserConfig(userEmail);
+    return googleApiKey;
   }
 
   /**

@@ -63,7 +63,7 @@ export default function DNAnalyzerPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [showResults, setShowResults] = useState(false)
 
-  // MySQL Configuration state
+  // Configuration state
   const [mysqlConfig, setMysqlConfig] = useState({
     host: '',
     user: '',
@@ -71,9 +71,13 @@ export default function DNAnalyzerPage() {
     database: '',
     port: 3306
   })
+  const [googleApiKey, setGoogleApiKey] = useState('')
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
   const [savingConfig, setSavingConfig] = useState(false)
   const [hasConfig, setHasConfig] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(false)
+  const [showMySQLPassword, setShowMySQLPassword] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
 
   const selectedFile = files.find(file => file.id === selectedFileId) || null
 
@@ -96,6 +100,12 @@ export default function DNAnalyzerPage() {
 
   const handleAnalyze = async (text: string) => {
     if (!selectedFile || !text.trim()) return
+
+    if (!hasApiKey) {
+      setError('Please configure your Google Generative AI API key in settings first.')
+      setIsConfigDialogOpen(true)
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -314,44 +324,79 @@ export default function DNAnalyzerPage() {
   }
 
 
-  // Load user's MySQL configuration
-  const loadMySQLConfig = async () => {
+  // Load user's configuration
+  const loadUserConfig = async () => {
     if (!session?.user?.email) return
 
     try {
       const response = await fetch('/api/dnanalyzer/mysql-config')
       if (response.ok) {
         const data = await response.json()
-        setMysqlConfig(data.mysqlConfig)
-        setHasConfig(true)
+        if (data.mysqlConfig) {
+          setMysqlConfig(data.mysqlConfig)
+          setHasConfig(true)
+        } else {
+          setHasConfig(false)
+        }
+        if (data.googleApiKey) {
+          setGoogleApiKey(data.googleApiKey)
+          setHasApiKey(true)
+        } else {
+          setGoogleApiKey('')
+          setHasApiKey(false)
+        }
       } else if (response.status === 404) {
         // No config found, user needs to set it up
         setHasConfig(false)
+        setHasApiKey(false)
+        setGoogleApiKey('')
       }
     } catch (error) {
-      console.error('Error loading MySQL config:', error)
+      console.error('Error loading user config:', error)
     }
   }
 
-  // Save user's MySQL configuration
-  const saveMySQLConfig = async () => {
+  // Save user's configuration
+  const saveUserConfig = async () => {
     if (!session?.user?.email) return
 
     setSavingConfig(true)
     try {
+      const requestBody: any = {}
+
+      // Include MySQL config if provided
+      if (mysqlConfig.host && mysqlConfig.user && mysqlConfig.password && mysqlConfig.database) {
+        requestBody.mysqlConfig = mysqlConfig
+      }
+
+      // Include Google API key if provided
+      if (googleApiKey.trim()) {
+        requestBody.googleApiKey = googleApiKey.trim()
+      }
+
+      // At least one must be provided
+      if (Object.keys(requestBody).length === 0) {
+        throw new Error('Please provide either MySQL configuration or Google API key')
+      }
+
       const response = await fetch('/api/dnanalyzer/mysql-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ mysqlConfig }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
-        setHasConfig(true)
+        if (requestBody.mysqlConfig) {
+          setHasConfig(true)
+        }
+        if (requestBody.googleApiKey) {
+          setHasApiKey(true)
+        }
         setIsConfigDialogOpen(false)
         setSaveStatus('success')
-        setSaveMessage('MySQL configuration saved successfully!')
+        setSaveMessage('Configuration saved successfully!')
         setTimeout(() => setSaveStatus('idle'), 3000)
       } else {
         const errorData = await response.json()
@@ -359,16 +404,16 @@ export default function DNAnalyzerPage() {
       }
     } catch (error: any) {
       setSaveStatus('error')
-      setSaveMessage(error.message || 'Failed to save MySQL configuration')
+      setSaveMessage(error.message || 'Failed to save configuration')
     } finally {
       setSavingConfig(false)
     }
   }
 
-  // Load MySQL config when user is authenticated
+  // Load user config when authenticated
   useEffect(() => {
     if (session?.user?.email) {
-      loadMySQLConfig()
+      loadUserConfig()
     }
   }, [session])
 
@@ -601,16 +646,16 @@ export default function DNAnalyzerPage() {
                   <span className="hidden sm:inline">Settings</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Database className="w-5 h-5" />
-                    MySQL Database Configuration
-                  </DialogTitle>
-                  <DialogDescription>
-                    Configure your MySQL database connection for storing discourse analysis data.
-                  </DialogDescription>
-                </DialogHeader>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5" />
+                      Configuration Settings
+                    </DialogTitle>
+                    <DialogDescription>
+                      Configure your MySQL database connection and Google Generative AI API key for discourse analysis.
+                    </DialogDescription>
+                  </DialogHeader>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -653,14 +698,65 @@ export default function DNAnalyzerPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter password"
-                      value={mysqlConfig.password}
-                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showMySQLPassword ? "text" : "password"}
+                        placeholder="Enter password"
+                        value={mysqlConfig.password}
+                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowMySQLPassword(!showMySQLPassword)}
+                      >
+                        {showMySQLPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="googleApiKey">Google Generative AI API Key</Label>
+                    <div className="relative">
+                      <Input
+                        id="googleApiKey"
+                        type={showApiKey ? "text" : "password"}
+                        placeholder="Enter your Google API key"
+                        value={googleApiKey}
+                        onChange={(e) => setGoogleApiKey(e.target.value)}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Get your API key from{' '}
+                      <a
+                        href="https://aistudio.google.com/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        Google AI Studio
+                      </a>
+                    </p>
+                  </div>
+
                   <div className="flex justify-end gap-2 pt-4">
                     <Button
                       variant="neutral"
@@ -669,11 +765,11 @@ export default function DNAnalyzerPage() {
                       Cancel
                     </Button>
                     <Button
-                      onClick={saveMySQLConfig}
+                      onClick={saveUserConfig}
                       disabled={savingConfig}
                       className="flex items-center gap-2"
                     >
-                      {savingConfig ? 'Testing...' : 'Save & Test Connection'}
+                      {savingConfig ? 'Saving...' : 'Save Configuration'}
                     </Button>
                   </div>
                 </div>

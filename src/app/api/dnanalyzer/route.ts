@@ -1,21 +1,26 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest } from 'next/server';
+import { getServerSession } from "next-auth/next";
+import GoogleProvider from "next-auth/providers/google";
+import { DNAnalyzerDB } from '@/lib/dnanalyzer-db';
 
-const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-if (!apiKey) {
-  throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY environment variable');
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
-  generationConfig: {
-    temperature: 0.3,
-    topP: 0.8,
-    topK: 40,
-    maxOutputTokens: 4096,
-  },
-});
+const authOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "openid email profile",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        },
+      },
+    }),
+  ],
+  secret: process.env.NEXTAUTH_SECRET,
+};
 
 // Removed complex schema to avoid Gemini constraints
 
@@ -64,6 +69,25 @@ function findStatementIndices(originalText: string, statement: string): { start:
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get user's Google API key from database
+    const googleApiKey = await DNAnalyzerDB.getUserGoogleApiKey(session.user.email);
+
+    if (!googleApiKey) {
+      return new Response(JSON.stringify({ error: 'Google API key not configured. Please set your Google Generative AI API key in settings.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { text } = body || {};
 
@@ -73,6 +97,18 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    // Initialize Gemini with user's API key
+    const genAI = new GoogleGenerativeAI(googleApiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.3,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 4096,
+      },
+    });
 
 const systemInstruction = `Extract statements with clear attribution from the text for discourse network analysis.
 

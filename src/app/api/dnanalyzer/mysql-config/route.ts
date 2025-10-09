@@ -33,20 +33,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const mysqlConfig = await DNAnalyzerDB.getUserMySQLConfig(session.user.email);
+    const { mysqlConfig, googleApiKey } = await DNAnalyzerDB.getUserConfig(session.user.email);
 
-    if (!mysqlConfig) {
-      return NextResponse.json(
-        { error: 'MySQL configuration not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ mysqlConfig });
+    return NextResponse.json({
+      mysqlConfig: mysqlConfig || null,
+      googleApiKey: googleApiKey || null
+    });
   } catch (error: any) {
-    console.error('Error fetching MySQL config:', error);
+    console.error('Error fetching user config:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch MySQL configuration' },
+      { error: error.message || 'Failed to fetch user configuration' },
       { status: 500 }
     );
   }
@@ -64,42 +60,53 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { mysqlConfig } = body;
+    const { mysqlConfig, googleApiKey } = body;
 
-    if (!mysqlConfig) {
+    // At least one of MySQL config or Google API key must be provided
+    if (!mysqlConfig && !googleApiKey) {
       return NextResponse.json(
-        { error: 'MySQL configuration is required' },
+        { error: 'Either MySQL configuration or Google API key must be provided' },
         { status: 400 }
       );
     }
 
-    // Validate MySQL config structure
-    const requiredFields = ['host', 'user', 'password', 'database'];
-    const missingFields = requiredFields.filter(field => !mysqlConfig[field]);
+    // If MySQL config is provided, validate it
+    if (mysqlConfig) {
+      const requiredFields = ['host', 'user', 'password', 'database'];
+      const missingFields = requiredFields.filter(field => !mysqlConfig[field]);
 
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      );
+      if (missingFields.length > 0) {
+        return NextResponse.json(
+          { error: `Missing required MySQL fields: ${missingFields.join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      // Test the MySQL connection before saving
+      try {
+        const testConnection = await mysql.createConnection({
+          ...mysqlConfig,
+          connectTimeout: 5000, // 5 second timeout
+        });
+        await testConnection.end();
+      } catch (connectionError: any) {
+        return NextResponse.json(
+          { error: `Failed to connect to MySQL database: ${connectionError.message}` },
+          { status: 400 }
+        );
+      }
     }
 
-    // Test the connection before saving
-    try {
-      const testConnection = await mysql.createConnection({
-        ...mysqlConfig,
-        connectTimeout: 5000, // 5 second timeout
-      });
-      await testConnection.end();
-    } catch (connectionError: any) {
+    // If Google API key is provided, validate it's not empty
+    if (googleApiKey && typeof googleApiKey !== 'string') {
       return NextResponse.json(
-        { error: `Failed to connect to MySQL database: ${connectionError.message}` },
+        { error: 'Google API key must be a string' },
         { status: 400 }
       );
     }
 
     // Save the configuration
-    await DNAnalyzerDB.saveUserMySQLConfig(session.user.email, mysqlConfig);
+    await DNAnalyzerDB.saveUserConfig(session.user.email, mysqlConfig || {}, googleApiKey);
 
     return NextResponse.json({
       success: true,
