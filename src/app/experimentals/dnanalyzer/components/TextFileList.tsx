@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, forwardRef, useImperativeHandle } from 'react'
+import { useState, forwardRef, useImperativeHandle, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,7 +24,24 @@ interface TextFileListProps {
   onAddFile: (title: string, content: string) => void
 }
 
-function truncateText(text: string, maxLength: number = 100): string {
+function useScreenSize() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768) // md breakpoint
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
+
+  return isMobile
+}
+
+function truncateText(text: string, isMobile: boolean): string {
+  const maxLength = isMobile ? 120 : 200 // Shorter on mobile, longer on desktop
   if (text.length <= maxLength) return text
   return text.substring(0, maxLength).trim() + '...'
 }
@@ -34,6 +51,7 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [newTitle, setNewTitle] = useState('')
     const [newContent, setNewContent] = useState('')
+    const isMobile = useScreenSize()
 
     useImperativeHandle(ref, () => ({
       triggerAddFile: () => setIsDialogOpen(true)
@@ -120,10 +138,10 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-4 border rounded-lg bg-white cursor-pointer transition-colors ${
                     selectedFileId === file.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-border hover:bg-muted'
+                      ? 'border-accent bg-accent/20 shadow-sm ring-1 ring-accent/30'
+                      : 'border-border hover:border-accent/70 hover:bg-accent/10'
                   }`}
                   onClick={() => onFileSelect(file.id)}
                 >
@@ -144,8 +162,8 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
                           {file.content.split(' ').filter(word => word.length > 0).length} words
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {truncateText(file.content)}
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-1">
+                        {truncateText(file.content, isMobile)}
                       </p>
                     </div>
                   </div>
