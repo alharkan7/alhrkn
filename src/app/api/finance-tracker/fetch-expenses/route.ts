@@ -33,7 +33,7 @@ const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit income'
+        error: 'You must be logged in to access this resource'
       }, { status: 401 });
     }
 
@@ -54,44 +54,27 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { timestamp, date, amount, category, description } = body;
+    // Parse query parameters for date filtering
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Validate required fields
-    if (!date || !amount || !category) {
-      return NextResponse.json({
-        message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
-      }, { status: 400 });
-    }
-
-    if (typeof amount !== 'number' || amount < 0) {
-      return NextResponse.json({
-        message: 'Invalid amount',
-        error: 'Amount must be a positive number'
-      }, { status: 400 });
-    }
-
-    // Create income record in database
-    const income = await DatabaseService.createIncome({
-      user_id: user.id,
-      timestamp: timestamp || null,
-      date,
-      amount,
-      category,
-      description: description || null,
-      source: 'manual'
-    });
+    // Fetch expenses from database
+    const expenses = await DatabaseService.getExpenses(
+      user.id,
+      startDate || undefined,
+      endDate || undefined
+    );
 
     return NextResponse.json({ 
-      message: 'Income created successfully',
-      income
+      expenses,
+      message: expenses.length > 0 ? 'Expenses fetched successfully' : 'No expense data found'
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Error submitting income:', error);
-    return NextResponse.json({ 
-      message: 'Error submitting income',
+    console.error('Error fetching expenses:', error);
+    return NextResponse.json({
+      message: 'Error fetching expenses',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

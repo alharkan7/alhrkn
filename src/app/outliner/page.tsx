@@ -96,7 +96,8 @@ export default function OutlinerPage() {
             });
             if (!res.ok || !res.body) {
                 const data = await res.json().catch(() => ({} as any));
-                throw new Error(data?.error || (language === 'en' ? 'Failed to get ideas' : 'Gagal mendapatkan ide'));
+                console.error('API Error Response:', { status: res.status, data });
+                throw new Error(data?.error || `HTTP ${res.status}: ${res.statusText}`);
             }
 
             const reader = res.body.getReader();
@@ -147,6 +148,7 @@ export default function OutlinerPage() {
             }
         } catch (e: any) {
             if (e?.name !== 'AbortError') {
+                console.error('Frontend fetchIdeas error:', e);
                 setError(e?.message || (language === 'en' ? 'Something went wrong' : 'Terjadi kesalahan'));
             }
         } finally {

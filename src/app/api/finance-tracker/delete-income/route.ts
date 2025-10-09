@@ -33,15 +33,15 @@ const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
-export async function POST(req: Request) {
+export async function DELETE(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit income'
+        error: 'You must be logged in to delete income'
       }, { status: 401 });
     }
 
@@ -54,44 +54,30 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { timestamp, date, amount, category, description } = body;
+    // Get income ID from URL
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
 
-    // Validate required fields
-    if (!date || !amount || !category) {
+    if (!id || isNaN(parseInt(id))) {
       return NextResponse.json({
-        message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
+        message: 'Invalid income ID',
+        error: 'A valid income ID is required'
       }, { status: 400 });
     }
 
-    if (typeof amount !== 'number' || amount < 0) {
-      return NextResponse.json({
-        message: 'Invalid amount',
-        error: 'Amount must be a positive number'
-      }, { status: 400 });
-    }
+    const incomeId = parseInt(id);
 
-    // Create income record in database
-    const income = await DatabaseService.createIncome({
-      user_id: user.id,
-      timestamp: timestamp || null,
-      date,
-      amount,
-      category,
-      description: description || null,
-      source: 'manual'
-    });
+    // Delete income record from database
+    await DatabaseService.deleteIncome(incomeId, user.id);
 
-    return NextResponse.json({ 
-      message: 'Income created successfully',
-      income
+    return NextResponse.json({
+      message: 'Income deleted successfully'
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Error submitting income:', error);
-    return NextResponse.json({ 
-      message: 'Error submitting income',
+    console.error('Error deleting income:', error);
+    return NextResponse.json({
+      message: 'Error deleting income',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

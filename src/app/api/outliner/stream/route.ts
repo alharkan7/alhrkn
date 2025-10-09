@@ -8,7 +8,7 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash-lite',
+  model: 'gemini-2.0-flash',
 });
 
 const ideaSchema = {
@@ -34,9 +34,12 @@ const ideaSchema = {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('=== OUTLINER STREAM API START ===');
+    console.log('Environment check - GOOGLE_GENERATIVE_AI_API_KEY exists:', !!process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+
     const body = await req.json();
     const { keywords, numIdeas, language = 'en' } = body || {};
-    
+
     // Debug logging
     console.log('Stream API called with:', { keywords, numIdeas, language });
 
@@ -48,6 +51,19 @@ export async function POST(req: NextRequest) {
     }
 
     const ideasCount = Math.min(Math.max(Number(numIdeas) || 6, 1), 10);
+
+    // For debugging - return a simple test response if requested
+    if (keywords === '__TEST__') {
+      console.log('Returning test response for debugging');
+      const testResponse = '{"title":"Test Research Idea","abstract":{"background":"Test background","literatureReview":"Test literature review","method":"Test method","analysisTechnique":"Test analysis","impact":"Test impact"}}\n';
+      return new Response(testResponse, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/x-ndjson; charset=utf-8',
+          'Cache-Control': 'no-cache',
+        },
+      });
+    }
 
     // Language-specific instructions
     const languageConfig = {
@@ -103,6 +119,8 @@ Kendala:
     };
 
     const config = languageConfig[language as keyof typeof languageConfig] || languageConfig.en;
+    console.log('Using language config:', language);
+    console.log('Model configuration - attempting to call Gemini API...');
 
     const result = await model.generateContentStream({
       contents: [
@@ -118,13 +136,18 @@ Kendala:
       },
     });
 
+    console.log('Streaming setup - creating ReadableStream...');
     const encoder = new TextEncoder();
+    let chunkCount = 0;
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let buffer = '';
         try {
+          console.log('Starting to read from result.stream...');
           for await (const chunk of result.stream) {
+            chunkCount++;
             const text = chunk.text();
+            console.log(`Chunk ${chunkCount}: received text of length ${text.length}`);
             buffer += text;
             let idx: number;
             while ((idx = buffer.indexOf('\n')) !== -1) {
@@ -133,16 +156,24 @@ Kendala:
               const trimmed = line.trim();
               if (!trimmed) continue;
               const safe = sanitizeIdeaLine(trimmed);
-              if (safe) controller.enqueue(encoder.encode(safe + '\n'));
+              if (safe) {
+                console.log(`Enqueuing sanitized idea line: ${safe.substring(0, 100)}...`);
+                controller.enqueue(encoder.encode(safe + '\n'));
+              }
             }
           }
           const remaining = buffer.trim();
           if (remaining) {
             const safe = sanitizeIdeaLine(remaining);
-            if (safe) controller.enqueue(encoder.encode(safe + '\n'));
+            if (safe) {
+              console.log(`Enqueuing final sanitized idea line: ${safe.substring(0, 100)}...`);
+              controller.enqueue(encoder.encode(safe + '\n'));
+            }
           }
+          console.log(`Stream completed - processed ${chunkCount} chunks`);
           controller.close();
         } catch (err) {
+          console.error('Error in streaming:', err);
           controller.error(err);
         }
       },
@@ -156,8 +187,25 @@ Kendala:
       },
     });
   } catch (error: any) {
-    console.error('Error in /api/outliner/stream:', error);
-    return new Response(JSON.stringify({ error: error?.message || 'Internal server error' }), {
+    console.error('=== OUTLINER STREAM API ERROR ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Full error object:', JSON.stringify(error, null, 2));
+
+    // Check for specific Google AI errors
+    if (error?.message?.includes('API_KEY')) {
+      console.error('API KEY ERROR: Check GOOGLE_GENERATIVE_AI_API_KEY environment variable');
+    } else if (error?.message?.includes('model')) {
+      console.error('MODEL ERROR: Check if gemini-2.5-flash-lite model is available');
+    } else if (error?.message?.includes('quota') || error?.message?.includes('billing')) {
+      console.error('QUOTA/BILLING ERROR: Check Google AI Studio billing and quota');
+    }
+
+    return new Response(JSON.stringify({
+      error: error?.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -169,20 +217,24 @@ function sanitizeIdeaLine(line: string): string | null {
     const obj = JSON.parse(line);
     if (!obj || typeof obj !== 'object') return null;
 
+    // Basic validation - just ensure we have the expected structure
     const title = typeof obj.title === 'string' ? obj.title : '';
     const abstract = obj.abstract && typeof obj.abstract === 'object' ? obj.abstract : {};
+
+    // More lenient validation - allow empty strings but ensure structure exists
     const background = typeof abstract.background === 'string' ? abstract.background : '';
     const literatureReview = typeof abstract.literatureReview === 'string' ? abstract.literatureReview : '';
     const method = typeof abstract.method === 'string' ? abstract.method : '';
     const analysisTechnique = typeof abstract.analysisTechnique === 'string' ? abstract.analysisTechnique : '';
     const impact = typeof abstract.impact === 'string' ? abstract.impact : '';
 
-    if (!title || !background || !literatureReview || !method || !analysisTechnique || !impact) {
+    // Only require that title exists - the rest can be empty strings
+    if (!title.trim()) {
       return null;
     }
 
     const clean = {
-      title,
+      title: title.trim(),
       abstract: { background, literatureReview, method, analysisTechnique, impact },
     };
     return JSON.stringify(clean);

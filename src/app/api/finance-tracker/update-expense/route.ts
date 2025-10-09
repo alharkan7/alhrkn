@@ -33,15 +33,15 @@ const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit income'
+        error: 'You must be logged in to update expenses'
       }, { status: 401 });
     }
 
@@ -55,13 +55,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { timestamp, date, amount, category, description } = body;
+    const { id, date, amount, category, description } = body;
 
     // Validate required fields
-    if (!date || !amount || !category) {
+    if (!id || !date || !amount || !category) {
       return NextResponse.json({
         message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
+        error: 'ID, date, amount, and category are required'
       }, { status: 400 });
     }
 
@@ -72,26 +72,23 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Create income record in database
-    const income = await DatabaseService.createIncome({
-      user_id: user.id,
-      timestamp: timestamp || null,
+    // Update expense record in database
+    const updatedExpense = await DatabaseService.updateExpense(id, user.id, {
       date,
       amount,
       category,
-      description: description || null,
-      source: 'manual'
+      description: description || null
     });
 
-    return NextResponse.json({ 
-      message: 'Income created successfully',
-      income
+    return NextResponse.json({
+      message: 'Expense updated successfully',
+      expense: updatedExpense
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Error submitting income:', error);
-    return NextResponse.json({ 
-      message: 'Error submitting income',
+    console.error('Error updating expense:', error);
+    return NextResponse.json({
+      message: 'Error updating expense',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });

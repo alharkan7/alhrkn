@@ -33,15 +33,15 @@ const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 }
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
       return NextResponse.json({
         message: 'Unauthorized',
-        error: 'You must be logged in to submit income'
+        error: 'You must be logged in to fetch budget data'
       }, { status: 401 });
     }
 
@@ -54,44 +54,27 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { timestamp, date, amount, category, description } = body;
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Validate required fields
-    if (!date || !amount || !category) {
-      return NextResponse.json({
-        message: 'Missing required fields',
-        error: 'Date, amount, and category are required'
-      }, { status: 400 });
-    }
+    // Fetch budgets from database
+    const budgets = await DatabaseService.getBudgets(
+      user.id,
+      startDate || undefined,
+      endDate || undefined
+    );
 
-    if (typeof amount !== 'number' || amount < 0) {
-      return NextResponse.json({
-        message: 'Invalid amount',
-        error: 'Amount must be a positive number'
-      }, { status: 400 });
-    }
-
-    // Create income record in database
-    const income = await DatabaseService.createIncome({
-      user_id: user.id,
-      timestamp: timestamp || null,
-      date,
-      amount,
-      category,
-      description: description || null,
-      source: 'manual'
+    return NextResponse.json({
+      budgets,
+      message: budgets.length > 0 ? 'Budget data fetched successfully' : 'No budget data found'
     });
 
-    return NextResponse.json({ 
-      message: 'Income created successfully',
-      income
-    }, { status: 200 });
+  } catch (error: any) {
+    console.error('Error fetching budget data:', error);
 
-  } catch (error) {
-    console.error('Error submitting income:', error);
-    return NextResponse.json({ 
-      message: 'Error submitting income',
+    return NextResponse.json({
+      message: 'Error fetching budget data',
       errorType: 'DATABASE_ERROR',
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
