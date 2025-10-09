@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import fs from 'fs';
+import { db } from './postgres'; // Import the PostgreSQL database
 
 export interface Statement {
   statement: string;
@@ -35,20 +36,39 @@ const INITIAL_DATA_STATEMENTS = [
 
 export class DNAnalyzerDB {
   private connection: mysql.Connection | null = null;
-  private connectionConfig: mysql.ConnectionOptions;
+  private connectionConfig: mysql.ConnectionOptions | null = null;
+  private userEmail: string;
 
-  constructor(connectionConfig?: mysql.ConnectionOptions) {
-    this.connectionConfig = connectionConfig || {
-      host: process.env.MYSQL_HOST || 'localhost',
-      user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || '',
-      database: process.env.MYSQL_DB || 'dnanalyzer',
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-    };
+  constructor(userEmail: string) {
+    this.userEmail = userEmail;
+  }
+
+  /**
+   * Fetch user's MySQL configuration from PostgreSQL database
+   */
+  private async getUserMySQLConfig(): Promise<mysql.ConnectionOptions> {
+    try {
+      const result = await db.query(
+        'SELECT mysql_config FROM user_mysql_configs WHERE user_id = $1',
+        [this.userEmail]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('MySQL configuration not found. Please configure your MySQL database settings first.');
+      }
+
+      return result.rows[0].mysql_config as mysql.ConnectionOptions;
+    } catch (error) {
+      console.error('Error fetching MySQL config:', error);
+      throw error;
+    }
   }
 
   async initialize(): Promise<void> {
     try {
+      // Fetch user's MySQL configuration from PostgreSQL
+      this.connectionConfig = await this.getUserMySQLConfig();
+
       this.connection = await mysql.createConnection(this.connectionConfig);
 
       // Check if tables exist and have data
@@ -77,6 +97,64 @@ export class DNAnalyzerDB {
     } catch (err) {
       throw err;
     }
+  }
+
+  /**
+   * Save or update user's MySQL configuration in PostgreSQL database
+   */
+  static async saveUserMySQLConfig(userEmail: string, mysqlConfig: mysql.ConnectionOptions): Promise<void> {
+    try {
+      // Check if config already exists
+      const existingResult = await db.query(
+        'SELECT id FROM user_mysql_configs WHERE user_id = $1',
+        [userEmail]
+      );
+
+      if (existingResult.rows.length > 0) {
+        // Update existing config
+        await db.query(
+          'UPDATE user_mysql_configs SET mysql_config = $1, updated_at = NOW() WHERE user_id = $2',
+          [JSON.stringify(mysqlConfig), userEmail]
+        );
+      } else {
+        // Insert new config
+        await db.query(
+          'INSERT INTO user_mysql_configs (user_id, mysql_config) VALUES ($1, $2)',
+          [userEmail, JSON.stringify(mysqlConfig)]
+        );
+      }
+    } catch (error) {
+      console.error('Error saving MySQL config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user's MySQL configuration (static method for API use)
+   */
+  static async getUserMySQLConfig(userEmail: string): Promise<mysql.ConnectionOptions | null> {
+    try {
+      const result = await db.query(
+        'SELECT mysql_config FROM user_mysql_configs WHERE user_id = $1',
+        [userEmail]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0].mysql_config as mysql.ConnectionOptions;
+    } catch (error) {
+      console.error('Error fetching MySQL config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the MySQL connection (for advanced queries)
+   */
+  getConnection(): mysql.Connection | null {
+    return this.connection;
   }
 
   async close(): Promise<void> {

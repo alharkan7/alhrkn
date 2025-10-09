@@ -51,9 +51,9 @@ export const apps: AppConfig[] = [
     //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
   //},
   {
-    name: 'More AI Apps',
+    name: 'More Apps',
     icon: Infinity,
     slug: 'enaiblr',
-    description: 'Access Enaiblr AI Apps',
+    description: 'Access Enaiblr Apps',
   },
 ]

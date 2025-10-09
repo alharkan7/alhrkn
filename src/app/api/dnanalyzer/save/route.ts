@@ -1,8 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from "next-auth/next";
+import GoogleProvider from "next-auth/providers/google";
 import { DNAnalyzerDB, Statement } from '@/lib/dnanalyzer-db';
+
+const authOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "openid email profile",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        },
+      },
+    }),
+  ],
+  secret: process.env.NEXTAUTH_SECRET,
+};
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { documents } = body || {};
 
@@ -13,8 +42,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Connect to MySQL database
-    const db = new DNAnalyzerDB();
+    // Connect to user's MySQL database
+    const db = new DNAnalyzerDB(session.user.email);
 
     try {
       await db.initialize();

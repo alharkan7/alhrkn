@@ -1,20 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import { getServerSession } from "next-auth/next";
+import GoogleProvider from "next-auth/providers/google";
+import { DNAnalyzerDB } from '@/lib/dnanalyzer-db';
+
+const authOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "openid email profile",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        },
+      },
+    }),
+  ],
+  secret: process.env.NEXTAUTH_SECRET,
+};
 
 export async function POST(req: NextRequest) {
   try {
-    // Connect to MySQL database
-    const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST || 'localhost',
-      user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || '',
-      database: process.env.MYSQL_DB || 'dnanalyzer',
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-    });
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Connect to user's MySQL database
+    const db = new DNAnalyzerDB(session.user.email);
 
     try {
-      // Extract documents
-      const [documents] = await connection.execute(`
+      await db.initialize();
+      const connection = db.getConnection();
+
+      if (!connection) {
+        throw new Error('Failed to establish database connection');
+      }
+
+      try {
+        // Extract documents
+        const [documents] = await connection.execute(`
         SELECT ID, Title, Text, Author, Source, Section, Notes, Type, Date
         FROM DOCUMENTS
         ORDER BY ID
@@ -90,8 +121,12 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
 
+      } finally {
+        // Connection will be closed by db.close()
+      }
+
     } finally {
-      await connection.end();
+      await db.close();
     }
 
   } catch (error: any) {

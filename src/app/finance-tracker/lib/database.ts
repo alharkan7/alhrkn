@@ -1,4 +1,4 @@
-import { db } from './postgres'
+import { db } from '@/lib/postgres'
 import { 
   FinanceTrackerUser, 
   CreateFinanceTrackerUser, 
