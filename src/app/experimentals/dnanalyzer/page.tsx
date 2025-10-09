@@ -537,7 +537,7 @@ export default function DNAnalyzerPage() {
                 <div className="text-center space-y-3 max-w-md">
                   <FileText className="w-12 h-12 text-blue-500 mx-auto" />
                   <h1 className="text-xl font-bold text-gray-900">
-                    Automatic Discourse Highlighter
+                    Automatic Discourse Identifier
                   </h1>
                 </div>
 
@@ -584,7 +584,7 @@ export default function DNAnalyzerPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">Automatic Discourse Highlighter</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Automatic Discourse Identifier</h1>
               <p className="text-muted-foreground">Identify Discourse Data using AI for Discourse Network Analysis</p>
             </div>
             <UserMenu />
