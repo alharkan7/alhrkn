@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Button } from "@/components/ui/button"
 import { Bell, Settings as SettingsIcon, Zap, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
-import { UserMenu } from './components/user-menu'
+import { UserMenu } from '@/components/user-menu'
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { Chart } from './components/chart'

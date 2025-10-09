@@ -93,13 +93,17 @@ interface ResultsSheetProps {
   onUpdateStatement: (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => void
   totalFiles: number
   processedFiles: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export default function ResultsSheet({
   statements,
   onUpdateStatement,
   totalFiles,
-  processedFiles
+  processedFiles,
+  open,
+  onOpenChange
 }: ResultsSheetProps) {
   const handleCellEdit = (rowIndex: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
     if (field === 'agree') {
@@ -112,13 +116,7 @@ export default function ResultsSheet({
   }
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="default" className="fixed top-4 right-4 z-50 shadow-lg">
-          <Eye className="w-4 h-4" />
-          View Results ({statements.length})
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Discourse Network Results</SheetTitle>

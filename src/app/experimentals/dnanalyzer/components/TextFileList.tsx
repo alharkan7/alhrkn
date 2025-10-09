@@ -1,14 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, forwardRef, useImperativeHandle } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface TextFile {
   id: string
@@ -30,25 +29,30 @@ function truncateText(text: string, maxLength: number = 100): string {
   return text.substring(0, maxLength).trim() + '...'
 }
 
-export default function TextFileList({ files, selectedFileId, onFileSelect, onAddFile }: TextFileListProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newContent, setNewContent] = useState('')
+const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProps>(
+  ({ files, selectedFileId, onFileSelect, onAddFile }, ref) => {
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [newTitle, setNewTitle] = useState('')
+    const [newContent, setNewContent] = useState('')
 
-  const handleAddFile = () => {
-    if (newTitle.trim() && newContent.trim()) {
-      onAddFile(newTitle.trim(), newContent.trim())
+    useImperativeHandle(ref, () => ({
+      triggerAddFile: () => setIsDialogOpen(true)
+    }))
+
+    const handleAddFile = () => {
+      if (newTitle.trim() && newContent.trim()) {
+        onAddFile(newTitle.trim(), newContent.trim())
+        setNewTitle('')
+        setNewContent('')
+        setIsDialogOpen(false)
+      }
+    }
+
+    const handleDialogClose = () => {
+      setIsDialogOpen(false)
       setNewTitle('')
       setNewContent('')
-      setIsDialogOpen(false)
     }
-  }
-
-  const handleDialogClose = () => {
-    setIsDialogOpen(false)
-    setNewTitle('')
-    setNewContent('')
-  }
 
   return (
     <Card>
@@ -57,16 +61,10 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
           <div>
             <CardTitle>Text Sources</CardTitle>
             <CardDescription>
-              Add text sources and select one to analyze discourse
+              Select a text source to analyze discourse
             </CardDescription>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="neutral">
-                <Plus className="w-4 h-4" />
-                Add Source
-              </Button>
-            </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Add New Text Source</DialogTitle>
@@ -159,5 +157,9 @@ export default function TextFileList({ files, selectedFileId, onFileSelect, onAd
       </CardContent>
     </Card>
   )
-}
+})
+
+TextFileList.displayName = 'TextFileList'
+
+export default TextFileList
 

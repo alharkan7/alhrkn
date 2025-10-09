@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Providers } from "@/components/providers"
 
 export const metadata: Metadata = {
-  title: 'Discourse Network Analyzer',
-  description: 'Discourse Network Analysis with AI',
+  title: 'Automatic Discourse Highlighter',
+  description: 'Automatically Identify and Highlight Discourse in Text using AI',
 }
 
 export default function DNAnalyzerLayout({

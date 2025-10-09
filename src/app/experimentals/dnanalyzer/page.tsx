@@ -7,11 +7,12 @@ import TextDisplay from './components/TextDisplay'
 import ResultsSheet from './components/ResultsSheet'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Save, AlertCircle, CheckCircle, Settings, Database } from 'lucide-react'
+import { Download, Save, AlertCircle, CheckCircle, Settings, Database, Eye, EyeOff } from 'lucide-react'
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { signIn } from 'next-auth/react'
-import { FileText, LogIn } from 'lucide-react'
+import { UserMenu } from '@/components/user-menu'
+import { Plus, LogIn, FileText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -49,6 +50,7 @@ interface Statement {
 
 export default function DNAnalyzerPage() {
   const { data: session, status } = useSession()
+  const textFileListRef = useRef<any>(null)
 
   const [files, setFiles] = useState<TextFile[]>([])
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
@@ -56,10 +58,10 @@ export default function DNAnalyzerPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
   const [loadingData, setLoadingData] = useState(false)
+  const [showResults, setShowResults] = useState(false)
 
   // MySQL Configuration state
   const [mysqlConfig, setMysqlConfig] = useState({
@@ -311,105 +313,6 @@ export default function DNAnalyzerPage() {
     }
   }
 
-  const handleExportToDNA = async () => {
-    if (!session?.user?.email) {
-      setSaveStatus('error')
-      setSaveMessage('You must be logged in to export data')
-      return
-    }
-
-    if (!hasConfig) {
-      setSaveStatus('error')
-      setSaveMessage('Please configure your MySQL database settings first')
-      setIsConfigDialogOpen(true)
-      return
-    }
-
-    if (allStatements.length === 0) {
-      setSaveStatus('error')
-      setSaveMessage('No statements to export. Please analyze some text files first.')
-      return
-    }
-
-    setExporting(true)
-    setSaveStatus('idle')
-    setSaveMessage('')
-
-    try {
-      // Group statements by source file, including both new and modified loaded data
-      const documentsWithStatements = files
-        .filter(file => {
-          // Include newly processed files
-          if (file.processed && !file.isLoaded) return true
-          // Include loaded files that have been modified or have new manual statements
-          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)))) return true
-          return false
-        })
-        .map(file => ({
-          id: file.originalDocumentId, // Include original ID for updates
-          title: file.title,
-          content: file.content,
-          statements: allStatements.filter(stmt => {
-            // Include all statements from this file if it's a new file
-            if (!file.isLoaded) return stmt.sourceFile === file.title
-            // For loaded files, include modified statements OR manually added statements (no originalStatementId)
-            return stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)
-          }).map(stmt => ({
-            // Include all statement fields including originalStatementId
-            ...stmt
-          }))
-        }))
-        // Only include documents that have statements to save
-        .filter(doc => doc.statements.length > 0)
-
-      if (documentsWithStatements.length === 0) {
-        setSaveStatus('error')
-        setSaveMessage('No new or modified data to export.')
-        return
-      }
-
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-      const filename = `discourse-analysis-${timestamp}`
-
-      const response = await fetch('/api/dnanalyzer/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documents: documentsWithStatements,
-          exportPath: filename
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
-      }
-
-      // Handle file download
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename.endsWith('.dna') ? filename : `${filename}.dna`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      setSaveStatus('success')
-      setSaveMessage(`Database exported successfully as ${filename}.dna`)
-
-    } catch (err) {
-      console.error('Error exporting to DNA file:', err)
-      setSaveStatus('error')
-      setSaveMessage(err instanceof Error ? err.message : 'An error occurred while exporting')
-    } finally {
-      setExporting(false)
-    }
-  }
 
   // Load user's MySQL configuration
   const loadMySQLConfig = async () => {
@@ -589,11 +492,8 @@ export default function DNAnalyzerPage() {
                 <div className="text-center space-y-3 max-w-md">
                   <FileText className="w-12 h-12 text-blue-500 mx-auto" />
                   <h1 className="text-xl font-bold text-gray-900">
-                    Discourse Network Analyzer
+                    Automatic Discourse Highlighter
                   </h1>
-                  <p className="text-gray-600 text-sm">
-                    Please sign in with your Google account to access discourse analysis tools and manage your own MySQL database.
-                  </p>
                 </div>
 
                 <div className="w-full max-w-sm flex flex-col items-center space-y-2">
@@ -605,6 +505,10 @@ export default function DNAnalyzerPage() {
                     Sign in with Google
                   </Button>
                 </div>
+
+                <p className="text-gray-600 text-sm text-center">
+                  Sign in to access the tools and manage your DNA (Discourse Network Analyzer) database.
+                </p>
               </div>
 
               {/* Footer */}
@@ -635,173 +539,154 @@ export default function DNAnalyzerPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">Discourse Network Analyzer</h1>
-              <p className="text-muted-foreground">Analyze discourse networks across multiple text files</p>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Automatic Discourse Highlighter</h1>
+              <p className="text-muted-foreground">Identify Discourse Data using AI for Discourse Network Analysis</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="neutral"
-                    className="flex items-center gap-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Database Settings
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Database className="w-5 h-5" />
-                      MySQL Database Configuration
-                    </DialogTitle>
-                    <DialogDescription>
-                      Configure your MySQL database connection for storing discourse analysis data.
-                      Each user has their own separate database.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="host">Host</Label>
-                        <Input
-                          id="host"
-                          placeholder="localhost"
-                          value={mysqlConfig.host}
-                          onChange={(e) => setMysqlConfig(prev => ({ ...prev, host: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="port">Port</Label>
-                        <Input
-                          id="port"
-                          type="number"
-                          placeholder="3306"
-                          value={mysqlConfig.port}
-                          onChange={(e) => setMysqlConfig(prev => ({ ...prev, port: parseInt(e.target.value) || 3306 }))}
-                        />
-                      </div>
-                    </div>
+            <UserMenu />
+          </div>
+
+          {/* Button Bar */}
+          <div className="flex items-center gap-1 mt-4">
+            <Button
+              onClick={handleSaveToDatabase}
+              disabled={saving || !hasConfig}
+              variant="neutral"
+              className="flex items-center gap-0 sm:gap-2"
+            >
+              <Save className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {saving ? 'Saving...' : 'Save'}
+              </span>
+            </Button>
+
+            <Button
+              onClick={handleLoadData}
+              disabled={loadingData || !hasConfig}
+              variant="neutral"
+              className="flex items-center gap-0 sm:gap-2"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {loadingData ? 'Loading...' : 'Load'}
+              </span>
+            </Button>
+
+            <Button
+              onClick={() => textFileListRef.current?.triggerAddFile()}
+              variant="neutral"
+              className="flex items-center gap-0 sm:gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add</span>
+            </Button>
+
+            <Button
+              onClick={() => setShowResults(!showResults)}
+              variant="neutral"
+              className="flex items-center gap-0 sm:gap-2"
+            >
+              {showResults ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <span className="hidden sm:inline">
+                {showResults ? 'Hide' : 'View'}
+              </span>
+            </Button>
+
+            <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="neutral"
+                  className="flex items-center gap-0 sm:gap-2 ml-auto"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Settings</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Database className="w-5 h-5" />
+                    MySQL Database Configuration
+                  </DialogTitle>
+                  <DialogDescription>
+                    Configure your MySQL database connection for storing discourse analysis data.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="database">Database Name</Label>
+                      <Label htmlFor="host">Host</Label>
                       <Input
-                        id="database"
-                        placeholder="dnanalyzer"
-                        value={mysqlConfig.database}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, database: e.target.value }))}
+                        id="host"
+                        placeholder="localhost"
+                        value={mysqlConfig.host}
+                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, host: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="user">Username</Label>
+                      <Label htmlFor="port">Port</Label>
                       <Input
-                        id="user"
-                        placeholder="root"
-                        value={mysqlConfig.user}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, user: e.target.value }))}
+                        id="port"
+                        type="number"
+                        placeholder="3306"
+                        value={mysqlConfig.port}
+                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, port: parseInt(e.target.value) || 3306 }))}
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="Enter password"
-                        value={mysqlConfig.password}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button
-                        variant="neutral"
-                        onClick={() => setIsConfigDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={saveMySQLConfig}
-                        disabled={savingConfig}
-                        className="flex items-center gap-2"
-                      >
-                        {savingConfig ? 'Testing...' : 'Save & Test Connection'}
-                      </Button>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
-              <Button
-                onClick={handleLoadData}
-                disabled={loadingData || !hasConfig}
-                variant="neutral"
-                className="flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                {loadingData ? 'Loading...' : 'Load Data'}
-              </Button>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="database">Database Name</Label>
+                    <Input
+                      id="database"
+                      placeholder="dnanalyzer"
+                      value={mysqlConfig.database}
+                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, database: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user">Username</Label>
+                    <Input
+                      id="user"
+                      placeholder="root"
+                      value={mysqlConfig.user}
+                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, user: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter password"
+                      value={mysqlConfig.password}
+                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="neutral"
+                      onClick={() => setIsConfigDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={saveMySQLConfig}
+                      disabled={savingConfig}
+                      className="flex items-center gap-2"
+                    >
+                      {savingConfig ? 'Testing...' : 'Save & Test Connection'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {/* Save/Export Section */}
-        {allStatements.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Save className="w-5 h-5" />
-                Save & Export Results
-              </CardTitle>
-              <CardDescription>
-                Save your analysis results to a SQLite database compatible with DNA Analyzer tools
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 items-center">
-                <Button
-                  onClick={handleSaveToDatabase}
-                  disabled={saving || exporting || !hasConfig}
-                  variant="neutral"
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save to Database'}
-                </Button>
-
-                <Button
-                  onClick={handleExportToDNA}
-                  disabled={saving || exporting || !hasConfig}
-                  variant="neutral"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  {exporting ? 'Exporting...' : 'Export to .dna File'}
-                </Button>
-
-                <div className="flex-1">
-                  {saveMessage && (
-                    <div className={`flex items-center gap-2 text-sm ${
-                      saveStatus === 'success'
-                        ? 'text-green-600'
-                        : saveStatus === 'error'
-                        ? 'text-red-600'
-                        : 'text-muted-foreground'
-                    }`}>
-                      {saveStatus === 'success' && <CheckCircle className="w-4 h-4" />}
-                      {saveStatus === 'error' && <AlertCircle className="w-4 h-4" />}
-                      <span>{saveMessage}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 text-sm text-muted-foreground">
-                <p><strong>Current Analysis:</strong> {allStatements.length} statements from {processedFilesCount} processed files</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Text Files List - Top */}
         <div className="mb-6">
           <TextFileList
+            ref={textFileListRef}
             files={files}
             selectedFileId={selectedFileId}
             onFileSelect={handleFileSelect}
@@ -823,14 +708,20 @@ export default function DNAnalyzerPage() {
         </div>
       </div>
 
-
       {/* Results Sheet - Right Side */}
       <ResultsSheet
         statements={allStatements}
         onUpdateStatement={handleUpdateStatement}
         totalFiles={files.length}
         processedFiles={processedFilesCount}
+        open={showResults}
+        onOpenChange={setShowResults}
       />
+
+      {/* Footer */}
+      <div className="flex-none mb-1">
+        <AppsFooter />
+      </div>
     </div>
   )
 }
