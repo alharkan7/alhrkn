@@ -336,4 +336,77 @@ export class DNAnalyzerDB {
     await this.connection.execute(sql, [statementId, variableId, value]);
   }
 
+  async deleteDocument(documentId: number): Promise<void> {
+    if (!this.connection) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // First, delete all statements associated with this document
+      await this.deleteStatementsByDocumentId(documentId);
+
+      // Then delete the document itself
+      const sql = `DELETE FROM DOCUMENTS WHERE ID = ?`;
+      await this.connection.execute(sql, [documentId]);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async deleteStatementsByDocumentId(documentId: number): Promise<void> {
+    if (!this.connection) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Get all statement IDs for this document
+      const [statementRows] = await this.connection.execute(
+        'SELECT ID FROM STATEMENTS WHERE DocumentId = ?',
+        [documentId]
+      );
+
+      const statementIds = (statementRows as any[]).map(row => row.ID);
+
+      if (statementIds.length > 0) {
+        // Create placeholders for the IN clause
+        const placeholders = statementIds.map(() => '?').join(',');
+
+        // Delete data associated with these statements
+        await this.connection.execute(
+          `DELETE FROM DATASHORTTEXT WHERE StatementId IN (${placeholders})`,
+          statementIds
+        );
+        await this.connection.execute(
+          `DELETE FROM DATABOOLEAN WHERE StatementId IN (${placeholders})`,
+          statementIds
+        );
+
+        // Delete the statements themselves
+        await this.connection.execute(
+          'DELETE FROM STATEMENTS WHERE DocumentId = ?',
+          [documentId]
+        );
+      }
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async deleteStatement(statementId: number): Promise<void> {
+    if (!this.connection) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Delete data associated with this statement from related tables
+      await this.connection.execute('DELETE FROM DATASHORTTEXT WHERE StatementId = ?', [statementId]);
+      await this.connection.execute('DELETE FROM DATABOOLEAN WHERE StatementId = ?', [statementId]);
+
+      // Delete the statement itself
+      await this.connection.execute('DELETE FROM STATEMENTS WHERE ID = ?', [statementId]);
+    } catch (err) {
+      throw err;
+    }
+  }
+
 }

@@ -99,6 +99,51 @@ export default function DNAnalyzerPage() {
     setFiles(prev => [...prev, newFile])
   }
 
+  const handleDeleteFile = async (fileId: string) => {
+    const fileToDelete = files.find(file => file.id === fileId)
+
+    if (!fileToDelete) return
+
+    try {
+      // If the file has an original document ID (loaded from DB), delete from database
+      if (fileToDelete.originalDocumentId) {
+        const response = await fetch('/api/dnanalyzer/delete', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ documentId: fileToDelete.originalDocumentId }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to delete document from database')
+        }
+      }
+
+      // Remove file from local state
+      setFiles(prev => prev.filter(file => file.id !== fileId))
+
+      // Remove associated statements from local state
+      setAllStatements(prev => prev.filter(statement =>
+        statement.sourceFile !== fileToDelete.title
+      ))
+
+      // If the deleted file was selected, clear selection
+      if (selectedFileId === fileId) {
+        setSelectedFileId(null)
+      }
+
+      // Clear filtered results if they were for this file
+      if (filteredFileId === fileId) {
+        setFilteredFileId(null)
+      }
+
+    } catch (error) {
+      console.error('Error deleting file:', error)
+      setError('Failed to delete the document. Please try again.')
+    }
+  }
+
   const handleAnalyze = async (text: string) => {
     if (!selectedFile || !text.trim()) return
 
@@ -262,6 +307,35 @@ export default function DNAnalyzerPage() {
       await autoSaveStatements(true, [updatedStatement], [file.id])
     } else {
       await autoSaveStatements(true)
+    }
+  }
+
+  const handleDeleteStatement = async (statementIndex: number) => {
+    const statementToDelete = allStatements[statementIndex]
+    if (!statementToDelete) return
+
+    try {
+      // If statement is loaded from DB, delete from database first
+      if (statementToDelete.isLoaded && statementToDelete.originalStatementId) {
+        const response = await fetch('/api/dnanalyzer/delete-statement', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ statementId: statementToDelete.originalStatementId }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to delete statement from database')
+        }
+      }
+
+      // Remove from local state
+      setAllStatements(prev => prev.filter((_, index) => index !== statementIndex))
+
+    } catch (error) {
+      console.error('Error deleting statement:', error)
+      setError('Failed to delete statement')
     }
   }
 
@@ -947,6 +1021,7 @@ export default function DNAnalyzerPage() {
             onFileSelect={handleFileSelect}
             onAddFile={handleAddFile}
             onBulkAnalyze={handleBulkAnalyze}
+            onDeleteFile={handleDeleteFile}
             loading={loading}
           />
         </div>
@@ -960,6 +1035,7 @@ export default function DNAnalyzerPage() {
             onUpdateContent={handleUpdateContent}
             onAddManualStatement={handleAddManualStatement}
             onUpdateStatement={handleUpdateStatement}
+            onDeleteStatement={handleDeleteStatement}
             onToggleFilteredResults={handleToggleFilteredResults}
             isFilteredForFile={filteredFileId === selectedFileId}
             loading={loading}

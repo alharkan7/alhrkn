@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Play, Loader2 } from 'lucide-react'
+import { Play, Loader2, Check, Trash2 } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -24,6 +24,7 @@ interface TextFileListProps {
   onFileSelect: (fileId: string) => void
   onAddFile: (title: string, content: string) => void
   onBulkAnalyze: () => void
+  onDeleteFile: (fileId: string) => void
   loading: boolean
 }
 
@@ -50,8 +51,10 @@ function truncateText(text: string, isMobile: boolean): string {
 }
 
 const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProps>(
-  ({ files, selectedFileId, onFileSelect, onAddFile, onBulkAnalyze, loading }, ref) => {
+  ({ files, selectedFileId, onFileSelect, onAddFile, onBulkAnalyze, onDeleteFile, loading }, ref) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [fileToDelete, setFileToDelete] = useState<TextFile | null>(null)
     const [newTitle, setNewTitle] = useState('')
     const [newContent, setNewContent] = useState('')
     const isMobile = useScreenSize()
@@ -73,6 +76,24 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
       setIsDialogOpen(false)
       setNewTitle('')
       setNewContent('')
+    }
+
+    const handleDeleteClick = (file: TextFile) => {
+      setFileToDelete(file)
+      setIsDeleteDialogOpen(true)
+    }
+
+    const handleDeleteConfirm = () => {
+      if (fileToDelete) {
+        onDeleteFile(fileToDelete.id)
+        setIsDeleteDialogOpen(false)
+        setFileToDelete(null)
+      }
+    }
+
+    const handleDeleteCancel = () => {
+      setIsDeleteDialogOpen(false)
+      setFileToDelete(null)
     }
 
   const unprocessedCount = files.filter(file => !file.processed).length
@@ -148,6 +169,26 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Delete Document</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete "{fileToDelete?.title}"? This action cannot be undone and will also remove all associated statements from the database.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="neutral" onClick={handleDeleteCancel}>
+                  Cancel
+                </Button>
+                <Button variant="neutral" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
+                  Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent>
@@ -177,13 +218,20 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
                             {file.title}
                           </h3>
                           {file.processed && (
-                            <Badge variant="neutral" className="text-xs">
-                              Processed
+                            <Badge variant="neutral" className="text-xs rounded-full">
+                              <Check className="h-3 w-3" />
                             </Badge>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                        <div className="text-xs text-muted-foreground ml-2 flex-shrink-0 flex items-center gap-1">
                           {file.content.split(' ').filter(word => word.length > 0).length} words
+                          <Trash2
+                            className="h-3 w-3 cursor-pointer hover:text-red-600 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteClick(file)
+                            }}
+                          />
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-1">

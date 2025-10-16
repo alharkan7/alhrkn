@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Check, X, Eye, EyeOff } from 'lucide-react'
+import { Pencil, Check, X, Eye, EyeOff, Trash2 } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -42,6 +42,7 @@ interface TextDisplayProps {
   onUpdateContent: (fileId: string, newContent: string) => void
   onAddManualStatement: (fileId: string, statement: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'>) => void
   onUpdateStatement: (statementIndex: number, updatedStatement: Statement) => void
+  onDeleteStatement: (statementIndex: number) => void
   onToggleFilteredResults: (fileId: string | null) => void
   isFilteredForFile?: boolean
   loading: boolean
@@ -167,12 +168,13 @@ function HighlightedText({ text, statements, selectionRange, onStatementClick }:
   return <div className="whitespace-pre-wrap font-mono text-sm relative">{parts}</div>
 }
 
-export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpdateContent, onAddManualStatement, onUpdateStatement, onToggleFilteredResults, isFilteredForFile = false, loading, error }: TextDisplayProps) {
+export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpdateContent, onAddManualStatement, onUpdateStatement, onDeleteStatement, onToggleFilteredResults, isFilteredForFile = false, loading, error }: TextDisplayProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState('')
   const [selectedText, setSelectedText] = useState('')
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null)
   const [showManualDialog, setShowManualDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [editingStatementIndex, setEditingStatementIndex] = useState<number | null>(null)
   const [manualStatement, setManualStatement] = useState('')
   const [manualConcept, setManualConcept] = useState('')
@@ -361,11 +363,35 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
     setManualAgree(false)
   }
 
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (editingStatementIndex !== null) {
+      onDeleteStatement(editingStatementIndex)
+      setShowDeleteDialog(false)
+      setShowManualDialog(false)
+      setEditingStatementIndex(null)
+
+      // Reset form
+      setManualStatement('')
+      setManualConcept('')
+      setManualActor('')
+      setManualOrganization('')
+      setManualAgree(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false)
+  }
+
   // Clear selection when clicking elsewhere (but not when dialog is open) and handle escape key for dialog
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       // Don't clear selection if dialog is open or if clicking inside text container
-      if (showManualDialog) return
+      if (showManualDialog || showDeleteDialog) return
       if (!textContainerRef.current?.contains(e.target as Node)) {
         setSelectedText('')
         setSelectionRange(null)
@@ -373,8 +399,12 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showManualDialog) {
-        handleCancelManualStatement()
+      if (e.key === 'Escape') {
+        if (showDeleteDialog) {
+          handleDeleteCancel()
+        } else if (showManualDialog) {
+          handleCancelManualStatement()
+        }
       }
     }
 
@@ -385,7 +415,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [showManualDialog])
+  }, [showManualDialog, showDeleteDialog])
 
   return (
     <Card>
@@ -400,10 +430,10 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 variant="neutral"
                 size="sm"
                 onClick={() => onToggleFilteredResults(selectedFile.id)}
-                className="h-8 w-8 p-0"
                 title={isFilteredForFile ? 'Hide filtered data' : 'Show data for this file'}
               >
                 {isFilteredForFile ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                Data
               </Button>
               {isEditing ? (
                 <>
@@ -411,17 +441,17 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                     variant="neutral"
                     size="sm"
                     onClick={handleEditClick}
-                    className="h-8 w-8 p-0 bg-green-100 hover:bg-green-200"
+                    className="bg-green-100 hover:bg-green-200"
                   >
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4 text-green-600" /> Save
                   </Button>
                   <Button
                     variant="neutral"
                     size="sm"
                     onClick={handleCancelEdit}
-                    className="h-8 w-8 p-0 bg-red-100 hover:bg-red-200"
+                    className="bg-red-100 hover:bg-red-200"
                   >
-                    <X className="h-4 w-4 text-red-600" />
+                    <X className="h-4 w-4 text-red-600" /> Cancel
                   </Button>
                 </>
               ) : (
@@ -429,10 +459,9 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                   variant="neutral"
                   size="sm"
                   onClick={handleEditClick}
-                  className="h-8 w-8 p-0"
                   title="Edit text content"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-4 w-4" /> Edit
                 </Button>
               )}
             </div>
@@ -511,12 +540,12 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingStatementIndex !== null ? 'Edit Statement' : 'Add Manual Statement'}</DialogTitle>
-              <DialogDescription>
+              {/* <DialogDescription>
                 {editingStatementIndex !== null
                   ? 'Edit the details for this statement in the discourse analysis.'
                   : 'Fill in the details for the selected text to add it to the discourse analysis.'
                 }
-              </DialogDescription>
+              </DialogDescription> */}
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -572,12 +601,40 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 <Label htmlFor="agree">Agrees with the concept</Label>
               </div>
             </div>
+            <DialogFooter className="flex items-center justify-between">
+              {editingStatementIndex !== null && (
+                <Trash2
+                  className="h-5 w-5 cursor-pointer text-red-600 hover:text-red-700 transition-colors"
+                  onClick={handleDeleteClick}
+                />
+              )}
+              <div className="flex gap-2">
+                <Button variant="neutral" onClick={handleCancelManualStatement}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddManualStatement}>
+                  {editingStatementIndex !== null ? 'Update' : 'Add'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Statement Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Delete Statement</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this statement? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
             <DialogFooter>
-              <Button variant="neutral" onClick={handleCancelManualStatement}>
+              <Button variant="neutral" onClick={handleDeleteCancel}>
                 Cancel
               </Button>
-              <Button onClick={handleAddManualStatement}>
-                {editingStatementIndex !== null ? 'Update Statement' : 'Add Statement'}
+              <Button variant="neutral" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
+                Delete
               </Button>
             </DialogFooter>
           </DialogContent>
