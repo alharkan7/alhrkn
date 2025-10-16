@@ -601,14 +601,14 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 <Label htmlFor="agree">Agrees with the concept</Label>
               </div>
             </div>
-            <DialogFooter className="flex items-center justify-between">
+            <DialogFooter className="flex items-center">
               {editingStatementIndex !== null && (
                 <Trash2
-                  className="h-5 w-5 cursor-pointer text-red-600 hover:text-red-700 transition-colors"
+                  className="h-5 w-5 cursor-pointer text-red-600 hover:text-red-700 transition-colors mr-auto"
                   onClick={handleDeleteClick}
                 />
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-2 ml-auto">
                 <Button variant="neutral" onClick={handleCancelManualStatement}>
                   Cancel
                 </Button>
