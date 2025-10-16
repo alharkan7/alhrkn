@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Check, X } from 'lucide-react'
+import { Pencil, Check, X, Eye, EyeOff } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -41,6 +41,9 @@ interface TextDisplayProps {
   onAnalyze: (text: string) => void
   onUpdateContent: (fileId: string, newContent: string) => void
   onAddManualStatement: (fileId: string, statement: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'>) => void
+  onUpdateStatement: (statementIndex: number, updatedStatement: Statement) => void
+  onToggleFilteredResults: (fileId: string | null) => void
+  isFilteredForFile?: boolean
   loading: boolean
   error: string
 }
@@ -49,9 +52,10 @@ interface HighlightedTextProps {
   text: string
   statements: Statement[]
   selectionRange?: { start: number; end: number } | null
+  onStatementClick?: (statement: Statement, statementIndex: number) => void
 }
 
-function HighlightedText({ text, statements, selectionRange }: HighlightedTextProps) {
+function HighlightedText({ text, statements, selectionRange, onStatementClick }: HighlightedTextProps) {
   // Filter statements that belong to this file and have valid indices
   const fileStatements = statements.filter(stmt => {
     const hasValidIndices = stmt.startIndex !== undefined && stmt.endIndex !== undefined && stmt.startIndex >= 0 && stmt.endIndex > stmt.startIndex
@@ -64,16 +68,18 @@ function HighlightedText({ text, statements, selectionRange }: HighlightedTextPr
     end: number
     type: 'statement' | 'selection'
     data?: Statement
+    statementIndex?: number
   }> = []
 
   // Add statements
-  fileStatements.forEach(stmt => {
-    if (stmt.startIndex !== undefined && stmt.endIndex !== undefined) {
+  statements.forEach((stmt, index) => {
+    if (stmt.startIndex !== undefined && stmt.endIndex !== undefined && stmt.startIndex >= 0 && stmt.endIndex > stmt.startIndex) {
       allHighlights.push({
         start: stmt.startIndex,
         end: stmt.endIndex,
         type: 'statement',
-        data: stmt
+        data: stmt,
+        statementIndex: index
       })
     }
   })
@@ -129,8 +135,9 @@ function HighlightedText({ text, statements, selectionRange }: HighlightedTextPr
       parts.push(
         <span
           key={`highlight-${index}`}
-          className="bg-yellow-200 px-1 rounded cursor-pointer relative group"
+          className="bg-yellow-200 px-1 rounded cursor-pointer relative group hover:bg-yellow-300 transition-colors"
           title={`${stmt.actor} (${stmt.organization || 'No organization'}): ${stmt.agree ? 'Agrees' : 'Disagrees'} about ${stmt.concept}`}
+          onClick={() => onStatementClick && highlight.statementIndex !== undefined && onStatementClick(stmt, highlight.statementIndex)}
         >
           {highlightedText}
           <Badge
@@ -160,12 +167,13 @@ function HighlightedText({ text, statements, selectionRange }: HighlightedTextPr
   return <div className="whitespace-pre-wrap font-mono text-sm relative">{parts}</div>
 }
 
-export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpdateContent, onAddManualStatement, loading, error }: TextDisplayProps) {
+export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpdateContent, onAddManualStatement, onUpdateStatement, onToggleFilteredResults, isFilteredForFile = false, loading, error }: TextDisplayProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState('')
   const [selectedText, setSelectedText] = useState('')
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null)
   const [showManualDialog, setShowManualDialog] = useState(false)
+  const [editingStatementIndex, setEditingStatementIndex] = useState<number | null>(null)
   const [manualStatement, setManualStatement] = useState('')
   const [manualConcept, setManualConcept] = useState('')
   const [manualActor, setManualActor] = useState('')
@@ -256,8 +264,32 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
     }
   }
 
+  const handleStatementClick = (statement: Statement, statementIndex: number) => {
+    if (!selectedFile) return
+
+    // The statementIndex is the index in the filtered statements for this file
+    // Find the corresponding statement in the filtered array to get the global index
+    const filteredStatements = statements.filter(stmt => stmt.sourceFile === selectedFile.title)
+    const filteredStatement = filteredStatements[statementIndex]
+
+    if (filteredStatement) {
+      const globalIndex = statements.findIndex(s => s === filteredStatement)
+
+      // Populate dialog with existing statement data
+      setManualStatement(filteredStatement.statement)
+      setManualConcept(filteredStatement.concept)
+      setManualActor(filteredStatement.actor)
+      setManualOrganization(filteredStatement.organization)
+      setManualAgree(filteredStatement.agree)
+      setEditingStatementIndex(globalIndex)
+      setSelectionRange(null) // Clear selection range since we're editing existing
+      setSelectedText('')
+      setShowManualDialog(true)
+    }
+  }
+
   const handleAddManualStatement = () => {
-    if (!selectedFile || !selectionRange) {
+    if (!selectedFile) {
       return
     }
 
@@ -266,40 +298,60 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
       return // Don't close dialog if required fields are empty
     }
 
-    const newStatement: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'> = {
-      statement: manualStatement.trim(),
-      concept: manualConcept.trim(),
-      actor: manualActor.trim(),
-      organization: manualOrganization.trim(),
-      agree: manualAgree,
-      startIndex: selectionRange.start,
-      endIndex: selectionRange.end
+    if (editingStatementIndex !== null) {
+      // Editing existing statement - update all fields at once
+      const currentStatement = statements[editingStatementIndex]
+      if (currentStatement) {
+        const updatedStatement = {
+          ...currentStatement,
+          statement: manualStatement.trim(),
+          concept: manualConcept.trim(),
+          actor: manualActor.trim(),
+          organization: manualOrganization.trim(),
+          agree: manualAgree,
+          isModified: true
+        }
+        onUpdateStatement(editingStatementIndex, updatedStatement)
+      }
+    } else if (selectionRange) {
+      // Adding new statement
+      const newStatement: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'> = {
+        statement: manualStatement.trim(),
+        concept: manualConcept.trim(),
+        actor: manualActor.trim(),
+        organization: manualOrganization.trim(),
+        agree: manualAgree,
+        startIndex: selectionRange.start,
+        endIndex: selectionRange.end
+      }
+
+      try {
+        onAddManualStatement(selectedFile.id, newStatement)
+      } catch (error) {
+        console.error('Error adding manual statement:', error)
+        return // Keep dialog open on error
+      }
     }
 
-    try {
-      onAddManualStatement(selectedFile.id, newStatement)
+    // Close dialog and reset state
+    setShowManualDialog(false)
+    setSelectedText('')
+    setSelectionRange(null)
+    setEditingStatementIndex(null)
 
-      // Close dialog and reset state
-      setShowManualDialog(false)
-      setSelectedText('')
-      setSelectionRange(null)
-
-      // Reset form
-      setManualStatement('')
-      setManualConcept('')
-      setManualActor('')
-      setManualOrganization('')
-      setManualAgree(false)
-    } catch (error) {
-      console.error('Error adding manual statement:', error)
-      // Keep dialog open on error
-    }
+    // Reset form
+    setManualStatement('')
+    setManualConcept('')
+    setManualActor('')
+    setManualOrganization('')
+    setManualAgree(false)
   }
 
   const handleCancelManualStatement = () => {
     setShowManualDialog(false)
     setSelectedText('')
     setSelectionRange(null)
+    setEditingStatementIndex(null)
 
     // Reset form
     setManualStatement('')
@@ -344,6 +396,15 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
           </CardTitle>
           {selectedFile && (
             <div className="flex gap-1">
+              <Button
+                variant="neutral"
+                size="sm"
+                onClick={() => onToggleFilteredResults(selectedFile.id)}
+                className="h-8 w-8 p-0"
+                title={isFilteredForFile ? 'Hide filtered data' : 'Show data for this file'}
+              >
+                {isFilteredForFile ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
               {isEditing ? (
                 <>
                   <Button
@@ -407,6 +468,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                     text={selectedFile.content}
                     statements={statements.filter(stmt => stmt.sourceFile === selectedFile.title)}
                     selectionRange={selectionRange}
+                    onStatementClick={handleStatementClick}
                   />
                 </div>
               )}
@@ -448,9 +510,12 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
         <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Add Manual Statement</DialogTitle>
+              <DialogTitle>{editingStatementIndex !== null ? 'Edit Statement' : 'Add Manual Statement'}</DialogTitle>
               <DialogDescription>
-                Fill in the details for the selected text to add it to the discourse analysis.
+                {editingStatementIndex !== null
+                  ? 'Edit the details for this statement in the discourse analysis.'
+                  : 'Fill in the details for the selected text to add it to the discourse analysis.'
+                }
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -512,7 +577,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 Cancel
               </Button>
               <Button onClick={handleAddManualStatement}>
-                Add Statement
+                {editingStatementIndex !== null ? 'Update Statement' : 'Add Statement'}
               </Button>
             </DialogFooter>
           </DialogContent>

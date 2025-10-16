@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Play } from 'lucide-react'
+import { Play, Loader2 } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -83,23 +83,29 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <CardTitle>Text Sources</CardTitle>
-              <Button
-                onClick={onBulkAnalyze}
-                disabled={loading || !hasUnprocessedFiles}
-                size="sm"
-                variant="neutral"
-                className="h-8"
-              >
-                <Play className="h-3.5 w-3.5 mr-1.5" />
-                {loading ? 'Analyzing...' : `Analyze All (${unprocessedCount})`}
-              </Button>
-            </div>
+            <CardTitle>Text Sources</CardTitle>
             <CardDescription>
               Select a text source to analyze discourse
             </CardDescription>
           </div>
+          <Button
+            onClick={onBulkAnalyze}
+            disabled={loading || !hasUnprocessedFiles}
+            size="sm"
+            variant="neutral"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Play />
+                Analyze All ({unprocessedCount})
+              </>
+            )}
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>

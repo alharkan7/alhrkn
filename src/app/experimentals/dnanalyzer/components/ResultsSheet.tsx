@@ -90,11 +90,12 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
 
 interface ResultsSheetProps {
   statements: Statement[]
-  onUpdateStatement: (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => void
+  onUpdateStatement: (index: number, updatedStatement: Statement) => void
   totalFiles: number
   processedFiles: number
   open: boolean
   onOpenChange: (open: boolean) => void
+  filterSourceFile?: string | null
 }
 
 export default function ResultsSheet({
@@ -103,16 +104,28 @@ export default function ResultsSheet({
   totalFiles,
   processedFiles,
   open,
-  onOpenChange
+  onOpenChange,
+  filterSourceFile
 }: ResultsSheetProps) {
+  // Filter statements based on the filterSourceFile prop
+  const filteredStatements = filterSourceFile
+    ? statements.filter(stmt => stmt.sourceFile === filterSourceFile)
+    : statements
   const handleCellEdit = (rowIndex: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
-    if (field === 'agree') {
-      // Handle boolean field
-      onUpdateStatement(rowIndex, field, newValue.toLowerCase() === 'true' ? 'true' : 'false')
-    } else {
-      // Handle string fields
-      onUpdateStatement(rowIndex, field, newValue)
+    const currentStatement = filteredStatements[rowIndex]
+    if (!currentStatement) return
+
+    // Find the actual index in the original statements array
+    const actualIndex = statements.findIndex(stmt => stmt === currentStatement)
+    if (actualIndex === -1) return
+
+    const updatedStatement = {
+      ...currentStatement,
+      [field]: field === 'agree' ? (newValue.toLowerCase() === 'true') : newValue,
+      isModified: true
     }
+
+    onUpdateStatement(actualIndex, updatedStatement)
   }
 
   return (
@@ -121,13 +134,15 @@ export default function ResultsSheet({
         <SheetHeader>
           <SheetTitle>Discourse Network Results</SheetTitle>
           <SheetDescription>
-            Accumulated analysis results from all processed text files.
-            Double-click any cell to edit. ({processedFiles}/{totalFiles} files processed)
+            {filterSourceFile
+              ? `Analysis results filtered for: ${filterSourceFile}`
+              : 'Accumulated analysis results from all processed text files'
+            }. Double-click any cell to edit. ({processedFiles}/{totalFiles} files processed)
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6">
-          {statements.length === 0 ? (
+          {filteredStatements.length === 0 ? (
             <div className="min-h-[400px] border-2 border-dashed border-border rounded-lg p-8 flex items-center justify-center">
               <div className="text-center text-muted-foreground">
                 <Eye className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
@@ -149,7 +164,12 @@ export default function ResultsSheet({
                   </tr>
                 </thead>
                 <tbody>
-                  {statements.map((statement, index) => (
+                  {filteredStatements.map((statement, index) => {
+                    // Find the original index in the full statements array for editing
+                    const originalIndex = filterSourceFile
+                      ? statements.findIndex(stmt => stmt === statement)
+                      : index
+                    return (
                     <tr key={index} className="hover:bg-muted">
                       <td className="border border-border px-4 py-2 text-xs">
                         <Badge variant="neutral" className="text-xs">
@@ -159,36 +179,37 @@ export default function ResultsSheet({
                       <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.statement}
-                          onSave={(newValue) => handleCellEdit(index, 'statement', newValue)}
+                          onSave={(newValue) => handleCellEdit(originalIndex, 'statement', newValue)}
                         />
                       </td>
                       <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.concept}
-                          onSave={(newValue) => handleCellEdit(index, 'concept', newValue)}
+                          onSave={(newValue) => handleCellEdit(originalIndex, 'concept', newValue)}
                           className="font-medium"
                         />
                       </td>
                       <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.actor}
-                          onSave={(newValue) => handleCellEdit(index, 'actor', newValue)}
+                          onSave={(newValue) => handleCellEdit(originalIndex, 'actor', newValue)}
                         />
                       </td>
                       <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.organization}
-                          onSave={(newValue) => handleCellEdit(index, 'organization', newValue)}
+                          onSave={(newValue) => handleCellEdit(originalIndex, 'organization', newValue)}
                         />
                       </td>
                       <td className="border border-border px-4 py-2 text-center">
                         <EditableCell
                           value={statement.agree ? 'TRUE' : 'FALSE'}
-                          onSave={(newValue) => handleCellEdit(index, 'agree', newValue)}
+                          onSave={(newValue) => handleCellEdit(originalIndex, 'agree', newValue)}
                         />
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

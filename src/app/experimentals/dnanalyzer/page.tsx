@@ -6,8 +6,7 @@ import TextFileList from './components/TextFileList'
 import TextDisplay from './components/TextDisplay'
 import ResultsSheet from './components/ResultsSheet'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Save, AlertCircle, CheckCircle, Settings, Database, Eye, EyeOff } from 'lucide-react'
+import { Download, Save, Settings, Eye, EyeOff } from 'lucide-react'
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { signIn } from 'next-auth/react'
@@ -51,6 +50,7 @@ interface Statement {
 export default function DNAnalyzerPage() {
   const { data: session, status } = useSession()
   const textFileListRef = useRef<any>(null)
+  const hasAutoLoadedRef = useRef(false)
 
   const [files, setFiles] = useState<TextFile[]>([])
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
@@ -62,6 +62,7 @@ export default function DNAnalyzerPage() {
   const [saveMessage, setSaveMessage] = useState('')
   const [loadingData, setLoadingData] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [filteredFileId, setFilteredFileId] = useState<string | null>(null)
 
   // Configuration state
   const [mysqlConfig, setMysqlConfig] = useState({
@@ -148,6 +149,9 @@ export default function DNAnalyzerPage() {
           : file
       ))
 
+      // Auto-save the new statements
+      await autoSaveStatements(true, newStatements, [selectedFile.id])
+
     } catch (err) {
       console.error('Error processing text:', err)
       setError(err instanceof Error ? err.message : 'An error occurred while processing the text')
@@ -164,7 +168,7 @@ export default function DNAnalyzerPage() {
     }
 
     const unprocessedFiles = files.filter(file => !file.processed)
-    
+
     if (unprocessedFiles.length === 0) {
       setError('All files have already been processed.')
       return
@@ -175,6 +179,8 @@ export default function DNAnalyzerPage() {
 
     let processedCount = 0
     let errorCount = 0
+    const allNewStatements: Statement[] = []
+    const processedFileIds: string[] = []
 
     for (const file of unprocessedFiles) {
       try {
@@ -205,15 +211,9 @@ export default function DNAnalyzerPage() {
           isModified: false
         }))
 
-        // Add new statements to accumulated results
-        setAllStatements(prev => [...prev, ...newStatements])
-
-        // Mark file as processed
-        setFiles(prev => prev.map(f =>
-          f.id === file.id
-            ? { ...f, processed: true }
-            : f
-        ))
+        // Collect new statements
+        allNewStatements.push(...newStatements)
+        processedFileIds.push(file.id)
 
         processedCount++
 
@@ -223,12 +223,24 @@ export default function DNAnalyzerPage() {
       }
     }
 
+    // Update state with all new statements and mark files as processed
+    setAllStatements(prev => [...prev, ...allNewStatements])
+    setFiles(prev => prev.map(f =>
+      processedFileIds.includes(f.id)
+        ? { ...f, processed: true }
+        : f
+    ))
+
     if (errorCount === 0) {
       setSaveStatus('success')
       setSaveMessage(`Successfully analyzed ${processedCount} file(s)!`)
+      // Auto-save the new statements
+      await autoSaveStatements(true, allNewStatements, processedFileIds, true)
     } else if (processedCount > 0) {
       setSaveStatus('error')
       setSaveMessage(`Analyzed ${processedCount} file(s), but ${errorCount} failed.`)
+      // Still auto-save successfully analyzed files
+      await autoSaveStatements(true, allNewStatements, processedFileIds, true)
     } else {
       setError('Failed to analyze all files. Please check your API configuration.')
     }
@@ -237,20 +249,23 @@ export default function DNAnalyzerPage() {
     setLoading(false)
   }
 
-  const handleUpdateStatement = (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
-    setAllStatements(prev => {
-      const updated = [...prev]
-      if (field === 'agree') {
-        updated[index][field] = newValue.toLowerCase() === 'true'
-      } else {
-        updated[index][field] = newValue
-      }
-      updated[index].isModified = true // Mark as modified
-      return updated
-    })
+  const handleUpdateStatement = async (index: number, updatedStatement: Statement) => {
+    // Get the current statement to find its file
+    const currentStatement = allStatements[index]
+    const file = files.find(f => f.title === currentStatement.sourceFile)
+
+    // Update the statement in state
+    setAllStatements(prev => prev.map((stmt, i) => i === index ? updatedStatement : stmt))
+
+    // Auto-save the updated statement
+    if (currentStatement && file?.id) {
+      await autoSaveStatements(true, [updatedStatement], [file.id])
+    } else {
+      await autoSaveStatements(true)
+    }
   }
 
-  const handleAddManualStatement = (fileId: string, statementData: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'>) => {
+  const handleAddManualStatement = async (fileId: string, statementData: Omit<Statement, 'sourceFile' | 'isLoaded' | 'isModified' | 'originalStatementId'>) => {
     const file = files.find(f => f.id === fileId)
     if (!file) return
 
@@ -262,9 +277,116 @@ export default function DNAnalyzerPage() {
     }
 
     setAllStatements(prev => [...prev, newStatement])
+
+    // Auto-save the new manual statement
+    await autoSaveStatements(true, [newStatement], [fileId])
   }
 
   const processedFilesCount = files.filter(file => file.processed).length
+
+  const handleToggleFilteredResults = (fileId: string | null) => {
+    if (filteredFileId === fileId) {
+      // If clicking the same file, toggle off filtering
+      setFilteredFileId(null)
+      setShowResults(!showResults)
+    } else {
+      // If clicking a different file or first time, show filtered results
+      setFilteredFileId(fileId)
+      setShowResults(true)
+    }
+  }
+
+  // Auto-save statements to database
+  const autoSaveStatements = async (showSuccessMessage = false, newStatements?: Statement[], processedFileIds?: string[], showErrorOnSkip = false) => {
+    if (!session?.user?.email || !hasConfig) {
+      if (showErrorOnSkip) {
+        setSaveStatus('error')
+        setSaveMessage('Auto-save skipped: Please log in and configure your database settings.')
+        setTimeout(() => setSaveStatus('idle'), 3000)
+      }
+      return // Skip auto-save if not authenticated or configured
+    }
+
+    // Use provided statements or fall back to all statements
+    const statementsToSave = newStatements || allStatements
+
+    if (statementsToSave.length === 0) {
+      return // No statements to save
+    }
+
+    try {
+      // Group statements by source file, including both new and modified loaded data
+      const documentsWithStatements = files
+        .filter(file => {
+          // Include newly processed files (either from the processedFileIds param or from state)
+          if ((processedFileIds && processedFileIds.includes(file.id)) || (file.processed && !file.isLoaded)) {
+            return true
+          }
+          // Include loaded files that have been modified or have new manual statements
+          if (file.isLoaded && (file.isContentModified || statementsToSave.some(stmt => stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)))) {
+            return true
+          }
+          return false
+        })
+        .map(file => ({
+          id: file.originalDocumentId, // Include original ID for updates
+          title: file.title,
+          content: file.content,
+          statements: statementsToSave.filter(stmt => {
+            // Include all statements from this file if it's a new file
+            if (!file.isLoaded) {
+              return stmt.sourceFile === file.title
+            }
+            // For loaded files, include modified statements OR manually added statements (no originalStatementId)
+            return stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)
+          }).map(stmt => {
+            // Include all statement fields including originalStatementId
+            return { ...stmt }
+          })
+        }))
+        // Only include documents that have statements to save
+        .filter(doc => doc.statements.length > 0)
+
+      if (documentsWithStatements.length === 0) {
+        return // No new or modified data to save
+      }
+
+      const response = await fetch('/api/dnanalyzer/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documents: documentsWithStatements
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        if (showSuccessMessage) {
+          setSaveStatus('success')
+          setSaveMessage('Data successfully saved to database!')
+          setTimeout(() => setSaveStatus('idle'), 3000)
+        }
+        // Mark statements as saved (no longer modified)
+        setAllStatements(prev => prev.map(stmt => ({
+          ...stmt,
+          isModified: false
+        })))
+      } else {
+        throw new Error(data.error || 'Unknown error occurred')
+      }
+
+    } catch (err) {
+      console.error('Auto-save failed:', err)
+      // Don't show error message to user for auto-save failures to avoid disrupting workflow
+    }
+  }
 
   const handleUpdateContent = async (fileId: string, newContent: string) => {
     // Update the file content in state
@@ -340,61 +462,7 @@ export default function DNAnalyzerPage() {
     setSaveMessage('')
 
     try {
-      // Group statements by source file, including both new and modified loaded data
-      const documentsWithStatements = files
-        .filter(file => {
-          // Include newly processed files
-          if (file.processed && !file.isLoaded) return true
-          // Include loaded files that have been modified or have new manual statements
-          if (file.isLoaded && (file.isContentModified || allStatements.some(stmt => stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)))) return true
-          return false
-        })
-        .map(file => ({
-          id: file.originalDocumentId, // Include original ID for updates
-          title: file.title,
-          content: file.content,
-          statements: allStatements.filter(stmt => {
-            // Include all statements from this file if it's a new file
-            if (!file.isLoaded) return stmt.sourceFile === file.title
-            // For loaded files, include modified statements OR manually added statements (no originalStatementId)
-            return stmt.sourceFile === file.title && (stmt.isModified || !stmt.originalStatementId)
-          }).map(stmt => {
-            // Include all statement fields including originalStatementId
-            return { ...stmt }
-          })
-        }))
-        // Only include documents that have statements to save
-        .filter(doc => doc.statements.length > 0)
-
-      if (documentsWithStatements.length === 0) {
-        setSaveStatus('error')
-        setSaveMessage('No new or modified data to save.')
-        return
-      }
-
-      const response = await fetch('/api/dnanalyzer/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documents: documentsWithStatements
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSaveStatus('success')
-        setSaveMessage('Data successfully saved to database!')
-      } else {
-        throw new Error(data.error || 'Unknown error occurred')
-      }
-
+      await autoSaveStatements(true)
     } catch (err) {
       console.error('Error saving to database:', err)
       setSaveStatus('error')
@@ -495,8 +563,18 @@ export default function DNAnalyzerPage() {
   useEffect(() => {
     if (session?.user?.email) {
       loadUserConfig()
+      // Reset auto-load flag when session changes
+      hasAutoLoadedRef.current = false
     }
   }, [session])
+
+  // Auto-load data when config is available and user is authenticated
+  useEffect(() => {
+    if (session?.user?.email && hasConfig && !hasAutoLoadedRef.current) {
+      hasAutoLoadedRef.current = true
+      handleLoadData()
+    }
+  }, [session?.user?.email, hasConfig])
 
   const handleLoadData = async () => {
     if (!session?.user?.email) {
@@ -713,7 +791,7 @@ export default function DNAnalyzerPage() {
             >
               {showResults ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               <span className="hidden sm:inline">
-                {showResults ? 'Hide' : 'View'}
+                {showResults ? 'Hide' : 'Data'}
               </span>
             </Button>
 
@@ -881,6 +959,9 @@ export default function DNAnalyzerPage() {
             onAnalyze={handleAnalyze}
             onUpdateContent={handleUpdateContent}
             onAddManualStatement={handleAddManualStatement}
+            onUpdateStatement={handleUpdateStatement}
+            onToggleFilteredResults={handleToggleFilteredResults}
+            isFilteredForFile={filteredFileId === selectedFileId}
             loading={loading}
             error={error}
           />
@@ -895,6 +976,7 @@ export default function DNAnalyzerPage() {
         processedFiles={processedFilesCount}
         open={showResults}
         onOpenChange={setShowResults}
+        filterSourceFile={filteredFileId ? files.find(f => f.id === filteredFileId)?.title || null : null}
       />
 
       {/* Footer */}
