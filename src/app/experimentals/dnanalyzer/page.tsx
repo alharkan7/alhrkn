@@ -156,6 +156,87 @@ export default function DNAnalyzerPage() {
     }
   }
 
+  const handleBulkAnalyze = async () => {
+    if (!hasApiKey) {
+      setError('Please configure your Google Generative AI API key in settings first.')
+      setIsConfigDialogOpen(true)
+      return
+    }
+
+    const unprocessedFiles = files.filter(file => !file.processed)
+    
+    if (unprocessedFiles.length === 0) {
+      setError('All files have already been processed.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    let processedCount = 0
+    let errorCount = 0
+
+    for (const file of unprocessedFiles) {
+      try {
+        const response = await fetch('/api/dnanalyzer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: file.content }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (data.error) {
+          throw new Error(data.error)
+        }
+
+        const newStatements = (data.statements || []).map((stmt: Statement) => ({
+          ...stmt,
+          sourceFile: file.title,
+          startIndex: stmt.startIndex,
+          endIndex: stmt.endIndex,
+          isLoaded: false,
+          isModified: false
+        }))
+
+        // Add new statements to accumulated results
+        setAllStatements(prev => [...prev, ...newStatements])
+
+        // Mark file as processed
+        setFiles(prev => prev.map(f =>
+          f.id === file.id
+            ? { ...f, processed: true }
+            : f
+        ))
+
+        processedCount++
+
+      } catch (err) {
+        console.error(`Error processing file "${file.title}":`, err)
+        errorCount++
+      }
+    }
+
+    if (errorCount === 0) {
+      setSaveStatus('success')
+      setSaveMessage(`Successfully analyzed ${processedCount} file(s)!`)
+    } else if (processedCount > 0) {
+      setSaveStatus('error')
+      setSaveMessage(`Analyzed ${processedCount} file(s), but ${errorCount} failed.`)
+    } else {
+      setError('Failed to analyze all files. Please check your API configuration.')
+    }
+
+    setTimeout(() => setSaveStatus('idle'), 3000)
+    setLoading(false)
+  }
+
   const handleUpdateStatement = (index: number, field: 'statement' | 'concept' | 'actor' | 'organization' | 'agree', newValue: string) => {
     setAllStatements(prev => {
       const updated = [...prev]
@@ -787,6 +868,8 @@ export default function DNAnalyzerPage() {
             selectedFileId={selectedFileId}
             onFileSelect={handleFileSelect}
             onAddFile={handleAddFile}
+            onBulkAnalyze={handleBulkAnalyze}
+            loading={loading}
           />
         </div>
 

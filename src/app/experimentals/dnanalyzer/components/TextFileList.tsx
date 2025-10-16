@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Play } from 'lucide-react'
 
 interface TextFile {
   id: string
@@ -22,6 +23,8 @@ interface TextFileListProps {
   selectedFileId: string | null
   onFileSelect: (fileId: string) => void
   onAddFile: (title: string, content: string) => void
+  onBulkAnalyze: () => void
+  loading: boolean
 }
 
 function useScreenSize() {
@@ -47,7 +50,7 @@ function truncateText(text: string, isMobile: boolean): string {
 }
 
 const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProps>(
-  ({ files, selectedFileId, onFileSelect, onAddFile }, ref) => {
+  ({ files, selectedFileId, onFileSelect, onAddFile, onBulkAnalyze, loading }, ref) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [newTitle, setNewTitle] = useState('')
     const [newContent, setNewContent] = useState('')
@@ -72,12 +75,27 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
       setNewContent('')
     }
 
+  const unprocessedCount = files.filter(file => !file.processed).length
+  const hasUnprocessedFiles = unprocessedCount > 0
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Text Sources</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle>Text Sources</CardTitle>
+              <Button
+                onClick={onBulkAnalyze}
+                disabled={loading || !hasUnprocessedFiles}
+                size="sm"
+                variant="neutral"
+                className="h-8"
+              >
+                <Play className="h-3.5 w-3.5 mr-1.5" />
+                {loading ? 'Analyzing...' : `Analyze All (${unprocessedCount})`}
+              </Button>
+            </div>
             <CardDescription>
               Select a text source to analyze discourse
             </CardDescription>
