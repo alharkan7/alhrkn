@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import TextFileList from './components/TextFileList'
 import TextDisplay from './components/TextDisplay'
