@@ -1,4 +1,4 @@
-import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban } from 'lucide-react'
+import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -43,6 +43,12 @@ export const apps: AppConfig[] = [
     icon: Wallet,
     slug: 'finance-tracker',
     description: 'Expense, Income, Budget & Excel Export',
+  },
+  {
+    name: 'Discourse Extractor',
+    icon: Network,
+    slug: 'dnanalyzer',
+    description: 'Automatic Discourse Extractor for DNAnalyzer',
   },
   //{
     //name: "Writer's Unblock",

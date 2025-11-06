@@ -886,72 +886,88 @@ export default function DNAnalyzerPage() {
                       Configuration Settings
                     </DialogTitle>
                     <DialogDescription>
-                      Configure your MySQL database connection and Google Generative AI API key for discourse analysis.
+                      Configure MySQL and Google Generative AI API key.
                     </DialogDescription>
                   </DialogHeader>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="host">Host</Label>
-                      <Input
-                        id="host"
-                        placeholder="localhost"
-                        value={mysqlConfig.host}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, host: e.target.value }))}
-                      />
+
+                  <div className="border border-gray-400 rounded-lg p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="host">Host</Label>
+                        <Input
+                          id="host"
+                          placeholder="localhost"
+                          value={mysqlConfig.host}
+                          onChange={(e) => setMysqlConfig(prev => ({ ...prev, host: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="port">Port</Label>
+                        <Input
+                          id="port"
+                          type="number"
+                          placeholder="3306"
+                          value={mysqlConfig.port}
+                          onChange={(e) => setMysqlConfig(prev => ({ ...prev, port: parseInt(e.target.value) || 3306 }))}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="port">Port</Label>
+                      <Label htmlFor="database">Database Name</Label>
                       <Input
-                        id="port"
-                        type="number"
-                        placeholder="3306"
-                        value={mysqlConfig.port}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, port: parseInt(e.target.value) || 3306 }))}
+                        id="database"
+                        placeholder="dnanalyzer"
+                        value={mysqlConfig.database}
+                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, database: e.target.value }))}
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="database">Database Name</Label>
-                    <Input
-                      id="database"
-                      placeholder="dnanalyzer"
-                      value={mysqlConfig.database}
-                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, database: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="user">Username</Label>
-                    <Input
-                      id="user"
-                      placeholder="root"
-                      value={mysqlConfig.user}
-                      onChange={(e) => setMysqlConfig(prev => ({ ...prev, user: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showMySQLPassword ? "text" : "password"}
-                        placeholder="Enter password"
-                        value={mysqlConfig.password}
-                        onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                        onClick={() => setShowMySQLPassword(!showMySQLPassword)}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="user">Username</Label>
+                        <Input
+                          id="user"
+                          placeholder="root"
+                          value={mysqlConfig.user}
+                          onChange={(e) => setMysqlConfig(prev => ({ ...prev, user: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showMySQLPassword ? "text" : "password"}
+                            placeholder="Enter password"
+                            value={mysqlConfig.password}
+                            onChange={(e) => setMysqlConfig(prev => ({ ...prev, password: e.target.value }))}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            onClick={() => setShowMySQLPassword(!showMySQLPassword)}
+                          >
+                            {showMySQLPassword ? (
+                              <EyeOff className="h-4 w-4 text-gray-400" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Get a free MySQL database from{' '}
+                      <a
+                        href="https://www.freesqldatabase.com/register/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
                       >
-                        {showMySQLPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
-                        )}
-                      </button>
-                    </div>
+                        FreeSQLDatabase
+                      </a>
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -978,7 +994,7 @@ export default function DNAnalyzerPage() {
                       </button>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Get your API key from{' '}
+                      Get your free API key from{' '}
                       <a
                         href="https://aistudio.google.com/api-keys"
                         target="_blank"
