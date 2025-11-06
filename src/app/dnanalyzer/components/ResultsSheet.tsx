@@ -9,6 +9,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Eye } from 'lucide-react'
 
 interface Statement {
@@ -32,14 +39,14 @@ interface EditableCellProps {
 function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleDoubleClick = () => {
     setIsEditing(true)
     setEditValue(value)
     setTimeout(() => {
-      inputRef.current?.focus()
-      inputRef.current?.select()
+      textareaRef.current?.focus()
+      textareaRef.current?.select()
     }, 0)
   }
 
@@ -54,7 +61,7 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       handleSave()
     } else if (e.key === 'Escape') {
       handleCancel()
@@ -63,25 +70,31 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
 
   if (isEditing) {
     return (
-      <input
-        ref={inputRef}
-        type="text"
+      <textarea
+        ref={textareaRef}
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        className="w-full px-2 py-1 text-sm border border-ring rounded focus:outline-none focus:ring-2 focus:ring-ring"
+        rows={3}
+        className="w-full px-2 py-1 text-sm border border-ring rounded focus:outline-none focus:ring-2 focus:ring-ring resize-none min-h-[2.5rem]"
       />
     )
   }
 
   return (
     <div
-      className={`text-sm cursor-pointer hover:bg-muted px-2 py-1 rounded ${className}`}
+      className={`text-sm cursor-pointer hover:bg-muted px-2 py-1 rounded min-h-[2rem] flex items-center ${
+        !value.trim() ? 'bg-muted/50 border border-dashed border-muted-foreground/30' : ''
+      } ${className}`}
       onDoubleClick={handleDoubleClick}
       title="Double-click to edit"
     >
-      {value}
+      {value.trim() ? (
+        value
+      ) : (
+        <span className="text-muted-foreground italic">Click to edit</span>
+      )}
     </div>
   )
 }
@@ -119,7 +132,7 @@ export default function ResultsSheet({
 
     const updatedStatement = {
       ...currentStatement,
-      [field]: field === 'agree' ? (newValue.toLowerCase() === 'true') : newValue,
+      [field]: field === 'agree' ? (newValue === 'TRUE') : newValue,
       isModified: true
     }
 
@@ -130,12 +143,14 @@ export default function ResultsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Discourse Network Results</SheetTitle>
+          <SheetTitle>{filterSourceFile ? `${filterSourceFile}` : 'Discourse Network Results'}</SheetTitle>
           <SheetDescription>
-            {filterSourceFile
+            {/* {filterSourceFile
               ? `Analysis results filtered for: ${filterSourceFile}`
               : 'Accumulated analysis results from all processed text files'
-            }. Double-click any cell to edit. ({processedFiles}/{totalFiles} files processed)
+            }.  */}
+            Double-click any cell to edit. 
+            {/* ({processedFiles}/{totalFiles} files processed) */}
           </SheetDescription>
         </SheetHeader>
 
@@ -153,7 +168,7 @@ export default function ResultsSheet({
               <table className="w-full border-collapse border border-border">
                 <thead>
                   <tr className="bg-muted">
-                    <th className="border border-border px-4 py-2 text-left font-semibold">Source</th>
+                    {/* <th className="border border-border px-4 py-2 text-left font-semibold">Title</th> */}
                     <th className="border border-border px-4 py-2 text-left font-semibold">Statement</th>
                     <th className="border border-border px-4 py-2 text-left font-semibold">Concept</th>
                     <th className="border border-border px-4 py-2 text-left font-semibold">Actor</th>
@@ -169,11 +184,9 @@ export default function ResultsSheet({
                       : index
                     return (
                     <tr key={index} className="hover:bg-muted">
-                      <td className="border border-border px-4 py-2 text-xs">
-                        <Badge variant="neutral" className="text-xs">
+                      {/* <td className="border border-border px-4 py-2 text-xs">
                           {statement.sourceFile || 'Unknown'}
-                        </Badge>
-                      </td>
+                      </td> */}
                       <td className="border border-border px-4 py-2">
                         <EditableCell
                           value={statement.statement}
@@ -200,10 +213,18 @@ export default function ResultsSheet({
                         />
                       </td>
                       <td className="border border-border px-4 py-2 text-center">
-                        <EditableCell
+                        <Select
                           value={statement.agree ? 'TRUE' : 'FALSE'}
-                          onSave={(newValue) => handleCellEdit(originalIndex, 'agree', newValue)}
-                        />
+                          onValueChange={(newValue) => handleCellEdit(originalIndex, 'agree', newValue)}
+                        >
+                          <SelectTrigger className="w-20 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="TRUE">TRUE</SelectItem>
+                            <SelectItem value="FALSE">FALSE</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </td>
                     </tr>
                     )
