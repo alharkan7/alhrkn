@@ -35,7 +35,7 @@ export default function HomePage() {
               <div key={app.slug} className="text-center p-6">
                 <div className="flex justify-center mb-4">
                   <Link
-                    href={app.slug === 'enaiblr' ? 'https://enaiblr.org/apps' : app.slug ? `/${app.slug}` : '/'}
+                    href={app.slug === 'enaiblr' ? 'https://enaiblr.vercel.app/apps' : app.slug ? `/${app.slug}` : '/'}
                     className="group"
                     {...(app.slug === 'enaiblr' && { target: '_blank', rel: 'noopener noreferrer' })}
                   >
