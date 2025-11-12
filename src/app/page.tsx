@@ -11,10 +11,10 @@ export default function HomePage() {
       <div className="w-full max-w-7xl px-8 py-8">
         {/* Title Section */}
         <div className="text-center mb-10 pt-16">
-          <h1 className="text-4xl font-heading text-text mb-4">
+          <h1 className="text-3xl font-heading text-text mb-4">
             My Apps Gallery
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto font-base hidden sm:block">
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto font-base">
             Collection of Experimental Apps by{' '}
             <a 
               href="https://x.com/alhrkn" 
@@ -44,10 +44,10 @@ export default function HomePage() {
                     </div>
                   </Link>
                 </div>
-                <h3 className="text-xl font-heading text-text mb-2">
+                <h3 className="text-base font-heading text-text mb-2">
                   {app.name}
                 </h3>
-                <p className="text-sm text-text leading-relaxed hidden lg:block max-w-[200px] mx-auto">
+                <p className="text-xs text-text leading-relaxed hidden lg:block max-w-[200px] mx-auto">
                   {app.description}
                 </p>
               </div>
