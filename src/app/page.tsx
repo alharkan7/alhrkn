@@ -4,6 +4,7 @@ import { apps } from '@/config/apps'
 import Link from 'next/link'
 import { ArrowRight, Github, Twitter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SpotlightCard } from '@/components/ui/spotlight-card'
 
 export default function HomePage() {
   return (
@@ -51,9 +52,9 @@ export default function HomePage() {
                 rel={isExternal ? 'noopener noreferrer' : undefined}
                 className="group relative block h-full"
               >
-                <div className="relative h-full rounded-2xl border bg-card p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <SpotlightCard className="h-full p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:border-blue-500/50 hover:-translate-y-1">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-cyan-500 group-hover:text-white transition-all duration-300">
                       <IconComponent className="h-6 w-6" />
                     </div>
                     <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
@@ -64,7 +65,7 @@ export default function HomePage() {
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {app.description}
                   </p>
-                </div>
+                </SpotlightCard>
               </Link>
             )
           })}
