@@ -957,17 +957,30 @@ export default function DNAnalyzerPage() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Get a free MySQL database from{' '}
-                      <a
-                        href="https://www.freesqldatabase.com/register/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        FreeSQLDatabase
-                      </a>
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Use the same MySQL database as the one used in {' '}
+                        <a
+                          href="https://dnanalyzer.org"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          DNAnalyzer
+                        </a>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        You can get a free MySQL database from{' '}
+                        <a
+                          href="https://www.freesqldatabase.com/register/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          FreeSQLDatabase
+                        </a>
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
