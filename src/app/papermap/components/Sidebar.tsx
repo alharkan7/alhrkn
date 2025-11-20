@@ -411,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               New Mindmap
             </h3>
             <Button
-              variant="neutral"
+              variant="secondary"
               size="icon"
               onClick={onClose}
             >
@@ -428,7 +428,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {file ? (
                 <div className="text-primary">
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="icon"
                     onClick={() => {
                       setFile(null);
@@ -502,7 +502,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Button
               onClick={handleGenerate}
               disabled={isCreateButtonDisabled}
-              variant={isCreateButtonDisabled ? "neutral" : "default"}
+              variant={isCreateButtonDisabled ? "secondary" : "default"}
               className="w-full"
             >
               {loading || urlLoading || isUploading ? (
@@ -535,7 +535,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="mt-auto px-6 mb-6">
           <AppsGrid
             trigger={
-              <Button variant="neutral" className="w-full flex items-center justify-center gap-2">
+              <Button variant="secondary" className="w-full flex items-center justify-center gap-2">
                 <LayoutGrid className="h-4 w-4" />
                 <span>More Apps</span>
               </Button>

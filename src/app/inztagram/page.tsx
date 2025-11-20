@@ -97,7 +97,7 @@ export default function InztagramPage() {
           leftButton={diagramCode ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="neutral" aria-label="Create new diagram">
+                <Button variant="secondary" aria-label="Create new diagram">
                   <Plus className="size-5" /> New
                 </Button>
               </AlertDialogTrigger>

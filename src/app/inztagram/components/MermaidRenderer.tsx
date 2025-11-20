@@ -263,7 +263,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                         <Sheet open={editOpen} onOpenChange={setEditOpen}>
                             <SheetTrigger asChild>
                                 <Button
-                                    variant="neutral"
+                                    variant="secondary"
                                     aria-label="Edit Diagram Text"
                                 >
                                     Edit
@@ -299,7 +299,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                             </SheetContent>
                         </Sheet>
                         <Button
-                            variant="neutral"
+                            variant="secondary"
                             size="icon"
                             aria-label="Reset zoom and pan"
                             onClick={handleResetZoom}
@@ -309,7 +309,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, diagramT
                         </Button>
                         <div className="relative ml-1" ref={downloadDropdownRef}>
                             <Button
-                                variant="neutral"
+                                variant="secondary"
                                 size="icon"
                                 aria-label="Download diagram"
                                 onClick={() => setShowDownloadDropdown((v) => !v)}

@@ -180,7 +180,7 @@ export function DocumentInput({ onDocumentReady }: DocumentInputProps) {
                 <p className="text-sm text-gray-600">Supports .md and .txt files</p>
               </div>
               <div className="flex gap-3 justify-center">
-                <Button variant="neutral" asChild>
+                <Button variant="secondary" asChild>
                   <label htmlFor="file-upload" className="cursor-pointer">
                     Choose File
                     <input
@@ -193,7 +193,7 @@ export function DocumentInput({ onDocumentReady }: DocumentInputProps) {
                   </label>
                 </Button>
                 <Button 
-                  variant="neutral" 
+                  variant="secondary" 
                   onClick={loadSampleEssay}
                   disabled={loading}
                 >

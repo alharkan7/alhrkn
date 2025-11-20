@@ -231,14 +231,14 @@ export default function JapaneseFlashcardsPage() {
           <div className="w-full">
             <div className="flex justify-center space-x-2 mt-6 mb-10">
               <Button
-                variant={selectedType === "Hiragana" ? "default" : "neutral"}
+                variant={selectedType === "Hiragana" ? "default" : "secondary"}
                 onClick={() => setSelectedType("Hiragana")}
                 className={`rounded-full font-bold`}
               >
                 Hiragana
               </Button>
               <Button
-                variant={selectedType === "Katakana" ? "default" : "neutral"}
+                variant={selectedType === "Katakana" ? "default" : "secondary"}
                 onClick={() => setSelectedType("Katakana")}
                 className={`rounded-full font-bold`}
               >
@@ -251,13 +251,13 @@ export default function JapaneseFlashcardsPage() {
 
             <div className="absolute w-full -top-4 flex justify-center">
               <Button
-                variant="neutral"
+                variant="outline"
                 size="icon"
                 onClick={(e) => {
                   e.stopPropagation();
                   handlePreviousCard();
                 }}
-                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8 rounded-full"
               >
                 <ChevronUp className="h-5 w-5" />
               </Button>
@@ -304,13 +304,13 @@ export default function JapaneseFlashcardsPage() {
 
             <div className="absolute w-full -bottom-4 flex justify-center">
               <Button
-                variant="neutral"
+                variant="outline"
                 size="icon"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleNextCard();
                 }}
-                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8"
+                className="p-0 z-10 hidden md:flex items-center justify-center w-8 h-8 rounded-full"
               >
                 <ChevronDown className="h-5 w-5" />
               </Button>

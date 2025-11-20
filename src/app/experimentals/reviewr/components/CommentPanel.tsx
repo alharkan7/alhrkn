@@ -76,7 +76,7 @@ export function CommentPanel({ comments, onDeleteComment, onScrollToComment, ove
                     {comment.author}
                   </CardTitle>
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="sm"
                     onClick={() => onDeleteComment(comment.id)}
                     className="h-6 w-6 p-0 text-xs"

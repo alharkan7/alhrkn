@@ -282,7 +282,7 @@ export function Settings({
               <h3 className="text-lg font-semibold text-gray-900">Expense Categories</h3>
               <Button
                 size="sm"
-                variant="neutral"
+                variant="secondary"
                 onClick={toggleExpenseEditMode}
                 className={`p-1 ${editingExpenseMode ? 'bg-gray-100 text-gray-600' : 'hover:bg-gray-100'}`}
                 title={editingExpenseMode ? 'Exit edit mode' : 'Edit categories'}
@@ -325,7 +325,7 @@ export function Settings({
                           <Smile className="w-4 h-4" />
                           <span className="text-sm font-medium">Choose an emoji:</span>
                         </div>
-                        <Button size="sm" variant="neutral" onClick={cancelEmojiEdit}>
+                        <Button size="sm" variant="secondary" onClick={cancelEmojiEdit}>
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
@@ -354,7 +354,7 @@ export function Settings({
               <h3 className="text-lg font-semibold text-gray-900">Income Categories</h3>
               <Button
                 size="sm"
-                variant="neutral"
+                variant="secondary"
                 onClick={toggleIncomeEditMode}
                 className={`p-1 ${editingIncomeMode ? 'bg-gray-100 text-gray-600' : 'hover:bg-gray-100'}`}
                 title={editingIncomeMode ? 'Exit edit mode' : 'Edit categories'}
@@ -397,7 +397,7 @@ export function Settings({
                           <Smile className="w-4 h-4" />
                           <span className="text-sm font-medium">Choose an emoji:</span>
                         </div>
-                        <Button size="sm" variant="neutral" onClick={cancelEmojiEdit}>
+                        <Button size="sm" variant="secondary" onClick={cancelEmojiEdit}>
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
@@ -429,7 +429,7 @@ export function Settings({
           <Button
             onClick={handleExportData}
             disabled={exporting || loading}
-            variant="neutral"
+            variant="secondary"
             className="flex items-center gap-2 rounded-full border-gray-300 text-sm"
           >
             <Download className="w-4 h-4" />

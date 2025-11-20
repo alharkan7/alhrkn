@@ -11,7 +11,7 @@ export default function HomePage() {
       <div className="w-full max-w-7xl px-8 py-8">
         {/* Title Section */}
         <div className="text-center mb-10 pt-16">
-          <h1 className="text-3xl font-heading text-text mb-4">
+          <h1 className="text-3xl font-heading font-bold mb-4">
             My Apps Gallery
           </h1>
           <p className="text-sm text-muted-foreground max-w-xl mx-auto font-base">
@@ -44,7 +44,7 @@ export default function HomePage() {
                     </div>
                   </Link>
                 </div>
-                <h3 className="text-base font-heading text-text mb-2">
+                <h3 className="text-base font-heading font-semibold mb-2">
                   {app.name}
                 </h3>
                 <p className="text-xs text-text leading-relaxed hidden lg:block max-w-[200px] mx-auto">

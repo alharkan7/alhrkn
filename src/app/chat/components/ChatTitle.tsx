@@ -11,12 +11,12 @@ interface ChatTitleProps {
 
 export function ChatTitle({ compact, clearMessages, hasUserSentMessage, onClear }: ChatTitleProps) {
     const refreshButton = (
-        <Button 
+        <Button
             onClick={() => {
                 clearMessages();
                 onClear?.();  // Call onClear to reset the UI state
             }}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            className="p-2 rounded-lg"
             title="Clear chat history"
             variant="default"
         >

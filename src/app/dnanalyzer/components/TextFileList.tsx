@@ -113,7 +113,7 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
             onClick={onBulkAnalyze}
             disabled={loading || !hasUnprocessedFiles}
             size="sm"
-            variant="neutral"
+            variant="secondary"
           >
             {loading ? (
               <>
@@ -160,10 +160,10 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="neutral" onClick={handleDialogClose}>
+                <Button variant="secondary" onClick={handleDialogClose}>
                   Cancel
                 </Button>
-                <Button variant="neutral" onClick={handleAddFile} disabled={!newTitle.trim() || !newContent.trim()}>
+                <Button variant="secondary" onClick={handleAddFile} disabled={!newTitle.trim() || !newContent.trim()}>
                   Add Source
                 </Button>
               </DialogFooter>
@@ -180,10 +180,10 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="neutral" onClick={handleDeleteCancel}>
+                <Button variant="secondary" onClick={handleDeleteCancel}>
                   Cancel
                 </Button>
-                <Button variant="neutral" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
+                <Button variant="secondary" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
                   Delete
                 </Button>
               </DialogFooter>
@@ -218,7 +218,7 @@ const TextFileList = forwardRef<{ triggerAddFile: () => void }, TextFileListProp
                             {file.title}
                           </h3>
                           {file.processed && (
-                            <Badge variant="neutral" className="text-xs rounded-full">
+                            <Badge variant="default" className="text-xs rounded-full">
                               <Check className="h-3 w-3" />
                             </Badge>
                           )}

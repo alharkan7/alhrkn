@@ -142,7 +142,7 @@ function HighlightedText({ text, statements, selectionRange, onStatementClick }:
         >
           {highlightedText}
           <Badge
-            variant="neutral"
+            variant="default"
             className={`absolute -top-6 left-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity ${
               stmt.agree ? 'bg-green-500' : 'bg-red-500'
             }`}
@@ -427,7 +427,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
           {selectedFile && (
             <div className="flex gap-1">
               <Button
-                variant="neutral"
+                variant="secondary"
                 size="sm"
                 onClick={() => onToggleFilteredResults(selectedFile.id)}
                 title={isFilteredForFile ? 'Hide filtered data' : 'Show data for this file'}
@@ -438,7 +438,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
               {isEditing ? (
                 <>
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="sm"
                     onClick={handleEditClick}
                     className="bg-green-100 hover:bg-green-200"
@@ -446,7 +446,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                     <Check className="h-4 w-4 text-green-600" /> Save
                   </Button>
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="sm"
                     onClick={handleCancelEdit}
                     className="bg-red-100 hover:bg-red-200"
@@ -456,7 +456,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 </>
               ) : (
                 <Button
-                  variant="neutral"
+                  variant="secondary"
                   size="sm"
                   onClick={handleEditClick}
                   title="Edit text content"
@@ -512,7 +512,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 onClick={handleAnalyze}
                 disabled={loading || selectedFile.processed}
                 size="lg"
-                variant="neutral"
+                variant="secondary"
               >
                 {loading ? 'Analyzing...' : selectedFile.processed ? 'Already Processed' : 'Analyze Text'}
               </Button>
@@ -609,7 +609,7 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
                 />
               )}
               <div className="flex gap-2 ml-auto">
-                <Button variant="neutral" onClick={handleCancelManualStatement}>
+                <Button variant="secondary" onClick={handleCancelManualStatement}>
                   Cancel
                 </Button>
                 <Button onClick={handleAddManualStatement}>
@@ -630,10 +630,10 @@ export default function TextDisplay({ selectedFile, statements, onAnalyze, onUpd
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="neutral" onClick={handleDeleteCancel}>
+              <Button variant="secondary" onClick={handleDeleteCancel}>
                 Cancel
               </Button>
-              <Button variant="neutral" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
+              <Button variant="secondary" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDeleteConfirm}>
                 Delete
               </Button>
             </DialogFooter>

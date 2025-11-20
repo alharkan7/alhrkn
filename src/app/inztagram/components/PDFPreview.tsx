@@ -106,7 +106,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                         </div>
                         {!isSent && (
                             <Button
-                                variant="neutral"
+                                variant="secondary"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRemove();
@@ -154,7 +154,7 @@ export function FilePreview({ file, isUploading, onRemove, isSent = false, inMes
                 </div>
                 {!isSent && (
                     <Button
-                        variant="neutral"
+                        variant="secondary"
                         onClick={(e) => {
                             e.stopPropagation();
                             onRemove();

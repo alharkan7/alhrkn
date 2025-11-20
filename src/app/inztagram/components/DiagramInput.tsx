@@ -75,8 +75,8 @@ export function DiagramInput({
         onSend(value, diagramType ?? '', diagramTheme, pdfFile?.url, pdfFile?.name);
       }
     }} className={`relative flex flex-col gap-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-200 max-w-2xl mx-auto w-full 
-        ${isFocused ? 'border-[3px] border-ring shadow-[3px_3px_0px_0px_var(--ring)]' : 'border-[2px] border-border shadow-[var(--shadow)]'}
-        bg-bw rounded-lg p-2`}>
+        ${isFocused ? 'border-ring ring-1 ring-ring' : 'border-border shadow-sm'}
+        bg-background border rounded-lg p-2`}>
 
       <div className="flex flex-col gap-2 w-full">
         <textarea
@@ -143,7 +143,7 @@ export function DiagramInput({
                   <button
                     type="button"
                     className={cn(
-                      'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
+                      'flex flex-col items-center justify-between h-[110px] rounded-md border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
                       !diagramType && 'ring-2 ring-primary border-primary',
                     )}
                     onClick={() => {
@@ -161,7 +161,7 @@ export function DiagramInput({
                       type="button"
                       key={type.value}
                       className={cn(
-                        'flex flex-col items-center justify-between h-[110px] rounded-base border-2 border-border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
+                        'flex flex-col items-center justify-between h-[110px] rounded-md border bg-background p-2 transition-colors hover:bg-accent focus:outline-none',
                         diagramType === type.value && 'ring-2 ring-primary border-primary',
                       )}
                       onClick={() => {

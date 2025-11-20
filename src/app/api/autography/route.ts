@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
             }
             
             // Import the tool execution functions
-            const { executeAnalysisTool } = require('@/app/autography/utils/analysis-tools')
-            const { executeVisualizationTool } = require('@/app/autography/utils/visualization-tools')
+            const { executeAnalysisTool } = require('@/app/experimentals/autography/utils/analysis-tools')
+            const { executeVisualizationTool } = require('@/app/experimentals/autography/utils/visualization-tools')
             
             // Execute each tool call on the actual data
             const executedToolCalls = []

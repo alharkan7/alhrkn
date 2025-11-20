@@ -68,7 +68,7 @@ export default function OutlinerPage() {
                 setHasResponded(false);
                 fetchIdeas(q.trim());
             }
-        } catch {}
+        } catch { }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -129,7 +129,7 @@ export default function OutlinerPage() {
                             console.log('Adding new idea:', { title: idea?.title, newCount: existing.length + 1 });
                             return [...existing, idea];
                         });
-                    } catch {}
+                    } catch { }
                 }
             }
 
@@ -144,7 +144,7 @@ export default function OutlinerPage() {
                         if (!key || seen.has(key)) return existing;
                         return [...existing, idea];
                     });
-                } catch {}
+                } catch { }
             }
         } catch (e: any) {
             if (e?.name !== 'AbortError') {
@@ -165,7 +165,7 @@ export default function OutlinerPage() {
             const params = new URLSearchParams(window.location.search);
             params.set('q', queryText.trim());
             router.replace(`?${params.toString()}`);
-        } catch {}
+        } catch { }
         fetchIdeas(queryText.trim());
     };
 
@@ -214,7 +214,7 @@ export default function OutlinerPage() {
                             console.log('Adding new idea (append):', { title: idea?.title, newCount: existing.length + 1 });
                             return [...existing, idea];
                         });
-                    } catch {}
+                    } catch { }
                 }
             }
             const last = buffer.trim();
@@ -228,7 +228,7 @@ export default function OutlinerPage() {
                         if (!key || seen.has(key)) return existing;
                         return [...existing, idea];
                     });
-                } catch {}
+                } catch { }
             }
         } catch (e: any) {
             setError(e?.message || (language === 'en' ? 'Something went wrong' : 'Terjadi kesalahan'));
@@ -262,7 +262,7 @@ export default function OutlinerPage() {
                                 <div className="absolute right-3 top-[47%] transform -translate-y-1/2">
                                     <Button
                                         type="button"
-                                        variant="neutral"
+                                        variant="ghost"
                                         size="sm"
                                         onClick={toggleLanguage}
                                         className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full"

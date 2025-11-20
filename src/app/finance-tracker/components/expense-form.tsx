@@ -188,7 +188,7 @@ export function ExpenseForm({ onSubmit, loading, onCategorySwitch, isDemoMode = 
       {/* Category Buttons */}
       <div className="flex gap-2 w-full">
         <Button
-          variant={activeCategory === 'expense' ? "default" : "neutral"}
+          variant={activeCategory === 'expense' ? "default" : "secondary"}
           className="flex-1 h-8 text-xs rounded-full"
           onClick={() => {
             setActiveCategory('expense')
@@ -202,7 +202,7 @@ export function ExpenseForm({ onSubmit, loading, onCategorySwitch, isDemoMode = 
           Pengeluaran
         </Button>
         <Button
-          variant={activeCategory === 'income' ? "default" : "neutral"}
+          variant={activeCategory === 'income' ? "default" : "secondary"}
           className="flex-1 h-8 text-xs rounded-full"
           onClick={() => {
             setActiveCategory('income')
@@ -315,7 +315,7 @@ export function ExpenseForm({ onSubmit, loading, onCategorySwitch, isDemoMode = 
                       )
                     }
                     return currentCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
+                      <SelectItem key={category.value} value={category.value} className="pl-2">
                         <span className="truncate">{category.value}</span>
                       </SelectItem>
                     ))
@@ -380,7 +380,7 @@ export function ExpenseForm({ onSubmit, loading, onCategorySwitch, isDemoMode = 
 
         {/* Save Button */}
         <Button
-          variant="noShadow"
+          variant="default"
           onClick={handleSave}
           disabled={loading}
           className="w-full h-8 text-sm font-medium rounded-full"

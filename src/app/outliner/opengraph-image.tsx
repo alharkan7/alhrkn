@@ -2,7 +2,6 @@ import { generateOpenGraphImage } from '@/lib/opengraph-image'
 import { metadata } from './layout'
 
 // Route segment config
-export const runtime = 'edge'
 
 // Image metadata
 export const alt = 'Outliner - Quick Research Paper Outline & Draft'

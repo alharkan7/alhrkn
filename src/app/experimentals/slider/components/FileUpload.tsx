@@ -140,7 +140,7 @@ export function FileUpload({ onFileContent, disabled }: FileUploadProps) {
 
             <Button
               type="button"
-              variant="neutral"
+              variant="secondary"
               disabled={disabled}
               className="mt-4"
             >
@@ -173,7 +173,7 @@ export function FileUpload({ onFileContent, disabled }: FileUploadProps) {
                 </div>
               </div>
               <Button
-                variant="neutral"
+                variant="secondary"
                 size="sm"
                 onClick={clearFile}
                 disabled={disabled}

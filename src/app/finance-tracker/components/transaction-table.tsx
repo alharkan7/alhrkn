@@ -383,7 +383,7 @@ export function TransactionTable({
         {onBackClick && (
           <Button
             onClick={onBackClick}
-            variant="neutral"
+            variant="secondary"
             size="sm"
             className="p-1"
           >
@@ -459,7 +459,7 @@ export function TransactionTable({
             {/* Sort Buttons */}
             <div className="flex gap-1">
               <Button
-                variant="neutral"
+                variant="secondary"
                 size="sm"
                 className="h-8 px-2 text-xs"
                 onClick={() => handleSort('date')}
@@ -470,7 +470,7 @@ export function TransactionTable({
                 )}
               </Button>
               <Button
-                variant="neutral"
+                variant="secondary"
                 size="sm"
                 className="h-8 px-2 text-xs"
                 onClick={() => handleSort('amount')}
@@ -481,7 +481,7 @@ export function TransactionTable({
                 )}
               </Button>
               <Button
-                variant="neutral"
+                variant="secondary"
                 size="sm"
                 className="h-8 px-2 text-xs"
                 onClick={() => handleSort('category')}
@@ -706,7 +706,7 @@ export function TransactionTable({
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
-              variant="neutral"
+              variant="secondary"
               onClick={cancelDelete}
               disabled={deletingId !== null}
             >

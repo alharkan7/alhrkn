@@ -828,7 +828,7 @@ export default function DNAnalyzerPage() {
             <Button
               onClick={handleSaveToDatabase}
               disabled={saving || !hasConfig}
-              variant="neutral"
+              variant="secondary"
               className="flex items-center gap-0 sm:gap-2"
             >
               <Save className="w-4 h-4" />
@@ -840,7 +840,7 @@ export default function DNAnalyzerPage() {
             <Button
               onClick={handleLoadData}
               disabled={loadingData || !hasConfig}
-              variant="neutral"
+              variant="secondary"
               className="flex items-center gap-0 sm:gap-2"
             >
               <Download className="w-4 h-4" />
@@ -851,7 +851,7 @@ export default function DNAnalyzerPage() {
 
             <Button
               onClick={() => textFileListRef.current?.triggerAddFile()}
-              variant="neutral"
+              variant="secondary"
               className="flex items-center gap-0 sm:gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -860,7 +860,7 @@ export default function DNAnalyzerPage() {
 
             <Button
               onClick={() => setShowResults(!showResults)}
-              variant="neutral"
+              variant="secondary"
               className="flex items-center gap-0 sm:gap-2"
             >
               {showResults ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -872,7 +872,7 @@ export default function DNAnalyzerPage() {
             <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
               <DialogTrigger asChild>
                 <Button
-                  variant="neutral"
+                  variant="secondary"
                   className="flex items-center gap-0 sm:gap-2 ml-auto"
                 >
                   <Settings className="w-4 h-4" />
@@ -1008,7 +1008,7 @@ export default function DNAnalyzerPage() {
 
                   <div className="flex justify-end gap-2 pt-4">
                     <Button
-                      variant="neutral"
+                      variant="secondary"
                       onClick={() => setIsConfigDialogOpen(false)}
                     >
                       Cancel

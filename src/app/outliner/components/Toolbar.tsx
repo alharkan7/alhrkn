@@ -38,7 +38,6 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
         <Button
           variant="default"
           size="sm"
-          className="text-text border border-border"
           aria-label="Open Citations"
           onClick={() => {
             if (typeof window !== 'undefined') {
@@ -51,7 +50,6 @@ export function Toolbar({ onDownload, onOpenChat }: ToolbarProps) {
         <Button
           variant="default"
           size="sm"
-          className="text-text border border-border"
           aria-label="Open Chat"
           onClick={(e) => {
             e.preventDefault();

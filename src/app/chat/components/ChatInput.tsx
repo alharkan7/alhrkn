@@ -120,6 +120,7 @@ export function ChatInput({
                             <div className="flex gap-2">
                                 <Button
                                     type="button"
+                                    variant="secondary"
                                     onClick={() => handleFileClick('file')}
                                     className="shrink-0 p-2 transition-colors disabled:opacity-50"
                                     disabled={isLoading || !!file}
@@ -129,6 +130,7 @@ export function ChatInput({
                                 </Button>
                                 <Button
                                     type="button"
+                                    variant="secondary"
                                     onClick={() => handleFileClick('image')}
                                     className="shrink-0 p-2 transition-colors disabled:opacity-50"
                                     disabled={isLoading || !!file}

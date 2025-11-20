@@ -230,26 +230,17 @@ export class CitationTool {
         // Create modal with custom CSS variables
         this.modal = document.createElement('div');
         this.modal.setAttribute('data-citation-modal', 'true');
-        this.modal.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
-        this.modal.style.cssText = `
-            background-color: var(--overlay);
-        `;
+        this.modal.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans bg-black/80';
+
 
         const modalContent = document.createElement('div');
-        modalContent.className = 'max-w-4xl max-h-[90vh] w-[90vw] overflow-hidden rounded-lg';
-        modalContent.style.cssText = `
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow);
-        `;
+        modalContent.className = 'max-w-4xl max-h-[90vh] w-[90vw] overflow-hidden rounded-lg bg-background border shadow-lg flex flex-col';
+
 
         // Header
         const header = document.createElement('div');
-        header.className = 'p-5 border-b flex justify-between items-center';
-        header.style.cssText = `
-            border-bottom-color: var(--border);
-            background-color: var(--bw);
-        `;
+        header.className = 'p-5 border-b flex justify-between items-center bg-muted/40';
+
 
         const title = document.createElement('h3');
         const totalFound = data?.totalFound ?? (data.papers ? data.papers.length : 0);
@@ -257,11 +248,8 @@ export class CitationTool {
         const perPage = data?.perPage ?? this.perPage;
         const showingCount = data?.papers?.length ?? 0;
         title.textContent = `Found ${totalFound} Reference${totalFound !== 1 ? 's' : ''} — Page ${page}`;
-        title.className = 'm-0 text-lg font-semibold';
-        title.style.cssText = `
-            color: var(--text);
-            font-weight: var(--heading-font-weight);
-        `;
+        title.className = 'm-0 text-lg font-semibold text-foreground';
+
 
         // Pagination controls
         const pager = document.createElement('div');
@@ -273,25 +261,15 @@ export class CitationTool {
 
         const prevBtn = document.createElement('button');
         prevBtn.textContent = 'Prev';
-        prevBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
-        prevBtn.style.cssText = `
-            background-color: var(--bw);
-            color: var(--text);
-            border-color: var(--border);
-            font-weight: var(--base-font-weight);
-        `;
+        prevBtn.className = 'px-3 py-1.5 rounded-md border bg-background text-sm font-medium cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50';
+
         prevBtn.disabled = page <= 1;
         prevBtn.onclick = () => this.goToPage(page - 1);
 
         const nextBtn = document.createElement('button');
         nextBtn.textContent = 'Next';
-        nextBtn.className = 'px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90';
-        nextBtn.style.cssText = `
-            background-color: var(--main);
-            color: var(--mtext);
-            border-color: var(--border);
-            font-weight: var(--base-font-weight);
-        `;
+        nextBtn.className = 'px-3 py-1.5 rounded-md border bg-primary text-primary-foreground text-sm font-medium cursor-pointer transition-colors hover:bg-primary/90 disabled:opacity-50';
+
         const hasMore = totalFound ? (page * perPage) < totalFound : showingCount === perPage;
         nextBtn.disabled = !hasMore;
         nextBtn.onclick = () => this.goToPage(page + 1);
@@ -310,19 +288,8 @@ export class CitationTool {
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
-        closeBtn.className = 'border-none text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded transition-colors duration-200';
-        closeBtn.style.cssText = `
-            background-color: transparent;
-            color: var(--text);
-        `;
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.backgroundColor = 'var(--main)';
-            closeBtn.style.color = 'var(--mtext)';
-        });
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.backgroundColor = 'transparent';
-            closeBtn.style.color = 'var(--text)';
-        });
+        closeBtn.className = 'border-none text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded transition-colors duration-200 bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground';
+
         closeBtn.onclick = () => this.closeModal();
 
         header.appendChild(title);
@@ -334,19 +301,13 @@ export class CitationTool {
 
         // Content
         const content = document.createElement('div');
-        content.className = 'p-5 overflow-y-auto max-h-[78vh]';
-        content.style.cssText = `
-            background-color: var(--bg);
-        `;
+        content.className = 'p-5 overflow-y-auto max-h-[78vh] bg-background';
+
 
         // Search info with editable keywords
         const searchInfo = document.createElement('div');
-        searchInfo.className = 'mb-5 p-3 rounded-md text-sm';
-        searchInfo.style.cssText = `
-            background-color: var(--bw);
-            border: 1px solid var(--border);
-            color: var(--text);
-        `;
+        searchInfo.className = 'mb-5 p-3 rounded-md text-sm bg-muted/50 border text-foreground';
+
 
         const searchRow = document.createElement('div');
         searchRow.className = 'flex items-center justify-between gap-2';
@@ -363,12 +324,8 @@ export class CitationTool {
         actionsRight.className = 'flex items-center gap-2';
         const editBtn = document.createElement('button');
         editBtn.title = 'Edit keywords';
-        editBtn.className = 'p-1.5 rounded-md border text-xs cursor-pointer transition-all duration-200 hover:opacity-90';
-        editBtn.style.cssText = `
-            background-color: var(--bw);
-            color: var(--text);
-            border-color: var(--border);
-        `;
+        editBtn.className = 'p-1.5 rounded-md border bg-background text-foreground text-xs cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground';
+
         // Pencil icon SVG
         const editIcon = document.createElement('span');
         editIcon.innerHTML = PENCIL_ICON_SVG;
@@ -383,42 +340,18 @@ export class CitationTool {
             input.type = 'text';
             input.value = (data.keywords && data.keywords.length > 0) ? data.keywords.join(', ') : '';
             input.placeholder = 'keyword1, keyword2, keyword3';
-            input.className = 'flex-1 px-2 py-1 rounded-md border text-sm';
-            input.style.cssText = `
-                background-color: var(--bg);
-                color: var(--text);
-                border-color: var(--border);
-            `;
+            input.className = 'flex-1 px-2 py-1 rounded-md border text-sm bg-background text-foreground';
+
 
             const saveBtn = document.createElement('button');
             saveBtn.innerHTML = CHECK_ICON_SVG;
-            saveBtn.className = 'rounded-md border cursor-pointer transition-all duration-200 hover:opacity-90';
-            saveBtn.style.cssText = `
-                background-color: var(--main);
-                color: var(--mtext);
-                border-color: var(--border);
-                width: 28px;
-                height: 28px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0;
-            `;
+            saveBtn.className = 'rounded-md border cursor-pointer transition-colors hover:bg-primary/90 bg-primary text-primary-foreground w-7 h-7 inline-flex items-center justify-center p-0';
+
 
             const cancelBtn = document.createElement('button');
             cancelBtn.innerHTML = X_ICON_SVG;
-            cancelBtn.className = 'rounded-md border cursor-pointer transition-all duration-200 hover:opacity-90';
-            cancelBtn.style.cssText = `
-                background-color: var(--bw);
-                color: var(--text);
-                border-color: var(--border);
-                width: 28px;
-                height: 28px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0;
-            `;
+            cancelBtn.className = 'rounded-md border cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground bg-background text-foreground w-7 h-7 inline-flex items-center justify-center p-0';
+
 
             const submit = async () => {
                 const raw = input.value || '';
@@ -521,12 +454,8 @@ export class CitationTool {
             content.appendChild(papersList);
         } else {
             const noResults = document.createElement('div');
-            noResults.className = 'text-center py-10 px-5 text-base rounded-md';
-            noResults.style.cssText = `
-            color: var(--text);
-            background-color: var(--bw);
-            border: 1px solid var(--border);
-        `;
+            noResults.className = 'text-center py-10 px-5 text-base rounded-md text-muted-foreground bg-muted/30 border';
+
             noResults.textContent = 'No papers yet. Try inputing keywords or adjusting your search.';
             content.appendChild(noResults);
         }
@@ -703,39 +632,19 @@ export class CitationTool {
 
     private createPaperCard(paper: any, index: number): HTMLDivElement {
         const card = document.createElement('div');
-        card.className = 'rounded-md p-4 transition-all duration-200 hover:-translate-y-0.5';
-        card.style.cssText = `
-            border: 1px solid var(--border);
-            background-color: var(--bw);
-            box-shadow: var(--shadow);
-            overflow: visible;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        `;
-        card.addEventListener('mouseenter', () => {
-            card.style.transform = 'translateY(-2px)';
-            card.style.boxShadow = 'var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border)';
-        });
-        card.addEventListener('mouseleave', () => {
-            card.style.transform = 'translateY(0)';
-            card.style.boxShadow = 'var(--shadow)';
-        });
+        card.className = 'rounded-lg p-4 transition-all duration-200 hover:-translate-y-0.5 border bg-card text-card-foreground shadow-sm hover:shadow-md flex flex-col h-full overflow-visible';
+
+        // Remove manual hover listeners as we use Tailwind classes
+
 
         const title = document.createElement('h4');
         title.textContent = paper.title || 'Untitled';
-        title.className = 'm-0 mb-2 text-base font-semibold leading-relaxed';
-        title.style.cssText = `
-            color: var(--text);
-            font-weight: var(--heading-font-weight);
-        `;
+        title.className = 'm-0 mb-2 text-base font-semibold leading-relaxed text-card-foreground';
+
 
         const authors = document.createElement('div');
-        authors.className = 'text-sm mb-2';
-        authors.style.cssText = `
-            color: var(--text);
-            opacity: 0.8;
-        `;
+        authors.className = 'text-sm mb-2 text-muted-foreground';
+
         const authorNames = Array.isArray(paper.authors)
             ? paper.authors.map((a: any) => a?.name).filter(Boolean)
             : [];
@@ -744,11 +653,8 @@ export class CitationTool {
             : (authorNames.join(', ') || 'Unknown authors');
 
         const metaInfo = document.createElement('div');
-        metaInfo.className = 'flex flex-wrap gap-2 text-xs mb-3';
-        metaInfo.style.cssText = `
-            color: var(--text);
-            opacity: 0.7;
-        `;
+        metaInfo.className = 'flex flex-wrap gap-2 text-xs mb-3 text-muted-foreground/80';
+
 
         if (paper.year) {
             const year = document.createElement('span');
@@ -776,13 +682,8 @@ export class CitationTool {
 
         // Add Cite button
         const citeBtn = document.createElement('button');
-        citeBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
-        citeBtn.style.cssText = `
-                    background-color: var(--main);
-                    color: var(--mtext);
-                    border-color: var(--border);
-                    font-weight: var(--base-font-weight);
-                `;
+        citeBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-colors hover:bg-primary/90 bg-primary text-primary-foreground';
+
         citeBtn.innerHTML = `<span class="icon" aria-hidden="true">${CITE_ICON_SVG}</span><span>Cite</span>`;
 
         citeBtn.onclick = () => this.insertCitation(paper);
@@ -791,13 +692,8 @@ export class CitationTool {
         // Add Show Abstract button
         const abstractBtn = document.createElement('button');
         abstractBtn.setAttribute('data-abstract-btn', 'true');
-        abstractBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5';
-        abstractBtn.style.cssText = `
-            background-color: var(--main);
-            color: var(--mtext);
-            border-color: var(--border);
-            font-weight: var(--base-font-weight);
-        `;
+        abstractBtn.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground bg-background text-foreground';
+
         abstractBtn.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Abstract</span>`;
         abstractBtn.onclick = () => this.toggleAbstract(paper, card);
         actions.appendChild(abstractBtn);
@@ -865,7 +761,7 @@ export class CitationTool {
             // Collapse the abstract
             this.expandedAbstracts.delete(paperId);
             existingAbstract.remove();
-            
+
             // Update button text
             const button = card.querySelector('button[data-abstract-btn="true"]') as HTMLButtonElement;
             if (button) {
@@ -882,11 +778,11 @@ export class CitationTool {
                 button.disabled = true;
                 button.innerHTML = `<span class="icon" aria-hidden="true">${ABSTRACT_ICON_SVG}</span><span>Loading...</span>`;
             }
-            
+
             const abstract = await this.fetchAbstract(paperId);
             this.displayAbstract(paper, card, abstract);
             this.expandedAbstracts.add(paperId);
-            
+
             // Update button text to hide state
             if (button) {
                 button.disabled = false;
@@ -918,10 +814,10 @@ export class CitationTool {
 
         // Add small delay to prevent rapid-fire requests
         await new Promise(resolve => setTimeout(resolve, 200));
-        
+
         try {
             this.abstractLoadingStates.set(paperId, true);
-            
+
             const response = await fetch('/api/outliner/abstract', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -930,7 +826,7 @@ export class CitationTool {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                
+
                 // Provide user-friendly error messages
                 let userMessage = 'Failed to fetch abstract';
                 if (response.status === 404) {
@@ -942,21 +838,21 @@ export class CitationTool {
                 } else if (response.status >= 500) {
                     userMessage = 'Server error. Please try again later.';
                 }
-                
+
                 throw new Error(errorData.error || userMessage);
             }
 
             const data = await response.json();
             const abstract = data.abstract || 'No abstract available for this paper.';
-            
+
             // Cache the result
             this.abstractCache.set(paperId, { abstract, timestamp: Date.now() });
-            
+
             return abstract;
         } catch (error) {
             // Log the error for debugging but throw user-friendly message
             console.error('Error fetching abstract for paper:', paperId, error);
-            
+
             if (error instanceof Error) {
                 throw error;
             } else {
@@ -976,36 +872,17 @@ export class CitationTool {
 
         // Create abstract container
         const abstractContainer = document.createElement('div');
-        abstractContainer.className = 'abstract-container mt-3 p-3 rounded-md border-t';
-        abstractContainer.style.cssText = `
-            background-color: var(--bg);
-            border-top-color: var(--border);
-            margin-top: 12px;
-            margin-bottom: 12px;
-            padding: 12px;
-            border-top-width: 1px;
-            border-top-style: solid;
-        `;
+        abstractContainer.className = 'abstract-container mt-3 p-3 rounded-md border-t bg-muted/30 border-border';
+
 
         const abstractLabel = document.createElement('h4');
-        abstractLabel.className = 'text-sm font-semibold mb-2 m-0';
-        abstractLabel.style.cssText = `
-            color: var(--text);
-            font-weight: var(--heading-font-weight);
-            margin: 0 0 8px 0;
-        `;
+        abstractLabel.className = 'text-sm font-semibold mb-2 m-0 text-foreground';
+
         abstractLabel.textContent = 'Abstract';
 
         const abstractText = document.createElement('p');
-        abstractText.className = 'text-sm leading-relaxed m-0';
-        abstractText.style.cssText = `
-            color: var(--text);
-            opacity: 0.9;
-            line-height: 1.6;
-            margin: 0;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-        `;
+        abstractText.className = 'text-sm leading-relaxed m-0 text-muted-foreground break-words';
+
         abstractText.textContent = abstract;
 
         abstractContainer.appendChild(abstractLabel);
@@ -1055,35 +932,21 @@ export class CitationTool {
 
             const overlay = document.createElement('div');
             overlay.setAttribute('data-citation-loading', 'true');
-            overlay.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans';
-            overlay.style.cssText = `
-                background-color: var(--overlay);
-            `;
+            overlay.className = 'fixed inset-0 flex items-center justify-center z-50 font-sans bg-black/80';
+
 
             const box = document.createElement('div');
-            box.className = 'flex items-center gap-3 rounded-md px-4 py-3';
-            box.style.cssText = `
-                background-color: var(--bw);
-                border: 1px solid var(--border);
-                box-shadow: var(--shadow);
-                color: var(--text);
-            `;
+            box.className = 'flex items-center gap-3 rounded-md px-4 py-3 bg-background border shadow-lg text-foreground';
+
 
             const spinner = document.createElement('div');
-            spinner.style.cssText = `
-                width: 20px;
-                height: 20px;
-                border: 3px solid var(--border);
-                border-top-color: var(--main);
-                border-radius: 50%;
-                animation: outliner-spin 1s linear infinite;
-            `;
+            spinner.className = 'w-5 h-5 border-2 border-muted border-t-primary rounded-full animate-spin';
+
 
             const text = document.createElement('span');
             text.textContent = message;
-            text.style.cssText = `
-                font-weight: var(--base-font-weight);
-            `;
+            text.className = 'font-medium';
+
 
             const style = document.createElement('style');
             style.textContent = `@keyframes outliner-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
@@ -1525,20 +1388,12 @@ export class CitationTool {
 
         // Create new reference entry with custom CSS variables
         const referenceDiv = document.createElement('div');
-        referenceDiv.className = 'reference-entry p-4 rounded-md border-l-4 mb-2 border';
-        referenceDiv.style.cssText = `
-            background-color: var(--bw);
-            border-left-color: var(--main);
-            border-color: var(--border);
-        `;
+        referenceDiv.className = 'reference-entry p-4 rounded-md border-l-4 mb-2 border bg-card border-l-primary';
+
 
         const referenceTextElement = document.createElement('p');
-        referenceTextElement.className = 'leading-relaxed m-0 text-sm';
-        referenceTextElement.style.cssText = `
-            color: var(--text);
-            word-break: break-word;
-            overflow-wrap: anywhere;
-        `;
+        referenceTextElement.className = 'leading-relaxed m-0 text-sm text-card-foreground break-words';
+
 
         // Add the main text portion
         referenceTextElement.appendChild(document.createTextNode(reference.text));
@@ -1551,10 +1406,8 @@ export class CitationTool {
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             link.textContent = reference.url;
-            link.style.color = 'var(--link, inherit)';
-            link.style.textDecoration = 'underline';
-            link.style.wordBreak = 'break-word';
-            link.style.overflowWrap = 'anywhere';
+            link.className = 'text-primary underline break-words';
+
             referenceTextElement.appendChild(spacer);
             referenceTextElement.appendChild(link);
         }
@@ -1673,11 +1526,8 @@ export class CitationTool {
                 if (!already) {
                     const placeholder = document.createElement('p');
                     placeholder.setAttribute('data-bibliography-placeholder', 'true');
-                    placeholder.className = 'italic text-center py-5 px-5 m-0';
-                    placeholder.style.cssText = `
-                        color: var(--text);
-                        opacity: 0.6;
-                    `;
+                    placeholder.className = 'italic text-center py-5 px-5 m-0 text-muted-foreground/60';
+
                     placeholder.textContent = 'Citations will appear here as you add them to your document using the citation tool.';
                     container.innerHTML = '';
                     container.appendChild(placeholder);

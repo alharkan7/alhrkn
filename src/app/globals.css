@@ -1,45 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-  
-:root {
-  --main: #88aaee;
-  --overlay: rgba(0, 0, 0, 0.8); /* background color overlay for alert dialogs, modals, etc. */
-
-  --bg: #dfe5f2;
-  --bw: #fff; /* white and secondary black e.g. utility class variant would be: bg-[#fff] dark:bg-[#212121] */
-  --blank: #000; /* blank black and white */
-  --border: #000;
-  --text: #000;
-  --mtext: #000; /* text that is placed on background with main color e.g. text color of default button */
-  --ring: #000;
-  --ring-offset: #fff;
-
-  --border-radius: 5px;
-  --box-shadow-x: 4px;
-  --box-shadow-y: 4px;
-  --reverse-box-shadow-x: -4px;
-  --reverse-box-shadow-y: -4px;
-  --base-font-weight: 500;
-  --heading-font-weight: 700;
-
-  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
-}
-
-.dark {
-  --bg: #272933;
-  --bw: #212121;
-  --blank: #fff;
-  --border: #ffffff;  /* Changed from #000 to a lighter gray */
-  --text: #e6e6e6;
-  --mtext: #000;
-  --ring: #fff;
-  --ring-offset: #000;
-
-  --shadow: var(--box-shadow-x) var(--box-shadow-y) var(--border);
-}
-
-/* Draggable elements styles have been moved to src/app/papermap/components/styles.ts */
 
 @layer base {
   :root {
@@ -54,13 +15,13 @@
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 5% 35%;
+    --muted-foreground: 240 3.8% 46.1%;
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 8% 75%;
-    --input: 240 8% 75%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
   }
@@ -88,8 +49,6 @@
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
@@ -97,18 +56,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-@keyframes ellipsisAnimation {
-  0%, 100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.animate-ellipsis {
-  animation: ellipsisAnimation 1.5s infinite;
-  display: inline-block;
 }

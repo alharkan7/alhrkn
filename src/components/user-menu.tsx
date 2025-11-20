@@ -48,7 +48,7 @@ export function UserMenu({ isDemoMode = false }: UserMenuProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="neutral" className="p-0 w-10 h-10 rounded-full">
+            <Button variant="secondary" className="p-0 w-10 h-10 rounded-full">
               {user?.image && !imageError ? (
                 <img
                   src={user.image}
@@ -103,7 +103,7 @@ export function UserMenu({ isDemoMode = false }: UserMenuProps) {
 
   return (
     <Button
-      variant="neutral"
+      variant="secondary"
       size="sm"
       onClick={() => signIn("google")}
     >

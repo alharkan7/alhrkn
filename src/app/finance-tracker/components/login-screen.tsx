@@ -42,7 +42,7 @@ export function LoginScreen({ onDemoClick }: { onDemoClick?: () => void }) {
 
             <Button
               onClick={onDemoClick}
-              variant="neutral"
+              variant="secondary"
               className="w-80 h-10"
             >
               <Wallet className="w-4 h-4" />

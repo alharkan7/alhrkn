@@ -84,7 +84,7 @@ export default function ReviewrPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button 
-              variant="neutral" 
+              variant="secondary" 
               size="sm"
               onClick={handleBackToInput}
             >

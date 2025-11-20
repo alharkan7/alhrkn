@@ -210,7 +210,7 @@ export function DocumentViewer({ content, comments, essayType, onAddComment, onS
       <Sheet>
         <SheetTrigger asChild>
           <Button 
-            variant="neutral" 
+            variant="secondary" 
             size="sm"
             className="absolute top-4 right-4 z-20"
           >
@@ -229,7 +229,7 @@ export function DocumentViewer({ content, comments, essayType, onAddComment, onS
               <div className="flex items-center gap-2">
                 {!isEditingRubric ? (
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="sm"
                     onClick={() => setIsEditingRubric(true)}
                   >
@@ -238,14 +238,14 @@ export function DocumentViewer({ content, comments, essayType, onAddComment, onS
                 ) : (
                   <>
                     <Button
-                      variant="neutral"
+                      variant="secondary"
                       size="sm"
                       onClick={handleSaveRubric}
                     >
                       ✅ Save
                     </Button>
                     <Button
-                      variant="neutral"
+                      variant="secondary"
                       size="sm"
                       onClick={handleCancelRubricEdit}
                     >
@@ -389,7 +389,7 @@ export function DocumentViewer({ content, comments, essayType, onAddComment, onS
               </Button>
               <Button 
                 onClick={handleCancelComment}
-                variant="neutral"
+                variant="secondary"
                 size="sm"
               >
                 Cancel

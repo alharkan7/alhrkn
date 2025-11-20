@@ -575,7 +575,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 {file ? (
                                     <div className="text-primary">
                                         <Button
-                                            variant="neutral"
+                                            variant="secondary"
                                             size="icon"
                                             onClick={isFormDisabled ? undefined : (e => {
                                                 e.preventDefault();
@@ -675,7 +675,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                     <TabsList className="h-8 p-1 bg-muted/50 border border-muted-foreground border-2">
                                         <TabsTrigger 
                                             value="file" 
-                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
                                         >
@@ -683,7 +683,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="text" 
-                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
                                         >
@@ -691,7 +691,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                         </TabsTrigger>
                                         <TabsTrigger 
                                             value="url" 
-                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-main data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                                            className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
                                         >

@@ -21,7 +21,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "!rounded-base border-2 border-border bg-main p-3 font-heading shadow-shadow",
+        "rounded-md border p-3 shadow-sm",
         className,
       )}
       classNames={{
@@ -31,18 +31,18 @@ function Calendar({
         caption_label: "text-sm",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
-          buttonVariants({ variant: "noShadow" }),
+          buttonVariants({ variant: "ghost" }),
           "h-7 w-7 bg-transparent p-0",
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        nav_button_previous: "absolute left-1 top-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+        nav_button_next: "absolute right-1 top-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell: "text-mtext rounded-base w-9 font-base text-[0.8rem]",
         row: "flex w-full mt-2",
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-base rounded-base [&:has([aria-selected].day-outside)]:bg-white [&:has([aria-selected])]:bg-white first:[&:has([aria-selected])]:rounded-l-base last:[&:has([aria-selected])]:rounded-r-base focus-within:relative focus-within:z-20",
         day: cn(
-          buttonVariants({ variant: "noShadow" }),
+          buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-base aria-selected:opacity-100",
         ),
         day_range_end: "day-range-end",

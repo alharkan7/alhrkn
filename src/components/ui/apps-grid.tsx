@@ -76,12 +76,12 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
               //   <TooltipTrigger asChild disabled={!showTooltips}>
               <Button
                 key={app.slug}
-                variant="default"
-                className="relative h-[90px] w-[100px] flex flex-col items-center justify-center gap-3 rounded-2xl"
+                variant="outline"
+                className="relative h-[90px] w-[100px] flex flex-col items-center justify-center gap-3 rounded-xl"
                 onClick={() => handleAppClick(app.slug)}
               >
-                <Icon className="size-12" />
-                <div className="w-full h-8 flex items-start">
+                <Icon className="size-5 text-text" />
+                <div className="w-full flex">
                   <span className="text-xs font-medium line-clamp-2 text-center whitespace-normal break-words w-full">{app.name}</span>
                 </div>
               </Button>

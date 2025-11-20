@@ -176,7 +176,7 @@ export default function SliderPage() {
                         )}
                       </Button>
                       <Button
-                        variant="neutral"
+                        variant="secondary"
                         onClick={handleReset}
                         disabled={loading}
                       >

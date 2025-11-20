@@ -91,7 +91,7 @@ const ArchivedContentViewer: React.FC<ArchivedContentViewerProps> = ({
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Parsed PDF Content</h2>
-        <Button variant="neutral" size="icon" onClick={onClose}>
+        <Button variant="secondary" size="icon" onClick={onClose}>
           <X className="h-6 w-6" />
         </Button>
       </div>

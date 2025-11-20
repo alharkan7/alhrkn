@@ -437,7 +437,7 @@ export default function SuspaAnalisPage() {
                 onClick={handleProcess}
                 disabled={isProcessing || (!text.trim() && !file)}
                 className="w-full flex-shrink-0"
-                variant="neutral"
+                variant="secondary"
               >
                 {isProcessing ? (
                   <>
@@ -461,7 +461,7 @@ export default function SuspaAnalisPage() {
                 </div>
                 {result && (
                   <Button
-                    variant="neutral"
+                    variant="secondary"
                     size="sm"
                     onClick={handleCopyResults}
                     className="h-8 px-3"

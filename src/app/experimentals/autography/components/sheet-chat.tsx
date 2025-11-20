@@ -54,7 +54,7 @@ export function ChatSheet({
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
-        <Button variant="neutral" className="flex items-center gap-2">
+        <Button variant="secondary" className="flex items-center gap-2">
           <MessageCircle className="h-4 w-4" />
           Chat with AI
         </Button>

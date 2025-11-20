@@ -21,16 +21,16 @@ type ResearchIdea = {
 
 type Language = 'en' | 'id';
 
-export default function IdeasGrid({ 
-    ideas, 
-    isLoading, 
-    isLoadingMore, 
-    language = 'en' 
-}: { 
-    ideas: ResearchIdea[], 
-    isLoading: boolean, 
+export default function IdeasGrid({
+    ideas,
+    isLoading,
+    isLoadingMore,
+    language = 'en'
+}: {
+    ideas: ResearchIdea[],
+    isLoading: boolean,
     isLoadingMore: boolean,
-    language?: Language 
+    language?: Language
 }) {
     const [open, setOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -44,26 +44,26 @@ export default function IdeasGrid({
 
     // Show a single skeleton while loading
     const showSkeleton = isLoading || isLoadingMore;
-    
+
     // Debug logging
-    console.log('IdeasGrid render:', { 
-        ideasCount: ideas.length, 
-        isLoading, 
-        isLoadingMore, 
-        showSkeleton 
+    console.log('IdeasGrid render:', {
+        ideasCount: ideas.length,
+        isLoading,
+        isLoadingMore,
+        showSkeleton
     });
 
     async function navigateToExpanded(idea: ResearchIdea) {
         setIsExpanding(true);
         const id = crypto.randomUUID();
-        
+
         // Store the original idea and language preference immediately
         localStorage.setItem(`outliner:${id}`, JSON.stringify(idea));
         localStorage.setItem(`outliner:${id}:language`, language);
-        
+
         // Navigate immediately - the outline page will handle streaming
         router.push(`/outliner/${id}`);
-        
+
         setIsExpanding(false);
     }
 
@@ -144,7 +144,7 @@ export default function IdeasGrid({
                         </CardContent>
                     </Card>
                 ))}
-                
+
                 {/* Show skeleton for next expected card */}
                 {showSkeleton && renderSkeletonCard()}
             </div>
@@ -179,24 +179,24 @@ export default function IdeasGrid({
                                 <p className="text-sm opacity-90 whitespace-pre-line">{selected.abstract.impact}</p>
                             </section>
                             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                                <Button 
-                                    className="order-1 sm:order-2" 
+                                <Button
+                                    className="order-1 sm:order-2"
                                     onClick={() => selected && navigateToExpanded(selected)}
                                     disabled={isExpanding}
                                 >
-                                    {isExpanding 
-                                        ? (language === 'en' ? 'Expanding...' : 'Mengembangkan...') 
+                                    {isExpanding
+                                        ? (language === 'en' ? 'Expanding...' : 'Mengembangkan...')
                                         : (language === 'en' ? 'Create Draft' : 'Draft Naskah')
                                     }
                                 </Button>
                                 <div className="flex items-center gap-2 order-2 sm:order-1 justify-center sm:justify-start w-full sm:w-auto">
-                                    <Button size="icon" variant="neutral" aria-label={language === 'en' ? 'Previous' : 'Sebelumnya'}
+                                    <Button size="icon" variant="default" aria-label={language === 'en' ? 'Previous' : 'Sebelumnya'}
                                         onClick={goPrev}
                                         disabled={selectedIndex === null || selectedIndex <= 0}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </Button>
-                                    <Button size="icon" variant="neutral" aria-label={language === 'en' ? 'Next' : 'Selanjutnya'}
+                                    <Button size="icon" variant="default" aria-label={language === 'en' ? 'Next' : 'Selanjutnya'}
                                         onClick={goNext}
                                         disabled={selectedIndex === null || selectedIndex >= ideas.length - 1}
                                     >

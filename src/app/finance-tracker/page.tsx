@@ -1059,7 +1059,7 @@ export default function MobileFinanceTracker() {
       {/* Bottom Navigation */}
       <div className="flex gap-2 p-3 mb-0 bg-white w-full flex-shrink-0 rounded-b-lg">
         <Button
-          variant="neutral"
+          variant="secondary"
           className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent"
           onClick={() => setIsBudgetDrawerOpen(true)}
         >
@@ -1074,7 +1074,7 @@ export default function MobileFinanceTracker() {
           }
         }}>
           <DrawerTrigger asChild>
-            <Button variant="neutral" className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent">
+            <Button variant="secondary" className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent">
               <SettingsIcon className="w-3 h-3 mr-1" />
               Pengaturan
             </Button>

@@ -284,7 +284,7 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
               Chat Assistant
             </SheetTitle>
             <Button
-              variant="noShadow"
+              variant="icon"
               size="sm"
               onClick={clearChat}
               className="text-xs h-8 px-2 mr-6"
@@ -304,21 +304,21 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
                   }`}
               >
                 {message.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Sparkles className="h-4 w-4 text-blue-600" />
+                  <div className="flex-shrink-0 w-8 h-8 bg-accent rounded-full flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-accent-foreground" />
                   </div>
                 )}
                 <div
                   className={`max-w-[80%] rounded-lg px-3 py-2 ${message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground'
                     }`}
                 >
                   {/* File attachments display */}
                   {message.files && message.files.length > 0 && (
                     <div className="mb-2 space-y-1">
                       {message.files.map((file, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-black/10 rounded px-2 py-1">
+                        <div key={index} className="flex items-center gap-2 bg-muted rounded px-2 py-1">
                           {file.type.startsWith('image/') ? (
                             <Image className="h-3 w-3" />
                           ) : (
@@ -339,9 +339,9 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
                       {message.isStreaming && !message.content ? (
                         // Show typing indicator inside bubble when no content yet
                         <div className="flex items-center gap-1 py-2">
-                          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       ) : (
                         <ReactMarkdown
@@ -359,7 +359,7 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
                                   {String(children).replace(/\n$/, '')}
                                 </SyntaxHighlighter>
                               ) : (
-                                <code className={`${className} bg-gray-200 px-1 py-0.5 rounded text-xs`} {...props}>
+                                <code className={`${className} bg-muted px-1 py-0.5 rounded text-xs`} {...props}>
                                   {children}
                                 </code>
                               );
@@ -392,7 +392,7 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
                     <div className="flex justify-end mt-2">
                       <button
                         onClick={() => copyToClipboard(message.content, message.id)}
-                        className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors p-1 rounded"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors p-1 rounded"
                         title="Copy to clipboard"
                       >
                         {copiedMessageId === message.id ? (
@@ -409,8 +409,8 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
 
                 </div>
                 {message.role === 'user' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
+                  <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary-foreground" />
                   </div>
                 )}
               </div>
@@ -422,12 +422,12 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
           {attachedFiles.length > 0 && (
             <div className="mb-2 space-y-1">
               {attachedFiles.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 bg-gray-100 rounded px-2 py-1">
-                  <Paperclip className="h-3 w-3 text-gray-500" />
-                  <span className="text-xs text-gray-700 flex-1 truncate">{file.name}</span>
+                <div key={index} className="flex items-center gap-2 bg-secondary rounded px-2 py-1">
+                  <Paperclip className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-secondary-foreground flex-1 truncate">{file.name}</span>
                   <button
                     onClick={() => removeFile(index)}
-                    className="text-gray-500 hover:text-red-500"
+                    className="text-muted-foreground hover:text-destructive"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -438,13 +438,13 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
 
           {/* Selected text attachment cue */}
           {attachedSelectedText && (
-            <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+            <div className="mb-2 p-2 bg-accent border border-border rounded">
               <div className="flex items-start gap-2">
                 <div className="flex-shrink-0 w-4 h-4 mt-0.5">
-                  <FileText className="h-3 w-3 text-blue-600" />
+                  <FileText className="h-3 w-3 text-accent-foreground" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-xs text-blue-800 bg-white/50 rounded px-2 py-1 border">
+                  <div className="text-xs text-accent-foreground bg-background rounded px-2 py-1 border">
                     <div className="line-clamp-3 italic">
                       "{attachedSelectedText.length > 80 ? attachedSelectedText.substring(0, 80) + '...' : attachedSelectedText}"
                     </div>
@@ -452,7 +452,7 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
                 </div>
                 <button
                   onClick={() => setAttachedSelectedText('')}
-                  className="text-blue-500 hover:text-blue-700 flex-shrink-0"
+                  className="text-muted-foreground hover:text-destructive flex-shrink-0"
                   title="Remove attached text"
                 >
                   <X className="h-3 w-3" />
@@ -481,7 +481,7 @@ export function ChatInterface({ isOpen, onClose, documentContext, selectedText }
               className="hidden"
             />
             <Button
-              variant="neutral"
+              variant="secondary"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}

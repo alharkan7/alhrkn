@@ -316,7 +316,7 @@ export function BudgetDrawer({ isOpen, onClose, currentMonth: propCurrentMonth, 
         {/* Header with month navigation */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
           <Button
-            variant="neutral"
+            variant="secondary"
             size="sm"
             onClick={goToPreviousMonth}
             className="p-1"
@@ -330,7 +330,7 @@ export function BudgetDrawer({ isOpen, onClose, currentMonth: propCurrentMonth, 
           </h2>
 
           <Button
-            variant="neutral"
+            variant="secondary"
             size="sm"
             onClick={goToNextMonth}
             className="p-1"
@@ -425,7 +425,7 @@ export function BudgetDrawer({ isOpen, onClose, currentMonth: propCurrentMonth, 
             )}
               <Button
                 onClick={cancelEditing}
-                variant="neutral"
+                variant="secondary"
                 className="flex-1 rounded-full"
                 disabled={loading}
               >
