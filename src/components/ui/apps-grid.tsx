@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { apps } from '@/config/apps';
 import { useRouter } from 'next/navigation';
-import { Mail } from 'lucide-react';
+import { Mail, Home } from 'lucide-react';
 
 interface AppsGridProps {
   trigger: React.ReactNode;
@@ -18,9 +18,30 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
   const [showTooltips, setShowTooltips] = React.useState(false);
   const [isLoaded, setIsLoaded] = React.useState(false);
 
+  // Add Home item to the apps array
+  const allApps = React.useMemo(() => [
+    {
+      name: 'Home',
+      icon: Home,
+      slug: 'home',
+      description: 'Go back to homepage'
+    },
+    ...apps
+  ], []);
+
   const handleAppClick = (slug: string) => {
     if (slug === 'enaiblr') {
       window.location.href = 'https://enaiblr.vercel.app/apps';
+      return;
+    }
+
+    if (slug === 'home') {
+      if (useHardReload) {
+        window.location.href = '/';
+      } else {
+        router.push('/', { scroll: false });
+      }
+      setIsOpen(false);
       return;
     }
 
@@ -69,7 +90,7 @@ export function AppsGrid({ trigger, useHardReload = false }: AppsGridProps) {
         }}
       >
         <div className="apps-grid-content gap-3 grid grid-cols-2 max-h-[310px] pb-2 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {apps.map((app) => {
+          {allApps.map((app) => {
             const Icon = app.icon;
             return (
               // <Tooltip key={app.slug}>

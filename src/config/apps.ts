@@ -1,4 +1,4 @@
-import { Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
+import { Clock, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -31,6 +31,12 @@ export const apps: AppConfig[] = [
     icon: Sparkles,
     slug: 'chat',
     description: 'Ask Anything with Chat Assistant',
+  },
+  {
+    name: 'Nusantara Timeline',
+    icon: Clock,
+    slug: 'indonesia-history',
+    description: 'Interactive Timeline of Indonesian History',
   },
   {
     name: 'Japanese Flashcards',
