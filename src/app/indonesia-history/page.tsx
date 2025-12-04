@@ -7,6 +7,9 @@ import Navigator from './components/Navigator';
 import { PERIODS } from './constants';
 import { HistoricalEvent, ViewState } from './types';
 import * as d3 from 'd3';
+import { AppsGrid } from '@/components/ui/apps-grid';
+import { Button } from '@/components/ui/button';
+import { LayoutGrid } from 'lucide-react';
 
 const IndonesiaHistoryPage: React.FC = () => {
   // selectedEvent controls the Drawer (Detailed Info)
@@ -76,19 +79,23 @@ const IndonesiaHistoryPage: React.FC = () => {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900">
 
-        {/* Header */}
-        <header
-          className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-30 shrink-0"
-          onClick={handleDeselect} // Allow header click to reset too? Optional but keeps UI clean
-        >
-          <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white font-bold">ID</div>
-              <h1 className="text-lg font-bold tracking-tight text-slate-800">Nusantara <span className="font-light text-slate-500">Timeline</span></h1>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-             <a href="https://docs.google.com/document/d/1NITH_ivLDyahZX8uWphV3sbH5vCrgnDBGvmqjxjqxQY/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-               Data Source
-             </a>
+        {/* Custom Full-Width Header */}
+        <header className="sticky top-0 bg-background py-1 px-2 md:px-4 z-30">
+          <div className="flex items-center justify-between min-h-[48px]">
+            <div className="text-xl font-semibold">
+              Nusantara Timeline
+            </div>
+            <AppsGrid
+              trigger={
+                <Button
+                  variant="default"
+                  className="flex items-center px-3 h-fit"
+                >
+                  <LayoutGrid size={14} /> Apps
+                </Button>
+              }
+              useHardReload={false}
+            />
           </div>
         </header>
 
@@ -108,6 +115,13 @@ const IndonesiaHistoryPage: React.FC = () => {
           {/* Helper Text Overlay */}
           <div className="absolute top-4 left-4 pointer-events-none opacity-50">
               <p className="text-xs font-mono text-slate-500">Scroll/Pinch to Zoom • Drag to Pan</p>
+          </div>
+
+          {/* Data Source Link */}
+          <div className="absolute bottom-4 left-4 pointer-events-none opacity-50">
+              <a href="https://docs.google.com/document/d/1NITH_ivLDyahZX8uWphV3sbH5vCrgnDBGvmqjxjqxQY/" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-600 hover:underline pointer-events-auto">
+                Data Source
+              </a>
           </div>
         </main>
 

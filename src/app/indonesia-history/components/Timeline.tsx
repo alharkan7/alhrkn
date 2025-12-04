@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { HistoricalPeriod, HistoricalEvent, ViewState } from '../types';
-import { RotateCcw } from 'lucide-react';
+import { Scan } from 'lucide-react';
 
 interface TimelineProps {
   periods: HistoricalPeriod[];
@@ -272,7 +272,7 @@ const Timeline: React.FC<TimelineProps> = ({
         className="absolute top-4 right-4 bg-white p-2.5 rounded-full shadow-md border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all z-20 group"
         title="Reset Zoom"
       >
-        <RotateCcw className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-500" />
+        <Scan className="w-5 h-5 group-hover:scale-110 transition-transform duration-500" />
       </button>
 
       <svg 
