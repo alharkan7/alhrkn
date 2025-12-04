@@ -7,8 +7,6 @@ import Navigator from './components/Navigator';
 import { PERIODS } from './constants';
 import { HistoricalEvent, ViewState } from './types';
 import * as d3 from 'd3';
-import AppsFooter from '@/components/apps-footer';
-import { AppsHeader } from '@/components/apps-header';
 
 const IndonesiaHistoryPage: React.FC = () => {
   // selectedEvent controls the Drawer (Detailed Info)
@@ -76,7 +74,6 @@ const IndonesiaHistoryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <AppsHeader />
       <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900">
 
         {/* Header */}
@@ -131,7 +128,6 @@ const IndonesiaHistoryPage: React.FC = () => {
         />
 
       </div>
-      <AppsFooter />
     </div>
   );
 };

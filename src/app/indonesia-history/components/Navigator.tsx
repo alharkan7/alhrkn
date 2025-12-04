@@ -14,10 +14,10 @@ const Navigator: React.FC<NavigatorProps> = ({ events, onSelect, onBackgroundCli
         className="h-full w-full bg-slate-900 border-t border-slate-700 flex flex-col"
         onClick={onBackgroundClick}
     >
-      <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 flex justify-between">
+      {/* <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 flex justify-between">
          <span>Event Navigator</span>
          <span>{events.length} Events</span>
-      </div>
+      </div> */}
       
       <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
         <div className="flex items-center h-full px-4 space-x-1 min-w-max">
