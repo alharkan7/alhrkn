@@ -15,13 +15,8 @@ const Navigator: React.FC<NavigatorProps> = ({ events, onSelect, onBackgroundCli
         className="h-full w-full bg-slate-900 border-t border-slate-700 flex flex-col"
         onClick={onBackgroundClick}
     >
-        {/* <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 flex justify-between">
-           <span>Event Navigator</span>
-           <span>{events.length} Events</span>
-        </div> */}
-
         <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
-          <div className="flex items-center h-full px-4 space-x-1 min-w-max">
+          <div className="flex items-center h-full px-2 sm:px-3 md:px-4 space-x-1 sm:space-x-1.5 min-w-max">
             {events.map((event, idx) => {
                const isSelected = selectedYear === event.year;
                return (
@@ -30,26 +25,29 @@ const Navigator: React.FC<NavigatorProps> = ({ events, onSelect, onBackgroundCli
                       <button
                         onClick={(e) => { e.stopPropagation(); onSelect(event); }}
                         className={`
-                          group relative flex flex-col items-center justify-center h-3/4 min-w-[80px] max-w-[140px] px-2 rounded transition-all duration-200
-                          ${isSelected ? 'bg-slate-700 ring-1 ring-white/20' : 'hover:bg-slate-800'}
+                          group relative flex flex-col items-center justify-center
+                          h-[60px] sm:h-[70px] md:h-3/4
+                          min-w-[70px] sm:min-w-[80px] max-w-[120px] sm:max-w-[140px]
+                          px-1.5 sm:px-2 rounded transition-all duration-200 touch-manipulation
+                          ${isSelected ? 'bg-slate-700 ring-1 ring-white/20' : 'hover:bg-slate-800 active:bg-slate-700'}
                         `}
                       >
                           {/* Color Marker */}
                           <div
-                              className={`w-full h-1.5 rounded-full mb-2 transition-all ${isSelected ? 'scale-100' : 'scale-75 opacity-70 group-hover:scale-95 group-hover:opacity-100'}`}
+                              className={`w-full h-1 sm:h-1.5 rounded-full mb-1.5 sm:mb-2 transition-all ${isSelected ? 'scale-100' : 'scale-75 opacity-70 group-hover:scale-95 group-hover:opacity-100'}`}
                               style={{ backgroundColor: event.periodColor || '#ccc' }}
                           />
 
-                          <span className={`text-xs font-medium truncate w-full text-center ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                          <span className={`text-[10px] sm:text-xs font-medium truncate w-full text-center leading-tight ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
                               {event.title}
                           </span>
-                          <span className={`text-[10px] font-mono mb-1 truncate w-full text-center ${isSelected ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                          <span className={`text-[8px] sm:text-[10px] font-mono truncate w-full text-center leading-tight ${isSelected ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
                               {event.date_display}
                           </span>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{event.title}</p>
+                    <TooltipContent side="top" className="text-xs">
+                      <p className="max-w-xs">{event.title}</p>
                     </TooltipContent>
                   </Tooltip>
                )

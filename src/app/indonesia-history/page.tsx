@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Timeline from './components/Timeline';
-import DetailDrawer from './components/DetailDrawer';
 import Navigator from './components/Navigator';
 import { PERIODS } from './constants';
 import { HistoricalEvent, ViewState } from './types';
@@ -12,9 +11,7 @@ import { Button } from '@/components/ui/button';
 import { LayoutGrid } from 'lucide-react';
 
 const IndonesiaHistoryPage: React.FC = () => {
-  // selectedEvent controls the Drawer (Detailed Info)
-  const [selectedEvent, setSelectedEvent] = useState<HistoricalEvent | null>(null);
-  // highlightedEvent controls the visual focus on Timeline and Navigator
+  // highlightedEvent controls the visual focus on Timeline and Navigator (with popover)
   const [highlightedEvent, setHighlightedEvent] = useState<HistoricalEvent | null>(null);
 
   const [viewport, setViewport] = useState({ width: 1200, height: 800 }); // Default values for SSR
@@ -65,7 +62,6 @@ const IndonesiaHistoryPage: React.FC = () => {
   }, [viewport.width]);
 
   const handleTimelineEventClick = (event: HistoricalEvent) => {
-      setSelectedEvent(event);
       setHighlightedEvent(event);
   };
 
@@ -75,24 +71,30 @@ const IndonesiaHistoryPage: React.FC = () => {
 
   const handleDeselect = () => {
     setHighlightedEvent(null);
-    setSelectedEvent(null);
   };
+
+  // Responsive height calculations
+  const headerHeight = 64; // Approximate header height including padding
+  const footerHeight = viewport.width < 640 ? 80 : viewport.width < 768 ? 100 : 120;
+  const timelineHeight = viewport.height - headerHeight - footerHeight;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900">
 
         {/* Custom Full-Width Header */}
-        <header className="sticky top-0 bg-background py-1 px-2 md:px-4 z-30">
-          <div className="flex items-center justify-between min-h-[48px]">
-            <div className="text-xl font-semibold">
-              Nusantara Timeline
+        <header className="sticky top-0 bg-background py-2 px-3 sm:px-4 md:px-6 z-30 border-b border-border/20">
+          <div className="flex items-center justify-between min-h-[48px] max-w-full">
+            <div className="text-lg sm:text-xl font-semibold truncate mr-2">
+              <span className="hidden sm:inline">Nusantara Timeline</span>
+              <span className="sm:hidden">Nusantara Timeline</span>
             </div>
             <AppsGrid
               trigger={
                 <Button
                   variant="default"
-                  className="flex items-center px-3 h-fit"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 h-8 text-xs sm:text-sm shrink-0"
                 >
                   <LayoutGrid size={14} /> Apps
                 </Button>
@@ -103,10 +105,10 @@ const IndonesiaHistoryPage: React.FC = () => {
         </header>
 
         {/* Main Timeline Area */}
-        <main className="flex-1 relative">
+        <main className="flex-1 relative overflow-hidden">
           <Timeline
               width={viewport.width}
-              height={viewport.height - 56 - 120} // Header 56, Footer 120
+              height={Math.max(timelineHeight, 200)} // Ensure minimum height
               periods={PERIODS}
               onEventClick={handleTimelineEventClick}
               onBackgroundClick={handleDeselect}
@@ -116,20 +118,23 @@ const IndonesiaHistoryPage: React.FC = () => {
           />
 
           {/* Helper Text Overlay */}
-          <div className="absolute top-4 left-4 pointer-events-none opacity-50">
-              <p className="text-xs font-mono text-slate-500">Scroll/Pinch to Zoom • Drag to Pan</p>
+          <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 pointer-events-none opacity-40 sm:opacity-50">
+              <p className="text-[10px] sm:text-xs font-mono text-slate-500 leading-tight text-left">
+                <span className="hidden sm:inline">Scroll/Pinch to Zoom • Drag to Pan</span>
+                <span className="sm:hidden">Pinch/Scroll to Zoom<br/>Drag to Pan</span>
+              </p>
           </div>
 
           {/* Data Source Link */}
-          <div className="absolute bottom-4 left-4 pointer-events-none opacity-50">
-              <a href="https://docs.google.com/document/d/1NITH_ivLDyahZX8uWphV3sbH5vCrgnDBGvmqjxjqxQY/" target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-600 hover:underline pointer-events-auto">
+          <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 pointer-events-none opacity-40 sm:opacity-50">
+              <a href="https://docs.google.com/document/d/1NITH_ivLDyahZX8uWphV3sbH5vCrgnDBGvmqjxjqxQY/" target="_blank" rel="noopener noreferrer" className="text-[10px] sm:text-xs font-mono text-blue-600 hover:underline pointer-events-auto">
                 Data Source
               </a>
           </div>
         </main>
 
         {/* Bottom Navigator */}
-        <footer className="h-[120px] shrink-0 z-30 bg-slate-900">
+        <footer className={`shrink-0 z-30 bg-slate-900`} style={{ height: footerHeight }}>
            <Navigator
               events={allEvents}
               onSelect={handleJumpToEvent}
@@ -137,12 +142,6 @@ const IndonesiaHistoryPage: React.FC = () => {
               selectedYear={highlightedEvent?.year || null}
            />
         </footer>
-
-        {/* Detail Drawer */}
-        <DetailDrawer
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-        />
 
       </div>
     </div>
