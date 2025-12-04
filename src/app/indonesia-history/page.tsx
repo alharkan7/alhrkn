@@ -17,14 +17,17 @@ const IndonesiaHistoryPage: React.FC = () => {
   // highlightedEvent controls the visual focus on Timeline and Navigator
   const [highlightedEvent, setHighlightedEvent] = useState<HistoricalEvent | null>(null);
 
-  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [viewport, setViewport] = useState({ width: 1200, height: 800 }); // Default values for SSR
   const [viewState, setViewState] = useState<ViewState | null>(null);
 
   // Flatten events for Navigator and Search
   const allEvents = useMemo(() => PERIODS.flatMap(p => p.events), []);
 
-  // Resize handler
+  // Initialize viewport and set up resize handler
   useEffect(() => {
+    // Set initial viewport size
+    setViewport({ width: window.innerWidth, height: window.innerHeight });
+
     const handleResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
