@@ -1,8 +1,11 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { HistoricalPeriod, HistoricalEvent, ViewState } from '../types';
-import { Scan } from 'lucide-react';
+import { Scan, Filter } from 'lucide-react';
 import { EVENT_COLORS } from '../constants';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TimelineProps {
   periods: HistoricalPeriod[];
@@ -67,16 +70,31 @@ const Timeline: React.FC<TimelineProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
-  // Flatten events for easier processing
-  const allEvents = useMemo(() => periods.flatMap(p => p.events), [periods]);
+  // Period visibility state - all visible by default
+  const [visiblePeriodIndices, setVisiblePeriodIndices] = useState<Set<number>>(
+    () => new Set(periods.map((_, i) => i))
+  );
 
-  // Time range calculation
+  // Filter periods based on visibility
+  const visiblePeriods = useMemo(
+    () => periods.filter((_, i) => visiblePeriodIndices.has(i)),
+    [periods, visiblePeriodIndices]
+  );
+
+  // Flatten events for easier processing (only from visible periods)
+  const allEvents = useMemo(() => visiblePeriods.flatMap(p => p.events), [visiblePeriods]);
+
+  // Time range calculation (based on visible periods)
   const { minYear, maxYear } = useMemo(() => {
-    const min = d3.min(periods, d => d.start_year) ?? -1600000;
-    const max = d3.max(periods, d => d.visual_end_year) ?? 2024;
+    if (visiblePeriods.length === 0) {
+      // Fallback if no periods visible
+      return { minYear: -1600000, maxYear: 2024 };
+    }
+    const min = d3.min(visiblePeriods, d => d.start_year) ?? -1600000;
+    const max = d3.max(visiblePeriods, d => d.visual_end_year) ?? 2024;
     const padding = Math.abs(max - min) * 0.05;
     return { minYear: min, maxYear: max + padding };
-  }, [periods]);
+  }, [visiblePeriods]);
 
   // Initial Scale
   const initialScale = useMemo(() => {
@@ -160,6 +178,64 @@ const Timeline: React.FC<TimelineProps> = ({
         .transition()
         .duration(750)
         .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+    }
+  };
+
+  // Handle Period Toggle with Sequential Validation
+  const handlePeriodToggle = (periodIndex: number) => {
+    if (!canTogglePeriod(periodIndex)) return;
+    
+    setVisiblePeriodIndices(prev => {
+      const newSet = new Set(prev);
+      
+      if (newSet.has(periodIndex)) {
+        newSet.delete(periodIndex);
+      } else {
+        newSet.add(periodIndex);
+      }
+      
+      return newSet;
+    });
+
+    // Reset zoom to fit the new period range
+    setTimeout(() => {
+      if (svgRef.current && zoomBehaviorRef.current) {
+        d3.select(svgRef.current)
+          .transition()
+          .duration(750)
+          .call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+      }
+    }, 50);
+  };
+
+  // Check if a period can be toggled
+  const canTogglePeriod = (periodIndex: number): boolean => {
+    const isCurrentlyVisible = visiblePeriodIndices.has(periodIndex);
+    
+    // Find the first visible period index
+    let firstVisibleIndex = -1;
+    for (let i = 0; i < periods.length; i++) {
+      if (visiblePeriodIndices.has(i)) {
+        firstVisibleIndex = i;
+        break;
+      }
+    }
+    
+    if (isCurrentlyVisible) {
+      // Trying to unselect
+      // Cannot unselect if this is the last remaining period
+      if (visiblePeriodIndices.size === 1) {
+        return false;
+      }
+      
+      // Can only unselect if this is the first visible period
+      // This ensures we always remove from the beginning, maintaining contiguous selection
+      return periodIndex === firstVisibleIndex;
+    } else {
+      // Trying to select
+      // Can only select if this is the period directly before the first visible period
+      // This ensures we can only add periods back sequentially from the top
+      return periodIndex === firstVisibleIndex - 1;
     }
   };
 
@@ -311,9 +387,68 @@ const Timeline: React.FC<TimelineProps> = ({
   return (
     <div className="relative overflow-hidden bg-slate-50 border-b border-slate-200 shadow-inner select-none" style={{ width, height }}>
 
+      {/* Period Filter Button - Top Left */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className="absolute top-2 sm:top-4 left-2 sm:left-4 bg-white p-2 sm:p-2.5 rounded-full shadow-md border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all z-20 group touch-manipulation"
+            title="Filter Periods"
+          >
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-500" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-3" align="start">
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-slate-700 mb-3">Timeline Periods</div>
+            <div className="text-xs text-slate-500 mb-3">
+              You can hide earlier periods sequentially from top to bottom
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {periods.map((period, index) => {
+                const isVisible = visiblePeriodIndices.has(index);
+                const canToggle = canTogglePeriod(index);
+                
+                return (
+                  <div
+                    key={period.period_title}
+                    className={`flex items-center space-x-2 p-2 rounded border transition-all ${
+                      canToggle 
+                        ? 'hover:bg-slate-50 cursor-pointer' 
+                        : 'opacity-50 cursor-not-allowed'
+                    }`}
+                    onClick={() => canToggle && handlePeriodToggle(index)}
+                  >
+                    <Checkbox
+                      checked={isVisible}
+                      disabled={!canToggle}
+                      onCheckedChange={() => canToggle && handlePeriodToggle(index)}
+                      className="pointer-events-none"
+                    />
+                    <div
+                      className="w-4 h-4 rounded shrink-0"
+                      style={{ backgroundColor: period.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-slate-700 leading-tight">
+                        {period.period_title}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        {period.start_year < 0 ? `${Math.abs(period.start_year).toLocaleString()} BCE` : `${period.start_year} CE`}
+                        {' → '}
+                        {period.end_year < 0 ? `${Math.abs(period.end_year).toLocaleString()} BCE` : `${period.end_year} CE`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
       {/* Scale Indicator */}
       {scaleIndicator && (
-        <div className="absolute top-2 sm:top-4 left-4 md:left-1/2 md:-translate-x-1/2 flex flex-col items-start md:items-center pointer-events-none opacity-80 z-20 transition-all duration-300">
+        <div className="absolute top-2 sm:top-4 left-16 sm:left-20 md:left-1/2 md:-translate-x-1/2 flex flex-col items-start md:items-center pointer-events-none opacity-80 z-20 transition-all duration-300">
           <div className="text-[10px] sm:text-xs font-mono text-slate-500 mb-0.5 sm:mb-1 font-bold tracking-tight bg-slate-50/80 px-1 rounded">{scaleIndicator.label}</div>
           <div className="flex items-center" style={{ width: Math.max(scaleIndicator.width, 40) }}>
             <div className="h-2 sm:h-3 w-px" style={{ backgroundColor: getScaleColor(scaleIndicator.label) }}></div>
@@ -445,7 +580,7 @@ const Timeline: React.FC<TimelineProps> = ({
 
         <g clipPath="url(#chart-area)">
           {/* 1. Draw Period Blocks (Background) */}
-          {periods.map((period, i) => {
+          {visiblePeriods.map((period, i) => {
             const startX = currentScale(period.start_year);
             const endX = currentScale(period.visual_end_year);
             const w = Math.max(endX - startX, 0);
