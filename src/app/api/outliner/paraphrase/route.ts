@@ -102,7 +102,7 @@ Write the paraphrase of the text above:`;
     // If streaming is requested, stream raw plaintext as it is generated
     if (shouldStream) {
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         generationConfig: {
           temperature: 0.3,
           topP: 0.8,
@@ -143,7 +143,7 @@ Write the paraphrase of the text above:`;
 
     // Non-streaming: Use Gemini to generate structured JSON
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-lite',
+      model: 'gemini-2.5-flash-lite',
       generationConfig: {
         temperature: 0.3,
         topP: 0.8,

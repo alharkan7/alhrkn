@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fallback to basic AI response for non-data queries
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const prompt = `You are a helpful AI assistant for data analysis. The user asked: "${sanitizedMessage}". Please provide a helpful response about data analysis concepts, techniques, or general guidance.`
 
     const result = await model.generateContent(prompt)
