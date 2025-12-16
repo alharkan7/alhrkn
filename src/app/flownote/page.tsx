@@ -36,7 +36,7 @@ const parseMarkdownToGraph = (markdown: string) => {
   const nodes: NoteNode[] = [];
   const edges: Edge[] = [];
   const stack: { level: number; id: string }[] = [];
-  
+
   let currentNodeId: string | null = null;
   let currentContent: string[] = [];
 
@@ -44,14 +44,47 @@ const parseMarkdownToGraph = (markdown: string) => {
     if (currentNodeId && currentContent.length > 0) {
       const nodeIndex = nodes.findIndex(n => n.id === currentNodeId);
       if (nodeIndex !== -1) {
-        let htmlContent = currentContent.join('<br>');
-        // Basic markdown formatting
-        htmlContent = htmlContent
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^- (.*)/gm, '• $1');
+        // Convert markdown content to proper HTML
+        let htmlContent = '';
+        let inList = false;
+        let listItems: string[] = [];
 
-        nodes[nodeIndex].data.content = htmlContent;
+        const flushList = () => {
+          if (listItems.length > 0) {
+            htmlContent += '<ul>' + listItems.map(item => `<li>${item}</li>`).join('') + '</ul>';
+            listItems = [];
+            inList = false;
+          }
+        };
+
+        currentContent.forEach((line) => {
+          const trimmed = line.trim();
+
+          // Handle bullet points
+          if (trimmed.startsWith('- ')) {
+            inList = true;
+            let item = trimmed.substring(2);
+            // Apply inline formatting
+            item = item
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            listItems.push(item);
+          }
+          // Handle regular paragraphs
+          else if (trimmed) {
+            flushList();
+            let paragraph = trimmed;
+            // Apply inline formatting
+            paragraph = paragraph
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            htmlContent += `<p>${paragraph}</p>`;
+          }
+        });
+
+        flushList(); // Flush any remaining list items
+
+        nodes[nodeIndex].data.content = htmlContent || '<p></p>';
       }
     }
     currentContent = [];
@@ -59,7 +92,7 @@ const parseMarkdownToGraph = (markdown: string) => {
 
   lines.forEach((line) => {
     const headingMatch = line.match(/^(#+)\s+(.*)/);
-    
+
     if (headingMatch) {
       flushContent();
 
@@ -74,7 +107,7 @@ const parseMarkdownToGraph = (markdown: string) => {
         data: { title, content: '' },
         style: { width: 300, height: 200 }, // Slightly larger default for AI nodes
       };
-      
+
       nodes.push(newNode);
       currentNodeId = id;
 
@@ -134,7 +167,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
     const nodeWithPosition = dagreGraph.node(node.id);
     const width = typeof node.style?.width === 'number' ? node.style.width : 300;
     const height = typeof node.style?.height === 'number' ? node.style.height : 200;
-    
+
     return {
       ...node,
       position: {
@@ -154,19 +187,50 @@ function FlowEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [copiedNode, setCopiedNode] = useState<NoteNode | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      if (saved) return saved === 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
-  
+  const [mounted, setMounted] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   // AI State
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Initialize theme after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+      setIsDarkMode(saved === 'dark');
+    } else {
+      setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+  }, []);
+
+  // Load initial nodes from markdown file
+  useEffect(() => {
+    const loadInitialContent = async () => {
+      try {
+        const response = await fetch('/flownote-initial.md');
+        if (response.ok) {
+          const markdown = await response.text();
+          const { nodes: initialNodes, edges: initialEdges } = parseMarkdownToGraph(markdown);
+
+          if (initialNodes.length > 0) {
+            const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(initialNodes, initialEdges, 'TB');
+            setNodes(layoutedNodes);
+            setEdges(layoutedEdges);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load initial content:', error);
+      }
+    };
+
+    // Only load if there are no nodes yet
+    if (nodes.length === 0) {
+      loadInitialContent();
+    }
+  }, []);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuProps | null>(null);
@@ -180,6 +244,8 @@ function FlowEditor() {
 
   // --- Theme Toggle ---
   useEffect(() => {
+    if (!mounted) return; // Skip during SSR and initial render
+
     const root = window.document.body;
     root.classList.remove('light', 'dark');
     if (isDarkMode) {
@@ -188,7 +254,7 @@ function FlowEditor() {
       root.classList.add('light');
     }
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+  }, [isDarkMode, mounted]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -205,7 +271,7 @@ function FlowEditor() {
 
       if (event.metaKey || event.ctrlKey) {
         if (event.key === 'c' && selectedNode) {
-             setCopiedNode(selectedNode);
+          setCopiedNode(selectedNode);
         }
         if (event.key === 'v' && copiedNode) {
           const id = uuidv4();
@@ -213,7 +279,7 @@ function FlowEditor() {
             x: copiedNode.position.x + 50,
             y: copiedNode.position.y + 50,
           };
-          
+
           const newNode: NoteNode = {
             ...copiedNode,
             id,
@@ -222,8 +288,8 @@ function FlowEditor() {
             data: { ...copiedNode.data, title: `${copiedNode.data.title} (Copy)` }
           };
 
-          setNodes((nds) => 
-             [...nds.map(n => ({...n, selected: false})), newNode]
+          setNodes((nds) =>
+            [...nds.map(n => ({ ...n, selected: false })), newNode]
           );
           setSelectedNodeId(id);
         }
@@ -260,7 +326,7 @@ function FlowEditor() {
 
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
-      setEdges((eds) => 
+      setEdges((eds) =>
         eds.map((edge) => {
           if (edge.id === oldEdge.id) {
             return {
@@ -306,9 +372,9 @@ function FlowEditor() {
         x !== undefined && y !== undefined
           ? { x, y }
           : {
-              x: Math.random() * 400 + 100,
-              y: Math.random() * 400 + 100,
-            };
+            x: Math.random() * 400 + 100,
+            y: Math.random() * 400 + 100,
+          };
 
       const newNode: NoteNode = {
         id,
@@ -319,10 +385,10 @@ function FlowEditor() {
       };
 
       setNodes((nds) => nds.concat(newNode));
-      
+
       if (x === undefined) {
-         setSelectedNodeId(id);
-         setIsSidebarOpen(true);
+        setSelectedNodeId(id);
+        setIsSidebarOpen(true);
       }
     },
     [setNodes]
@@ -348,7 +414,7 @@ function FlowEditor() {
     };
 
     setNodes((nds) => nds.concat(newNode));
-    setEdges((eds) => 
+    setEdges((eds) =>
       addEdge({
         id: `e${parentId}-${id}`,
         source: parentId,
@@ -366,9 +432,9 @@ function FlowEditor() {
   const toggleBranchVisibility = useCallback((nodeId: string) => {
     const allNodes = getNodes();
     const allEdges = getEdges();
-    
+
     const descendants = new Set<string>();
-    
+
     const findDescendants = (currentId: string) => {
       const children = getOutgoers({ id: currentId } as Node, allNodes, allEdges);
       children.forEach(child => {
@@ -388,7 +454,7 @@ function FlowEditor() {
     const firstDescendant = allNodes.find(n => n.id === firstDescendantId);
     const shouldHide = !firstDescendant?.hidden;
 
-    setNodes((nds) => 
+    setNodes((nds) =>
       nds.map(node => {
         if (descendants.has(node.id)) {
           return { ...node, hidden: shouldHide };
@@ -396,8 +462,8 @@ function FlowEditor() {
         return node;
       })
     );
-    
-    setEdges((eds) => 
+
+    setEdges((eds) =>
       eds.map(edge => {
         // Hide edge if its target (the node being hidden) is in descendants
         // This covers edges within the branch
@@ -413,16 +479,16 @@ function FlowEditor() {
     const currentNodes = getNodes();
     const currentEdges = getEdges();
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(currentNodes, currentEdges, direction);
-    
+
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
   }, [getNodes, getEdges, setNodes, setEdges]);
 
   const onClearCanvas = useCallback(() => {
-     setNodes([]);
-     setEdges([]);
-     setSelectedNodeId(null);
-     setIsSidebarOpen(false);
+    setNodes([]);
+    setEdges([]);
+    setSelectedNodeId(null);
+    setIsSidebarOpen(false);
   }, [setNodes, setEdges]);
 
   // AI Generation Handler
@@ -455,7 +521,7 @@ function FlowEditor() {
       }
 
       const { nodes: newNodes, edges: newEdges } = parseMarkdownToGraph(data.markdown);
-      
+
       // Apply layout immediately
       if (newNodes.length > 0) {
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'TB');
@@ -463,7 +529,7 @@ function FlowEditor() {
         setEdges(layoutedEdges);
         setIsAIDialogOpen(false);
         setAiPrompt('');
-        
+
         // Fit view after a brief delay to ensure rendering
         setTimeout(() => {
           const fitView = (window as any).reactFlowInstance?.fitView;
@@ -554,7 +620,7 @@ function FlowEditor() {
     },
     [setNodes]
   );
-  
+
   const updateNodeColor = useCallback(
     (color: string) => {
       if (!contextMenu?.id) return;
@@ -586,14 +652,14 @@ function FlowEditor() {
         style={{ backgroundColor: isDarkMode ? '#020617' : '#f8fafc' }}
         onInit={(instance) => { (window as any).reactFlowInstance = instance; }}
       >
-        <Background 
-          color={isDarkMode ? '#334155' : '#cbd5e1'} 
-          gap={24} 
-          size={1} 
+        <Background
+          color={isDarkMode ? '#334155' : '#cbd5e1'}
+          gap={24}
+          size={1}
         />
-        
+
         <Controls position="bottom-left" showInteractive={false} />
-        
+
         {/* Top Left Panel: AI Button */}
         <Panel position="top-left" className="ml-4 mt-4">
           <button
@@ -613,13 +679,13 @@ function FlowEditor() {
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          
+
           <button
             onClick={() => addNode()}
             className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white pl-4 pr-5 py-2.5 rounded-full shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 font-medium tracking-wide"
           >
             <div className="bg-white/20 rounded-full p-1 group-hover:bg-white/30 transition-colors">
-               <Plus size={16} strokeWidth={3} />
+              <Plus size={16} strokeWidth={3} />
             </div>
             <span>New Note</span>
           </button>
@@ -628,11 +694,11 @@ function FlowEditor() {
 
       {/* AI Dialog Modal */}
       {isAIDialogOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsAIDialogOpen(false)}
         >
-          <div 
+          <div
             className="bg-white dark:bg-slate-900 w-full max-w-lg mx-4 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transform transition-all scale-100 p-6"
             onClick={(e) => e.stopPropagation()}
           >
@@ -640,7 +706,7 @@ function FlowEditor() {
               <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 Describe What You Want
               </h3>
-              <button 
+              <button
                 onClick={() => setIsAIDialogOpen(false)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
               >

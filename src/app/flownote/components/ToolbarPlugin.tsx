@@ -1,59 +1,38 @@
 'use client';
 
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { Bold, Italic, Underline, List, ListOrdered, Link as LinkIcon, Heading1, Heading2 } from 'lucide-react';
-import {
-  $getSelection,
-  $isRangeSelection,
-  FORMAT_TEXT_COMMAND,
-  UNDO_COMMAND,
-  REDO_COMMAND,
-} from 'lexical';
-import { $setBlocksType } from '@lexical/selection';
-import { $createHeadingNode } from '@lexical/rich-text';
-import {
-  INSERT_ORDERED_LIST_COMMAND,
-  INSERT_UNORDERED_LIST_COMMAND,
-} from '@lexical/list';
-import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { Editor } from '@tiptap/react';
+import { Bold, Italic, List, ListOrdered, Link as LinkIcon, Heading1, Heading2 } from 'lucide-react';
 import { useCallback } from 'react';
 
-export default function ToolbarPlugin() {
-  const [editor] = useLexicalComposerContext();
+interface ToolbarPluginProps {
+  editor: Editor;
+}
 
+export default function ToolbarPlugin({ editor }: ToolbarPluginProps) {
   const formatBold = useCallback(() => {
-    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+    editor.chain().focus().toggleBold().run();
   }, [editor]);
 
   const formatItalic = useCallback(() => {
-    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+    editor.chain().focus().toggleItalic().run();
   }, [editor]);
 
-  const formatUnderline = useCallback(() => {
-    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
-  }, [editor]);
-
-  const formatHeading = useCallback((headingSize: 'h1' | 'h2') => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType(selection, () => $createHeadingNode(headingSize));
-      }
-    });
+  const formatHeading = useCallback((level: 1 | 2) => {
+    editor.chain().focus().toggleHeading({ level }).run();
   }, [editor]);
 
   const formatBulletList = useCallback(() => {
-    editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+    editor.chain().focus().toggleBulletList().run();
   }, [editor]);
 
   const formatNumberedList = useCallback(() => {
-    editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+    editor.chain().focus().toggleOrderedList().run();
   }, [editor]);
 
   const insertLink = useCallback(() => {
     const url = prompt('Enter URL:');
     if (url) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+      editor.chain().focus().setLink({ href: url }).run();
     }
   }, [editor]);
 
@@ -62,7 +41,8 @@ export default function ToolbarPlugin() {
       <button
         type="button"
         onClick={formatBold}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('bold') ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Bold"
         aria-label="Format text as bold"
       >
@@ -71,26 +51,19 @@ export default function ToolbarPlugin() {
       <button
         type="button"
         onClick={formatItalic}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('italic') ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Italic"
         aria-label="Format text as italic"
       >
         <Italic size={16} />
       </button>
-      <button
-        type="button"
-        onClick={formatUnderline}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
-        title="Underline"
-        aria-label="Format text as underline"
-      >
-        <Underline size={16} />
-      </button>
       <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1" />
       <button
         type="button"
-        onClick={() => formatHeading('h1')}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        onClick={() => formatHeading(1)}
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Heading 1"
         aria-label="Format as heading 1"
       >
@@ -98,8 +71,9 @@ export default function ToolbarPlugin() {
       </button>
       <button
         type="button"
-        onClick={() => formatHeading('h2')}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        onClick={() => formatHeading(2)}
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Heading 2"
         aria-label="Format as heading 2"
       >
@@ -109,7 +83,8 @@ export default function ToolbarPlugin() {
       <button
         type="button"
         onClick={formatBulletList}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Bullet List"
         aria-label="Format as bullet list"
       >
@@ -118,7 +93,8 @@ export default function ToolbarPlugin() {
       <button
         type="button"
         onClick={formatNumberedList}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Numbered List"
         aria-label="Format as numbered list"
       >
@@ -128,7 +104,8 @@ export default function ToolbarPlugin() {
       <button
         type="button"
         onClick={insertLink}
-        className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 transition-colors"
+        className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors ${editor.isActive('link') ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+          }`}
         title="Add Link"
         aria-label="Insert link"
       >
@@ -137,4 +114,3 @@ export default function ToolbarPlugin() {
     </div>
   );
 }
-

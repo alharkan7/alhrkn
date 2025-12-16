@@ -17,23 +17,23 @@ interface SidebarProps {
 }
 
 const getHeadingStyle = (depth: number) => {
-  if (depth === 0) return "text-4xl font-extrabold text-slate-900 dark:text-white mb-6 mt-2 tracking-tight leading-tight";
-  if (depth === 1) return "text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4 mt-12 pb-3 border-b border-slate-100 dark:border-slate-700 leading-tight";
-  if (depth === 2) return "text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3 mt-8 leading-snug";
-  return "text-xl font-bold text-slate-700 dark:text-slate-300 mb-2 mt-6 leading-snug";
+  if (depth === 0) return "text-4xl font-extrabold text-slate-900 dark:text-white mb-3 mt-0 tracking-tight leading-tight";
+  if (depth === 1) return "text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2 mt-4 pb-1 border-b border-slate-100 dark:border-slate-700 leading-tight";
+  if (depth === 2) return "text-2xl font-bold text-slate-800 dark:text-slate-200 mb-1.5 mt-3 leading-snug";
+  return "text-xl font-bold text-slate-700 dark:text-slate-300 mb-1 mt-2 leading-snug";
 };
 
 // Subcomponent to handle individual section rendering and textarea auto-resizing
-const SidebarSection = ({ 
-  node, 
-  depth, 
-  onUpdateNode, 
-  onAddChild, 
+const SidebarSection = ({
+  node,
+  depth,
+  onUpdateNode,
+  onAddChild,
   forceUpdateTrigger
-}: { 
-  node: NoteNode; 
-  depth: number; 
-  onUpdateNode: (id: string, data: Partial<NoteNode['data']>) => void; 
+}: {
+  node: NoteNode;
+  depth: number;
+  onUpdateNode: (id: string, data: Partial<NoteNode['data']>) => void;
   onAddChild: (id: string) => void;
   forceUpdateTrigger: boolean;
 }) => {
@@ -82,7 +82,7 @@ const SidebarSection = ({
 
       {/* Hover Controls for Section */}
       <div className="absolute -left-10 top-3 opacity-0 group-hover/section:opacity-100 transition-opacity hidden md:block">
-        <button 
+        <button
           onClick={() => onAddChild(node.id)}
           title="Add Sub-section"
           className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
@@ -90,21 +90,21 @@ const SidebarSection = ({
           <Plus size={18} />
         </button>
       </div>
-       {/* Mobile Controls for Section (always visible or different interaction) */}
-       <div className="md:hidden mb-4">
-         <button 
+      {/* Mobile Controls for Section (always visible or different interaction) */}
+      <div className="md:hidden mb-4">
+        <button
           onClick={() => onAddChild(node.id)}
           className="flex items-center gap-1 text-xs text-slate-400"
         >
           <Plus size={14} /> Add Sub-section
         </button>
-       </div>
+      </div>
     </div>
   );
 };
 
 export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onClose, onUpdateNode, onAddChild }: SidebarProps) {
-  
+
   const documentStructure = useMemo(() => {
     if (!selectedNode) return [];
 
@@ -131,7 +131,7 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
       children.sort((a, b) => {
         const yDiff = a.position.y - b.position.y;
         if (Math.abs(yDiff) > 20) {
-          return yDiff; 
+          return yDiff;
         }
         return a.position.x - b.position.x;
       });
@@ -168,7 +168,7 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
       text = text.replace(/<br\s*\/?>/g, "\n");
       text = text.replace(/<a href="(.*?)">(.*?)<\/a>/g, "[$2]($1)");
       text = text.replace(/<[^>]+>/g, "");
-      
+
       const txt = document.createElement("textarea");
       txt.innerHTML = text;
       text = txt.value;
@@ -189,14 +189,13 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-full sm:w-[500px] md:w-[600px] lg:w-[800px] max-w-[100vw] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-40 border-l border-slate-200 dark:border-slate-800 flex flex-col ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}
+      className={`fixed top-0 right-0 h-full w-full sm:w-[500px] md:w-[600px] lg:w-[800px] max-w-[100vw] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-40 border-l border-slate-200 dark:border-slate-800 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-           Document Editor
+          FlowNote Editor
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -220,10 +219,10 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
 
           {/* Scrollable Document Area */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-             <div className="max-w-3xl mx-auto px-6 md:px-12 py-8 md:py-16 min-h-full pb-32">
-              
+            <div className="max-w-3xl mx-auto px-6 md:px-12 py-8 md:py-16 min-h-full pb-32">
+
               {documentStructure.map(({ node, depth }) => (
-                <SidebarSection 
+                <SidebarSection
                   key={node.id}
                   node={node}
                   depth={depth}
@@ -235,13 +234,13 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
 
               {/* End of Doc / Add New */}
               <div className="mt-16 pt-8 border-t border-dashed border-slate-200 dark:border-slate-800 text-center">
-                 <button 
-                  onClick={() => selectedNode && onAddChild(documentStructure[documentStructure.length-1]?.node.id || selectedNode.id)}
+                <button
+                  onClick={() => selectedNode && onAddChild(documentStructure[documentStructure.length - 1]?.node.id || selectedNode.id)}
                   className="flex items-center gap-2 mx-auto text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-3 px-6 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800"
-                 >
-                   <Plus size={20} />
-                   <span className="font-medium">Append Section</span>
-                 </button>
+                >
+                  <Plus size={20} />
+                  <span className="font-medium">Append Section</span>
+                </button>
               </div>
 
             </div>

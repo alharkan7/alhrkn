@@ -1,20 +1,11 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { LexicalComposer } from '@lexical/react/LexicalComposer';
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import { ContentEditable } from '@lexical/react/LexicalContentEditable';
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { ListPlugin } from '@lexical/react/LexicalListPlugin';
-import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { ListNode, ListItemNode } from '@lexical/list';
-import { LinkNode, AutoLinkNode } from '@lexical/link';
-import { $getRoot, $createParagraphNode, $createTextNode, EditorState, $insertNodes } from 'lexical';
-import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import ToolbarPlugin from './ToolbarPlugin';
+import React from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import { Bold, Italic, List, ListOrdered, Link as LinkIcon, Heading1, Heading2 } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -23,112 +14,163 @@ interface RichTextEditorProps {
   className?: string;
 }
 
-// Plugin to initialize editor with HTML content
-function InitializePlugin({ html }: { html: string }) {
-  const [editor] = useLexicalComposerContext();
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  useLayoutEffect(() => {
-    if (isInitialized) return;
-    
-    if (html && html.trim()) {
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        
-        const parser = new DOMParser();
-        const dom = parser.parseFromString(html, 'text/html');
-        const nodes = $generateNodesFromDOM(editor, dom);
-        
-        // Filter to only include element nodes
-        const validNodes = nodes.filter(node => {
-          const type = node.getType();
-          return type !== 'text' && type !== 'linebreak';
-        });
-        
-        if (validNodes.length > 0) {
-          root.append(...validNodes);
-        } else {
-          // If no valid nodes, create paragraph with text content
-          const paragraph = $createParagraphNode();
-          const textContent = dom.body.textContent || '';
-          if (textContent.trim()) {
-            paragraph.append($createTextNode(textContent));
-          }
-          root.append(paragraph);
-        }
-      });
-    }
-    
-    setIsInitialized(true);
-  }, [editor, html, isInitialized]);
-
-  return null;
-}
-
 export default function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
-  const initialConfig = {
-    namespace: 'FlowNoteEditor',
-    theme: {
-      paragraph: 'mb-2',
-      text: {
-        bold: 'font-bold',
-        italic: 'italic',
-        underline: 'underline',
-      },
-      list: {
-        ul: 'list-disc ml-4 mb-2',
-        ol: 'list-decimal ml-4 mb-2',
-        listitem: 'mb-1',
-      },
-      link: 'text-blue-600 dark:text-blue-400 underline hover:opacity-80',
-    },
-    onError: (error: Error) => {
-      console.error('Lexical error:', error);
-    },
-    nodes: [
-      HeadingNode,
-      QuoteNode,
-      ListNode,
-      ListItemNode,
-      LinkNode,
-      AutoLinkNode,
-    ],
-  };
+  const [showBubble, setShowBubble] = React.useState(false);
+  const [bubblePosition, setBubblePosition] = React.useState({ top: 0, left: 0 });
 
-  const handleChange = (editorState: EditorState, editor: any) => {
-    editorState.read(() => {
-      const html = $generateHtmlFromNodes(editor);
-      onChange(html);
-    });
-  };
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2],
+        },
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 dark:text-blue-400 underline hover:opacity-80',
+        },
+      }),
+      Placeholder.configure({
+        placeholder: placeholder || 'Type your content here...',
+      }),
+    ],
+    content: value,
+    editorProps: {
+      attributes: {
+        class: `outline-none min-h-[2em] prose prose-sm max-w-none dark:prose-invert focus:outline-none ${className || ''}`,
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      if (html !== value) {
+        onChange(html);
+      }
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to, empty } = editor.state.selection;
+
+      if (empty || !editor.view.hasFocus()) {
+        setShowBubble(false);
+        return;
+      }
+
+      const start = editor.view.coordsAtPos(from);
+      const end = editor.view.coordsAtPos(to);
+
+      const editorElement = editor.view.dom;
+      const editorRect = editorElement.getBoundingClientRect();
+
+      // Position bubble menu above selection
+      const left = ((start.left + end.left) / 2) - editorRect.left;
+      const top = start.top - editorRect.top - 10; // 10px above selection
+
+      setBubblePosition({ top, left });
+      setShowBubble(true);
+    },
+  });
+
+  // Update editor content when value prop changes externally
+  React.useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, { emitUpdate: false });
+    }
+  }, [value, editor]);
+
+  if (!editor) {
+    return null;
+  }
 
   return (
-    <LexicalComposer initialConfig={initialConfig}>
-      <div className="rich-text-editor border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-        <ToolbarPlugin />
-        <div className="relative">
-          <RichTextPlugin
-            contentEditable={
-              <ContentEditable 
-                className={`outline-none min-h-[3em] p-3 ${className || ''}`}
-                style={{ minHeight: '3em' }}
-              />
-            }
-            placeholder={
-              <div className="absolute top-3 left-3 text-slate-400 dark:text-slate-600 pointer-events-none">
-                {placeholder || 'Type your content here...'}
-              </div>
-            }
-            ErrorBoundary={(props) => <div className="text-red-500 p-2">Error loading editor</div>}
-          />
+    <div className="rich-text-editor-bubble relative">
+      {/* Bubble Menu - appears on text selection */}
+      {showBubble && (
+        <div
+          style={{
+            position: 'absolute',
+            top: `${bubblePosition.top}px`,
+            left: `${bubblePosition.left}px`,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 50,
+          }}
+          className="flex items-center gap-1 bg-slate-800 dark:bg-slate-900 text-white rounded-lg shadow-xl border border-slate-700 p-1"
+        >
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('bold') ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Bold"
+          >
+            <Bold size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('italic') ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Italic"
+          >
+            <Italic size={16} />
+          </button>
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Heading 1"
+          >
+            <Heading1 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Heading 2"
+          >
+            <Heading2 size={16} />
+          </button>
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Bullet List"
+          >
+            <List size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Numbered List"
+          >
+            <ListOrdered size={16} />
+          </button>
+          <div className="w-px h-5 bg-slate-600 mx-1" />
+          <button
+            type="button"
+            onClick={() => {
+              const url = prompt('Enter URL:');
+              if (url) {
+                editor.chain().focus().setLink({ href: url }).run();
+              }
+            }}
+            className={`p-2 hover:bg-slate-700 rounded transition-colors ${editor.isActive('link') ? 'bg-slate-700 text-white' : 'text-slate-300'
+              }`}
+            title="Add Link"
+          >
+            <LinkIcon size={16} />
+          </button>
         </div>
-        <HistoryPlugin />
-        <ListPlugin />
-        <LinkPlugin />
-        <OnChangePlugin onChange={handleChange} />
-        <InitializePlugin html={value} />
-      </div>
-    </LexicalComposer>
+      )}
+
+      <EditorContent editor={editor} />
+    </div>
   );
 }
