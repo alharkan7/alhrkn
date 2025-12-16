@@ -192,11 +192,22 @@ function FlowEditor() {
   const [copiedNode, setCopiedNode] = useState<NoteNode | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   // AI State
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Track window width for responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize theme after component mounts to avoid hydration mismatch
   useEffect(() => {
@@ -351,8 +362,14 @@ function FlowEditor() {
     if (event.nativeEvent.button === 0) {
       setSelectedNodeId(node.id);
       setContextMenu(null);
+
+      // On mobile (< 768px), open sidebar with single click/tap
+      // On desktop, use double-click (see onNodeDoubleClick)
+      if (windowWidth < 768) {
+        setIsSidebarOpen(true);
+      }
     }
-  }, []);
+  }, [windowWidth]);
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     if (event.nativeEvent.button === 0) {
