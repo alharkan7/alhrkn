@@ -314,6 +314,20 @@ function FlowEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNode, copiedNode, setNodes]);
 
+  // --- Listen for Eye Icon Click Event ---
+  useEffect(() => {
+    const handleOpenEditor = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const nodeId = customEvent.detail?.nodeId;
+      if (nodeId) {
+        setSelectedNodeId(nodeId);
+        setIsSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener('openNodeEditor', handleOpenEditor);
+    return () => window.removeEventListener('openNodeEditor', handleOpenEditor);
+  }, []);
 
   const onConnect = useCallback(
     (params: Connection) => {

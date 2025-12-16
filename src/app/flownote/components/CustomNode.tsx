@@ -4,6 +4,7 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
+import { Eye } from 'lucide-react';
 import { NoteData } from '../types';
 
 // Common handle styles
@@ -55,18 +56,25 @@ const COLOR_STYLES: Record<string, { bg: string; border: string; header: string 
   }
 };
 
-const CustomNode = ({ data, selected }: NodeProps<NoteData>) => {
+const CustomNode = ({ data, selected, id }: NodeProps<NoteData>) => {
   const colorKey = data.color || 'default';
   const styles = COLOR_STYLES[colorKey] || COLOR_STYLES.default;
+
+  const handleOpenEditor = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Dispatch a custom event that the parent can listen to
+    const event = new CustomEvent('openNodeEditor', { detail: { nodeId: id } });
+    window.dispatchEvent(event);
+  };
 
   return (
     // Wrap everything in a group div to control handle visibility on hover
     <div className="w-full h-full group relative">
-      <NodeResizer 
-        minWidth={180} 
-        minHeight={100} 
-        isVisible={selected} 
-        lineClassName="border-blue-500 dark:border-blue-400" 
+      <NodeResizer
+        minWidth={180}
+        minHeight={100}
+        isVisible={selected}
+        lineClassName="border-blue-500 dark:border-blue-400"
         handleClassName="h-2.5 w-2.5 bg-blue-500 rounded border-none z-50"
       />
 
@@ -84,21 +92,30 @@ const CustomNode = ({ data, selected }: NodeProps<NoteData>) => {
         ${styles.bg}
         rounded-xl pb-3
         border transition-all duration-200
-        ${selected 
-          ? 'border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.3)] dark:border-blue-400 dark:shadow-[0_0_0_2px_rgba(96,165,250,0.3)]' 
+        ${selected
+          ? 'border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.3)] dark:border-blue-400 dark:shadow-[0_0_0_2px_rgba(96,165,250,0.3)]'
           : `${styles.border} shadow-sm hover:shadow-md dark:shadow-none`
         }
       `}>
-        
+
         {/* Header Strip */}
-        <div className={`${styles.header} px-4 py-3 border-b flex items-center gap-2`}>          
+        <div className={`${styles.header} px-4 py-3 border-b flex items-center gap-2 group/header relative`}>
           <h3 className="font-semibold text-slate-700 dark:text-slate-200 text-sm truncate select-none flex-1">
             {data.title || 'Untitled Note'}
           </h3>
+
+          {/* Eye Icon - appears on hover */}
+          <button
+            onClick={handleOpenEditor}
+            className="nodrag nopan absolute right-3 opacity-0 group-hover/header:opacity-100 transition-opacity p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+            title="Open in Document Editor"
+          >
+            <Eye size={14} className="text-slate-500 dark:text-slate-400" />
+          </button>
         </div>
-        
+
         {/* Body Content */}
-        <div 
+        <div
           className="flex-1 px-4 pt-4 pb-2 overflow-y-auto text-xs text-slate-600 dark:text-slate-300 prose prose-sm max-w-none nodrag nowheel cursor-text node-scroll-area"
           dangerouslySetInnerHTML={{ __html: data.content || '<p class="text-slate-400 dark:text-slate-500 italic">No content</p>' }}
         />
