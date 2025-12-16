@@ -1,4 +1,4 @@
-import { Clock, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
+import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -27,10 +27,16 @@ export const apps: AppConfig[] = [
     description: 'Quickly Draft Research Paper',
   },
   {
-    name: 'AI Chat',
+    name: 'FlowNote',
+    icon: PenTool,
+    slug: 'flownote',
+    description: 'A Node-based Document Authoring System',
+  },
+  {
+    name: 'Disposable Chat',
     icon: Sparkles,
     slug: 'chat',
-    description: 'Ask Anything with Chat Assistant',
+    description: 'Chat with AI, No Data is Stored',
   },
   {
     name: 'Nusantara Timeline',
