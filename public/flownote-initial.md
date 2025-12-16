@@ -2,7 +2,7 @@
 
 FlowNote is a node-based document authoring system that lets you organize your ideas visually on an infinite canvas. Create connected notes, build hierarchies, and write structured documents with ease. Double-click any node to open the **Document Editor** sidebar and start writing!
 
-## Document Editor
+## Chapter 1: Document Editor
 
 When you double-click a node, the sidebar opens with a **word processor experience**. You'll see the selected node and all its children as a continuous, editable document.
 
@@ -17,7 +17,7 @@ When you double-click a node, the sidebar opens with a **word processor experien
 - Click the **download icon** to export as Markdown
 - Each section's title becomes the node title on the canvas
 
-## Canvas & Navigation
+## Chapter 2: Canvas & Navigation
 
 The infinite canvas is your workspace for organizing ideas visually.
 
@@ -34,7 +34,7 @@ The infinite canvas is your workspace for organizing ideas visually.
 
 **AI Generation**: Click the **sparkle icon** (top left) to generate content with AI. Describe your topic and FlowNote creates a structured document with connected nodes automatically!
 
-### Node Interactions
+### Chapter 2.1: Node Interactions
 
 Each node is a container for your ideas:
 - **Double-click** a node to open the Document Editor sidebar
@@ -44,7 +44,7 @@ Each node is a container for your ideas:
 - **Copy/Paste**: Cmd+C and Cmd+V to duplicate nodes
 - **Connect**: Hover to see handles, drag from one node to another
 
-### Node Context Menu
+### Chapter 2.2: Node Context Menu
 
 **Right-click any node** to access:
 - **Add a Child**: Create a connected child node below
