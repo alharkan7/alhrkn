@@ -112,6 +112,18 @@ export default function FlowNoteLayout({
           outline: none;
         }
         
+        /* Node Content Prose Styling - Fix bold text in dark mode */
+        .prose strong,
+        .prose b {
+          color: inherit;
+          font-weight: 600;
+        }
+        
+        .dark .prose strong,
+        .dark .prose b {
+          color: inherit;
+        }
+        
         /* Smooth transitions for theme switching */
         * {
           transition-property: background-color, border-color, color, fill, stroke;

@@ -18,13 +18,16 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
-import { Plus, Sun, Moon, Sparkles, Loader2, X } from 'lucide-react';
+import { Plus, Sun, Moon, Sparkles, Loader2, X, LayoutGrid } from 'lucide-react';
 import dagre from '@dagrejs/dagre';
 
 import CustomNode from './components/CustomNode';
 import Sidebar from './components/Sidebar';
 import ContextMenu from './components/ContextMenu';
 import { INITIAL_NODES, NoteNode, ContextMenuProps } from './types';
+import { AppsGrid } from '@/components/ui/apps-grid';
+import { Button } from '@/components/ui/button';
+
 
 const nodeTypes = {
   note: CustomNode,
@@ -680,14 +683,31 @@ function FlowEditor() {
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
+          <AppsGrid
+            trigger={
+              <Button
+                variant="default"
+                className="flex items-center gap-1.5 px-3 py-2 h-auto bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm"
+              >
+                <LayoutGrid size={16} />
+                <span className="hidden sm:inline text-sm font-medium">Apps</span>
+              </Button>
+            }
+            useHardReload={false}
+          />
+        </Panel>
+
+        {/* Bottom Right Panel: New Note Button */}
+        <Panel position="bottom-right" className="mr-4 mb-4">
           <button
             onClick={() => addNode()}
-            className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white pl-4 pr-5 py-2.5 rounded-full shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 font-medium tracking-wide"
+            className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 font-medium tracking-wide px-3 py-3 md:pl-4 md:pr-5 md:py-2.5"
+            title="Create New Note"
           >
             <div className="bg-white/20 rounded-full p-1 group-hover:bg-white/30 transition-colors">
               <Plus size={16} strokeWidth={3} />
             </div>
-            <span>New Note</span>
+            <span className="hidden md:inline">New</span>
           </button>
         </Panel>
       </ReactFlow>
