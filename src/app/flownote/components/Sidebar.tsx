@@ -226,91 +226,119 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
   };
 
   return (
-    <div
-      className={`fixed top-0 right-0 h-full w-full sm:w-[500px] md:w-[600px] lg:w-[800px] max-w-[100vw] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-40 border-l border-slate-200 dark:border-slate-800 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          FlowNote Editor
-        </h2>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors h-auto"
-                title="Download"
-              >
-                <Download size={18} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => handleDownload('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                <span>PDF</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload('docx')}>
-                <File className="h-4 w-4 mr-2" />
-                <span>DOCX</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload('markdown')}>
-                <FileCode className="h-4 w-4 mr-2" />
-                <span>Markdown</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
+    <>
+      {/* Backdrop overlay - blocks clicks on mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] md:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      {selectedNode ? (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
-
-          {/* Scrollable Document Area */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="max-w-3xl mx-auto px-6 md:px-12 py-8 md:py-16 min-h-full pb-32">
-
-              {documentStructure.map(({ node, depth }) => (
-                <SidebarSection
-                  key={node.id}
-                  node={node}
-                  depth={depth}
-                  onUpdateNode={onUpdateNode}
-                  onAddChild={onAddChild}
-                  forceUpdateTrigger={isOpen}
-                />
-              ))}
-
-              {/* End of Doc / Add New */}
-              <div className="mt-16 pt-8 border-t border-dashed border-slate-200 dark:border-slate-800 text-center">
-                <button
-                  onClick={() => selectedNode && onAddChild(documentStructure[documentStructure.length - 1]?.node.id || selectedNode.id)}
-                  className="flex items-center gap-2 mx-auto text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-3 px-6 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800"
+      <div
+        className={`fixed top-0 right-0 h-full w-full sm:w-[500px] md:w-[600px] lg:w-[800px] max-w-[100vw] bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-300 ease-in-out z-[110] border-l border-slate-200 dark:border-slate-800 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+            FlowNote Editor
+          </h2>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors h-auto"
+                  title="Download"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
-                  <Plus size={20} />
-                  <span className="font-medium">Append Section</span>
-                </button>
-              </div>
+                  <Download size={18} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-40 z-[120]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownload('pdf'); }}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span>PDF</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownload('docx'); }}>
+                  <File className="h-4 w-4 mr-2" />
+                  <span>DOCX</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownload('markdown'); }}>
+                  <FileCode className="h-4 w-4 mr-2" />
+                  <span>Markdown</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
 
+        {selectedNode ? (
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
+
+            {/* Scrollable Document Area */}
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="max-w-3xl mx-auto px-6 md:px-12 py-8 md:py-16 min-h-full pb-32">
+
+                {documentStructure.map(({ node, depth }) => (
+                  <SidebarSection
+                    key={node.id}
+                    node={node}
+                    depth={depth}
+                    onUpdateNode={onUpdateNode}
+                    onAddChild={onAddChild}
+                    forceUpdateTrigger={isOpen}
+                  />
+                ))}
+
+                {/* End of Doc / Add New */}
+                <div className="mt-16 pt-8 border-t border-dashed border-slate-200 dark:border-slate-800 text-center">
+                  <button
+                    onClick={() => selectedNode && onAddChild(documentStructure[documentStructure.length - 1]?.node.id || selectedNode.id)}
+                    className="flex items-center gap-2 mx-auto text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors py-3 px-6 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <Plus size={20} />
+                    <span className="font-medium">Append Section</span>
+                  </button>
+                </div>
+
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-600 p-8 text-center bg-slate-50 dark:bg-slate-950/50">
-          <div>
-            <p className="mb-2 font-medium">No active document.</p>
-            <p className="text-xs opacity-70">Select a note on the canvas to open the Document Editor.</p>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-600 p-8 text-center bg-slate-50 dark:bg-slate-950/50">
+            <div>
+              <p className="mb-2 font-medium">No active document.</p>
+              <p className="text-xs opacity-70">Select a note on the canvas to open the Document Editor.</p>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

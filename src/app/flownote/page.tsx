@@ -705,7 +705,7 @@ function FlowEditor() {
           </button>
         </Panel>
 
-        <Panel position="top-right" className="mr-4 mt-4 flex gap-3">
+        <Panel position="top-right" className={`mr-4 mt-4 flex gap-3${isSidebarOpen ? ' invisible md:visible' : ''}`}>
           <button
             onClick={toggleTheme}
             className="p-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700"
