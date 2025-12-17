@@ -3,6 +3,13 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'FlowNote',
   description: 'A Node-based Document Authoring System',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover', // Ensures the app extends into safe areas
+  },
 };
 
 export default function FlowNoteLayout({

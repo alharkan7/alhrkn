@@ -665,7 +665,7 @@ function FlowEditor() {
   );
 
   return (
-    <div className={`w-screen h-screen flex overflow-hidden ${isDarkMode ? 'dark' : ''}`} ref={ref}>
+    <div className={`w-screen min-h-dvh flex overflow-hidden ${isDarkMode ? 'dark' : ''}`} ref={ref} style={{ height: '100dvh' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -692,7 +692,7 @@ function FlowEditor() {
           size={1}
         />
 
-        <Controls position="bottom-left" showInteractive={false} />
+        <Controls position="bottom-left" showInteractive={false} style={{ marginBottom: 'max(1rem, env(safe-area-inset-bottom))' }} />
 
         {/* Top Left Panel: AI Button */}
         <Panel position="top-left" className="ml-4 mt-4">
@@ -729,7 +729,7 @@ function FlowEditor() {
         </Panel>
 
         {/* Bottom Right Panel: New Note Button */}
-        <Panel position="bottom-right" className="mr-4 mb-4">
+        <Panel position="bottom-right" className="mr-4" style={{ marginBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <button
             onClick={() => addNode()}
             className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 font-medium tracking-wide px-3 py-3 md:pl-4 md:pr-5 md:py-2.5"
