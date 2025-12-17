@@ -755,7 +755,7 @@ function FlowEditor() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                Describe What You Want
+                What do you want to draft?
               </h3>
               <button
                 onClick={() => setIsAIDialogOpen(false)}

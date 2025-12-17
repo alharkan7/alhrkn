@@ -1,10 +1,18 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect } from 'react';
-import { X, Plus, Download } from 'lucide-react';
+import { X, Plus, FileText, FileCode, File, Download } from 'lucide-react';
 import { Edge } from 'reactflow';
 import { NoteNode } from '../types';
 import RichTextEditor from './RichTextEditor';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { generatePDF, generateDOCX } from '../utils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -104,6 +112,7 @@ const SidebarSection = ({
 };
 
 export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onClose, onUpdateNode, onAddChild }: SidebarProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const documentStructure = useMemo(() => {
     if (!selectedNode) return [];
@@ -143,48 +152,77 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
     return result;
   }, [selectedNode, allNodes, allEdges]);
 
+  // Reset scroll position when selectedNode changes
+  useEffect(() => {
+    if (scrollContainerRef.current && selectedNode) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [selectedNode?.id]); // Only trigger when the node ID changes
 
-  const handleDownload = () => {
+
+  const handleDownload = async (format: 'markdown' | 'pdf' | 'docx') => {
     if (!documentStructure.length) return;
 
-    let mdContent = "";
+    const fileName = `${selectedNode?.data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || "document"}`;
 
-    documentStructure.forEach(({ node, depth }) => {
-      const prefix = "#".repeat(depth + 1);
-      const title = node.data.title || "Untitled Section";
-      mdContent += `${prefix} ${title}\n\n`;
+    if (format === 'markdown') {
+      // Generate markdown content
+      let mdContent = "";
 
-      let text = node.data.content || "";
-      // Strip HTML for markdown download (simplified)
-      text = text.replace(/<p>/g, "").replace(/<\/p>/g, "\n\n");
-      text = text.replace(/<ul>/g, "").replace(/<\/ul>/g, "\n");
-      text = text.replace(/<ol>/g, "").replace(/<\/ol>/g, "\n");
-      text = text.replace(/<li>/g, "- ").replace(/<\/li>/g, "\n");
-      text = text.replace(/<strong>/g, "**").replace(/<\/strong>/g, "**");
-      text = text.replace(/<b>/g, "**").replace(/<\/b>/g, "**");
-      text = text.replace(/<em>/g, "*").replace(/<\/em>/g, "*");
-      text = text.replace(/<i>/g, "*").replace(/<\/i>/g, "*");
-      text = text.replace(/<h[1-6]>/g, "\n**").replace(/<\/h[1-6]>/g, "**\n");
-      text = text.replace(/<br\s*\/?>/g, "\n");
-      text = text.replace(/<a href="(.*?)">(.*?)<\/a>/g, "[$2]($1)");
-      text = text.replace(/<[^>]+>/g, "");
+      documentStructure.forEach(({ node, depth }) => {
+        const prefix = "#".repeat(depth + 1);
+        const title = node.data.title || "Untitled Section";
+        mdContent += `${prefix} ${title}\n\n`;
 
-      const txt = document.createElement("textarea");
-      txt.innerHTML = text;
-      text = txt.value;
+        let text = node.data.content || "";
+        // Strip HTML for markdown download
+        text = text.replace(/<p>/g, "").replace(/<\/p>/g, "\n\n");
+        text = text.replace(/<ul>/g, "").replace(/<\/ul>/g, "\n");
+        text = text.replace(/<ol>/g, "").replace(/<\/ol>/g, "\n");
+        text = text.replace(/<li>/g, "- ").replace(/<\/li>/g, "\n");
+        text = text.replace(/<strong>/g, "**").replace(/<\/strong>/g, "**");
+        text = text.replace(/<b>/g, "**").replace(/<\/b>/g, "**");
+        text = text.replace(/<em>/g, "*").replace(/<\/em>/g, "*");
+        text = text.replace(/<i>/g, "*").replace(/<\/i>/g, "*");
+        text = text.replace(/<h[1-6]>/g, "\n**").replace(/<\/h[1-6]>/g, "**\n");
+        text = text.replace(/<br\s*\/?>/g, "\n");
+        text = text.replace(/<a href="(.*?)">(.*?)<\/a>/g, "[$2]($1)");
+        text = text.replace(/<[^>]+>/g, "");
 
-      mdContent += `${text.trim()}\n\n`;
-    });
+        const txt = document.createElement("textarea");
+        txt.innerHTML = text;
+        text = txt.value;
 
-    const blob = new Blob([mdContent], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${selectedNode?.data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || "document"}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+        mdContent += `${text.trim()}\n\n`;
+      });
+
+      const blob = new Blob([mdContent], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${fileName}.md`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } else if (format === 'pdf' || format === 'docx') {
+      // Generate HTML content for PDF/DOCX
+      let htmlContent = "";
+
+      documentStructure.forEach(({ node, depth }) => {
+        const title = node.data.title || "Untitled Section";
+        const headingLevel = Math.min(depth + 1, 6); // h1-h6
+        htmlContent += `<h${headingLevel}>${title}</h${headingLevel}>`;
+        htmlContent += node.data.content || "";
+      });
+
+      if (format === 'pdf') {
+        await generatePDF(fileName, htmlContent);
+      } else {
+        generateDOCX(fileName, htmlContent);
+      }
+    }
   };
 
   return (
@@ -195,16 +233,35 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          FlowNote Editor
+          Document Editor
         </h2>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDownload}
-            title="Download as Markdown"
-            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-          >
-            <Download size={18} />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors h-auto"
+                title="Download"
+              >
+                <Download size={18} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => handleDownload('pdf')}>
+                <FileText className="h-4 w-4 mr-2" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('docx')}>
+                <File className="h-4 w-4 mr-2" />
+                <span>DOCX</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('markdown')}>
+                <FileCode className="h-4 w-4 mr-2" />
+                <span>Markdown</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -218,7 +275,7 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900">
 
           {/* Scrollable Document Area */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto px-6 md:px-12 py-8 md:py-16 min-h-full pb-32">
 
               {documentStructure.map(({ node, depth }) => (
