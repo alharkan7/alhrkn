@@ -107,7 +107,7 @@ const CustomNode = ({ data, selected, id }: NodeProps<NoteData>) => {
           {/* Eye Icon - appears on hover */}
           <button
             onClick={handleOpenEditor}
-            className="nodrag nopan absolute right-3 opacity-0 group-hover/header:opacity-100 transition-opacity p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+            className="nodrag nopan absolute right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
             title="Open in Document Editor"
           >
             <Eye size={14} className="text-slate-500 dark:text-slate-400" />

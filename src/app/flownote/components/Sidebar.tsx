@@ -233,7 +233,7 @@ export default function Sidebar({ isOpen, selectedNode, allNodes, allEdges, onCl
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          Document Editor
+          FlowNote Editor
         </h2>
         <div className="flex items-center gap-2">
           <DropdownMenu>
