@@ -39,8 +39,8 @@ async function fetchAbstractFromOpenAlex(paperId: string): Promise<AbstractRespo
 
       const response = await fetch(`${workUrl}?${params}`, {
         headers: {
-          'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn; mailto:support@alhrkn.com)',
-          'From': 'support@alhrkn.com'
+          'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn-apps; mailto:alharkan7@gmail.com)',
+          'From': 'alharkan7@gmail.com'
         }
       });
 

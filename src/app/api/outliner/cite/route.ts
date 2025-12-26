@@ -230,8 +230,8 @@ async function searchOpenAlex(query: string, perPage: number = 10, page: number 
 
             const response = await fetch(`${searchUrl}?${params}`, {
                 headers: {
-                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn; mailto:support@alhrkn.com)',
-                    'From': 'support@alhrkn.com'
+                    'User-Agent': 'alhrkn-outliner/1.0 (https://github.com/alharkan7/alhrkn-apps; mailto:alharkan7@gmail.com)',
+                    'From': 'alharkan7@gmail.com'
                 }
             });
 
