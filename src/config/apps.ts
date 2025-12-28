@@ -1,4 +1,4 @@
-import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
+import { Sparkles, PenTool, SquareKanban, FileText, Sliders, Search, LucideIcon } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -9,69 +9,39 @@ export interface AppConfig {
 
 export const apps: AppConfig[] = [
   {
-    name: 'Papermap',
-    icon: Waypoints,
-    slug: 'papermap',
-    description: 'Learn Anything with Interactive Mindmap',
-  },
-  {
-    name: 'Inztagram',
+    name: 'Autogram',
     icon: SquareKanban,
-    slug: 'inztagram',
-    description: 'Create Any Diagram in Seconds',
+    slug: 'autogram',
+    description: 'Text to Smart Art Diagrams',
   },
   {
-    name: 'Outliner',
-    icon: Feather,
-    slug: 'outliner',
-    description: 'Quickly Draft Research Paper',
-  },
-  {
-    name: 'FlowNote',
+    name: 'Autography',
     icon: PenTool,
-    slug: 'flownote',
-    description: 'A Node-based Document Authoring System',
+    slug: 'autography',
+    description: 'AI-Powered Writing Assistant',
   },
   {
-    name: 'Disposable Chat',
+    name: 'Editor',
+    icon: FileText,
+    slug: 'editor',
+    description: 'Rich Text Editor Experiments',
+  },
+  {
+    name: 'Reviewr',
+    icon: Search,
+    slug: 'reviewr',
+    description: 'Essay Reviewing Tool',
+  },
+  {
+    name: 'Slider',
+    icon: Sliders,
+    slug: 'slider',
+    description: 'Interactive Component Experiments',
+  },
+  {
+    name: 'Suspa-Analis',
     icon: Sparkles,
-    slug: 'chat',
-    description: 'Chat with AI, No Data is Stored',
-  },
-  {
-    name: 'Nusantara Timeline',
-    icon: Clock,
-    slug: 'indonesia-history',
-    description: 'Interactive Timeline of Indonesian History',
-  },
-  {
-    name: 'Japanese Flashcards',
-    icon: Languages,
-    slug: 'japanese-flashcards',
-    description: 'Simple Japanese Letters Flashcards',
-  },
-  {
-    name: 'Finance Tracker',
-    icon: Wallet,
-    slug: 'finance-tracker',
-    description: 'Expense, Income, Budget & Excel Export',
-  },
-  {
-    name: 'Discourse Extractor',
-    icon: Network,
-    slug: 'dnanalyzer',
-    description: 'Automatic Discourse Extractor for DNAnalyzer',
-  },
-  //{
-    //name: "Writer's Unblock",
-    //icon: Feather,
-    //slug: 'scholar',
-    //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
-  //},
-  {
-    name: 'More Apps',
-    icon: Infinity,
-    slug: 'enaiblr',
-    description: 'Access Enaiblr Apps',
+    slug: 'suspa-analis',
+    description: 'Analysis Tool',
   },
 ]
