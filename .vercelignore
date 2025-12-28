@@ -1,7 +1,0 @@
-.pnpm-store
-node_modules/.pnpm
-.git
-.next
-*.log
-*.md
-!README.md
