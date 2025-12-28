@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { CheckCircle, Save, X, Smile, Check, Pencil, Download } from 'lucide-react'
 import { Category } from '@/app/finance-tracker/schema/schema'
 import { toast } from "sonner"
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 interface SettingsProps {
   userEmail: string;
@@ -153,7 +153,9 @@ export function Settings({
       const budgets = data.budgets || []
 
       // Create workbook
-      const wb = XLSX.utils.book_new()
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'Finance Tracker'
+      workbook.created = new Date()
 
       // Helper functions for data formatting
       const formatDate = (dateStr: string) => {
@@ -182,47 +184,72 @@ export function Settings({
         }
       }
 
-      // Format expenses data
-      const expensesData = expenses.map((expense: any) => ({
-        'Date': formatDate(expense.date),
-        'Amount': formatAmount(expense.amount),
-        'Category': expense.category,
-        'Description': expense.description || expense.notes || '',
-        'Created At': formatTimestamp(expense.created_at)
-      }))
+      // Create Expenses worksheet
+      const wsExpenses = workbook.addWorksheet('Expenses')
+      wsExpenses.columns = [
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'Amount', key: 'amount', width: 12 },
+        { header: 'Category', key: 'category', width: 20 },
+        { header: 'Description', key: 'description', width: 30 },
+        { header: 'Created At', key: 'created_at', width: 20 }
+      ]
+      expenses.forEach((expense: any) => {
+        wsExpenses.addRow({
+          date: formatDate(expense.date),
+          amount: formatAmount(expense.amount),
+          category: expense.category,
+          description: expense.description || expense.notes || '',
+          created_at: formatTimestamp(expense.created_at)
+        })
+      })
 
-      // Format incomes data
-      const incomesData = incomes.map((income: any) => ({
-        'Date': formatDate(income.date),
-        'Amount': formatAmount(income.amount),
-        'Category': income.category,
-        'Description': income.description || '',
-        'Created At': formatTimestamp(income.created_at)
-      }))
+      // Create Incomes worksheet
+      const wsIncomes = workbook.addWorksheet('Incomes')
+      wsIncomes.columns = [
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'Amount', key: 'amount', width: 12 },
+        { header: 'Category', key: 'category', width: 20 },
+        { header: 'Description', key: 'description', width: 30 },
+        { header: 'Created At', key: 'created_at', width: 20 }
+      ]
+      incomes.forEach((income: any) => {
+        wsIncomes.addRow({
+          date: formatDate(income.date),
+          amount: formatAmount(income.amount),
+          category: income.category,
+          description: income.description || '',
+          created_at: formatTimestamp(income.created_at)
+        })
+      })
 
-      // Format budgets data
-      const budgetsData = budgets.map((budget: any) => ({
-        'Date': formatDate(budget.date),
-        'Amount': formatAmount(budget.amount),
-        'Created At': budget.timestamp
-      }))
-
-      // Create worksheets
-      const wsExpenses = XLSX.utils.json_to_sheet(expensesData)
-      const wsIncomes = XLSX.utils.json_to_sheet(incomesData)
-      const wsBudgets = XLSX.utils.json_to_sheet(budgetsData)
-
-      // Add worksheets to workbook
-      XLSX.utils.book_append_sheet(wb, wsExpenses, 'Expenses')
-      XLSX.utils.book_append_sheet(wb, wsIncomes, 'Incomes')
-      XLSX.utils.book_append_sheet(wb, wsBudgets, 'Budget')
+      // Create Budget worksheet
+      const wsBudgets = workbook.addWorksheet('Budget')
+      wsBudgets.columns = [
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'Amount', key: 'amount', width: 12 },
+        { header: 'Created At', key: 'timestamp', width: 20 }
+      ]
+      budgets.forEach((budget: any) => {
+        wsBudgets.addRow({
+          date: formatDate(budget.date),
+          amount: formatAmount(budget.amount),
+          timestamp: budget.timestamp
+        })
+      })
 
       // Generate filename with current date
       const now = new Date()
       const filename = `expense-tracker-data-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xlsx`
 
-      // Save file
-      XLSX.writeFile(wb, filename)
+      // Write to buffer and save
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      window.URL.revokeObjectURL(url)
 
       toast.success('Data exported successfully!')
     } catch (error) {
