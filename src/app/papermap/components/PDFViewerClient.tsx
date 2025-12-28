@@ -3,9 +3,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 // Import the CSS files from node_modules
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-// Import the CSS files from the package itself
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { X, ChevronLeft, ChevronRight, Minus, Plus, SquareArrowOutUpRight } from 'lucide-react';
@@ -94,7 +91,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
 
   // Memoize the options prop to prevent unnecessary reloads
   const memoizedOptions = useMemo(() => ({
-    cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
     cMapPacked: true,
   }), []);
 
