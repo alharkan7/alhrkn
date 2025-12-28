@@ -1,5 +1,6 @@
 {
   "buildCommand": "pnpm build",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "functions": {
     "app/api/**/*": {
       "maxDuration": 60
