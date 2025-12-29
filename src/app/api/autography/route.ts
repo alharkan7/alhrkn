@@ -1,14 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeCsvWithLLM, analyzeWithAutoVisualization, analyzeWithMetadata, LLMAnalysisResult, CSVMetadata } from '@/app/autography/utils/llm-tool-calling'
-import { parseAndAnalyzeCSV, analyzeCSVSchema, generateSchemaDescription } from '@/app/autography/utils/csv-schema-detection'
+import { analyzeCsvWithLLM, analyzeWithAutoVisualization, analyzeWithMetadata, LLMAnalysisResult, CSVMetadata } from '@/app/(experimentals)/autography/utils/llm-tool-calling'
+import { parseAndAnalyzeCSV, analyzeCSVSchema, generateSchemaDescription } from '@/app/(experimentals)/autography/utils/csv-schema-detection'
 import {
   performSafetyCheck,
   sanitizeUserInput,
   sanitizeAnalysisResult,
   withTimeout,
   createSafeError
-} from '@/app/autography/utils/safety-measures'
+} from '@/app/(experimentals)/autography/utils/safety-measures'
 import sanitizeHtml from 'sanitize-html'
 import Joi from 'joi'
 
@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
             }
             
             // Import the tool execution functions
-            const { executeAnalysisTool } = require('@/app/autography/utils/analysis-tools')
-            const { executeVisualizationTool } = require('@/app/autography/utils/visualization-tools')
+            const { executeAnalysisTool } = require('@/app/(experimentals)/autography/utils/analysis-tools')
+            const { executeVisualizationTool } = require('@/app/(experimentals)/autography/utils/visualization-tools')
             
             // Execute each tool call on the actual data
             const executedToolCalls = []
