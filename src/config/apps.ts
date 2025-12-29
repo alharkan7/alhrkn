@@ -1,4 +1,4 @@
-import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
+import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network, FileText, Search, Sliders } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -62,12 +62,44 @@ export const apps: AppConfig[] = [
     slug: 'dnanalyzer',
     description: 'Automatic Discourse Extractor for DNAnalyzer',
   },
-  //{
-    //name: "Writer's Unblock",
-    //icon: Feather,
-    //slug: 'scholar',
-    //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
-  //},
+  // Experimental Apps
+  {
+    name: 'Autogram',
+    icon: SquareKanban,
+    slug: 'autogram',
+    description: 'Text to Smart Art Diagrams',
+  },
+  {
+    name: 'Autography',
+    icon: PenTool,
+    slug: 'autography',
+    description: 'AI-Powered Writing Assistant',
+  },
+  {
+    name: 'Editor',
+    icon: FileText,
+    slug: 'editor',
+    description: 'Rich Text Editor Experiments',
+  },
+  {
+    name: 'Reviewr',
+    icon: Search,
+    slug: 'reviewr',
+    description: 'Essay Reviewing Tool',
+  },
+  {
+    name: 'Slider',
+    icon: Sliders,
+    slug: 'slider',
+    description: 'Interactive Component Experiments',
+  },
+  {
+    name: 'Suspa-Analis',
+    icon: Sparkles,
+    slug: 'suspa-analis',
+    description: 'Analysis Tool',
+  },
+  // End of Experimental Apps
   {
     name: 'More Apps',
     icon: Infinity,
