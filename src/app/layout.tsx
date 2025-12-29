@@ -4,6 +4,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { Space_Grotesk } from 'next/font/google';
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -132,6 +134,8 @@ export default function RootLayout({
           >
             {children}
             <Toaster position="top-center"/>
+            <Analytics />
+            <SpeedInsights />
           </ThemeProvider>
         </TooltipProvider>
       </body>

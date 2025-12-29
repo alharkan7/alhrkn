@@ -161,12 +161,18 @@ importers:
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
+      '@vercel/analytics':
+        specifier: ^1.6.1
+        version: 1.6.1(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0))(react@19.2.3)
       '@vercel/blob':
         specifier: ^1.0.0
         version: 1.0.0
       '@vercel/og':
         specifier: ^0.6.5
         version: 0.6.5
+      '@vercel/speed-insights':
+        specifier: ^1.3.1
+        version: 1.3.1(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0))(react@19.2.3)
       '@xyflow/react':
         specifier: ^12.4.4
         version: 12.4.4(@types/react@19.0.10)(immer@10.1.3)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)
@@ -2415,6 +2421,32 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
+  '@vercel/analytics@1.6.1':
+    resolution: {integrity: sha512-oH9He/bEM+6oKlv3chWuOOcp8Y6fo6/PSro8hEkgCW3pu9/OiCXiUpRUogDh3Fs3LH2sosDrx8CxeOLBEE+afg==}
+    peerDependencies:
+      '@remix-run/react': ^2
+      '@sveltejs/kit': ^1 || ^2
+      next: '>= 13'
+      react: ^18 || ^19 || ^19.0.0-rc
+      svelte: '>= 4'
+      vue: ^3
+      vue-router: ^4
+    peerDependenciesMeta:
+      '@remix-run/react':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      next:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+      vue-router:
+        optional: true
+
   '@vercel/blob@1.0.0':
     resolution: {integrity: sha512-fe4fzpL0h/2gRhaCixygaconaMXVgPo06L5ZyTlz9FSVTXDu+MBOu06DqDZ3Ye1s84m1g2sJ9w8Z5SbKCfkQ0A==}
     engines: {node: '>=16.14'}
@@ -2426,6 +2458,29 @@ packages:
   '@vercel/oidc@3.0.5':
     resolution: {integrity: sha512-fnYhv671l+eTTp48gB4zEsTW/YtRgRPnkI2nT7x6qw5rkI1Lq2hTmQIpHPgyThI0znLK+vX2n9XxKdXZ7BUbbw==}
     engines: {node: '>= 20'}
+
+  '@vercel/speed-insights@1.3.1':
+    resolution: {integrity: sha512-PbEr7FrMkUrGYvlcLHGkXdCkxnylCWePx7lPxxq36DNdfo9mcUjLOmqOyPDHAOgnfqgGGdmE3XI9L/4+5fr+vQ==}
+    peerDependencies:
+      '@sveltejs/kit': ^1 || ^2
+      next: '>= 13'
+      react: ^18 || ^19 || ^19.0.0-rc
+      svelte: '>= 4'
+      vue: ^3
+      vue-router: ^4
+    peerDependenciesMeta:
+      '@sveltejs/kit':
+        optional: true
+      next:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+      vue-router:
+        optional: true
 
   '@xyflow/react@12.4.4':
     resolution: {integrity: sha512-9RZ9dgKZNJOlbrXXST5HPb5TcXPOIDGondjwcjDro44OQRPl1E0ZRPTeWPGaQtVjbg4WpR4BUYwOeshNI2TuVg==}
@@ -7472,6 +7527,11 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
+  '@vercel/analytics@1.6.1(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0))(react@19.2.3)':
+    optionalDependencies:
+      next: 16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0)
+      react: 19.2.3
+
   '@vercel/blob@1.0.0':
     dependencies:
       async-retry: 1.3.3
@@ -7487,6 +7547,11 @@ snapshots:
       yoga-wasm-web: 0.3.3
 
   '@vercel/oidc@3.0.5': {}
+
+  '@vercel/speed-insights@1.3.1(next@16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0))(react@19.2.3)':
+    optionalDependencies:
+      next: 16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0)
+      react: 19.2.3
 
   '@xyflow/react@12.4.4(@types/react@19.0.10)(immer@10.1.3)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)':
     dependencies:
