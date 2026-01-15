@@ -49,7 +49,7 @@ export class DNAnalyzerDB {
   private async getUserMySQLConfig(): Promise<mysql.ConnectionOptions> {
     try {
       const result = await db.query(
-        'SELECT mysql_config FROM user_mysql_configs WHERE user_id = $1',
+        'SELECT mysql_config FROM users WHERE user_id = $1',
         [this.userEmail]
       );
 
@@ -106,7 +106,7 @@ export class DNAnalyzerDB {
     try {
       // Check if config already exists
       const existingResult = await db.query(
-        'SELECT id FROM user_mysql_configs WHERE user_id = $1',
+        'SELECT id FROM users WHERE user_id = $1',
         [userEmail]
       );
 
@@ -121,19 +121,19 @@ export class DNAnalyzerDB {
         }
 
         await db.query(
-          `UPDATE user_mysql_configs SET ${updateFields.join(', ')}, updated_at = NOW() WHERE user_id = $${params.length + 1}`,
+          `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE user_id = $${params.length + 1}`,
           [...params, userEmail]
         );
       } else {
         // Insert new config
         if (googleApiKey !== undefined) {
           await db.query(
-            'INSERT INTO user_mysql_configs (user_id, mysql_config, google_api_key) VALUES ($1, $2, $3)',
+            'INSERT INTO users (user_id, mysql_config, google_api_key) VALUES ($1, $2, $3)',
             [userEmail, JSON.stringify(mysqlConfig), googleApiKey]
           );
         } else {
           await db.query(
-            'INSERT INTO user_mysql_configs (user_id, mysql_config) VALUES ($1, $2)',
+            'INSERT INTO users (user_id, mysql_config) VALUES ($1, $2)',
             [userEmail, JSON.stringify(mysqlConfig)]
           );
         }
@@ -150,7 +150,7 @@ export class DNAnalyzerDB {
   static async getUserConfig(userEmail: string): Promise<{ mysqlConfig: mysql.ConnectionOptions | null, googleApiKey: string | null }> {
     try {
       const result = await db.query(
-        'SELECT mysql_config, google_api_key FROM user_mysql_configs WHERE user_id = $1',
+        'SELECT mysql_config, google_api_key FROM users WHERE user_id = $1',
         [userEmail]
       );
 
