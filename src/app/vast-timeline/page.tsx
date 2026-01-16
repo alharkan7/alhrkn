@@ -9,7 +9,7 @@ import { HistoricalEvent, ViewState } from './types';
 import * as d3 from 'd3';
 import { AppsGrid } from '@/components/ui/apps-grid';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Menu, X, Upload } from 'lucide-react';
+import { LayoutGrid, Menu, X, Upload, Edit, Save } from 'lucide-react';
 import historyDataJson from './history-data.json';
 
 const IndonesiaHistoryPage: React.FC = () => {
@@ -21,6 +21,8 @@ const IndonesiaHistoryPage: React.FC = () => {
 
   // Sidebar and JSON upload states
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saveRequested, setSaveRequested] = useState(false);
   const [jsonData, setJsonData] = useState(historyDataJson);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -38,6 +40,11 @@ const IndonesiaHistoryPage: React.FC = () => {
       // Title is optional, but if provided must be a string
       if (data.title !== undefined && typeof data.title !== 'string') {
         return { valid: false, error: 'Invalid JSON: "title" must be a string' };
+      }
+
+      // Data source URL is optional, but if provided must be a string
+      if (data.dataSourceUrl !== undefined && typeof data.dataSourceUrl !== 'string') {
+        return { valid: false, error: 'Invalid JSON: "dataSourceUrl" must be a string' };
       }
 
       if (!data.rawData || !Array.isArray(data.rawData)) {
@@ -189,37 +196,103 @@ const IndonesiaHistoryPage: React.FC = () => {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900">
 
-        {/* Custom Full-Width Header */}
-        <header className="sticky top-0 bg-background py-2 px-3 sm:px-4 md:px-6 z-30 border-b border-border/20">
-          <div className="flex items-center justify-between min-h-[48px] max-w-full">
-            <div className="flex items-center gap-2 sm:gap-3">
+        {/* Header Row with Sidebar Header and Main Header */}
+        <div className="sticky top-0 z-30 flex">
+          {/* Sidebar Header - Animated with sidebar */}
+          <div
+            className="absolute left-0 bg-slate-900 border-b border-slate-700 flex items-center justify-between transition-all duration-300 overflow-hidden z-40"
+            style={{
+              width: isSidebarOpen ? (viewport.width < 640 ? '320px' : '384px') : '0',
+              height: '64px', // Match main header height
+              paddingLeft: viewport.width < 640 ? '12px' : '16px',
+              paddingRight: viewport.width < 640 ? '12px' : '16px',
+              opacity: isSidebarOpen ? 1 : 0,
+            }}
+          >
+            <h2 className="text-sm sm:text-base font-semibold text-slate-100 whitespace-nowrap">Timeline Data</h2>
+            {!isEditing ? (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="flex items-center gap-1.5 px-2 h-8 text-xs sm:text-sm shrink-0"
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 h-7 px-2 bg-slate-800 hover:bg-slate-700 border-slate-600 text-white shrink-0"
               >
-                {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
+                <Edit size={14} />
               </Button>
-              <div className="text-lg sm:text-xl font-semibold truncate">
-                <span className="hidden sm:inline">{jsonData.title || 'Timeline'}</span>
-                <span className="sm:hidden">{jsonData.title || 'Timeline'}</span>
-              </div>
-            </div>
-            <AppsGrid
-              trigger={
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(false)}
+                  className="flex items-center gap-1.5 h-7 px-2 bg-slate-800 hover:bg-slate-700 border-slate-600 text-white"
+                >
+                  <X size={14} />
+                </Button>
                 <Button
                   variant="default"
                   size="sm"
-                  className="flex items-center gap-1.5 px-2 sm:px-3 h-8 text-xs sm:text-sm shrink-0"
+                  onClick={() => setSaveRequested(true)}
+                  className="flex items-center gap-1.5 h-7 px-2 bg-blue-600 hover:bg-blue-700"
                 >
-                  <LayoutGrid size={14} /> Apps
+                  <Save size={14} />
                 </Button>
-              }
-              useHardReload={false}
-            />
+              </div>
+            )}
           </div>
-        </header>
+
+          {/* Main Page Header */}
+          <header
+            className="flex-1 bg-background py-2 px-3 sm:px-4 md:px-6 border-b border-border/20 transition-all duration-300"
+            style={{
+              marginLeft: isSidebarOpen ? (viewport.width < 640 ? '320px' : '384px') : '0'
+            }}
+          >
+            <div className="flex items-center justify-between min-h-[48px] max-w-full">
+              {/* Left Section */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="flex items-center gap-1.5 px-2 h-8 text-xs sm:text-sm shrink-0"
+                  data-sidebar-toggle
+                >
+                  {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
+                </Button>
+
+                {/* Title */}
+                <div className="text-lg sm:text-xl font-semibold truncate">
+                  <span className="hidden sm:inline">{jsonData.title || 'Timeline'}</span>
+                  <span className="sm:hidden">{jsonData.title || 'Timeline'}</span>
+                </div>
+              </div>
+
+              {/* Right Section */}
+              <AppsGrid
+                trigger={
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="flex items-center gap-1.5 px-2 sm:px-3 h-8 text-xs sm:text-sm shrink-0"
+                  >
+                    <LayoutGrid size={14} /> Apps
+                  </Button>
+                }
+                useHardReload={false}
+              />
+            </div>
+          </header>
+        </div>
+
+        {/* Click-outside overlay - appears when sidebar is open */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-transparent"
+            onClick={() => setIsSidebarOpen(false)}
+            style={{ top: '64px' }} // Start below header
+          />
+        )}
 
         {/* Sidebar for JSON Data */}
         <JsonSidebar
@@ -227,7 +300,12 @@ const IndonesiaHistoryPage: React.FC = () => {
           jsonData={jsonData}
           onJsonUpdate={handleJsonUpdate}
           onError={handleSidebarError}
+          onClose={() => setIsSidebarOpen(false)}
           footerHeight={footerHeight}
+          isEditing={isEditing}
+          onEditingChange={setIsEditing}
+          saveRequested={saveRequested}
+          onSaveComplete={() => setSaveRequested(false)}
         />
 
         {/* Main Timeline Area */}
@@ -252,11 +330,13 @@ const IndonesiaHistoryPage: React.FC = () => {
           </div>
 
           {/* Data Source Link */}
-          <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 pointer-events-none opacity-40 sm:opacity-50">
-            <a href="https://docs.google.com/document/d/1NITH_ivLDyahZX8uWphV3sbH5vCrgnDBGvmqjxjqxQY/" target="_blank" rel="noopener noreferrer" className="text-[10px] sm:text-xs font-mono text-blue-600 hover:underline pointer-events-auto">
-              Data Source
-            </a>
-          </div>
+          {jsonData.dataSourceUrl && (
+            <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 pointer-events-none opacity-40 sm:opacity-50">
+              <a href={jsonData.dataSourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] sm:text-xs font-mono text-blue-600 hover:underline pointer-events-auto">
+                Data Source
+              </a>
+            </div>
+          )}
         </main>
 
         {/* Bottom Navigator */}
