@@ -4,7 +4,7 @@ import { metadata } from './layout'
 // Route segment config
 
 // Image metadata
-export const alt = 'Nusantara Timeline'
+export const alt = 'Vast Timeline'
 export const size = {
   width: 1200,
   height: 630,
@@ -16,6 +16,6 @@ export default async function Image() {
   return generateOpenGraphImage({
     title: metadata.title as string,
     description: metadata.description as string,
-    path: 'indonesia-history'
+    path: 'vast-timeline'
   });
 }

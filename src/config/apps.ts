@@ -33,16 +33,16 @@ export const apps: AppConfig[] = [
     description: 'A Node-based Document Authoring System',
   },
   {
+    name: 'Vast Timeline',
+    icon: Clock,
+    slug: 'vast-timeline',
+    description: 'Visualize Vast Timeline in an Interactive Way',
+  },
+  {
     name: 'Disposable Chat',
     icon: Sparkles,
     slug: 'chat',
     description: 'Chat with AI, No Data is Stored',
-  },
-  {
-    name: 'Nusantara Timeline',
-    icon: Clock,
-    slug: 'indonesia-history',
-    description: 'Interactive Timeline of Indonesian History',
   },
   {
     name: 'Japanese Flashcards',
@@ -63,10 +63,10 @@ export const apps: AppConfig[] = [
     description: 'Automatic Discourse Extractor for DNAnalyzer',
   },
   //{
-    //name: "Writer's Unblock",
-    //icon: Feather,
-    //slug: 'scholar',
-    //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
+  //name: "Writer's Unblock",
+  //icon: Feather,
+  //slug: 'scholar',
+  //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
   //},
   {
     name: 'More Apps',
