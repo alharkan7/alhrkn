@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { MindMapProvider, PdfViewerProvider } from '../context';
 import { useMindMap } from '../hooks/useMindMap';
 import MindMapFlow from '../components/MindMapFlow';
@@ -9,6 +9,7 @@ import { MindMapNode } from '../types';
 import { ReactFlowProvider } from 'reactflow';
 import ArchivedContentViewer from '../components/ArchivedContentViewer';
 import { usePdfViewerContext } from '../context';
+import { useSearchParams } from 'next/navigation';
 
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
@@ -18,6 +19,7 @@ interface MindmapClientViewProps {
   mindmapSourceUrl?: string;
   mindmapExpiresAt?: string;
   mindmapParsedPdfContent?: string;
+  mindmapId?: string; // Added for polling
 }
 
 // Define props for the new layout component
@@ -28,8 +30,8 @@ interface MindmapViewLayoutProps {
 
 // New internal layout component
 const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType, mindMap }) => {
-  const { 
-    viewMode, 
+  const {
+    viewMode,
     closeViewer,
     parsedPdfContent: archivedContent
   } = usePdfViewerContext();
@@ -38,14 +40,14 @@ const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType,
     <MindMapProvider value={mindMap}>
       <ReactFlowProvider>
         <div className="flex flex-col h-[100dvh] relative">
-          <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={mindmapInputType} />
-          
+          <TopBar onFileUpload={() => { }} onNewClick={() => { }} inputType={mindmapInputType} />
+
           {viewMode === 'pdf' && <PdfViewer />}
           {viewMode === 'archived' && archivedContent && (
-            <ArchivedContentViewer 
-              isOpen={true} 
-              markdownContent={archivedContent} 
-              onClose={closeViewer} 
+            <ArchivedContentViewer
+              isOpen={true}
+              markdownContent={archivedContent}
+              onClose={closeViewer}
             />
           )}
 
@@ -58,33 +60,88 @@ const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType,
   );
 };
 
-export default function MindmapClientView({ 
-  mindMapNodes, 
-  mindmapTitle, 
-  mindmapInputType, 
+export default function MindmapClientView({
+  mindMapNodes,
+  mindmapTitle,
+  mindmapInputType,
   mindmapPdfUrl,
   mindmapSourceUrl,
   mindmapExpiresAt,
-  mindmapParsedPdfContent
+  mindmapParsedPdfContent,
+  mindmapId
 }: MindmapClientViewProps) {
   const mindMap = useMindMap() as ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
-  // Removed usePdfViewerContext() call from here
+  const searchParams = useSearchParams();
+  const isStreaming = searchParams.get('streaming') === 'true';
+  const [currentNodeCount, setCurrentNodeCount] = useState(mindMapNodes.length);
+  const [isPolling, setIsPolling] = useState(isStreaming);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const noChangeCount = useRef(0);
 
+  // Poll for new nodes
+  const pollForNodes = useCallback(async () => {
+    if (!mindmapId) return;
+
+    try {
+      const response = await fetch(`/api/papermap/poll?mindmapId=${mindmapId}&knownCount=${currentNodeCount}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      if (data.hasNewNodes && data.nodes && data.nodes.length > currentNodeCount) {
+        // We have new nodes - update the mindmap
+        mindMap.setMindMapData({ nodes: data.nodes });
+        setCurrentNodeCount(data.nodes.length);
+        noChangeCount.current = 0;
+      } else {
+        // No new nodes
+        noChangeCount.current++;
+
+        // If no changes for 5 consecutive polls (5 seconds), stop polling
+        if (noChangeCount.current >= 5) {
+          setIsPolling(false);
+          mindMap.setLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for nodes:', error);
+    }
+  }, [mindmapId, currentNodeCount, mindMap]);
+
+  // Set up polling
+  useEffect(() => {
+    if (isPolling && mindmapId) {
+      // Start polling every 1 second
+      pollIntervalRef.current = setInterval(pollForNodes, 1000);
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+      };
+    }
+  }, [isPolling, mindmapId, pollForNodes]);
+
+  // Initial data hydration
   useEffect(() => {
     const { setLoading, setMindMapData, setFileName } = mindMap;
     if (mindMapNodes && mindMapNodes.length > 0) {
-      setLoading(true);
+      setLoading(isPolling); // Keep loading if we're still polling
       setMindMapData({ nodes: mindMapNodes });
       setFileName(mindmapTitle || 'Mindmap');
-      setTimeout(() => {
-        setLoading(false);
-      }, 400);
+      setCurrentNodeCount(mindMapNodes.length);
+
+      if (!isPolling) {
+        setTimeout(() => {
+          setLoading(false);
+        }, 400);
+      }
     }
-  }, [mindMapNodes, mindmapTitle, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
+  }, [mindMapNodes, mindmapTitle, isPolling, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
 
   return (
-    <PdfViewerProvider 
-      initialFileName={mindmapTitle || 'Mindmap'} 
+    <PdfViewerProvider
+      initialFileName={mindmapTitle || 'Mindmap'}
       initialPdfUrl={mindmapPdfUrl}
       initialSourceUrl={mindmapSourceUrl}
       initialInputType={mindmapInputType}
@@ -92,9 +149,9 @@ export default function MindmapClientView({
       initialParsedPdfContent={mindmapParsedPdfContent}
     >
       {/* Render the new layout component as a child */}
-      <MindmapViewLayout 
-        mindmapInputType={mindmapInputType || null} 
-        mindMap={mindMap} 
+      <MindmapViewLayout
+        mindmapInputType={mindmapInputType || null}
+        mindMap={mindMap}
       />
     </PdfViewerProvider>
   );

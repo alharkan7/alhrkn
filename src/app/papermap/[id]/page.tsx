@@ -9,13 +9,13 @@ interface PageProps {
 }
 
 export default async function MindmapIdPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-  
-    // Fetch mindmap and nodes from DB
-    const mindmap = await db.query.mindmaps.findFirst({ where: eq(mindmaps.id, id) });
-    if (!mindmap) return <div>Not found</div>;
-    const nodesRaw = await db.query.mindmapNodes.findMany({ where: eq(mindmapNodes.mindmapId, id) });
-  
+  const { id } = await params;
+
+  // Fetch mindmap and nodes from DB
+  const mindmap = await db.query.mindmaps.findFirst({ where: eq(mindmaps.id, id) });
+  if (!mindmap) return <div>Not found</div>;
+  const nodesRaw = await db.query.mindmapNodes.findMany({ where: eq(mindmapNodes.mindmapId, id) });
+
   // Convert DB nodes to MindMapNode type for context
   const mindMapNodes: MindMapNode[] = nodesRaw.map((n) => ({
     id: n.nodeId,
@@ -26,13 +26,14 @@ export default async function MindmapIdPage({ params }: { params: Promise<{ id: 
     pageNumber: n.pageNumber ?? undefined,
   }));
 
-  return <MindmapClientView 
-    mindMapNodes={mindMapNodes} 
-    mindmapTitle={mindmap.title ?? 'Mindmap'} 
+  return <MindmapClientView
+    mindMapNodes={mindMapNodes}
+    mindmapTitle={mindmap.title ?? 'Mindmap'}
     mindmapInputType={mindmap.inputType}
-    mindmapPdfUrl={mindmap.pdfUrl ?? undefined} 
+    mindmapPdfUrl={mindmap.pdfUrl ?? undefined}
     mindmapSourceUrl={mindmap.sourceUrl ?? undefined}
     mindmapExpiresAt={mindmap.expiresAt ? mindmap.expiresAt.toISOString() : undefined}
     mindmapParsedPdfContent={mindmap.parsed_pdf_content ?? undefined}
+    mindmapId={id}
   />;
 } 

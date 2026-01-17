@@ -641,7 +641,8 @@ export function useMindMapDataProcessing({
 
   /**
    * Process real-time streaming response from the NDJSON endpoint
-   * Nodes are added one by one as they're streamed from the AI
+   * Returns mindmapId IMMEDIATELY when available, allowing instant redirect
+   * Streaming continues in background via callback
    */
   const processRealtimeStreamingResponse = useCallback(async (params: {
     blobUrl?: string;
@@ -649,9 +650,6 @@ export function useMindMapDataProcessing({
     sourceUrl?: string;
     originalFileName?: string;
   }): Promise<{ mindmapId: string } | null> => {
-    let mindmapId: string | null = null;
-    const allNodes: any[] = [];
-
     try {
       const response = await fetch('/api/papermap/stream-realtime', {
         method: 'POST',
@@ -673,86 +671,113 @@ export function useMindMapDataProcessing({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let isFirstNode = true;
+      let mindmapId: string | null = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Process stream until we get the mindmapId, then return immediately
+      // Continue processing in background
+      return await new Promise<{ mindmapId: string } | null>((resolve, rejected) => {
+        let resolved = false;
+        let isFirstNode = true;
 
-        buffer += decoder.decode(value, { stream: true });
+        const processStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-        // Process complete SSE messages
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+              buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const message = JSON.parse(line.slice(6));
+              // Process complete SSE messages
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
 
-              switch (message.type) {
-                case 'init':
-                  if (message.mindmapId) {
-                    mindmapId = message.mindmapId;
-                    setLoadingStage('building');
-                  }
-                  break;
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const message = JSON.parse(line.slice(6));
 
-                case 'node':
-                  if (message.node) {
-                    allNodes.push(message.node);
+                    switch (message.type) {
+                      case 'init':
+                        if (message.mindmapId) {
+                          mindmapId = message.mindmapId;
+                          setLoadingStage('building');
 
-                    // Update mindmap data with the new node
-                    setMindMapData(prevData => {
-                      const newNodes = prevData ? [...prevData.nodes, message.node] : [message.node];
-                      return {
-                        nodes: newNodes,
-                        __realtimeAddition: true // Flag for animation handling
-                      };
-                    });
-
-                    // Fit view after first node
-                    if (isFirstNode) {
-                      isFirstNode = false;
-                      setTimeout(() => {
-                        if (reactFlowInstanceRef.current) {
-                          reactFlowInstanceRef.current.fitView({
-                            padding: 0.5,
-                            duration: 500,
-                            includeHiddenNodes: false
-                          });
+                          // IMMEDIATELY resolve with mindmapId - don't wait for streaming to complete
+                          if (!resolved) {
+                            resolved = true;
+                            resolve({ mindmapId: message.mindmapId });
+                          }
                         }
-                      }, 200);
+                        break;
+
+                      case 'node':
+                        if (message.node) {
+                          // Update mindmap data with the new node
+                          setMindMapData(prevData => {
+                            const newNodes = prevData ? [...prevData.nodes, message.node] : [message.node];
+                            return {
+                              nodes: newNodes,
+                              __realtimeAddition: true
+                            };
+                          });
+
+                          // Fit view after first node
+                          if (isFirstNode) {
+                            isFirstNode = false;
+                            setTimeout(() => {
+                              if (reactFlowInstanceRef.current) {
+                                reactFlowInstanceRef.current.fitView({
+                                  padding: 0.5,
+                                  duration: 500,
+                                  includeHiddenNodes: false
+                                });
+                              }
+                            }, 200);
+                          }
+                        }
+                        break;
+
+                      case 'complete':
+                        setLoading(false);
+                        setLoadingStage(null);
+                        setTimeout(() => {
+                          if (reactFlowInstanceRef.current) {
+                            reactFlowInstanceRef.current.fitView({
+                              padding: 0.4,
+                              duration: 800,
+                              includeHiddenNodes: false
+                            });
+                          }
+                        }, 300);
+                        break;
+
+                      case 'error':
+                        if (!resolved) {
+                          resolved = true;
+                          rejected(new Error(message.error || 'Streaming error'));
+                        }
+                        break;
                     }
+                  } catch (parseError) {
+                    console.error('Failed to parse SSE message:', line, parseError);
                   }
-                  break;
-
-                case 'complete':
-                  setLoading(false);
-                  setLoadingStage(null);
-                  // Final fit view
-                  setTimeout(() => {
-                    if (reactFlowInstanceRef.current) {
-                      reactFlowInstanceRef.current.fitView({
-                        padding: 0.4,
-                        duration: 800,
-                        includeHiddenNodes: false
-                      });
-                    }
-                  }, 300);
-                  break;
-
-                case 'error':
-                  throw new Error(message.error || 'Streaming error');
+                }
               }
-            } catch (parseError) {
-              console.error('Failed to parse SSE message:', line, parseError);
+            }
+
+            // If stream ended without getting mindmapId
+            if (!resolved) {
+              resolve(null);
+            }
+          } catch (error) {
+            if (!resolved) {
+              rejected(error);
             }
           }
-        }
-      }
+        };
 
-      return mindmapId ? { mindmapId } : null;
+        processStream();
+      });
     } catch (error) {
       console.error('Realtime streaming process error:', error);
       throw error;
