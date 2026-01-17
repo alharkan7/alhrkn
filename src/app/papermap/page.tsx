@@ -75,6 +75,8 @@ export default function PaperMap() {
     handleTextInput,
     handleFileUploadStreaming,
     handleTextInputStreaming,
+    handleFileUploadRealtime,
+    handleTextInputRealtime,
     loadExampleMindMap,
   } = useMindMap();
 
@@ -96,61 +98,76 @@ export default function PaperMap() {
     return typeof input === 'object' && input !== null && 'file' in input && input.file instanceof File && 'blobUrl' in input && 'originalFileName' in input;
   }
 
-  // Use streaming by default for faster initial display
+  // Use Phase 3 real-time streaming by default for best UX
+  // Fallback chain: realtime → streaming → non-streaming
   const handleInput = useCallback(async (input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string } | { file: File, blobUrl: string, originalFileName: string }, blobUrl?: string) => {
     let apiResponse = null;
 
     try {
+      // Try Phase 3: Real-time streaming (nodes appear one by one)
       if (isTextInputObject(input)) {
         if (input.isWebContent === true && input.sourceUrl) {
           setInputType('text');
-          // Use streaming for web content
-          apiResponse = await handleTextInputStreaming(input.text, input.sourceUrl);
+          apiResponse = await handleTextInputRealtime(input.text, input.sourceUrl);
         } else if (input.isTextInput === true) {
           setInputType('text');
-          // Use streaming for text input
-          apiResponse = await handleTextInputStreaming(input.text);
+          apiResponse = await handleTextInputRealtime(input.text);
         } else {
           setInputError('Please upload a PDF file instead of a text file, or use the Text tab for questions.');
         }
       } else if (isFileUploadObject(input)) {
         setInputType('pdf');
         if (input.file.type === 'application/pdf') {
-          // Use streaming for PDF upload
-          apiResponse = await handleFileUploadStreaming(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
+          apiResponse = await handleFileUploadRealtime(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
         } else {
           setInputError('Only PDF files are supported for file upload.');
         }
       } else if (input instanceof File) {
         setInputType('pdf');
         if (input.type === 'application/pdf') {
-          // Use streaming for direct file upload
-          apiResponse = await handleFileUploadStreaming(input, blobUrl);
+          apiResponse = await handleFileUploadRealtime(input, blobUrl);
         } else {
           setInputError('Only PDF files are supported for file upload.');
         }
       }
-    } catch (streamError) {
-      // Fallback to non-streaming if streaming fails
-      console.warn('Streaming failed, falling back to non-streaming:', streamError);
+    } catch (realtimeError) {
+      // Fallback to Phase 2: Progressive streaming
+      console.warn('Real-time streaming failed, falling back to progressive streaming:', realtimeError);
 
-      if (isTextInputObject(input)) {
-        if (input.isWebContent === true && input.sourceUrl) {
-          apiResponse = await handleTextInput(input.text, input.sourceUrl);
-        } else if (input.isTextInput === true) {
-          apiResponse = await handleTextInput(input.text);
+      try {
+        if (isTextInputObject(input)) {
+          if (input.isWebContent === true && input.sourceUrl) {
+            apiResponse = await handleTextInputStreaming(input.text, input.sourceUrl);
+          } else if (input.isTextInput === true) {
+            apiResponse = await handleTextInputStreaming(input.text);
+          }
+        } else if (isFileUploadObject(input)) {
+          apiResponse = await handleFileUploadStreaming(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
+        } else if (input instanceof File) {
+          apiResponse = await handleFileUploadStreaming(input, blobUrl);
         }
-      } else if (isFileUploadObject(input)) {
-        apiResponse = await handleFileUpload(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
-      } else if (input instanceof File) {
-        apiResponse = await handleFileUpload(input, blobUrl);
+      } catch (streamError) {
+        // Final fallback: Non-streaming
+        console.warn('Progressive streaming failed, falling back to non-streaming:', streamError);
+
+        if (isTextInputObject(input)) {
+          if (input.isWebContent === true && input.sourceUrl) {
+            apiResponse = await handleTextInput(input.text, input.sourceUrl);
+          } else if (input.isTextInput === true) {
+            apiResponse = await handleTextInput(input.text);
+          }
+        } else if (isFileUploadObject(input)) {
+          apiResponse = await handleFileUpload(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
+        } else if (input instanceof File) {
+          apiResponse = await handleFileUpload(input, blobUrl);
+        }
       }
     }
 
     if (apiResponse && apiResponse.mindmapId) {
       router.push(`/papermap/${apiResponse.mindmapId}`);
     }
-  }, [handleFileUpload, handleTextInput, handleFileUploadStreaming, handleTextInputStreaming, router]);
+  }, [handleFileUpload, handleTextInput, handleFileUploadStreaming, handleTextInputStreaming, handleFileUploadRealtime, handleTextInputRealtime, router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">

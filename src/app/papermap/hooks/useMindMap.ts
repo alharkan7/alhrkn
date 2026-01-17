@@ -101,6 +101,8 @@ export function useMindMap() {
     handleTextInput,
     handleFileUploadStreaming,
     handleTextInputStreaming,
+    handleFileUploadRealtime,
+    handleTextInputRealtime,
     // generateInitialMindMap, // Usually not called directly from UI
   } = useMindMapDataProcessing({
     setLoading, setLoadingStage, setError, setUploadError, setMindMapData,
@@ -133,8 +135,10 @@ export function useMindMap() {
     onEdgesChange,    // Original from useMindMapState/useEdgesState
     handleFileUpload, // From useMindMapDataProcessing
     handleTextInput,  // From useMindMapDataProcessing
-    handleFileUploadStreaming, // Streaming version for Phase 2
-    handleTextInputStreaming,  // Streaming version for Phase 2
+    handleFileUploadStreaming, // Phase 2: Progressive streaming
+    handleTextInputStreaming,  // Phase 2: Progressive streaming
+    handleFileUploadRealtime,  // Phase 3: Real-time node-by-node streaming
+    handleTextInputRealtime,   // Phase 3: Real-time node-by-node streaming
     addFollowUpNode,  // Direct function from useMindMapNodeManagement
     deleteNode,       // Direct function from useMindMapNodeManagement
     handleResetView,  // From useMindMapLayout

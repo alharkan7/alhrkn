@@ -6,4 +6,5 @@ export * from './useMindMapRefs';
 export * from './useMindMapState';
 export * from './useMindMapVisibility';
 export * from './useStreamingMindMap';
+export * from './useRealtimeStreaming';
 
