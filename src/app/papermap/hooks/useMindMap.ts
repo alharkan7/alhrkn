@@ -65,23 +65,23 @@ export function useMindMap() {
   } = useMindMapNodeManagement({
     nodes, setNodes, edges, setEdges, mindMapData, setMindMapData, onNodesChangeOriginal,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
-    addFollowUpNodeRef, 
+    addFollowUpNodeRef,
     deleteNodeRef,
     currentLayout, // Pass the derived layout object
     toggleChildrenVisibility,
     collapsedNodes,
-    setCollapsedNodes, 
+    setCollapsedNodes,
   });
 
   const {
     handleResetView,
     cycleLayout,
   } = useMindMapLayout({
-    mindMapData, nodes, setNodes, edges, setEdges, 
+    mindMapData, nodes, setNodes, edges, setEdges,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
     previousLayoutIndexRef,
     positionsToApplyRef,
-    addFollowUpNodeRef, 
+    addFollowUpNodeRef,
     deleteNodeRef,
     updateNodeData,
     nodePositions,
@@ -99,9 +99,11 @@ export function useMindMap() {
     loadExampleMindMap,
     handleFileUpload,
     handleTextInput,
+    handleFileUploadStreaming,
+    handleTextInputStreaming,
     // generateInitialMindMap, // Usually not called directly from UI
   } = useMindMapDataProcessing({
-    setLoading, setLoadingStage, setError, setUploadError, setMindMapData, 
+    setLoading, setLoadingStage, setError, setUploadError, setMindMapData,
     setPdfUrl, setFileName, setNodes, setEdges, setNodePositions, setCollapsedNodes,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
   });
@@ -131,6 +133,8 @@ export function useMindMap() {
     onEdgesChange,    // Original from useMindMapState/useEdgesState
     handleFileUpload, // From useMindMapDataProcessing
     handleTextInput,  // From useMindMapDataProcessing
+    handleFileUploadStreaming, // Streaming version for Phase 2
+    handleTextInputStreaming,  // Streaming version for Phase 2
     addFollowUpNode,  // Direct function from useMindMapNodeManagement
     deleteNode,       // Direct function from useMindMapNodeManagement
     handleResetView,  // From useMindMapLayout

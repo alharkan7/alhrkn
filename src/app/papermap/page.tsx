@@ -73,6 +73,8 @@ export default function PaperMap() {
     error,
     handleFileUpload,
     handleTextInput,
+    handleFileUploadStreaming,
+    handleTextInputStreaming,
     loadExampleMindMap,
   } = useMindMap();
 
@@ -94,37 +96,61 @@ export default function PaperMap() {
     return typeof input === 'object' && input !== null && 'file' in input && input.file instanceof File && 'blobUrl' in input && 'originalFileName' in input;
   }
 
+  // Use streaming by default for faster initial display
   const handleInput = useCallback(async (input: File | { text: string, isTextInput?: boolean, isWebContent?: boolean, sourceUrl?: string } | { file: File, blobUrl: string, originalFileName: string }, blobUrl?: string) => {
     let apiResponse = null;
-    if (isTextInputObject(input)) {
-      if (input.isWebContent === true && input.sourceUrl) {
-        setInputType('text');
-        apiResponse = await handleTextInput(input.text, input.sourceUrl);
-      } else if (input.isTextInput === true) {
-        setInputType('text');
-        apiResponse = await handleTextInput(input.text);
-      } else {
-        setInputError('Please upload a PDF file instead of a text file, or use the Text tab for questions.');
+
+    try {
+      if (isTextInputObject(input)) {
+        if (input.isWebContent === true && input.sourceUrl) {
+          setInputType('text');
+          // Use streaming for web content
+          apiResponse = await handleTextInputStreaming(input.text, input.sourceUrl);
+        } else if (input.isTextInput === true) {
+          setInputType('text');
+          // Use streaming for text input
+          apiResponse = await handleTextInputStreaming(input.text);
+        } else {
+          setInputError('Please upload a PDF file instead of a text file, or use the Text tab for questions.');
+        }
+      } else if (isFileUploadObject(input)) {
+        setInputType('pdf');
+        if (input.file.type === 'application/pdf') {
+          // Use streaming for PDF upload
+          apiResponse = await handleFileUploadStreaming(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
+        } else {
+          setInputError('Only PDF files are supported for file upload.');
+        }
+      } else if (input instanceof File) {
+        setInputType('pdf');
+        if (input.type === 'application/pdf') {
+          // Use streaming for direct file upload
+          apiResponse = await handleFileUploadStreaming(input, blobUrl);
+        } else {
+          setInputError('Only PDF files are supported for file upload.');
+        }
       }
-    } else if (isFileUploadObject(input)) {
-      setInputType('pdf');
-      if (input.file.type === 'application/pdf') {
+    } catch (streamError) {
+      // Fallback to non-streaming if streaming fails
+      console.warn('Streaming failed, falling back to non-streaming:', streamError);
+
+      if (isTextInputObject(input)) {
+        if (input.isWebContent === true && input.sourceUrl) {
+          apiResponse = await handleTextInput(input.text, input.sourceUrl);
+        } else if (input.isTextInput === true) {
+          apiResponse = await handleTextInput(input.text);
+        }
+      } else if (isFileUploadObject(input)) {
         apiResponse = await handleFileUpload(input.file, input.blobUrl, input.originalFileName, input.sourceUrl);
-      } else {
-        setInputError('Only PDF files are supported for file upload.');
-      }
-    } else if (input instanceof File) {
-      setInputType('pdf');
-      if (input.type === 'application/pdf') {
+      } else if (input instanceof File) {
         apiResponse = await handleFileUpload(input, blobUrl);
-      } else {
-        setInputError('Only PDF files are supported for file upload.');
       }
     }
+
     if (apiResponse && apiResponse.mindmapId) {
       router.push(`/papermap/${apiResponse.mindmapId}`);
     }
-  }, [handleFileUpload, handleTextInput, router]);
+  }, [handleFileUpload, handleTextInput, handleFileUploadStreaming, handleTextInputStreaming, router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
