@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { MindMapProvider, PdfViewerProvider } from '../context';
 import { useMindMap } from '../hooks/useMindMap';
 import MindMapFlow from '../components/MindMapFlow';
@@ -9,7 +9,7 @@ import { MindMapNode } from '../types';
 import { ReactFlowProvider } from 'reactflow';
 import ArchivedContentViewer from '../components/ArchivedContentViewer';
 import { usePdfViewerContext } from '../context';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
@@ -19,16 +19,14 @@ interface MindmapClientViewProps {
   mindmapSourceUrl?: string;
   mindmapExpiresAt?: string;
   mindmapParsedPdfContent?: string;
-  mindmapId?: string; // Added for polling
+  mindmapId?: string;
 }
 
-// Define props for the new layout component
 interface MindmapViewLayoutProps {
   mindmapInputType: 'pdf' | 'text' | 'url' | null;
-  mindMap: ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void }; // Pass the mindMap object
+  mindMap: ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
 }
 
-// New internal layout component
 const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType, mindMap }) => {
   const {
     viewMode,
@@ -72,102 +70,112 @@ export default function MindmapClientView({
 }: MindmapClientViewProps) {
   const mindMap = useMindMap() as ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
   const searchParams = useSearchParams();
+  const router = useRouter();
   const isStreaming = searchParams.get('streaming') === 'true';
-  const [currentNodeCount, setCurrentNodeCount] = useState(mindMapNodes.length);
-  const [isPolling, setIsPolling] = useState(isStreaming);
-  const [displayTitle, setDisplayTitle] = useState(isStreaming && mindmapTitle === 'Generating...' ? 'Generating...' : mindmapTitle);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const noChangeCount = useRef(0);
-  const initialized = useRef(false);
 
-  // Poll for new nodes
-  const pollForNodes = useCallback(async () => {
-    if (!mindmapId) return;
+  const [displayTitle, setDisplayTitle] = useState(mindmapTitle);
+  const [nodesLoaded, setNodesLoaded] = useState(mindMapNodes.length > 0);
 
-    try {
-      const response = await fetch(`/api/papermap/poll?mindmapId=${mindmapId}&knownCount=${currentNodeCount}`);
-      if (!response.ok) return;
+  // Store stable refs to avoid dependency issues
+  const mindMapRef = useRef(mindMap);
+  const routerRef = useRef(router);
+  mindMapRef.current = mindMap;
+  routerRef.current = router;
 
-      const data = await response.json();
+  // Effect 1: Initialize with provided data
+  useEffect(() => {
+    if (mindMapNodes && mindMapNodes.length > 0) {
+      mindMapRef.current.setMindMapData({ nodes: mindMapNodes });
+      mindMapRef.current.setFileName(mindmapTitle || 'Mindmap');
+      mindMapRef.current.setLoading(false);
+      setDisplayTitle(mindmapTitle);
+      setNodesLoaded(true);
+    } else if (isStreaming) {
+      mindMapRef.current.setMindMapData({ nodes: [] });
+      mindMapRef.current.setFileName('Generating...');
+      mindMapRef.current.setLoading(true);
+    }
+  }, [mindMapNodes, mindmapTitle, isStreaming]);
 
-      // Update title if it changed
-      if (data.title && data.title !== 'Generating...' && data.title !== displayTitle) {
-        setDisplayTitle(data.title);
-        mindMap.setFileName(data.title);
-      }
+  // Effect 2: Polling - continues until streaming is complete
+  useEffect(() => {
+    // Skip if not streaming
+    if (!isStreaming || !mindmapId) {
+      return;
+    }
 
-      if (data.hasNewNodes && data.nodes && data.nodes.length > currentNodeCount) {
-        // We have new nodes - update the mindmap
-        mindMap.setMindMapData({ nodes: data.nodes });
-        setCurrentNodeCount(data.nodes.length);
-        noChangeCount.current = 0;
-      } else {
-        // No new nodes
-        noChangeCount.current++;
+    let isActive = true;
+    let pollCount = 0;
+    let lastNodeCount = 0;
+    let noChangeCount = 0;
+    const maxPolls = 120; // Max 4 minutes at 2s intervals
+    const noChangeThreshold = 5; // Stop after 5 polls with no new nodes
 
-        // If no changes for 5 consecutive polls (5 seconds), stop polling
-        if (noChangeCount.current >= 5) {
-          setIsPolling(false);
-          mindMap.setLoading(false);
+    const poll = async () => {
+      if (!isActive) return;
 
-          // Final title update
+      try {
+        const response = await fetch(`/api/papermap/poll?mindmapId=${mindmapId}&knownCount=${lastNodeCount}`);
+        if (!response.ok || !isActive) return;
+
+        const data = await response.json();
+
+        if (data.nodes && data.nodes.length > 0) {
+          // Update mindmap with current nodes
+          mindMapRef.current.setMindMapData({ nodes: data.nodes });
+
+          // Update title if available
           if (data.title && data.title !== 'Generating...') {
+            mindMapRef.current.setFileName(data.title);
             setDisplayTitle(data.title);
-            mindMap.setFileName(data.title);
           }
+
+          // Hide loader once we have first batch of nodes
+          mindMapRef.current.setLoading(false);
+
+          // Check if we got new nodes since last poll
+          if (data.nodes.length > lastNodeCount) {
+            noChangeCount = 0;
+            lastNodeCount = data.nodes.length;
+          } else {
+            noChangeCount++;
+          }
+        } else {
+          noChangeCount++;
         }
-      }
-    } catch (error) {
-      console.error('Error polling for nodes:', error);
-    }
-  }, [mindmapId, currentNodeCount, mindMap, displayTitle]);
 
-  // Set up polling
-  useEffect(() => {
-    if (isPolling && mindmapId) {
-      // Start polling every 1 second
-      pollIntervalRef.current = setInterval(pollForNodes, 1000);
-
-      return () => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
+        // Stop polling if no changes for threshold polls (streaming complete)
+        if (noChangeCount >= noChangeThreshold) {
+          isActive = false;
+          setNodesLoaded(true);
+          // Remove streaming param from URL
+          routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
         }
-      };
-    }
-  }, [isPolling, mindmapId, pollForNodes]);
-
-  // Initial data hydration - run once
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    const { setLoading, setMindMapData, setFileName } = mindMap;
-
-    if (isPolling) {
-      // We're streaming - set loading state and initialize with empty or initial nodes
-      setLoading(true);
-      setFileName(displayTitle);
-
-      if (mindMapNodes.length > 0) {
-        setMindMapData({ nodes: mindMapNodes });
-        setCurrentNodeCount(mindMapNodes.length);
-      } else {
-        // Start with empty nodes array - this prevents example mindmap from showing
-        setMindMapData({ nodes: [] });
+      } catch (error) {
+        console.error('Poll error:', error);
       }
-    } else {
-      // Not streaming - normal hydration
-      if (mindMapNodes && mindMapNodes.length > 0) {
-        setLoading(true);
-        setMindMapData({ nodes: mindMapNodes });
-        setFileName(mindmapTitle || 'Mindmap');
-        setCurrentNodeCount(mindMapNodes.length);
-        setTimeout(() => {
-          setLoading(false);
-        }, 400);
+    };
+
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > maxPolls || !isActive) {
+        clearInterval(pollInterval);
+        mindMapRef.current.setLoading(false);
+        setNodesLoaded(true);
+        routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
+        return;
       }
-    }
-  }, [mindMapNodes, mindmapTitle, isPolling, displayTitle, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
+      await poll();
+    }, 2000);
+
+    // First poll immediately
+    poll();
+
+    return () => {
+      isActive = false;
+      clearInterval(pollInterval);
+    };
+  }, [isStreaming, mindmapId]);
 
   return (
     <PdfViewerProvider
@@ -178,7 +186,6 @@ export default function MindmapClientView({
       initialExpiresAt={mindmapExpiresAt}
       initialParsedPdfContent={mindmapParsedPdfContent}
     >
-      {/* Render the new layout component as a child */}
       <MindmapViewLayout
         mindmapInputType={mindmapInputType || null}
         mindMap={mindMap}
