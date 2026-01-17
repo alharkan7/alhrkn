@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { mindmapNodes } from '@/db/schema';
+import { mindmaps, mindmapNodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 /**
- * API endpoint to poll for mindmap nodes
+ * API endpoint to poll for mindmap nodes and metadata
  * Used by the client to get real-time updates during streaming
  */
 export async function GET(request: NextRequest) {
@@ -17,6 +17,11 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        // Fetch mindmap metadata (for title)
+        const mindmap = await db.query.mindmaps.findFirst({
+            where: eq(mindmaps.id, mindmapId),
+        });
+
         // Fetch all nodes for this mindmap
         const nodes = await db.query.mindmapNodes.findMany({
             where: eq(mindmapNodes.mindmapId, mindmapId),
@@ -39,6 +44,7 @@ export async function GET(request: NextRequest) {
             nodes: clientNodes,
             count: clientNodes.length,
             hasNewNodes,
+            title: mindmap?.title ?? 'Mindmap',
         });
     } catch (error) {
         console.error('Error polling mindmap nodes:', error);

@@ -75,8 +75,10 @@ export default function MindmapClientView({
   const isStreaming = searchParams.get('streaming') === 'true';
   const [currentNodeCount, setCurrentNodeCount] = useState(mindMapNodes.length);
   const [isPolling, setIsPolling] = useState(isStreaming);
+  const [displayTitle, setDisplayTitle] = useState(isStreaming && mindmapTitle === 'Generating...' ? 'Generating...' : mindmapTitle);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const noChangeCount = useRef(0);
+  const initialized = useRef(false);
 
   // Poll for new nodes
   const pollForNodes = useCallback(async () => {
@@ -87,6 +89,12 @@ export default function MindmapClientView({
       if (!response.ok) return;
 
       const data = await response.json();
+
+      // Update title if it changed
+      if (data.title && data.title !== 'Generating...' && data.title !== displayTitle) {
+        setDisplayTitle(data.title);
+        mindMap.setFileName(data.title);
+      }
 
       if (data.hasNewNodes && data.nodes && data.nodes.length > currentNodeCount) {
         // We have new nodes - update the mindmap
@@ -101,12 +109,18 @@ export default function MindmapClientView({
         if (noChangeCount.current >= 5) {
           setIsPolling(false);
           mindMap.setLoading(false);
+
+          // Final title update
+          if (data.title && data.title !== 'Generating...') {
+            setDisplayTitle(data.title);
+            mindMap.setFileName(data.title);
+          }
         }
       }
     } catch (error) {
       console.error('Error polling for nodes:', error);
     }
-  }, [mindmapId, currentNodeCount, mindMap]);
+  }, [mindmapId, currentNodeCount, mindMap, displayTitle]);
 
   // Set up polling
   useEffect(() => {
@@ -122,26 +136,42 @@ export default function MindmapClientView({
     }
   }, [isPolling, mindmapId, pollForNodes]);
 
-  // Initial data hydration
+  // Initial data hydration - run once
   useEffect(() => {
-    const { setLoading, setMindMapData, setFileName } = mindMap;
-    if (mindMapNodes && mindMapNodes.length > 0) {
-      setLoading(isPolling); // Keep loading if we're still polling
-      setMindMapData({ nodes: mindMapNodes });
-      setFileName(mindmapTitle || 'Mindmap');
-      setCurrentNodeCount(mindMapNodes.length);
+    if (initialized.current) return;
+    initialized.current = true;
 
-      if (!isPolling) {
+    const { setLoading, setMindMapData, setFileName } = mindMap;
+
+    if (isPolling) {
+      // We're streaming - set loading state and initialize with empty or initial nodes
+      setLoading(true);
+      setFileName(displayTitle);
+
+      if (mindMapNodes.length > 0) {
+        setMindMapData({ nodes: mindMapNodes });
+        setCurrentNodeCount(mindMapNodes.length);
+      } else {
+        // Start with empty nodes array - this prevents example mindmap from showing
+        setMindMapData({ nodes: [] });
+      }
+    } else {
+      // Not streaming - normal hydration
+      if (mindMapNodes && mindMapNodes.length > 0) {
+        setLoading(true);
+        setMindMapData({ nodes: mindMapNodes });
+        setFileName(mindmapTitle || 'Mindmap');
+        setCurrentNodeCount(mindMapNodes.length);
         setTimeout(() => {
           setLoading(false);
         }, 400);
       }
     }
-  }, [mindMapNodes, mindmapTitle, isPolling, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
+  }, [mindMapNodes, mindmapTitle, isPolling, displayTitle, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
 
   return (
     <PdfViewerProvider
-      initialFileName={mindmapTitle || 'Mindmap'}
+      initialFileName={displayTitle || 'Mindmap'}
       initialPdfUrl={mindmapPdfUrl}
       initialSourceUrl={mindmapSourceUrl}
       initialInputType={mindmapInputType}
@@ -155,4 +185,4 @@ export default function MindmapClientView({
       />
     </PdfViewerProvider>
   );
-} 
+}
