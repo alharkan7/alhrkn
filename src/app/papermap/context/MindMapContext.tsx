@@ -7,7 +7,7 @@ import { MindMapData } from '../types';
 interface MindMapContextType {
   // State
   loading: boolean;
-  loadingStage: 'uploading' | 'processing' | 'building' | null;
+  loadingStage: 'uploading' | 'analyzing' | 'generating' | 'saving' | 'building' | null;
   error: string | null;
   mindMapData: MindMapData | null;
   nodes: Node[];
@@ -15,7 +15,7 @@ interface MindMapContextType {
   reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
   reactFlowInstance: React.RefObject<ReactFlowInstance>;
   currentLayoutIndex: number;
-  
+
   // Operations
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;

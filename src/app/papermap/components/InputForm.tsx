@@ -527,9 +527,27 @@ const InputForm: React.FC<InputFormProps> = ({
         uploaded: !isUploading
     } : null;
 
+    // Convert loading stage code to user-friendly message
+    const getLoadingStageMessage = (stage: string | null | undefined): string => {
+        switch (stage) {
+            case 'uploading':
+                return 'Uploading...';
+            case 'analyzing':
+                return 'AI is reading...';
+            case 'generating':
+                return 'Creating mindmap...';
+            case 'saving':
+                return 'Saving...';
+            case 'building':
+                return 'Almost done...';
+            default:
+                return 'Processing...';
+        }
+    };
+
     // Compute the current loading stage to display
     let displayLoadingStage = loadingStageProp || loadingStage;
-    if (loading && !displayLoadingStage) displayLoadingStage = 'Analyzing'; // fallback
+    const loadingMessage = getLoadingStageMessage(displayLoadingStage);
 
     return (
         <div className="w-full max-w-7xl px-4 py-2 rounded-lg">
@@ -673,24 +691,24 @@ const InputForm: React.FC<InputFormProps> = ({
                             <div className="flex items-center gap-1">
                                 <Tabs defaultValue="text" onValueChange={isFormDisabled ? undefined : handleInputModeChange} className="w-fit">
                                     <TabsList className="h-8 p-1 bg-muted/50 border border-muted-foreground border-2">
-                                        <TabsTrigger 
-                                            value="file" 
+                                        <TabsTrigger
+                                            value="file"
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
                                         >
                                             PDF
                                         </TabsTrigger>
-                                        <TabsTrigger 
-                                            value="text" 
+                                        <TabsTrigger
+                                            value="text"
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
                                         >
                                             Text
                                         </TabsTrigger>
-                                        <TabsTrigger 
-                                            value="url" 
+                                        <TabsTrigger
+                                            value="url"
                                             className="px-2 py-0.5 h-6 text-xs text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                                             disabled={isFormDisabled}
                                             aria-disabled={isFormDisabled}
@@ -729,7 +747,7 @@ const InputForm: React.FC<InputFormProps> = ({
                                 {(loading || urlLoading || isUploading) ? (
                                     <span className="flex items-center gap-2">
                                         <LoaderCircle className="size-4 animate-spin" />
-                                        <span className="capitalize text-xs font-medium">{displayLoadingStage}</span>
+                                        <span className="text-xs font-medium">{loadingMessage}</span>
                                     </span>
                                 ) : (
                                     "Create"

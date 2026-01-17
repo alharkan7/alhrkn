@@ -7,7 +7,7 @@ import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
 
 interface UseMindMapDataProcessingProps {
   setLoading: Dispatch<SetStateAction<boolean>>;
-  setLoadingStage: Dispatch<SetStateAction<'uploading' | 'processing' | 'building' | null>>;
+  setLoadingStage: Dispatch<SetStateAction<'uploading' | 'analyzing' | 'generating' | 'saving' | 'building' | null>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setUploadError: Dispatch<SetStateAction<Error | null>>;
   setMindMapData: Dispatch<SetStateAction<MindMapData | null>>;
@@ -39,7 +39,7 @@ export function useMindMapDataProcessing({
 
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
-    setLoadingStage('processing');
+    setLoadingStage('generating');
     setError(null);
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
@@ -67,7 +67,7 @@ export function useMindMapDataProcessing({
 
   const generateInitialMindMap = useCallback(async (fileNameInput: string, pdfBlobUrl: string) => {
     setError(null);
-    setLoadingStage('processing');
+    setLoadingStage('analyzing');
     try {
       const response = await fetch('/api/papermap', {
         method: 'POST',
@@ -79,7 +79,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process PDF');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -89,7 +89,7 @@ export function useMindMapDataProcessing({
           } catch (storageError) { console.warn('Failed to store chat history:', storageError); }
         }
       } else { throw new Error('Invalid mind map data received'); }
-      
+
       // Nodes/edges will be set by the layout effect in useMindMapLayout based on new mindMapData
       // Fit view after layout is applied
       setTimeout(() => {
@@ -100,7 +100,7 @@ export function useMindMapDataProcessing({
       return true;
     } catch (err) {
       console.error('Error generating mindmap:', err);
-      throw err; 
+      throw err;
     }
   }, [setMindMapData, setError, setLoadingStage, reactFlowInstanceRef]); // Removed setNodes, setEdges as layout hook handles this
 
@@ -120,7 +120,7 @@ export function useMindMapDataProcessing({
       if (existingPdfUrl && existingPdfUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
         localStorage.removeItem('pdfBlobUrl');
       }
-      try { localStorage.setItem('userHasUploadedPdf', 'true'); } 
+      try { localStorage.setItem('userHasUploadedPdf', 'true'); }
       catch (error) { console.warn('Failed to set userHasUploadedPdf flag'); }
 
       let uploadedBlobUrl: string;
@@ -146,17 +146,17 @@ export function useMindMapDataProcessing({
       setEdges([]);
       setNodePositions({});
       setCollapsedNodes(new Set());
-      
+
       // setLoadingStage('processing'); // generateInitialMindMap sets this
       const response = await fetch('/api/papermap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          blobUrl: uploadedBlobUrl, 
+        body: JSON.stringify({
+          blobUrl: uploadedBlobUrl,
           // Use originalFileName if provided, otherwise fall back to file.name
-          originalFileName: originalFileName || file.name, 
+          originalFileName: originalFileName || file.name,
           sourceUrl,
-          chatHistory: [] 
+          chatHistory: []
         }),
       });
       if (!response.ok) {
@@ -164,7 +164,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process PDF');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -191,13 +191,13 @@ export function useMindMapDataProcessing({
       setLoadingStage(null);
       return null;
     }
-  }, [ setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName, 
-       setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes, 
-       reactFlowInstanceRef ]);
+  }, [setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName,
+    setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes,
+    reactFlowInstanceRef]);
 
   const handleTextInput = useCallback(async (text: string, sourceUrl?: string) => {
     setLoading(true);
-    setLoadingStage('processing');
+    setLoadingStage('analyzing');
     setError(null);
     setUploadError(null);
 
@@ -233,7 +233,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process text input');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -258,7 +258,7 @@ export function useMindMapDataProcessing({
         if (reactFlowInstanceRef.current) {
           reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
         }
-      }, 100); 
+      }, 100);
       setLoading(false);
       setLoadingStage(null);
       return data; // Return full API response (with mindmapId)
@@ -271,8 +271,8 @@ export function useMindMapDataProcessing({
       setLoadingStage(null);
       return null;
     }
-  }, [ setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges, 
-       setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef ]);
+  }, [setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges,
+    setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef]);
 
   // Effect for initial example PDF URL in localStorage (if not already set by user upload)
   // This was in the original hook; ensure it runs once on mount.
