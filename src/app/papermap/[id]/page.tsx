@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { db } from '@/db';
 import { mindmaps, mindmapNodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -26,14 +27,18 @@ export default async function MindmapIdPage({ params }: { params: Promise<{ id: 
     pageNumber: n.pageNumber ?? undefined,
   }));
 
-  return <MindmapClientView
-    mindMapNodes={mindMapNodes}
-    mindmapTitle={mindmap.title ?? 'Mindmap'}
-    mindmapInputType={mindmap.inputType}
-    mindmapPdfUrl={mindmap.pdfUrl ?? undefined}
-    mindmapSourceUrl={mindmap.sourceUrl ?? undefined}
-    mindmapExpiresAt={mindmap.expiresAt ? mindmap.expiresAt.toISOString() : undefined}
-    mindmapParsedPdfContent={mindmap.parsed_pdf_content ?? undefined}
-    mindmapId={id}
-  />;
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+      <MindmapClientView
+        mindMapNodes={mindMapNodes}
+        mindmapTitle={mindmap.title ?? 'Mindmap'}
+        mindmapInputType={mindmap.inputType}
+        mindmapPdfUrl={mindmap.pdfUrl ?? undefined}
+        mindmapSourceUrl={mindmap.sourceUrl ?? undefined}
+        mindmapExpiresAt={mindmap.expiresAt ? mindmap.expiresAt.toISOString() : undefined}
+        mindmapParsedPdfContent={mindmap.parsed_pdf_content ?? undefined}
+        mindmapId={id}
+      />
+    </Suspense>
+  );
 } 
