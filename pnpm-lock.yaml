@@ -5,7 +5,17 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@babel/runtime': '>=7.26.10'
+  brace-expansion: '>=1.1.12'
+  glob: '>=10.5.0'
+  js-yaml: '>=4.1.1'
+  mdast-util-to-hast: '>=13.2.1'
+  next-auth: '>=4.24.12'
+  pdfjs-dist: '>=4.2.67'
   preact: 10.27.3
+  prismjs: '>=1.30.0'
+  tar-fs: '>=3.1.1'
+  undici: '>=5.29.0'
 
 importers:
 
@@ -240,7 +250,7 @@ importers:
         specifier: 16.0.10
         version: 16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0)
       next-auth:
-        specifier: ^4.24.11
+        specifier: '>=4.24.12'
         version: 4.24.13(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.3))(react@19.2.3)(sass@1.91.0))(react-dom@19.0.0(react@19.2.3))(react@19.2.3)
       next-themes:
         specifier: ^0.4.4
@@ -252,7 +262,7 @@ importers:
         specifier: ^5.5.3
         version: 5.5.3
       pdfjs-dist:
-        specifier: 5.4.296
+        specifier: '>=4.2.67'
         version: 5.4.296
       pdfmake:
         specifier: ^0.2.20
