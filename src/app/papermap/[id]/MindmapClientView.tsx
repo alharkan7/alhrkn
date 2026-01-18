@@ -167,21 +167,15 @@ export default function MindmapClientView({
           setNodesLoaded(true);
 
           // Apply appropriate layout when streaming completes
-          // Use setTimeout to ensure state updates have propagated
+          // Force layout recalculation by cycling through layouts quickly
           setTimeout(() => {
-            const appropriateLayoutIndex = getLayoutIndexForScreen();
-            const currentIndex = mindMapRef.current.currentLayoutIndex;
-
-            if (currentIndex !== appropriateLayoutIndex) {
-              // If layout needs to change, change it
-              mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
-            } else {
-              // If layout is already correct, force recalculation by toggling
-              const otherIndex = appropriateLayoutIndex === 0 ? 1 : 0;
-              mindMapRef.current.setCurrentLayoutIndex(otherIndex);
+            // Cycle layout twice to come back to the correct one with recalculation
+            if (mindMapRef.current.cycleLayout) {
+              mindMapRef.current.cycleLayout();
+              // Small delay to let first cycle complete, then cycle back
               setTimeout(() => {
-                mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
-              }, 100);
+                mindMapRef.current.cycleLayout();
+              }, 50);
             }
           }, 500);
 
@@ -201,21 +195,15 @@ export default function MindmapClientView({
         setNodesLoaded(true);
 
         // Apply appropriate layout when polling times out
-        // Use setTimeout to ensure state updates have propagated
+        // Force layout recalculation by cycling through layouts quickly
         setTimeout(() => {
-          const appropriateLayoutIndex = getLayoutIndexForScreen();
-          const currentIndex = mindMapRef.current.currentLayoutIndex;
-
-          if (currentIndex !== appropriateLayoutIndex) {
-            // If layout needs to change, change it
-            mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
-          } else {
-            // If layout is already correct, force recalculation by toggling
-            const otherIndex = appropriateLayoutIndex === 0 ? 1 : 0;
-            mindMapRef.current.setCurrentLayoutIndex(otherIndex);
+          // Cycle layout twice to come back to the correct one with recalculation
+          if (mindMapRef.current.cycleLayout) {
+            mindMapRef.current.cycleLayout();
+            // Small delay to let first cycle complete, then cycle back
             setTimeout(() => {
-              mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
-            }, 100);
+              mindMapRef.current.cycleLayout();
+            }, 50);
           }
         }, 500);
 
