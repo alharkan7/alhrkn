@@ -323,8 +323,8 @@ export default function SuspaAnalisPage() {
                   <Label
                     htmlFor="input-mode-switch"
                     className={`transition-colors ${inputMode === 'text'
-                        ? 'font-medium'
-                        : 'text-muted-foreground'
+                      ? 'font-medium'
+                      : 'text-muted-foreground'
                       }`}
                   >
                     Text
@@ -345,8 +345,8 @@ export default function SuspaAnalisPage() {
                   <Label
                     htmlFor="input-mode-switch"
                     className={`transition-colors ${inputMode === 'file'
-                        ? 'font-medium'
-                        : 'text-muted-foreground'
+                      ? 'font-medium'
+                      : 'text-muted-foreground'
                       }`}
                   >
                     File

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { Loader2, Sparkles, Network } from 'lucide-react'
 import { toast } from 'sonner'
@@ -50,9 +49,6 @@ export default function AutogramPage() {
 
   return (
     <div className="h-[100vh] flex flex-col items-center justify-center">
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <AppsHeader />
-      </div>
 
       <div className="w-full max-w-4xl px-4 py-4">
         <div className="text-center mb-8">

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, FileText, Presentation } from 'lucide-react';
-import { AppsHeader } from '@/components/apps-header';
 import AppsFooter from '@/components/apps-footer';
 
 interface SlideData {
@@ -94,9 +93,6 @@ export default function SliderPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <AppsHeader />
-      </div>
 
       <div className="pt-20 pb-8">
         <div className="container mx-auto px-4">
