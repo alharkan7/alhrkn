@@ -148,6 +148,7 @@ export function useMindMap() {
     setFileName,      // <-- Expose setFileName here
     setLoading,       // <-- Expose setLoading here
     currentLayoutIndex, // From this hook's state
+    setCurrentLayoutIndex, // <-- Expose setCurrentLayoutIndex for programmatic layout change
     cycleLayout,      // From useMindMapLayout
     // fileLoading, // Expose if needed by UI, from useMindMapState
     layoutInitialized, // Expose for MindMapFlow if needed, or for debugging

@@ -97,6 +97,14 @@ export default function MindmapClientView({
     }
   }, [mindMapNodes, mindmapTitle, isStreaming]);
 
+  // Helper function to get appropriate layout index based on screen size/orientation
+  const getLayoutIndexForScreen = (): number => {
+    if (typeof window === 'undefined') return 1; // Default to TB for SSR
+
+    const isMobileOrPortrait = window.innerWidth < 768 || window.innerHeight > window.innerWidth;
+    return isMobileOrPortrait ? 0 : 1; // 0 = LR for mobile/portrait, 1 = TB for desktop/landscape
+  };
+
   // Effect 2: Polling - continues until streaming is complete
   useEffect(() => {
     // Skip if not streaming
@@ -109,7 +117,7 @@ export default function MindmapClientView({
     let lastNodeCount = 0;
     let noChangeCount = 0;
     const maxPolls = 120; // Max 4 minutes at 2s intervals
-    const noChangeThreshold = 5; // Stop after 5 polls with no new nodes
+    const noChangeThreshold = 2; // Stop after 2 polls with no new nodes (~4 seconds)
 
     const poll = async () => {
       if (!isActive) return;
@@ -138,16 +146,45 @@ export default function MindmapClientView({
             noChangeCount = 0;
             lastNodeCount = data.nodes.length;
           } else {
-            noChangeCount++;
+            // Only count as "no change" if we've already received nodes
+            // This prevents marking complete before streaming even starts
+            if (lastNodeCount > 0) {
+              noChangeCount++;
+            }
           }
         } else {
-          noChangeCount++;
+          // Only count as "no change" if we've already received nodes
+          // Don't count initial empty polls before streaming starts
+          if (lastNodeCount > 0) {
+            noChangeCount++;
+          }
         }
 
         // Stop polling if no changes for threshold polls (streaming complete)
-        if (noChangeCount >= noChangeThreshold) {
+        // This only triggers after we've received at least one node
+        if (noChangeCount >= noChangeThreshold && lastNodeCount > 0) {
           isActive = false;
           setNodesLoaded(true);
+
+          // Apply appropriate layout when streaming completes
+          // Use setTimeout to ensure state updates have propagated
+          setTimeout(() => {
+            const appropriateLayoutIndex = getLayoutIndexForScreen();
+            const currentIndex = mindMapRef.current.currentLayoutIndex;
+
+            if (currentIndex !== appropriateLayoutIndex) {
+              // If layout needs to change, change it
+              mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
+            } else {
+              // If layout is already correct, force recalculation by toggling
+              const otherIndex = appropriateLayoutIndex === 0 ? 1 : 0;
+              mindMapRef.current.setCurrentLayoutIndex(otherIndex);
+              setTimeout(() => {
+                mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
+              }, 100);
+            }
+          }, 500);
+
           // Remove streaming param from URL
           routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
         }
@@ -162,6 +199,26 @@ export default function MindmapClientView({
         clearInterval(pollInterval);
         mindMapRef.current.setLoading(false);
         setNodesLoaded(true);
+
+        // Apply appropriate layout when polling times out
+        // Use setTimeout to ensure state updates have propagated
+        setTimeout(() => {
+          const appropriateLayoutIndex = getLayoutIndexForScreen();
+          const currentIndex = mindMapRef.current.currentLayoutIndex;
+
+          if (currentIndex !== appropriateLayoutIndex) {
+            // If layout needs to change, change it
+            mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
+          } else {
+            // If layout is already correct, force recalculation by toggling
+            const otherIndex = appropriateLayoutIndex === 0 ? 1 : 0;
+            mindMapRef.current.setCurrentLayoutIndex(otherIndex);
+            setTimeout(() => {
+              mindMapRef.current.setCurrentLayoutIndex(appropriateLayoutIndex);
+            }, 100);
+          }
+        }, 500);
+
         routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
         return;
       }
