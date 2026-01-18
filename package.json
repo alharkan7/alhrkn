@@ -9,20 +9,6 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "pnpm": {
-    "overrides": {
-      "@babel/runtime": ">=7.26.10",
-      "brace-expansion": ">=1.1.12",
-      "glob": ">=10.5.0",
-      "js-yaml": ">=4.1.1",
-      "mdast-util-to-hast": ">=13.2.1",
-      "next-auth": ">=4.24.12",
-      "pdfjs-dist": ">=4.2.67",
-      "prismjs": ">=1.30.0",
-      "tar-fs": ">=3.1.1",
-      "undici": ">=5.29.0"
-    }
-  },
   "dependencies": {
     "@ai-sdk/google": "^1.1.16",
     "@dagrejs/dagre": "^1.1.4",
@@ -149,7 +135,17 @@
   },
   "pnpm": {
     "overrides": {
-      "preact": "10.27.3"
+      "@babel/runtime": ">=7.26.10",
+      "brace-expansion": ">=1.1.12",
+      "glob": ">=10.5.0",
+      "js-yaml": ">=4.1.1",
+      "mdast-util-to-hast": ">=13.2.1",
+      "next-auth": ">=4.24.12",
+      "pdfjs-dist": ">=4.2.67",
+      "preact": "10.27.3",
+      "prismjs": ">=1.30.0",
+      "tar-fs": ">=3.1.1",
+      "undici": ">=5.29.0"
     }
   }
 }
