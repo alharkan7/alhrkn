@@ -33,16 +33,16 @@ export const apps: AppConfig[] = [
     description: 'A Node-based Document Authoring System',
   },
   {
+    name: 'Vast Timeline',
+    icon: Clock,
+    slug: 'vast-timeline',
+    description: 'Visualize Vast Timeline in an Interactive Way',
+  },
+  {
     name: 'Disposable Chat',
     icon: Sparkles,
     slug: 'chat',
     description: 'Chat with AI, No Data is Stored',
-  },
-  {
-    name: 'Nusantara Timeline',
-    icon: Clock,
-    slug: 'indonesia-history',
-    description: 'Interactive Timeline of Indonesian History',
   },
   {
     name: 'Japanese Flashcards',

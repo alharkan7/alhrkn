@@ -43,7 +43,7 @@ export function UserMenu({ isDemoMode = false }: UserMenuProps) {
       <div className="flex items-center gap-3">
         {/* Display user name */}
         <span className="text-white text-sm font-medium hidden sm:block">
-          Welcome, {user?.name?.split(' ')[0] || 'User'}
+          {/* Welcome, {user?.name?.split(' ')[0] || 'User'} */}
         </span>
 
         <DropdownMenu>
@@ -72,14 +72,14 @@ export function UserMenu({ isDemoMode = false }: UserMenuProps) {
 
             <DropdownMenuSeparator className="bg-gray-200" />
 
-            <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-sm bg-transparent">
+            {/* <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-sm bg-transparent">
               <Link href="/" className="flex items-center gap-2 w-full">
                 <Home className="w-4 h-4" />
                 Apps Gallery
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="bg-gray-400" />
+            <DropdownMenuSeparator className="bg-gray-400" /> */}
 
             <DropdownMenuItem
               onClick={() => {

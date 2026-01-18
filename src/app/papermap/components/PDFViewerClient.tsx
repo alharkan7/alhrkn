@@ -7,8 +7,11 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { X, ChevronLeft, ChevronRight, Minus, Plus, SquareArrowOutUpRight } from 'lucide-react';
 
-// Set the worker source for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Set the worker source for react-pdf using the local worker file
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 interface PDFViewerClientProps {
   pdfBase64: string | null;
@@ -18,12 +21,12 @@ interface PDFViewerClientProps {
   pdfUrl?: string | null;
 }
 
-const PDFViewerClient: React.FC<PDFViewerClientProps> = ({ 
-  pdfBase64, 
-  pdfUrl, 
-  isOpen, 
-  onClose, 
-  initialPage = 1 
+const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
+  pdfBase64,
+  pdfUrl,
+  isOpen,
+  onClose,
+  initialPage = 1
 }) => {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(initialPage);
@@ -38,17 +41,17 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
     const setInitialScale = () => {
       // Check if we're on a mobile device (using window width as a proxy)
       const isMobile = window.innerWidth < 768; // 768px is a common breakpoint for mobile
-      
+
       if (isMobile) {
         setScale(1); // Start with a smaller scale on mobile
       }
     };
 
     setInitialScale();
-    
+
     // Re-calculate when window is resized
     window.addEventListener('resize', setInitialScale);
-    
+
     return () => {
       window.removeEventListener('resize', setInitialScale);
     };
@@ -80,12 +83,12 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
     if (pdfUrl) {
       return pdfUrl;
     }
-    
+
     // Otherwise use binary data if available
     if (pdfBytes) {
       return { data: pdfBytes };
     }
-    
+
     return null;
   }, [pdfBytes, pdfUrl]);
 
@@ -111,7 +114,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    
+
     // Check if initialPage is valid when document loads
     if (initialPage) {
       if (initialPage >= 1 && initialPage <= numPages) {
@@ -122,16 +125,16 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
         setPageNumber(1);
       }
     }
-    
+
     // Adjust scale to fit container width after a short delay to ensure rendering is complete
     setTimeout(() => {
       const container = containerRef.current;
       const pdfPage = container?.querySelector('.react-pdf__Page');
-      
+
       if (container && pdfPage) {
         const containerWidth = container.clientWidth - 40; // Subtract padding
         const pageWidth = (pdfPage as HTMLElement).clientWidth;
-        
+
         if (pageWidth > containerWidth) {
           // Calculate the ratio to make the page fit within the container
           const newScale = (containerWidth / pageWidth) * scale;
@@ -161,7 +164,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
     // If we have a URL, open it in a new tab
     if (pdfUrl) {
       window.open(pdfUrl, '_blank');
-    } 
+    }
     // If we have base64 data, create a blob and open it
     else if (pdfBase64) {
       try {
@@ -171,14 +174,14 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
         for (let i = 0; i < binary.length; i++) {
           bytes[i] = binary.charCodeAt(i);
         }
-        
+
         // Create blob with the correct MIME type
         const blob = new Blob([bytes], { type: 'application/pdf' });
         const blobUrl = URL.createObjectURL(blob);
-        
+
         // Open in new tab
         window.open(blobUrl, '_blank');
-        
+
         // Clean up the blob URL after opening (not immediately to ensure it opens)
         setTimeout(() => {
           URL.revokeObjectURL(blobUrl);
@@ -236,7 +239,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             >
               <ChevronRight className="h-5 w-5" />
             </button>
-            
+
             <div className="h-6 mx-1 border-r border-muted-foreground/30"></div>
 
             <button
@@ -256,9 +259,9 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
             >
               <Plus className="h-5 w-5" />
             </button>
-            
+
             <div className="h-6 mx-1 border-r border-muted-foreground/30"></div>
-            
+
             <button
               onClick={openInNativeViewer}
               disabled={!memoizedFile}

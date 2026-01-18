@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import ReactFlow, { 
-  Background, 
-  Controls, 
+import ReactFlow, {
+  Background,
+  Controls,
   useReactFlow,
   EdgeTypes
 } from 'reactflow';
@@ -27,11 +27,11 @@ const edgeTypes: EdgeTypes = {};
 const proOptions = { hideAttribution: true };
 
 const MindMapFlow = () => {
-  const { 
-    nodes, 
-    edges, 
-    onNodesChange, 
-    onEdgesChange, 
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
     reactFlowInstance,
     reactFlowWrapper,
     loading,
@@ -39,14 +39,14 @@ const MindMapFlow = () => {
     currentLayoutIndex,
     cycleLayout,
   } = useMindMapContext();
-  
+
   const { openPdfViewer } = usePdfViewerContext();
-  
+
   const reactFlow = useReactFlow();
   const [nodesDraggable, setNodesDraggable] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  
+
   // Get current layout direction from the layout preset
   const currentLayout = LAYOUT_PRESETS[currentLayoutIndex];
   const currentLayoutDirection = currentLayout.direction;
@@ -61,10 +61,10 @@ const MindMapFlow = () => {
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768); // Common breakpoint for mobile
     };
-    
+
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
@@ -72,7 +72,7 @@ const MindMapFlow = () => {
 
   // Enhance nodes with PDF viewer capability and layout direction
   const enhancedNodes = nodes.map(node => {
-  
+
     return {
       ...node,
       data: {
@@ -98,8 +98,8 @@ const MindMapFlow = () => {
     // Observe the entire react-flow container for attribute changes
     const reactFlowPane = document.querySelector('.react-flow');
     if (reactFlowPane) {
-      observer.observe(reactFlowPane, { 
-        attributes: true, 
+      observer.observe(reactFlowPane, {
+        attributes: true,
         attributeFilter: ['data-nodedrag'],
         subtree: true // Observe all descendants
       });
@@ -107,7 +107,7 @@ const MindMapFlow = () => {
 
     return () => observer.disconnect();
   }, []);
-  
+
   useEffect(() => {
     if (reactFlow && nodes.length > 0) {
       // Remove the automatic fitView call to maintain user's view
@@ -132,10 +132,14 @@ const MindMapFlow = () => {
     switch (loadingStage) {
       case 'uploading':
         return 'Uploading...';
-      case 'processing':
-        return 'Processing...';
+      case 'analyzing':
+        return 'AI is reading...';
+      case 'generating':
+        return 'Creating mindmap...';
+      case 'saving':
+        return 'Saving...';
       case 'building':
-        return 'Building...';
+        return 'Almost done...';
       default:
         return 'Loading...';
     }
@@ -145,7 +149,7 @@ const MindMapFlow = () => {
     <div ref={reactFlowWrapper} className="relative w-full h-full">
       {/* Keep only essential styles, portal handles the FollowUpCard positioning */}
       <style jsx global>{reactFlowStyles}</style>
-      
+
       <ReactFlow
         nodes={enhancedNodes}
         edges={edges}
@@ -164,12 +168,12 @@ const MindMapFlow = () => {
         maxZoom={4} // Set the maximum zoom level (max zoom-in)
         defaultEdgeOptions={{
           type: 'default',
-          style: { 
-            stroke: '#3182CE', 
-            strokeWidth: 1.5, 
+          style: {
+            stroke: '#3182CE',
+            strokeWidth: 1.5,
             strokeOpacity: 0.8,
             strokeDasharray: '0',
-            zIndex: 1000 
+            zIndex: 1000
           },
           animated: false
         }}
@@ -180,9 +184,9 @@ const MindMapFlow = () => {
         <Controls className="print:hidden text-foreground dark:text-foreground !fill-current" />
         <Background color={dotColor} gap={dotGap} size={dotSize} />
       </ReactFlow>
-      
+
       {/* Layout Switcher Button */}
-      <div 
+      <div
         className="fixed bottom-4 right-4 z-20 flex flex-col gap-3 print:hidden"
         {...(isClient ? { title: `Switch to ${LAYOUT_PRESETS[(currentLayoutIndex + 1) % LAYOUT_PRESETS.length].name}` } : {})}
       >
@@ -190,13 +194,13 @@ const MindMapFlow = () => {
           onClick={cycleLayout}
           className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors"
         >
-          <Network 
-            size={16} 
-            className={`text-gray-700 dark:text-gray-300 ${currentLayoutDirection === 'LR' ? '-rotate-90' : ''} transition-transform`} 
+          <Network
+            size={16}
+            className={`text-gray-700 dark:text-gray-300 ${currentLayoutDirection === 'LR' ? '-rotate-90' : ''} transition-transform`}
           />
         </button>
       </div>
-      
+
       {showLoadingIndicator && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
           <div className="transform scale-75 p-8 flex flex-col items-center">

@@ -7,7 +7,7 @@ import { EXAMPLE_MINDMAP, EXAMPLE_PDF_URL } from '../data/sampleMindmap';
 
 interface UseMindMapDataProcessingProps {
   setLoading: Dispatch<SetStateAction<boolean>>;
-  setLoadingStage: Dispatch<SetStateAction<'uploading' | 'processing' | 'building' | null>>;
+  setLoadingStage: Dispatch<SetStateAction<'uploading' | 'analyzing' | 'generating' | 'saving' | 'building' | null>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setUploadError: Dispatch<SetStateAction<Error | null>>;
   setMindMapData: Dispatch<SetStateAction<MindMapData | null>>;
@@ -39,7 +39,7 @@ export function useMindMapDataProcessing({
 
   const loadExampleMindMap = useCallback(() => {
     setLoading(true);
-    setLoadingStage('processing');
+    setLoadingStage('generating');
     setError(null);
     setMindMapData(EXAMPLE_MINDMAP);
     setPdfUrl(EXAMPLE_PDF_URL);
@@ -67,7 +67,7 @@ export function useMindMapDataProcessing({
 
   const generateInitialMindMap = useCallback(async (fileNameInput: string, pdfBlobUrl: string) => {
     setError(null);
-    setLoadingStage('processing');
+    setLoadingStage('analyzing');
     try {
       const response = await fetch('/api/papermap', {
         method: 'POST',
@@ -79,7 +79,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process PDF');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -89,7 +89,7 @@ export function useMindMapDataProcessing({
           } catch (storageError) { console.warn('Failed to store chat history:', storageError); }
         }
       } else { throw new Error('Invalid mind map data received'); }
-      
+
       // Nodes/edges will be set by the layout effect in useMindMapLayout based on new mindMapData
       // Fit view after layout is applied
       setTimeout(() => {
@@ -100,7 +100,7 @@ export function useMindMapDataProcessing({
       return true;
     } catch (err) {
       console.error('Error generating mindmap:', err);
-      throw err; 
+      throw err;
     }
   }, [setMindMapData, setError, setLoadingStage, reactFlowInstanceRef]); // Removed setNodes, setEdges as layout hook handles this
 
@@ -120,7 +120,7 @@ export function useMindMapDataProcessing({
       if (existingPdfUrl && existingPdfUrl.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
         localStorage.removeItem('pdfBlobUrl');
       }
-      try { localStorage.setItem('userHasUploadedPdf', 'true'); } 
+      try { localStorage.setItem('userHasUploadedPdf', 'true'); }
       catch (error) { console.warn('Failed to set userHasUploadedPdf flag'); }
 
       let uploadedBlobUrl: string;
@@ -146,17 +146,17 @@ export function useMindMapDataProcessing({
       setEdges([]);
       setNodePositions({});
       setCollapsedNodes(new Set());
-      
+
       // setLoadingStage('processing'); // generateInitialMindMap sets this
       const response = await fetch('/api/papermap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          blobUrl: uploadedBlobUrl, 
+        body: JSON.stringify({
+          blobUrl: uploadedBlobUrl,
           // Use originalFileName if provided, otherwise fall back to file.name
-          originalFileName: originalFileName || file.name, 
+          originalFileName: originalFileName || file.name,
           sourceUrl,
-          chatHistory: [] 
+          chatHistory: []
         }),
       });
       if (!response.ok) {
@@ -164,7 +164,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process PDF');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -191,13 +191,13 @@ export function useMindMapDataProcessing({
       setLoadingStage(null);
       return null;
     }
-  }, [ setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName, 
-       setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes, 
-       reactFlowInstanceRef ]);
+  }, [setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName,
+    setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes,
+    reactFlowInstanceRef]);
 
   const handleTextInput = useCallback(async (text: string, sourceUrl?: string) => {
     setLoading(true);
-    setLoadingStage('processing');
+    setLoadingStage('analyzing');
     setError(null);
     setUploadError(null);
 
@@ -233,7 +233,7 @@ export function useMindMapDataProcessing({
         throw new Error(errorData.error || 'Failed to process text input');
       }
       const data = await response.json();
-      setLoadingStage('building');
+      setLoadingStage('saving');
       if (data && data.mindmap && typeof data.mindmap === 'object') {
         setMindMapData(data.mindmap);
         if (data.chatHistory) {
@@ -258,7 +258,7 @@ export function useMindMapDataProcessing({
         if (reactFlowInstanceRef.current) {
           reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
         }
-      }, 100); 
+      }, 100);
       setLoading(false);
       setLoadingStage(null);
       return data; // Return full API response (with mindmapId)
@@ -271,24 +271,527 @@ export function useMindMapDataProcessing({
       setLoadingStage(null);
       return null;
     }
-  }, [ setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges, 
-       setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef ]);
+  }, [setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges,
+    setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef]);
 
-  // Effect for initial example PDF URL in localStorage (if not already set by user upload)
-  // This was in the original hook; ensure it runs once on mount.
-  // This should ideally be in the main hook or a setup effect there.
-  // For now, placing here for completeness of moved logic.
-  // useEffect(() => {
-  //   const existingBlobUrl = localStorage.getItem('pdfBlobUrl');
-  //   if (!existingBlobUrl) {
-  //     localStorage.setItem('pdfBlobUrl', EXAMPLE_PDF_URL);
-  //   }
-  // }, []); // Empty dependency array means run once on mount
+  // === STREAMING METHODS FOR PHASE 2 ===
+
+  /**
+   * Handle file upload with streaming - shows overview first, then progressively adds nodes
+   */
+  const handleFileUploadStreaming = useCallback(async (
+    file: File,
+    blobUrl?: string,
+    originalFileName?: string,
+    sourceUrl?: string
+  ): Promise<{ mindmapId: string } | null> => {
+    if (!file) return null;
+    setLoading(true);
+    setLoadingStage('uploading');
+    setError(null);
+    setUploadError(null);
+
+    try {
+      if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported');
+
+      // Clear stored data
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      const existingPdfUrl = localStorage.getItem('pdfBlobUrl');
+      if (existingPdfUrl?.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
+        localStorage.removeItem('pdfBlobUrl');
+      }
+      try { localStorage.setItem('userHasUploadedPdf', 'true'); } catch { }
+
+      // Upload to blob if needed
+      let uploadedBlobUrl: string;
+      if (!blobUrl) {
+        const { upload } = await import('@vercel/blob/client');
+        const blob = await upload(file.name, file, {
+          access: 'public', handleUploadUrl: '/api/papermap/blob',
+          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+        } as any);
+        if (!blob.url) throw new Error('No blob URL returned from upload');
+        uploadedBlobUrl = blob.url;
+      } else {
+        uploadedBlobUrl = blobUrl;
+      }
+
+      localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
+      localStorage.setItem('currentPdfBlobUrl', uploadedBlobUrl);
+      setPdfUrl(uploadedBlobUrl);
+      setFileName(originalFileName || file.name);
+
+      // Clear existing mindmap data
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+
+      setLoadingStage('analyzing');
+
+      // Use streaming endpoint
+      return await processStreamingResponse({
+        blobUrl: uploadedBlobUrl,
+        originalFileName: originalFileName || file.name,
+        sourceUrl
+      });
+    } catch (error) {
+      console.error('Error handling streaming file upload:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process PDF';
+      setUploadError(error instanceof Error ? error : new Error('Unknown upload error'));
+      setError(errorMessage);
+      setLoading(false);
+      setLoadingStage(null);
+      return null;
+    }
+  }, [setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName,
+    setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes, reactFlowInstanceRef]);
+
+  /**
+   * Handle text input with streaming - shows overview first, then progressively adds nodes
+   */
+  const handleTextInputStreaming = useCallback(async (
+    text: string,
+    sourceUrl?: string
+  ): Promise<{ mindmapId: string } | null> => {
+    setLoading(true);
+    setLoadingStage('analyzing');
+    setError(null);
+    setUploadError(null);
+
+    try {
+      // Clear stored data
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      localStorage.removeItem('pdfBlobUrl');
+      localStorage.removeItem('currentPdfBlobUrl');
+
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+
+      if (sourceUrl) {
+        try {
+          const url = new URL(sourceUrl);
+          setFileName(`URL: ${url.hostname}${url.pathname}`);
+        } catch {
+          setFileName(`URL: ${sourceUrl}`);
+        }
+      } else {
+        setFileName(text.length > 60 ? `${text.substring(0, 60)}...` : text);
+      }
+      setPdfUrl(null);
+      if (sourceUrl) localStorage.setItem('sourceUrl', sourceUrl);
+      else localStorage.removeItem('sourceUrl');
+
+      // Use streaming endpoint
+      return await processStreamingResponse({
+        textInput: text,
+        sourceUrl
+      });
+    } catch (error) {
+      console.error('Error handling streaming text input:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process text input';
+      setUploadError(error instanceof Error ? error : new Error('Unknown error'));
+      setError(errorMessage);
+      setLoading(false);
+      setLoadingStage(null);
+      return null;
+    }
+  }, [setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges,
+    setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef]);
+
+  /**
+   * Process streaming response from the SSE endpoint
+   */
+  const processStreamingResponse = useCallback(async (params: {
+    blobUrl?: string;
+    textInput?: string;
+    sourceUrl?: string;
+    originalFileName?: string;
+  }): Promise<{ mindmapId: string } | null> => {
+    let mindmapId: string | null = null;
+
+    try {
+      const response = await fetch('/api/papermap/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      setLoadingStage('generating');
+
+      // Read the SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const message = JSON.parse(line.slice(6));
+
+              switch (message.type) {
+                case 'overview':
+                  if (message.nodes && message.mindmapId) {
+                    mindmapId = message.mindmapId;
+                    setLoadingStage('building');
+                    // Set initial mindmap data (overview only)
+                    setMindMapData({ nodes: message.nodes });
+                    // Fit view after initial render
+                    setTimeout(() => {
+                      if (reactFlowInstanceRef.current) {
+                        reactFlowInstanceRef.current.fitView({ padding: 0.4, duration: 800, includeHiddenNodes: false });
+                      }
+                    }, 300);
+                  }
+                  break;
+
+                case 'expansion':
+                  if (message.nodes && message.nodes.length > 0) {
+                    // Add expanded nodes to existing mindmap data
+                    setMindMapData(prevData => {
+                      if (!prevData) return { nodes: message.nodes, __nodeAddition: true };
+                      return {
+                        nodes: [...prevData.nodes, ...message.nodes],
+                        __nodeAddition: true // Flag to indicate this is a node addition
+                      };
+                    });
+                  }
+                  break;
+
+                case 'complete':
+                  setLoading(false);
+                  setLoadingStage(null);
+                  break;
+
+                case 'error':
+                  throw new Error(message.error || 'Streaming error');
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE message:', line, parseError);
+            }
+          }
+        }
+      }
+
+      return mindmapId ? { mindmapId } : null;
+    } catch (error) {
+      console.error('Streaming process error:', error);
+      throw error;
+    }
+  }, [setMindMapData, setLoading, setLoadingStage, reactFlowInstanceRef]);
+
+  // === PHASE 3: REAL-TIME STREAMING METHODS ===
+
+  /**
+   * Handle file upload with real-time streaming - nodes appear one by one
+   */
+  const handleFileUploadRealtime = useCallback(async (
+    file: File,
+    blobUrl?: string,
+    originalFileName?: string,
+    sourceUrl?: string
+  ): Promise<{ mindmapId: string } | null> => {
+    if (!file) return null;
+    setLoading(true);
+    setLoadingStage('uploading');
+    setError(null);
+    setUploadError(null);
+
+    try {
+      if (file.type !== 'application/pdf') throw new Error('Only PDF files are supported');
+
+      // Clear stored data
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      const existingPdfUrl = localStorage.getItem('pdfBlobUrl');
+      if (existingPdfUrl?.includes('Steve_Jobs_Stanford_Commencement_Speech_2015.pdf')) {
+        localStorage.removeItem('pdfBlobUrl');
+      }
+      try { localStorage.setItem('userHasUploadedPdf', 'true'); } catch { }
+
+      // Upload to blob if needed
+      let uploadedBlobUrl: string;
+      if (!blobUrl) {
+        const { upload } = await import('@vercel/blob/client');
+        const blob = await upload(file.name, file, {
+          access: 'public', handleUploadUrl: '/api/papermap/blob',
+          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+        } as any);
+        if (!blob.url) throw new Error('No blob URL returned from upload');
+        uploadedBlobUrl = blob.url;
+      } else {
+        uploadedBlobUrl = blobUrl;
+      }
+
+      localStorage.setItem('pdfBlobUrl', uploadedBlobUrl);
+      localStorage.setItem('currentPdfBlobUrl', uploadedBlobUrl);
+      setPdfUrl(uploadedBlobUrl);
+      setFileName(originalFileName || file.name);
+
+      // Clear existing mindmap data
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+
+      setLoadingStage('analyzing');
+
+      // Use real-time streaming endpoint
+      return await processRealtimeStreamingResponse({
+        blobUrl: uploadedBlobUrl,
+        originalFileName: originalFileName || file.name,
+        sourceUrl
+      });
+    } catch (error) {
+      console.error('Error handling realtime file upload:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process PDF';
+      setUploadError(error instanceof Error ? error : new Error('Unknown upload error'));
+      setError(errorMessage);
+      setLoading(false);
+      setLoadingStage(null);
+      return null;
+    }
+  }, [setLoading, setLoadingStage, setError, setUploadError, setPdfUrl, setFileName,
+    setMindMapData, setNodes, setEdges, setNodePositions, setCollapsedNodes, reactFlowInstanceRef]);
+
+  /**
+   * Handle text input with real-time streaming - nodes appear one by one
+   */
+  const handleTextInputRealtime = useCallback(async (
+    text: string,
+    sourceUrl?: string
+  ): Promise<{ mindmapId: string } | null> => {
+    setLoading(true);
+    setLoadingStage('analyzing');
+    setError(null);
+    setUploadError(null);
+
+    try {
+      // Clear stored data
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('pdfSessionId');
+      localStorage.removeItem('pdfSessionData');
+      localStorage.removeItem('pdfBlobUrl');
+      localStorage.removeItem('currentPdfBlobUrl');
+
+      setMindMapData(null);
+      setNodes([]);
+      setEdges([]);
+      setNodePositions({});
+      setCollapsedNodes(new Set());
+
+      if (sourceUrl) {
+        try {
+          const url = new URL(sourceUrl);
+          setFileName(`URL: ${url.hostname}${url.pathname}`);
+        } catch {
+          setFileName(`URL: ${sourceUrl}`);
+        }
+      } else {
+        setFileName(text.length > 60 ? `${text.substring(0, 60)}...` : text);
+      }
+      setPdfUrl(null);
+      if (sourceUrl) localStorage.setItem('sourceUrl', sourceUrl);
+      else localStorage.removeItem('sourceUrl');
+
+      // Use real-time streaming endpoint
+      return await processRealtimeStreamingResponse({
+        textInput: text,
+        sourceUrl
+      });
+    } catch (error) {
+      console.error('Error handling realtime text input:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process text input';
+      setUploadError(error instanceof Error ? error : new Error('Unknown error'));
+      setError(errorMessage);
+      setLoading(false);
+      setLoadingStage(null);
+      return null;
+    }
+  }, [setLoading, setLoadingStage, setError, setUploadError, setMindMapData, setNodes, setEdges,
+    setNodePositions, setCollapsedNodes, setFileName, setPdfUrl, reactFlowInstanceRef]);
+
+  /**
+   * Process real-time streaming response from the NDJSON endpoint
+   * Returns mindmapId IMMEDIATELY when available, allowing instant redirect
+   * Streaming continues in background via callback
+   */
+  const processRealtimeStreamingResponse = useCallback(async (params: {
+    blobUrl?: string;
+    textInput?: string;
+    sourceUrl?: string;
+    originalFileName?: string;
+  }): Promise<{ mindmapId: string } | null> => {
+    try {
+      const response = await fetch('/api/papermap/stream-realtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      setLoadingStage('generating');
+
+      // Read the SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let mindmapId: string | null = null;
+
+      // Process stream until we get the mindmapId, then return immediately
+      // Continue processing in background
+      return await new Promise<{ mindmapId: string } | null>((resolve, rejected) => {
+        let resolved = false;
+        let isFirstNode = true;
+
+        const processStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+
+              // Process complete SSE messages
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const message = JSON.parse(line.slice(6));
+
+                    switch (message.type) {
+                      case 'init':
+                        if (message.mindmapId) {
+                          mindmapId = message.mindmapId;
+                          setLoadingStage('building');
+
+                          // IMMEDIATELY resolve with mindmapId - don't wait for streaming to complete
+                          if (!resolved) {
+                            resolved = true;
+                            resolve({ mindmapId: message.mindmapId });
+                          }
+                        }
+                        break;
+
+                      case 'node':
+                        if (message.node) {
+                          // Update mindmap data with the new node
+                          setMindMapData(prevData => {
+                            const newNodes = prevData ? [...prevData.nodes, message.node] : [message.node];
+                            return {
+                              nodes: newNodes,
+                              __realtimeAddition: true
+                            };
+                          });
+
+                          // Fit view after first node
+                          if (isFirstNode) {
+                            isFirstNode = false;
+                            setTimeout(() => {
+                              if (reactFlowInstanceRef.current) {
+                                reactFlowInstanceRef.current.fitView({
+                                  padding: 0.5,
+                                  duration: 500,
+                                  includeHiddenNodes: false
+                                });
+                              }
+                            }, 200);
+                          }
+                        }
+                        break;
+
+                      case 'complete':
+                        setLoading(false);
+                        setLoadingStage(null);
+                        setTimeout(() => {
+                          if (reactFlowInstanceRef.current) {
+                            reactFlowInstanceRef.current.fitView({
+                              padding: 0.4,
+                              duration: 800,
+                              includeHiddenNodes: false
+                            });
+                          }
+                        }, 300);
+                        break;
+
+                      case 'error':
+                        if (!resolved) {
+                          resolved = true;
+                          rejected(new Error(message.error || 'Streaming error'));
+                        }
+                        break;
+                    }
+                  } catch (parseError) {
+                    console.error('Failed to parse SSE message:', line, parseError);
+                  }
+                }
+              }
+            }
+
+            // If stream ended without getting mindmapId
+            if (!resolved) {
+              resolve(null);
+            }
+          } catch (error) {
+            if (!resolved) {
+              rejected(error);
+            }
+          }
+        };
+
+        processStream();
+      });
+    } catch (error) {
+      console.error('Realtime streaming process error:', error);
+      throw error;
+    }
+  }, [setMindMapData, setLoading, setLoadingStage, reactFlowInstanceRef]);
 
   return {
     loadExampleMindMap,
     handleFileUpload,
     handleTextInput,
-    generateInitialMindMap, // Expose if needed directly, though usually called by handleFileUpload
+    handleFileUploadStreaming,
+    handleTextInputStreaming,
+    handleFileUploadRealtime,
+    handleTextInputRealtime,
+    generateInitialMindMap,
   };
 }

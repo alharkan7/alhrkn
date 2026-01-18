@@ -513,7 +513,7 @@ const Timeline: React.FC<TimelineProps> = ({
                 {/* Image */}
                 <div className="w-full aspect-video bg-slate-100 rounded border border-slate-200 overflow-hidden mb-1.5 sm:mb-2">
                   <img
-                    src={`https://picsum.photos/seed/${highlightedEvent.year}/400/300`}
+                    src={highlightedEvent.illustrations || `https://picsum.photos/seed/${highlightedEvent.year}/400/300`}
                     alt={highlightedEvent.title}
                     className="w-full h-full object-cover"
                   />

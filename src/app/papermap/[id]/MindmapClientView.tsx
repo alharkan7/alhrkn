@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { MindMapProvider, PdfViewerProvider } from '../context';
 import { useMindMap } from '../hooks/useMindMap';
 import MindMapFlow from '../components/MindMapFlow';
@@ -9,6 +9,7 @@ import { MindMapNode } from '../types';
 import { ReactFlowProvider } from 'reactflow';
 import ArchivedContentViewer from '../components/ArchivedContentViewer';
 import { usePdfViewerContext } from '../context';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface MindmapClientViewProps {
   mindMapNodes: MindMapNode[];
@@ -18,18 +19,17 @@ interface MindmapClientViewProps {
   mindmapSourceUrl?: string;
   mindmapExpiresAt?: string;
   mindmapParsedPdfContent?: string;
+  mindmapId?: string;
 }
 
-// Define props for the new layout component
 interface MindmapViewLayoutProps {
   mindmapInputType: 'pdf' | 'text' | 'url' | null;
-  mindMap: ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void }; // Pass the mindMap object
+  mindMap: ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
 }
 
-// New internal layout component
 const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType, mindMap }) => {
-  const { 
-    viewMode, 
+  const {
+    viewMode,
     closeViewer,
     parsedPdfContent: archivedContent
   } = usePdfViewerContext();
@@ -38,14 +38,14 @@ const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType,
     <MindMapProvider value={mindMap}>
       <ReactFlowProvider>
         <div className="flex flex-col h-[100dvh] relative">
-          <TopBar onFileUpload={() => {}} onNewClick={() => {}} inputType={mindmapInputType} />
-          
+          <TopBar onFileUpload={() => { }} onNewClick={() => { }} inputType={mindmapInputType} />
+
           {viewMode === 'pdf' && <PdfViewer />}
           {viewMode === 'archived' && archivedContent && (
-            <ArchivedContentViewer 
-              isOpen={true} 
-              markdownContent={archivedContent} 
-              onClose={closeViewer} 
+            <ArchivedContentViewer
+              isOpen={true}
+              markdownContent={archivedContent}
+              onClose={closeViewer}
             />
           )}
 
@@ -58,44 +58,183 @@ const MindmapViewLayout: React.FC<MindmapViewLayoutProps> = ({ mindmapInputType,
   );
 };
 
-export default function MindmapClientView({ 
-  mindMapNodes, 
-  mindmapTitle, 
-  mindmapInputType, 
+export default function MindmapClientView({
+  mindMapNodes,
+  mindmapTitle,
+  mindmapInputType,
   mindmapPdfUrl,
   mindmapSourceUrl,
   mindmapExpiresAt,
-  mindmapParsedPdfContent
+  mindmapParsedPdfContent,
+  mindmapId
 }: MindmapClientViewProps) {
   const mindMap = useMindMap() as ReturnType<typeof useMindMap> & { setLoading: (loading: boolean) => void };
-  // Removed usePdfViewerContext() call from here
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isStreaming = searchParams.get('streaming') === 'true';
 
+  const [displayTitle, setDisplayTitle] = useState(mindmapTitle);
+  const [nodesLoaded, setNodesLoaded] = useState(mindMapNodes.length > 0);
+
+  // Store stable refs to avoid dependency issues
+  const mindMapRef = useRef(mindMap);
+  const routerRef = useRef(router);
+  mindMapRef.current = mindMap;
+  routerRef.current = router;
+
+  // Effect 1: Initialize with provided data
   useEffect(() => {
-    const { setLoading, setMindMapData, setFileName } = mindMap;
     if (mindMapNodes && mindMapNodes.length > 0) {
-      setLoading(true);
-      setMindMapData({ nodes: mindMapNodes });
-      setFileName(mindmapTitle || 'Mindmap');
-      setTimeout(() => {
-        setLoading(false);
-      }, 400);
+      mindMapRef.current.setMindMapData({ nodes: mindMapNodes });
+      mindMapRef.current.setFileName(mindmapTitle || 'Mindmap');
+      mindMapRef.current.setLoading(false);
+      setDisplayTitle(mindmapTitle);
+      setNodesLoaded(true);
+    } else if (isStreaming) {
+      mindMapRef.current.setMindMapData({ nodes: [] });
+      mindMapRef.current.setFileName('Generating...');
+      mindMapRef.current.setLoading(true);
     }
-  }, [mindMapNodes, mindmapTitle, mindMap.setLoading, mindMap.setMindMapData, mindMap.setFileName]);
+  }, [mindMapNodes, mindmapTitle, isStreaming]);
+
+  // Helper function to get appropriate layout index based on screen size/orientation
+  const getLayoutIndexForScreen = (): number => {
+    if (typeof window === 'undefined') return 1; // Default to TB for SSR
+
+    const isMobileOrPortrait = window.innerWidth < 768 || window.innerHeight > window.innerWidth;
+    return isMobileOrPortrait ? 0 : 1; // 0 = LR for mobile/portrait, 1 = TB for desktop/landscape
+  };
+
+  // Effect 2: Polling - continues until streaming is complete
+  useEffect(() => {
+    // Skip if not streaming
+    if (!isStreaming || !mindmapId) {
+      return;
+    }
+
+    let isActive = true;
+    let pollCount = 0;
+    let lastNodeCount = 0;
+    let noChangeCount = 0;
+    const maxPolls = 120; // Max 4 minutes at 2s intervals
+    const noChangeThreshold = 2; // Stop after 2 polls with no new nodes (~4 seconds)
+
+    const poll = async () => {
+      if (!isActive) return;
+
+      try {
+        const response = await fetch(`/api/papermap/poll?mindmapId=${mindmapId}&knownCount=${lastNodeCount}`);
+        if (!response.ok || !isActive) return;
+
+        const data = await response.json();
+
+        if (data.nodes && data.nodes.length > 0) {
+          // Update mindmap with current nodes
+          mindMapRef.current.setMindMapData({ nodes: data.nodes });
+
+          // Update title if available
+          if (data.title && data.title !== 'Generating...') {
+            mindMapRef.current.setFileName(data.title);
+            setDisplayTitle(data.title);
+          }
+
+          // Hide loader once we have first batch of nodes
+          mindMapRef.current.setLoading(false);
+
+          // Check if we got new nodes since last poll
+          if (data.nodes.length > lastNodeCount) {
+            noChangeCount = 0;
+            lastNodeCount = data.nodes.length;
+          } else {
+            // Only count as "no change" if we've already received nodes
+            // This prevents marking complete before streaming even starts
+            if (lastNodeCount > 0) {
+              noChangeCount++;
+            }
+          }
+        } else {
+          // Only count as "no change" if we've already received nodes
+          // Don't count initial empty polls before streaming starts
+          if (lastNodeCount > 0) {
+            noChangeCount++;
+          }
+        }
+
+        // Stop polling if no changes for threshold polls (streaming complete)
+        // This only triggers after we've received at least one node
+        if (noChangeCount >= noChangeThreshold && lastNodeCount > 0) {
+          isActive = false;
+          setNodesLoaded(true);
+
+          // Apply appropriate layout when streaming completes
+          // Force layout recalculation by cycling through layouts quickly
+          setTimeout(() => {
+            // Cycle layout twice to come back to the correct one with recalculation
+            if (mindMapRef.current.cycleLayout) {
+              mindMapRef.current.cycleLayout();
+              // Small delay to let first cycle complete, then cycle back
+              setTimeout(() => {
+                mindMapRef.current.cycleLayout();
+              }, 50);
+            }
+          }, 500);
+
+          // Remove streaming param from URL
+          routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
+        }
+      } catch (error) {
+        console.error('Poll error:', error);
+      }
+    };
+
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > maxPolls || !isActive) {
+        clearInterval(pollInterval);
+        mindMapRef.current.setLoading(false);
+        setNodesLoaded(true);
+
+        // Apply appropriate layout when polling times out
+        // Force layout recalculation by cycling through layouts quickly
+        setTimeout(() => {
+          // Cycle layout twice to come back to the correct one with recalculation
+          if (mindMapRef.current.cycleLayout) {
+            mindMapRef.current.cycleLayout();
+            // Small delay to let first cycle complete, then cycle back
+            setTimeout(() => {
+              mindMapRef.current.cycleLayout();
+            }, 50);
+          }
+        }, 500);
+
+        routerRef.current.replace(`/papermap/${mindmapId}`, { scroll: false });
+        return;
+      }
+      await poll();
+    }, 2000);
+
+    // First poll immediately
+    poll();
+
+    return () => {
+      isActive = false;
+      clearInterval(pollInterval);
+    };
+  }, [isStreaming, mindmapId]);
 
   return (
-    <PdfViewerProvider 
-      initialFileName={mindmapTitle || 'Mindmap'} 
+    <PdfViewerProvider
+      initialFileName={displayTitle || 'Mindmap'}
       initialPdfUrl={mindmapPdfUrl}
       initialSourceUrl={mindmapSourceUrl}
       initialInputType={mindmapInputType}
       initialExpiresAt={mindmapExpiresAt}
       initialParsedPdfContent={mindmapParsedPdfContent}
     >
-      {/* Render the new layout component as a child */}
-      <MindmapViewLayout 
-        mindmapInputType={mindmapInputType || null} 
-        mindMap={mindMap} 
+      <MindmapViewLayout
+        mindmapInputType={mindmapInputType || null}
+        mindMap={mindMap}
       />
     </PdfViewerProvider>
   );
-} 
+}

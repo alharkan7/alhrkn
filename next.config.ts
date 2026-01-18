@@ -2,17 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Turbopack is now the default in Next.js 16
-  output: 'standalone',
   serverExternalPackages: [
     '@google/generative-ai',
     '@google/generative-ai/server',
     'googleapis',
   ],
-  // Exclude pnpm store from serverless functions
+  // Exclude only unnecessary files from tracing
   outputFileTracingExcludes: {
     '*': [
-      '.pnpm-store/**',
-      'node_modules/.pnpm/**',
       '.git/**',
     ],
   },

@@ -2,11 +2,11 @@ import type { Metadata } from 'next'
 import { Providers } from "@/components/providers"
 
 export const metadata: Metadata = {
-  title: 'Nusantara Timeline',
-  description: 'Interactive Timeline of Indonesian History',
+  title: 'Vast Timeline',
+  description: 'Visualize Vast Timeline in an Interactive Way',
 }
 
-export default function IndonesiaHistoryLayout({
+export default function VastTimelineLayout({
   children,
 }: {
   children: React.ReactNode

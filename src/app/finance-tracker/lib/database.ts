@@ -1,7 +1,7 @@
-import { db } from '@/lib/postgres'
-import { 
-  FinanceTrackerUser, 
-  CreateFinanceTrackerUser, 
+import { db } from './neon-db'
+import {
+  FinanceTrackerUser,
+  CreateFinanceTrackerUser,
   UpdateFinanceTrackerUser,
   UserQueryFilters,
   PaginationOptions,
@@ -246,11 +246,11 @@ export class DatabaseService {
     try {
       // First try to find existing user
       let user = await this.findUserByEmail(email)
-      
+
       if (user) {
         // Update last login and avatar if provided
         await this.updateLastLogin(email)
-        
+
         if (avatar && avatar !== user.avatar) {
           const result = await db.query(
             'UPDATE finance_tracker SET avatar = $1, updated_at = NOW() WHERE email = $2 RETURNING *',
@@ -258,7 +258,7 @@ export class DatabaseService {
           )
           user = result.rows[0] as FinanceTrackerUser
         }
-        
+
         return user
       }
 
@@ -365,7 +365,7 @@ export class DatabaseService {
       params.push(email)
 
       const result = await db.query(query, params)
-      
+
       if (result.rows.length === 0) {
         throw new Error(`User not found: ${email}`)
       }
@@ -386,7 +386,7 @@ export class DatabaseService {
         'UPDATE finance_tracker SET monthly_budget = $1, updated_at = NOW() WHERE email = $2 RETURNING *',
         [monthlyBudget, email]
       )
-      
+
       if (result.rows.length === 0) {
         throw new Error(`User not found: ${email}`)
       }
@@ -402,7 +402,7 @@ export class DatabaseService {
    * Update user preferences
    */
   static async updateUserPreferences(
-    email: string, 
+    email: string,
     preferences: Record<string, any>
   ): Promise<FinanceTrackerUser> {
     try {
@@ -410,7 +410,7 @@ export class DatabaseService {
         'UPDATE finance_tracker SET preferences = $1, updated_at = NOW() WHERE email = $2 RETURNING *',
         [JSON.stringify(preferences), email]
       )
-      
+
       if (result.rows.length === 0) {
         throw new Error(`User not found: ${email}`)
       }
@@ -431,7 +431,7 @@ export class DatabaseService {
         'UPDATE finance_tracker SET is_active = false, updated_at = NOW() WHERE email = $1 RETURNING *',
         [email]
       )
-      
+
       if (result.rows.length === 0) {
         throw new Error(`User not found: ${email}`)
       }
@@ -480,8 +480,8 @@ export class DatabaseService {
    * Get expenses for a user with optional date filtering
    */
   static async getExpenses(
-    userId: number, 
-    startDate?: string, 
+    userId: number,
+    startDate?: string,
     endDate?: string
   ): Promise<ExpenseRecord[]> {
     try {
@@ -543,7 +543,7 @@ export class DatabaseService {
   static async deleteExpense(id: number, userId: number): Promise<void> {
     try {
       const result = await db.query('DELETE FROM expenses WHERE id = $1 AND user_id = $2', [id, userId])
-      
+
       if (result.rowCount === 0) {
         throw new Error(`Expense not found with id: ${id} for this user`)
       }
@@ -590,8 +590,8 @@ export class DatabaseService {
    * Get incomes for a user with optional date filtering
    */
   static async getIncomes(
-    userId: number, 
-    startDate?: string, 
+    userId: number,
+    startDate?: string,
     endDate?: string
   ): Promise<IncomeRecord[]> {
     try {
@@ -653,7 +653,7 @@ export class DatabaseService {
   static async deleteIncome(id: number, userId: number): Promise<void> {
     try {
       const result = await db.query('DELETE FROM incomes WHERE id = $1 AND user_id = $2', [id, userId])
-      
+
       if (result.rowCount === 0) {
         throw new Error(`Income not found with id: ${id} for this user`)
       }
@@ -703,8 +703,8 @@ export class DatabaseService {
    * Get budgets for a user with optional date filtering
    */
   static async getBudgets(
-    userId: number, 
-    startDate?: string, 
+    userId: number,
+    startDate?: string,
     endDate?: string
   ): Promise<BudgetRecord[]> {
     try {
@@ -766,7 +766,7 @@ export class DatabaseService {
   static async deleteBudget(id: number, userId: number): Promise<void> {
     try {
       const result = await db.query('DELETE FROM budgets WHERE id = $1 AND user_id = $2', [id, userId])
-      
+
       if (result.rowCount === 0) {
         throw new Error(`Budget not found with id: ${id} for this user`)
       }
@@ -785,7 +785,7 @@ export class DatabaseService {
       const budgetDate = new Date(budget.date)
       const year = budgetDate.getFullYear()
       const month = budgetDate.getMonth() + 1 // getMonth() returns 0-11, we need 1-12
-      
+
       const existingResult = await db.query(
         `SELECT * FROM budgets 
          WHERE user_id = $1 
@@ -825,8 +825,8 @@ export class DatabaseService {
    * Get all finance data for a user
    */
   static async getAllFinanceData(
-    userId: number, 
-    startDate?: string, 
+    userId: number,
+    startDate?: string,
     endDate?: string
   ): Promise<{
     expenses: ExpenseRecord[];

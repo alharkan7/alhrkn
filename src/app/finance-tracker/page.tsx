@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from "@/components/ui/button"
-import { Bell, Settings as SettingsIcon, Zap, AlertTriangle, RefreshCw, ChevronLeft } from 'lucide-react'
+import { Bell, Settings as SettingsIcon, Zap, AlertTriangle, RefreshCw, ChevronLeft, LayoutGrid } from 'lucide-react'
 import { toast } from 'sonner'
 import { UserMenu } from '@/components/user-menu'
+import { AppsGrid } from '@/components/ui/apps-grid'
 import { AppsHeader } from '@/components/apps-header'
 import AppsFooter from '@/components/apps-footer'
 import { Chart } from './components/chart'
@@ -114,18 +115,18 @@ const setCache = (key: string, data: any[]) => {
 
 const isCacheValid = (cache: CacheData | null): boolean => {
   if (!cache) return false
-  
+
   // Invalidate cache if it's not PostgreSQL version
   if (cache.version !== 'postgresql') {
     return false
   }
-  
+
   const age = Date.now() - cache.timestamp
   const isValid = age < CACHE_DURATION
-  
+
   // Debug cache status
   console.log(`Cache age: ${Math.round(age / 1000)}s, Valid: ${isValid}, Duration: ${CACHE_DURATION / 1000}s`)
-  
+
   return isValid
 }
 
@@ -243,7 +244,7 @@ export default function MobileFinanceTracker() {
   // Budget data state
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0)
   const [budgetLoading, setBudgetLoading] = useState(false)
-  const [allBudgets, setAllBudgets] = useState<{[key: string]: number}>({})
+  const [allBudgets, setAllBudgets] = useState<{ [key: string]: number }>({})
   const [budgetsLoaded, setBudgetsLoaded] = useState(false)
 
   // Budget alert dialog state
@@ -300,7 +301,7 @@ export default function MobileFinanceTracker() {
       setIsAnimating(false)
     }, 300)
   }
-  
+
   // DEBUG: Log the initial month state
   // console.log('DEBUG page.tsx initial state:', {
   //   currentMonth,
@@ -308,7 +309,7 @@ export default function MobileFinanceTracker() {
   //   realCurrentMonth: new Date().getMonth(),
   //   realCurrentYear: new Date().getFullYear()
   // })
-  
+
   // Filter data by selected month with better error handling
   const filterDataByMonth = (data: any[]) => {
     return data.filter(item => {
@@ -332,12 +333,12 @@ export default function MobileFinanceTracker() {
     const amount = typeof income.amount === 'number' ? income.amount : parseFloat(income.amount || '0')
     return sum + (isNaN(amount) ? 0 : amount)
   }, 0)
-  
+
   const totalExpenses = filteredExpenses.reduce((sum, expense) => {
     const amount = typeof expense.amount === 'number' ? expense.amount : parseFloat(expense.amount || '0')
     return sum + (isNaN(amount) ? 0 : amount)
   }, 0)
-  
+
   const balance = monthlyBudget - totalExpenses
 
   // Month navigation functions
@@ -394,8 +395,8 @@ export default function MobileFinanceTracker() {
   // Process budget data from the aggregated API response
   const processBudgetData = (budgets: any[]) => {
     // Group budgets by month and take the latest entry for each month
-    const budgetMap: {[key: string]: number} = {}
-    
+    const budgetMap: { [key: string]: number } = {}
+
     // DEBUG: Log raw budget data
     // console.log('DEBUG page.tsx processBudgetData raw data:', budgets)
 
@@ -403,7 +404,7 @@ export default function MobileFinanceTracker() {
       // Fix timezone issue: parse the date and extract year-month in local timezone
       const budgetDate = new Date(budget.date)
       const monthKey = `${budgetDate.getFullYear()}-${String(budgetDate.getMonth() + 1).padStart(2, '0')}`
-      
+
       // DEBUG: Log each budget processing in page.tsx
       // console.log('DEBUG page.tsx processing budget:', {
       //   budget,
@@ -412,7 +413,7 @@ export default function MobileFinanceTracker() {
       //   parsedDate: budgetDate,
       //   fixedMonthKey: monthKey
       // })
-      
+
       // For comparison, we need to use the same monthKey logic for finding existing budgets
       if (!budgetMap[monthKey] || new Date(budget.timestamp) > new Date(budgets.find((b: any) => {
         const bDate = new Date(b.date)
@@ -465,7 +466,7 @@ export default function MobileFinanceTracker() {
   const getBudgetForMonth = (month: number, year: number) => {
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`
     const budget = allBudgets[monthKey] || 0
-    
+
     // DEBUG: Log the lookup
     // console.log('DEBUG getBudgetForMonth:', {
     //   month,
@@ -474,7 +475,7 @@ export default function MobileFinanceTracker() {
     //   budget,
     //   allBudgets: Object.keys(allBudgets)
     // })
-    
+
     return budget
   }
 
@@ -584,7 +585,7 @@ export default function MobileFinanceTracker() {
           const cachedBudgets = budgetsCache!.data
           setExpenses(cachedExpenses)
           setIncomes(cachedIncomes)
-          
+
           // Process cached budget data
           if (cachedBudgets && cachedBudgets.length > 0) {
             processBudgetData(cachedBudgets)
@@ -777,7 +778,7 @@ export default function MobileFinanceTracker() {
 
       const dataToUse = chartMode === 'expense' ? filteredExpensesLocal : filteredIncomesLocal
       const categoryTotals: { [key: string]: number } = {}
-      
+
       dataToUse.forEach((item: any) => {
         if (item && item.category) {
           const amount = typeof item.amount === 'number' ? item.amount : parseFloat(item.amount || '0')
@@ -786,7 +787,7 @@ export default function MobileFinanceTracker() {
           }
         }
       })
-      
+
       const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658']
       const newChartData = Object.entries(categoryTotals).map(([name, value], index) => ({
         name,
@@ -984,117 +985,128 @@ export default function MobileFinanceTracker() {
               }}
             />
           </div>
-          <UserMenu isDemoMode={isDemoMode} />
-        </div>
-
-      {/* Main Content */}
-      <div className="flex-1 bg-white rounded-t-3xl px-4 pt-4 pb-0 w-full overflow-hidden flex flex-col items-center relative">
-
-        {/* Chart or Transaction Table Section */}
-        <div className="w-full h-full relative overflow-hidden">
-          {/* Chart Section */}
-          <div 
-            className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-              showTransactionTable ? 'transform -translate-x-full' : 'transform translate-x-0'
-            }`}
-          >
-            <div className="w-full flex flex-col items-center overflow-y-auto">
-              <Chart
-                data={chartData}
-                totalIncome={totalIncome}
-                totalExpenses={totalExpenses}
-                balance={balance}
-                loading={loading}
-                mode={chartMode}
-                chartType={chartType}
-                currentMonth={currentMonth}
-                currentYear={currentYear}
-                onNavigateMonth={navigateMonth}
-                onChartTypeSwitch={handleChartTypeSwitch}
-                canNavigatePrev={false}
-                canNavigateNext={false}
-                getMonthName={getMonthName}
-                expenses={expenses}
-                incomes={incomes}
-                monthlyBudget={monthlyBudget}
-                budgetLoading={budgetLoading}
-                budgetsLoaded={budgetsLoaded}
-                onOpenBudgetDrawer={() => setIsBudgetDrawerOpen(true)}
-                onShowDetails={showTransactionTableWithAnimation}
-              />
-
-              {/* Form Section - Only show when chart is visible */}
-              <ExpenseForm
-                onSubmit={handleFormSubmit}
-                loading={formLoading}
-                onCategorySwitch={handleCategorySwitch}
-                isDemoMode={isDemoMode}
-              />
-            </div>
-          </div>
-
-          {/* Transaction Table Section */}
-          <div 
-            className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-              showTransactionTable ? 'transform translate-x-0' : 'transform translate-x-full'
-            }`}
-          >
-            <div className="w-full flex flex-col items-center overflow-y-auto">
-              <TransactionTable
-                expenses={expenses}
-                incomes={incomes}
-                loading={loading}
-                currentMonth={currentMonth}
-                currentYear={currentYear}
-                onNavigateMonth={navigateMonth}
-                getMonthName={getMonthName}
-                onBackClick={hideTransactionTableWithAnimation}
-                onRefreshData={() => fetchData(true)}
-              />
-            </div>
+          <div className="flex items-center">
+            <AppsGrid
+              trigger={
+                <Button
+                  variant="default"
+                  className="flex items-center px-3 h-fit"
+                >
+                  <LayoutGrid size={14} /> Apps
+                </Button>
+              }
+              useHardReload={false}
+            />
+            <UserMenu isDemoMode={isDemoMode} />
           </div>
         </div>
-      </div>
 
-      {/* Bottom Navigation */}
-      <div className="flex gap-2 p-3 mb-0 bg-white w-full flex-shrink-0 rounded-b-lg">
-        <Button
-          variant="secondary"
-          className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent"
-          onClick={() => setIsBudgetDrawerOpen(true)}
-        >
-          <Zap className="w-3 h-3 mr-1" />
-          Anggaran
-        </Button>
-        <Drawer open={isDrawerOpen} onOpenChange={(open) => {
-          setIsDrawerOpen(open)
-          // Reset drawer key to remount Settings component
-          if (!open) {
-            setDrawerKey(prev => prev + 1)
-          }
-        }}>
-          <DrawerTrigger asChild>
-            <Button variant="secondary" className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent">
-              <SettingsIcon className="w-3 h-3 mr-1" />
-              Pengaturan
-            </Button>
-          </DrawerTrigger>
-          <DrawerContent className="max-h-[80vh] w-full max-w-sm mx-auto flex flex-col">
-            <DrawerHeader className="flex-shrink-0">
-              <DrawerTitle>Settings</DrawerTitle>
-            </DrawerHeader>
-            <div className="flex-1 overflow-hidden">
-              <Settings
-                key={drawerKey}
-                expenseCategories={expenseCategories}
-                incomeCategories={incomeCategories}
-                userEmail={session?.user?.email || ''}
-                loading={loading}
-                onCategoriesUpdated={fetchUserCategories}
-              />
+        {/* Main Content */}
+        <div className="flex-1 bg-white rounded-t-3xl px-4 pt-4 pb-0 w-full overflow-hidden flex flex-col items-center relative">
+
+          {/* Chart or Transaction Table Section */}
+          <div className="w-full h-full relative overflow-hidden">
+            {/* Chart Section */}
+            <div
+              className={`absolute inset-0 transition-transform duration-300 ease-in-out ${showTransactionTable ? 'transform -translate-x-full' : 'transform translate-x-0'
+                }`}
+            >
+              <div className="w-full flex flex-col items-center overflow-y-auto">
+                <Chart
+                  data={chartData}
+                  totalIncome={totalIncome}
+                  totalExpenses={totalExpenses}
+                  balance={balance}
+                  loading={loading}
+                  mode={chartMode}
+                  chartType={chartType}
+                  currentMonth={currentMonth}
+                  currentYear={currentYear}
+                  onNavigateMonth={navigateMonth}
+                  onChartTypeSwitch={handleChartTypeSwitch}
+                  canNavigatePrev={false}
+                  canNavigateNext={false}
+                  getMonthName={getMonthName}
+                  expenses={expenses}
+                  incomes={incomes}
+                  monthlyBudget={monthlyBudget}
+                  budgetLoading={budgetLoading}
+                  budgetsLoaded={budgetsLoaded}
+                  onOpenBudgetDrawer={() => setIsBudgetDrawerOpen(true)}
+                  onShowDetails={showTransactionTableWithAnimation}
+                />
+
+                {/* Form Section - Only show when chart is visible */}
+                <ExpenseForm
+                  onSubmit={handleFormSubmit}
+                  loading={formLoading}
+                  onCategorySwitch={handleCategorySwitch}
+                  isDemoMode={isDemoMode}
+                />
+              </div>
             </div>
-          </DrawerContent>
-        </Drawer>
+
+            {/* Transaction Table Section */}
+            <div
+              className={`absolute inset-0 transition-transform duration-300 ease-in-out ${showTransactionTable ? 'transform translate-x-0' : 'transform translate-x-full'
+                }`}
+            >
+              <div className="w-full flex flex-col items-center overflow-y-auto">
+                <TransactionTable
+                  expenses={expenses}
+                  incomes={incomes}
+                  loading={loading}
+                  currentMonth={currentMonth}
+                  currentYear={currentYear}
+                  onNavigateMonth={navigateMonth}
+                  getMonthName={getMonthName}
+                  onBackClick={hideTransactionTableWithAnimation}
+                  onRefreshData={() => fetchData(true)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="flex gap-2 p-3 mb-0 bg-white w-full flex-shrink-0 rounded-b-lg">
+          <Button
+            variant="secondary"
+            className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent"
+            onClick={() => setIsBudgetDrawerOpen(true)}
+          >
+            <Zap className="w-3 h-3 mr-1" />
+            Anggaran
+          </Button>
+          <Drawer open={isDrawerOpen} onOpenChange={(open) => {
+            setIsDrawerOpen(open)
+            // Reset drawer key to remount Settings component
+            if (!open) {
+              setDrawerKey(prev => prev + 1)
+            }
+          }}>
+            <DrawerTrigger asChild>
+              <Button variant="secondary" className="rounded-full flex-1 h-8 text-xs border border-gray-300 shadow-none hover:shadow-none hover:translate-x-0 hover:translate-y-0 bg-transparent">
+                <SettingsIcon className="w-3 h-3 mr-1" />
+                Pengaturan
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent className="max-h-[80vh] w-full max-w-sm mx-auto flex flex-col">
+              <DrawerHeader className="flex-shrink-0">
+                <DrawerTitle>Settings</DrawerTitle>
+              </DrawerHeader>
+              <div className="flex-1 overflow-hidden">
+                <Settings
+                  key={drawerKey}
+                  expenseCategories={expenseCategories}
+                  incomeCategories={incomeCategories}
+                  userEmail={session?.user?.email || ''}
+                  loading={loading}
+                  onCategoriesUpdated={fetchUserCategories}
+                />
+              </div>
+            </DrawerContent>
+          </Drawer>
         </div>
 
         {/* Footer */}

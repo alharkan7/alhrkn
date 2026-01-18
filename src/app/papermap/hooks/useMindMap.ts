@@ -65,23 +65,23 @@ export function useMindMap() {
   } = useMindMapNodeManagement({
     nodes, setNodes, edges, setEdges, mindMapData, setMindMapData, onNodesChangeOriginal,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
-    addFollowUpNodeRef, 
+    addFollowUpNodeRef,
     deleteNodeRef,
     currentLayout, // Pass the derived layout object
     toggleChildrenVisibility,
     collapsedNodes,
-    setCollapsedNodes, 
+    setCollapsedNodes,
   });
 
   const {
     handleResetView,
     cycleLayout,
   } = useMindMapLayout({
-    mindMapData, nodes, setNodes, edges, setEdges, 
+    mindMapData, nodes, setNodes, edges, setEdges,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
     previousLayoutIndexRef,
     positionsToApplyRef,
-    addFollowUpNodeRef, 
+    addFollowUpNodeRef,
     deleteNodeRef,
     updateNodeData,
     nodePositions,
@@ -99,9 +99,13 @@ export function useMindMap() {
     loadExampleMindMap,
     handleFileUpload,
     handleTextInput,
+    handleFileUploadStreaming,
+    handleTextInputStreaming,
+    handleFileUploadRealtime,
+    handleTextInputRealtime,
     // generateInitialMindMap, // Usually not called directly from UI
   } = useMindMapDataProcessing({
-    setLoading, setLoadingStage, setError, setUploadError, setMindMapData, 
+    setLoading, setLoadingStage, setError, setUploadError, setMindMapData,
     setPdfUrl, setFileName, setNodes, setEdges, setNodePositions, setCollapsedNodes,
     reactFlowInstanceRef: reactFlowInstance, // Pass the ref itself
   });
@@ -131,6 +135,10 @@ export function useMindMap() {
     onEdgesChange,    // Original from useMindMapState/useEdgesState
     handleFileUpload, // From useMindMapDataProcessing
     handleTextInput,  // From useMindMapDataProcessing
+    handleFileUploadStreaming, // Phase 2: Progressive streaming
+    handleTextInputStreaming,  // Phase 2: Progressive streaming
+    handleFileUploadRealtime,  // Phase 3: Real-time node-by-node streaming
+    handleTextInputRealtime,   // Phase 3: Real-time node-by-node streaming
     addFollowUpNode,  // Direct function from useMindMapNodeManagement
     deleteNode,       // Direct function from useMindMapNodeManagement
     handleResetView,  // From useMindMapLayout
@@ -140,6 +148,7 @@ export function useMindMap() {
     setFileName,      // <-- Expose setFileName here
     setLoading,       // <-- Expose setLoading here
     currentLayoutIndex, // From this hook's state
+    setCurrentLayoutIndex, // <-- Expose setCurrentLayoutIndex for programmatic layout change
     cycleLayout,      // From useMindMapLayout
     // fileLoading, // Expose if needed by UI, from useMindMapState
     layoutInitialized, // Expose for MindMapFlow if needed, or for debugging
