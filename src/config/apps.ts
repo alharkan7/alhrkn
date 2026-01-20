@@ -39,10 +39,10 @@ export const apps: AppConfig[] = [
     description: 'Visualize Vast Timeline in an Interactive Way',
   },
   {
-    name: 'Hoax Networks 2025',
+    name: 'Hoax Network',
     icon: Snowflake,
     slug: 'hoax-visualizer-2025',
-    description: 'Stunning Visualization of 2025 Indonesian Hoaxes',
+    description: 'Explore Hoaxes Data in Interactive Viz',
   },
   {
     name: 'Disposable Chat',
