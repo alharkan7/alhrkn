@@ -43,8 +43,8 @@ const CONFIG = {
     nodeBaseSize: 3,
     nodeOpacityActive: 1,
     nodeOpacityFaded: 0.8,
-    linkOpacity: 0.25,
-    linkWidth: 0.4,
+    linkOpacity: 0.3, // Increased from 0.25
+    linkWidth: 0.8, // Increased from 0.4
     cameraOrbitSpeed: 0.0005,
     cameraDistance: 800,
     cameraMinDistance: 50,
@@ -82,7 +82,9 @@ export default function VisualizerClient() {
         addedNodeIds: new Set<string>(),
         addedLinkIds: new Set<string>(),
         sharedNodeGeometry: null as THREE.SphereGeometry | null,
+
         speed: 1,
+        highlightedCategory: null as string | null,
     });
 
     // UI State (triggers re-render)
@@ -95,9 +97,22 @@ export default function VisualizerClient() {
     const [isLoading, setIsLoading] = useState(true);
     const [autoOrbit, setAutoOrbit] = useState(true);
     const [autoZoom, setAutoZoom] = useState(true);
+    const [showLegend, setShowLegend] = useState(false);
 
     // Info Panel State
+    // Info Panel State
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    const [highlightedCategory, setHighlightedCategory] = useState<string | null>(null);
+
+    // Sync stateRef for access inside non-reactive graph loops/functions
+    useEffect(() => {
+        stateRef.current.highlightedCategory = highlightedCategory;
+        if (graphRef.current) {
+            // Trigger update to apply new colors
+            graphRef.current.nodeColor(graphRef.current.nodeColor());
+            graphRef.current.linkColor(graphRef.current.linkColor());
+        }
+    }, [highlightedCategory]);
 
     useEffect(() => {
         let ForceGraph3D: any;
@@ -160,8 +175,7 @@ export default function VisualizerClient() {
                     break;
                 case 'o':
                 case 'O':
-                    stateRef.current.autoOrbit = !stateRef.current.autoOrbit;
-                    setAutoOrbit(stateRef.current.autoOrbit);
+                    toggleAutoOrbit();
                     break;
                 case 'f':
                 case 'F':
@@ -226,6 +240,16 @@ export default function VisualizerClient() {
 
     const getNodeColor = (node: Node) => {
         const { categoryColors, titleTagColors } = stateRef.current.data!;
+        const activeCategory = stateRef.current.highlightedCategory;
+
+        // If a category is highlighted and this node doesn't match, return faded color
+        if (activeCategory) {
+            const nodeCategory = node.titleTag || node.category;
+            if (nodeCategory !== activeCategory) {
+                return 'rgba(255, 255, 255, 0.1)'; // Faded gray for non-matches
+            }
+        }
+
         if (node.titleTag && titleTagColors && titleTagColors[node.titleTag]) {
             return titleTagColors[node.titleTag];
         }
@@ -237,9 +261,23 @@ export default function VisualizerClient() {
 
     const getLinkColor = (link: Link) => {
         const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source;
+        const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target;
         const sourceNode = stateRef.current.nodesById[sourceId as string];
+        const targetNode = stateRef.current.nodesById[targetId as string];
+
+        const activeCategory = stateRef.current.highlightedCategory;
+
+        // If filter active, fade links not connecting two visible nodes
+        if (activeCategory && sourceNode && targetNode) {
+            const sourceCat = sourceNode.titleTag || sourceNode.category;
+            const targetCat = targetNode.titleTag || targetNode.category;
+            if (sourceCat !== activeCategory || targetCat !== activeCategory) {
+                return 'rgba(255, 255, 255, 0.05)';
+            }
+        }
+
         if (sourceNode) {
-            return getNodeColor(sourceNode);
+            return getNodeColor(sourceNode); // This handles the match color logic too
         }
         return CONFIG.linkColor;
     };
@@ -252,16 +290,16 @@ export default function VisualizerClient() {
         canvas.width = 400;
         canvas.height = 100;
 
-        context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        context.beginPath();
-        // @ts-ignore - roundRect might not be in TS definition yet or needs polyfill check, but standard now
-        if (context.roundRect) context.roundRect(5, 5, canvas.width - 10, canvas.height - 10, 15);
-        else context.rect(5, 5, canvas.width - 10, canvas.height - 10);
-        context.fill();
+        // context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        // context.beginPath();
+        // // @ts-ignore - roundRect might not be in TS definition yet or needs polyfill check, but standard now
+        // if (context.roundRect) context.roundRect(5, 5, canvas.width - 10, canvas.height - 10, 15);
+        // else context.rect(5, 5, canvas.width - 10, canvas.height - 10);
+        // context.fill();
 
-        context.strokeStyle = color.getStyle ? color.getStyle() : color;
-        context.lineWidth = 2;
-        context.stroke();
+        // // context.strokeStyle = color.getStyle ? color.getStyle() : color;
+        // context.lineWidth = 2;
+        // context.stroke();
 
         context.font = 'bold 28px Inter, Arial, sans-serif';
         context.textAlign = 'center' as CanvasTextAlign;
@@ -326,7 +364,7 @@ export default function VisualizerClient() {
             const progress = Math.min(elapsed / CONFIG.labelDuration, 1);
 
             if (progress < 1) {
-                const sprite = createTextSprite(node.titleTag || node.category || '', color);
+                const sprite = createTextSprite(labelInfo.text, color);
                 const riseHeight = 15 + progress * 25;
                 sprite.position.set(0, riseHeight, 0);
 
@@ -387,7 +425,7 @@ export default function VisualizerClient() {
             .nodeThreeObjectExtend(true) // We want the glow/labels added ON TOP
             .linkColor((link: any) => getLinkColor(link as Link))
             .linkOpacity(CONFIG.linkOpacity)
-            .linkWidth(0.5)
+            .linkWidth(CONFIG.linkWidth) // Use config value
             .numDimensions(3)
             .d3AlphaDecay(0.04)
             .d3VelocityDecay(0.3)
@@ -455,8 +493,12 @@ export default function VisualizerClient() {
 
             controls.addEventListener('start', () => {
                 stateRef.current.userInteracting = true;
+
+                // Update state refs directly
                 stateRef.current.autoOrbit = false;
                 stateRef.current.autoZoom = false;
+
+                // Update React state to reflect in UI buttons immediately
                 setAutoOrbit(false);
                 setAutoZoom(false);
 
@@ -537,10 +579,21 @@ export default function VisualizerClient() {
                     stateRef.current.currentNodes.push(node);
                     stateRef.current.addedNodeIds.add(nodeId);
                     stateRef.current.glowingNodes.set(nodeId, Date.now());
+                    // Option 1: Use first keyword, fallback to truncated title or category
+                    let labelText = '';
+                    if (node.keywords && node.keywords.length > 0) {
+                        labelText = node.keywords[0];
+                    } else if (node.title) {
+                        labelText = node.title.split(' ').slice(0, 2).join(' '); // First 2 words of title
+                    } else {
+                        labelText = node.titleTag || node.category || 'HOAX';
+                    }
+
                     stateRef.current.floatingLabels.set(nodeId, {
                         startTime: Date.now(),
-                        text: node.titleTag || node.category || ''
+                        text: labelText
                     });
+
                     nodesAdded = true;
                 }
             }
@@ -650,6 +703,29 @@ export default function VisualizerClient() {
         animate();
     };
 
+    const toggleAutoOrbit = () => {
+        const newAutoOrbit = !stateRef.current.autoOrbit;
+        stateRef.current.autoOrbit = newAutoOrbit;
+        setAutoOrbit(newAutoOrbit);
+
+        if (newAutoOrbit && graphRef.current) {
+            // RESUME ORBIT SMOOTHLY: Sync state with current camera position
+            const camPos = graphRef.current.cameraPosition();
+            const center = stateRef.current.networkCenter;
+            const dx = camPos.x - center.x;
+            const dz = camPos.z - center.z;
+
+            CONFIG.cameraDistance = Math.sqrt(dx * dx + dz * dz);
+            stateRef.current.orbitAngle = Math.atan2(dx, dz);
+        }
+    };
+
+    const toggleAutoZoom = () => {
+        const newAutoZoom = !stateRef.current.autoZoom;
+        stateRef.current.autoZoom = newAutoZoom;
+        setAutoZoom(newAutoZoom);
+    };
+
     const calculateNetworkCenter = () => {
         if (stateRef.current.currentNodes.length === 0) return { x: 0, y: 0, z: 0 };
         let sumX = 0, sumY = 0, sumZ = 0;
@@ -696,6 +772,11 @@ export default function VisualizerClient() {
 
         if (graphRef.current) {
             graphRef.current.cameraPosition(pos, center, animate ? 1500 : 0);
+
+            // Sync internal state with the target position so it doesn't snap back if auto-orbit resumes
+            const dx = pos.x - center.x;
+            const dz = pos.z - center.z;
+            stateRef.current.orbitAngle = Math.atan2(dx, dz);
         }
     };
 
@@ -777,21 +858,17 @@ export default function VisualizerClient() {
                     <div className="control-group">
                         <button
                             className="control-btn"
-                            onClick={() => {
-                                stateRef.current.autoOrbit = !stateRef.current.autoOrbit;
-                                setAutoOrbit(stateRef.current.autoOrbit);
-                            }}
+                            onClick={toggleAutoOrbit}
                             style={{ borderColor: autoOrbit ? 'var(--accent-primary)' : '', color: autoOrbit ? 'var(--accent-primary)' : '' }}
+                            title="Toggle Auto-Orbit"
                         >
                             <svg className="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg>
                         </button>
                         <button
                             className="control-btn"
-                            onClick={() => {
-                                stateRef.current.autoZoom = !stateRef.current.autoZoom;
-                                setAutoZoom(stateRef.current.autoZoom);
-                            }}
+                            onClick={toggleAutoZoom}
                             style={{ borderColor: autoZoom ? 'var(--accent-primary)' : '', color: autoZoom ? 'var(--accent-primary)' : '' }}
+                            title="Toggle Auto-Zoom"
                         >
                             <svg className="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /><path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2v1z" /></svg>
                         </button>
@@ -846,19 +923,47 @@ export default function VisualizerClient() {
 
                 {/* Legend Panel */}
                 {legendItems.length > 0 && (
-                    <div className="legend-panel pointer-events-auto hidden md:block">
-                        <h4 style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 'var(--space-sm)' }}>
-                            Categories
-                        </h4>
-                        <div className="legend-items">
-                            {legendItems.map((item, i) => (
-                                <div key={i} className="legend-item">
-                                    <span className="legend-color" style={{ background: item.color, color: item.color }}></span>
-                                    <span>{item.tag}</span>
-                                </div>
-                            ))}
+                    <>
+                        {!showLegend && (
+                            <button
+                                id="legend-toggle"
+                                className="control-btn"
+                                onClick={() => setShowLegend(true)}
+                                title="Show Legend"
+                            >
+                                <svg className="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" />
+                                </svg>
+                            </button>
+                        )}
+
+                        <div className={`legend-panel pointer-events-auto hidden md:block ${showLegend ? 'visible' : ''}`}>
+                            <button
+                                className="close-btn legend-close-btn"
+                                onClick={() => setShowLegend(false)}
+                                style={{ top: '0.5rem', right: '0.5rem', fontSize: '1.2rem' }}
+                            >&times;</button>
+                            <h4 style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 'var(--space-sm)' }}>
+                                Categories
+                            </h4>
+                            <div className="legend-items">
+                                {legendItems.map((item, i) => (
+                                    <div
+                                        key={i}
+                                        className="legend-item"
+                                        onClick={() => setHighlightedCategory(highlightedCategory === item.tag ? null : item.tag)}
+                                        style={{
+                                            cursor: 'pointer',
+                                            opacity: highlightedCategory && highlightedCategory !== item.tag ? 0.3 : 1
+                                        }}
+                                    >
+                                        <span className="legend-color" style={{ background: item.color, color: item.color }}></span>
+                                        <span>{item.tag}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
 
             </div>

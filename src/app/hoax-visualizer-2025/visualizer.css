@@ -610,6 +610,11 @@ body {
 /* ============================================
    Responsive Design
    ============================================ */
+#legend-toggle,
+.legend-close-btn {
+    display: none !important;
+}
+
 @media (max-width: 768px) {
     .title-bar {
         padding: var(--space-sm) var(--space-md);
@@ -759,6 +764,10 @@ body {
         top: 90px;
         left: 1rem;
         z-index: 50;
+    }
+
+    .legend-close-btn {
+        display: flex !important;
     }
 
     /* Should hide toggle when legend is visible? handled in JS or distinct position */
