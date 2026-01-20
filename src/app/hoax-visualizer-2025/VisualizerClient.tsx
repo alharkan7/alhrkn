@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
+import Link from 'next/link';
 
 // Types
 interface Node {
@@ -815,9 +816,17 @@ export default function VisualizerClient() {
 
                 {/* Title Bar */}
                 <header className="title-bar pointer-events-auto">
-                    <div className="title-content">
-                        <h1>Hoax Text Network</h1>
-                        <span className="subtitle">TurnBackHoax.id Dataset of 2025</span>
+                    <div className="flex items-center gap-4">
+                        {/* Home Button */}
+                        <Link href="/" className="control-btn" style={{ border: 'none', background: 'transparent', padding: 0 }} title="Back to Home">
+                            <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: '24px', height: '24px' }}>
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                            </svg>
+                        </Link>
+                        <div className="title-content">
+                            <h1>Hoax Text Network</h1>
+                            <span className="subtitle">TurnBackHoax.id Dataset of 2025</span>
+                        </div>
                     </div>
                     <div className="stats-container">
                         <div className="stat-item">
