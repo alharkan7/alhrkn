@@ -1,4 +1,4 @@
-import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network } from 'lucide-react'
+import { Clock, PenTool, Sparkles, Languages, LucideIcon, Infinity, Wallet, Waypoints, Feather, SquareKanban, Network, Snowflake } from 'lucide-react'
 
 export interface AppConfig {
   name: string
@@ -37,6 +37,12 @@ export const apps: AppConfig[] = [
     icon: Clock,
     slug: 'vast-timeline',
     description: 'Visualize Vast Timeline in an Interactive Way',
+  },
+  {
+    name: 'Hoax Networks 2025',
+    icon: Snowflake,
+    slug: 'hoax-visualizer-2025',
+    description: 'Stunning Visualization of 2025 Indonesian Hoaxes',
   },
   {
     name: 'Disposable Chat',
