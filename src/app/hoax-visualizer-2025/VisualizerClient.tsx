@@ -498,12 +498,12 @@ export default function VisualizerClient() {
                 stateRef.current.userInteracting = true;
 
                 // Update state refs directly
-                stateRef.current.autoOrbit = false;
-                stateRef.current.autoZoom = false;
+                // stateRef.current.autoOrbit = false; // User requested to keep auto orbit compliant
+                // stateRef.current.autoZoom = false;
 
                 // Update React state to reflect in UI buttons immediately
-                setAutoOrbit(false);
-                setAutoZoom(false);
+                // setAutoOrbit(false);
+                // setAutoZoom(false);
 
                 if (stateRef.current.isPlaying) pauseAnimation();
                 if (stateRef.current.interactionTimeout) clearTimeout(stateRef.current.interactionTimeout);
@@ -690,27 +690,36 @@ export default function VisualizerClient() {
                 return;
             }
 
-            if (stateRef.current.userInteracting) {
-                // SYNC MODE: User is driving. We just watch and update our state.
-                const camPos = graphRef.current.cameraPosition();
-                const center = stateRef.current.networkCenter;
+            // AUTO ORBIT LOGIC
+            // We only apply orbit if enabled and user is NOT interacting
+            if (stateRef.current.autoOrbit && !stateRef.current.userInteracting && graphRef.current) {
+                const graph = graphRef.current;
 
-                const dx = camPos.x - center.x;
-                const dz = camPos.z - center.z;
+                // Get current camera state
+                const currentPos = graph.cameraPosition();
 
-                // Update config to match user's position so when they let go, it continues from here
-                CONFIG.cameraDistance = Math.sqrt(dx * dx + dz * dz);
-                stateRef.current.orbitAngle = Math.atan2(dx, dz);
-            } else if (stateRef.current.autoOrbit) {
-                stateRef.current.orbitAngle += CONFIG.cameraOrbitSpeed * stateRef.current.speed;
-                const center = stateRef.current.networkCenter;
-                const dist = CONFIG.cameraDistance;
+                // Get looking target (Pan support). Fallback to networkCenter if controls undefined
+                const controls = graph.controls();
+                // Use the controls specific target as the orbit center to respect PAN
+                const target = controls ? controls.target : new THREE.Vector3(stateRef.current.networkCenter.x, stateRef.current.networkCenter.y, stateRef.current.networkCenter.z);
 
-                const x = center.x + dist * Math.sin(stateRef.current.orbitAngle);
-                const z = center.z + dist * Math.cos(stateRef.current.orbitAngle);
-                const y = center.y + dist * 0.2 * Math.sin(stateRef.current.orbitAngle * 0.5);
+                // Convert position relative to target to Spherical coordinates
+                const offset = new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z).sub(target);
+                const spherical = new THREE.Spherical().setFromVector3(offset);
 
-                graphRef.current.cameraPosition({ x, y, z }, center, 0);
+                // Increment Theta (horizontal rotation)
+                spherical.theta += CONFIG.cameraOrbitSpeed * 0.5 * stateRef.current.speed;
+
+                // Convert back to Cartesian
+                const newOffset = new THREE.Vector3().setFromSpherical(spherical);
+                const newPos = new THREE.Vector3().copy(target).add(newOffset);
+
+                // Apply new position while maintaining the same target (LookAt)
+                graph.cameraPosition(
+                    { x: newPos.x, y: newPos.y, z: newPos.z },
+                    { x: target.x, y: target.y, z: target.z },
+                    0 // Instant update
+                );
             }
 
             requestAnimationFrame(animate);
