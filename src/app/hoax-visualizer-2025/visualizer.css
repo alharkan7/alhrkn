@@ -470,6 +470,7 @@ body {
 .info-panel {
     position: absolute;
     top: 50%;
+    z-index: 50; /* Ensure on top of carousel (z-10) */
     right: var(--space-lg);
     transform: translateY(-50%);
     width: 320px;
