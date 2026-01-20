@@ -103,6 +103,8 @@ export default function VisualizerClient() {
     // Info Panel State
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [highlightedCategory, setHighlightedCategory] = useState<string | null>(null);
+    const [recentLabels, setRecentLabels] = useState<{ id: string, text: string, timestamp: number }[]>([]);
+    const [showCarousel, setShowCarousel] = useState(true);
 
     // Sync stateRef for access inside non-reactive graph loops/functions
     useEffect(() => {
@@ -594,6 +596,18 @@ export default function VisualizerClient() {
                         text: labelText
                     });
 
+                    // Add to recent labels for carousel UI
+                    const newLabel = { id: nodeId, text: labelText, timestamp: Date.now() };
+                    // We need to update the React state to render this. 
+                    // Since this runs in an animation loop, we should be careful.
+
+                    setRecentLabels(prev => {
+                        const updated = [...prev, newLabel];
+                        // Keep 7 items to have a smooth flow (3 above, 1 center, 3 below roughly)
+                        if (updated.length > 7) return updated.slice(updated.length - 7);
+                        return updated;
+                    });
+
                     nodesAdded = true;
                 }
             }
@@ -965,6 +979,95 @@ export default function VisualizerClient() {
                         </div>
                     </>
                 )}
+
+
+                {/* Vertical Text Carousel (Right Side) */}
+                {/* Mobile Toggle Button for Carousel */}
+                {!showCarousel && (
+                    <button
+                        className="control-btn md:hidden"
+                        onClick={() => setShowCarousel(true)}
+                        title="Show Text Stream"
+                        style={{ position: 'absolute', right: '1rem', top: '90px', zIndex: 20 }}
+                    >
+                        <svg className="icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" />
+                        </svg>
+                    </button>
+                )}
+
+
+
+                <div
+                    className={`absolute right-4 md:right-8 flex-col items-end gap-1 pointer-events-none z-10 ${showCarousel ? 'flex' : 'hidden'} md:flex top-[90px] md:top-1/2 md:-translate-y-1/2`}
+                >
+                    {/* Close Button (Mobile Only) - Outside the masked area so it's not faded */}
+                    <button
+                        className="pointer-events-auto md:hidden mb-2 text-white/50 hover:text-white"
+                        onClick={() => setShowCarousel(false)}
+                        style={{ fontSize: '1.5rem', lineHeight: '1', zIndex: 30 }}
+                    >
+                        &times;
+                    </button>
+
+                    <div style={{
+                        maxHeight: '200px',
+                        overflow: 'hidden',
+                        maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        width: '100%'
+                    }}>
+
+
+                        {recentLabels.map((label, index) => {
+                            // Simplified 2D Logic:
+                            // Just use distance from center for opacity/scale.
+                            const listLength = recentLabels.length;
+                            const centerIndex = (listLength - 1) / 2;
+                            const dist = Math.abs(index - centerIndex);
+
+                            // Fading: Center is 1.0, edges drop to ~0.3
+                            const opacity = Math.max(0.3, 1 - (dist * 0.25));
+
+                            // Scale: Center is 1.0, edges drop to ~0.85
+                            const scale = Math.max(0.85, 1 - (dist * 0.05));
+
+                            // Blur edges slightly for depth effect without 3D
+                            const blur = dist > 1.5 ? 'blur(1px)' : 'none';
+
+                            return (
+                                <div
+                                    key={label.id}
+                                    className="text-right font-bold text-accent-primary"
+                                    style={{
+                                        textShadow: opacity > 0.8 ? '0 0 12px rgba(0, 242, 255, 0.6)' : 'none',
+                                        fontSize: '1.2rem',
+                                        height: '30px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'flex-end',
+
+                                        // 2D Transformations only
+                                        opacity: opacity,
+                                        transform: `scale(${scale})`,
+                                        filter: blur,
+                                        transformOrigin: 'right center',
+                                        transition: 'all 0.4s ease-out', // Standard smooth transition
+
+                                        whiteSpace: 'nowrap',
+                                        width: '100%'
+                                    }}
+                                >
+                                    {label.text}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
 
             </div>
         </div>
