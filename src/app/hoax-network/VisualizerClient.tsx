@@ -36,7 +36,7 @@ interface Data {
 
 // Configuration
 const CONFIG = {
-    dataUrl: '/hoax-visualizer-2025/data/processed.json',
+    dataUrl: '/hoax-network/data/processed.json',
     animationSpeed: 1,
     nodeAppearDuration: 1500,
     dateDuration: 800,
