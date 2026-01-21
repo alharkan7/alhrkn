@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     '@google/generative-ai',
     '@google/generative-ai/server',
     'googleapis',
+    'rimraf',
   ],
   // Exclude only unnecessary files from tracing
   outputFileTracingExcludes: {
