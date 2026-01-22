@@ -68,12 +68,6 @@ export const apps: AppConfig[] = [
     slug: 'dnanalyzer',
     description: 'Automatic Discourse Extractor for DNAnalyzer',
   },
-  //{
-  //name: "Writer's Unblock",
-  //icon: Feather,
-  //slug: 'scholar',
-  //description: "Overcome Writer's Unblock by Having AI Suggest the Next Ideas For You",
-  //},
   {
     name: 'More Apps',
     icon: Infinity,

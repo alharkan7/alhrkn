@@ -46,7 +46,7 @@ const CONFIG = {
     nodeOpacityFaded: 0.8,
     linkOpacity: 0.3, // Increased from 0.25
     linkWidth: 0.8, // Increased from 0.4
-    cameraOrbitSpeed: 0.0005,
+    cameraOrbitSpeed: 0.001,
     cameraDistance: 800,
     cameraMinDistance: 50,
     cameraMaxDistance: 10000,
